@@ -1,0 +1,24 @@
+{
+  "name": "fishvn",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:server\"",
+    "dev:frontend": "npm run dev --prefix apps/frontend",
+    "dev:server": "npm run dev --prefix apps/server",
+    "build": "npm run build --prefix apps/frontend",
+    "check:frontend": "npm run check:frontend --prefix apps/frontend",
+    "typecheck": "npm run typecheck --prefix apps/server",
+    "test": "npm test --prefix apps/server"
+  },
+  "allowScripts": {
+    "better-sqlite3": true
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
