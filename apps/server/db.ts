@@ -22,6 +22,16 @@ export function ensureSchema(db: Db): void {
       vndb_id    TEXT UNIQUE,
       created_at INTEGER NOT NULL
     );
+
+    -- 用户状态：每部作品一行，随作品一同建立、随作品删除而清除。
+    CREATE TABLE IF NOT EXISTS user_game_state (
+      game_id        TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+      status         TEXT NOT NULL DEFAULT 'wishlist',
+      user_rating    REAL,
+      notes          TEXT,
+      last_played_at INTEGER,
+      play_count     INTEGER NOT NULL DEFAULT 0
+    );
   `);
 }
 

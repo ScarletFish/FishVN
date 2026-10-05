@@ -1,27 +1,17 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { after, before, test } from 'node:test';
+import { startTestServer } from './helper.js';
 
-// DATA_DIR 在模块加载时求值，必须先设好再动态 import，否则会写到真实 data/
-const dataDir = mkdtempSync(join(tmpdir(), 'fishvn-games-'));
-process.env.FISHVN_DATA_DIR = dataDir;
-const { startServer } = await import('../../../dist/server/server.js');
-const { closeDb } = await import('../../../dist/server/db.js');
-
+let server;
 let base = '';
-let running;
 
 before(async () => {
-  running = await startServer(0, '127.0.0.1');
-  base = `http://127.0.0.1:${running.port}`;
+  server = await startTestServer();
+  base = server.base;
 });
 
 after(async () => {
-  await running.close();
-  closeDb();
-  rmSync(dataDir, { recursive: true, force: true });
+  await server.stop();
 });
 
 async function post(body) {
@@ -99,6 +89,24 @@ test('建条目时可以带上 vndb_id', async () => {
   const { status, body } = await post({ name: '命中', vndb_id: 'v20001' });
   assert.equal(status, 201);
   assert.equal(body.game.vndb_id, 'v20001');
+});
+
+test('建条目撞上已占用的 vndb_id 返回 409，事务不留下残行', async () => {
+  const first = await post({ name: '先到', vndb_id: 'v20010' });
+  assert.equal(first.status, 201);
+
+  const second = await post({ name: '后到', vndb_id: 'v20010' });
+  assert.equal(second.status, 409);
+  assert.match(second.body.error, /占用/);
+
+  const { games } = await fetch(`${base}/api/games`).then((r) => r.json());
+  assert.equal(games.filter((g) => g.name === '后到').length, 0, '失败的作品不应留下 games 行');
+
+  // 事务回滚也要带走状态行，否则会出现没有作品的孤儿状态
+  const states = await Promise.all(
+    games.map((g) => fetch(`${base}/api/games/${g.id}/state`).then((r) => r.status))
+  );
+  assert.equal(states.every((s) => s === 200), true, '不应出现没有作品的孤儿状态');
 });
 
 test('GET 列出全部条目，按创建时间倒序', async () => {

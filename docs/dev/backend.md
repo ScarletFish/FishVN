@@ -68,6 +68,14 @@ scanned_paths      1:N 扫描到的物理目录事实
   重复绑定回 409，提示该作品已存在
 - 一部作品对应多个安装时（汉化版 / 原版 / 不同盘），`installations.dir_path` 唯一
 
+### 游玩状态
+
+取值 `wishlist` / `playing` / `finished` / `dropped`，与 VNDB 的状态集一致，双向同步时映射是恒等。
+定义在 `types.ts` 的 `STATUSES`，路由层按它校验，表上不加 `CHECK`——SQLite 改约束要重建整张表。
+
+新建作品时在同一事务里带上 `status = 'wishlist'` 的状态行，所以每部作品必然有状态，
+读状态接口不需要处理「不存在」。删作品时状态随外键级联清除。
+
 ### VNDB
 
 `lib/vndb.ts` 是访问 VNDB 的唯一出口。`vndb_id` 的校验在读的一侧做：搜索接口返回的候选直接来自 VNDB，
@@ -82,6 +90,8 @@ scanned_paths      1:N 扫描到的物理目录事实
 | POST | `/api/games` | 新建；`name` 必填，`vndb_id` 可选 |
 | PATCH | `/api/games/:id` | 改 `name` / `vndb_id`；`vndb_id: null` 解绑 |
 | DELETE | `/api/games/:id` | 删作品，关联记录随外键级联清除 |
+| GET | `/api/games/:id/state` | 读状态、评分、笔记 |
+| PATCH | `/api/games/:id/state` | 改 `status` / `user_rating` / `notes` |
 
 响应统一包一层：`{ games }` / `{ game }` / `{ error }`。DELETE 成功回 204 无正文。
 
