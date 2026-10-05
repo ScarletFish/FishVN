@@ -77,5 +77,28 @@ chrome 尺寸固定，不随视口缩放：侧栏 `3.75rem`（60px），标题�
 - [ ] 只引用 L2/L3，没有直连 L1 原始值
 - [ ] 样式归属正确文件（scoped / components / views）
 - [ ] 复用优先：先查过已有组件类
+- [ ] 面向用户的文案走 `t()`，无硬编码
 - [ ] 跑过 `npm run check:frontend`
+
+## 文案
+
+界面文案一律走 `lib/i18n.js` 的 `t()`，词条按命名空间集中在 `lib/i18n-zh.js`，命名沿用 `ns.key`（`nav.library` `library.title`）。`t()` 缺失词条回落 key，调试时能直接看出漏了哪条。
+
+locale 跟随系统语言，只在已登记语言中匹配（全名 `zh-CN` → 基名 `zh` → fallback）。加语言只需扩 `i18n.js` 里的 `DICT`。
+
+需要运行时切换 locale 时，把 `lib/i18n.js` 改名 `i18n.svelte.js` 并把状态包成对象—— 见下。
+
+### runes 与文件扩展名
+
+runes（`$state` `$derived` `$effect` `$props`）**只在 `.svelte` / `.svelte.js` / `.svelte.ts` 里可用**，普通 `.js` 写了会运行时抛 `rune_outside_svelte`（构建和 `check:frontend` 都不拦，只有打开页面才炸）。
+
+共享响应式状态放 `.svelte.js`。跨模块导出 state 必须包一层对象，直接 `export let x = $state(0)` 会被编译器拒绝：
+
+```js
+// ✅ lib/store.svelte.js
+export const locale = $state({ current: 'zh-CN' });
+
+// ❌
+export let locale = $state('zh-CN');
+```
 

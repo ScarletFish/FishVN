@@ -1,0 +1,22 @@
+/* 视图标题栏：标题居左，操作区居右。跨视图复用。 */
+
+.view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.view-header h1 {
+  margin: 0;
+  font-size: var(--text-view-title);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.02em;
+  color: var(--fg-default);
+}
+
+.view-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}

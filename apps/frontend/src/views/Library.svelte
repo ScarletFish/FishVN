@@ -1,12 +1,16 @@
 <script>
+  import { t } from '../lib/i18n.js';
+
   // 占位数据：验证网格列数与卡宽，接入后端后替换
   const PLACEHOLDER = Array.from({ length: 24 }, (_, i) => String.fromCharCode(65 + (i % 26)));
 </script>
 
 <section class="view">
-  <header class="lib-head">
-    <h1>库</h1>
-    <span class="lib-count">{PLACEHOLDER.length}</span>
+  <header class="view-header">
+    <h1>{t('library.title')}</h1>
+    <div class="view-header-right">
+      <span class="lib-count">{PLACEHOLDER.length}</span>
+    </div>
   </header>
 
   <div class="cover-grid">
@@ -19,21 +23,6 @@
 </section>
 
 <style>
-  .lib-head {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    margin-bottom: var(--space-4);
-  }
-
-  h1 {
-    margin: 0;
-    font-size: var(--text-lg);
-    font-weight: var(--fw-semibold);
-    letter-spacing: -0.01em;
-    color: var(--fg-default);
-  }
-
   .lib-count {
     font-size: var(--text-compact-md);
     font-weight: var(--fw-semibold);

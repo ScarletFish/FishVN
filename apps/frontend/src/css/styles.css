@@ -2,5 +2,6 @@
 @import "./tokens.css";
 @import "./layouts/shell.css";
 @import "./components/sidebar.css";
+@import "./components/view-header.css";
 @import "./components/tooltip.css";
 @import "./components/cover-grid.css";

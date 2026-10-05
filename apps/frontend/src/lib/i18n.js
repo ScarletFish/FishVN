@@ -1,0 +1,30 @@
+// i18n — 词条按命名空间组织，缺失时回落key（便于一眼看出漏译）。
+// locale 跟随系统语言，只在已登记语言中匹配，否则用 fallback。
+
+import { DICT_ZH } from './i18n-zh.js';
+
+const DICT = {
+  'zh-CN': DICT_ZH,
+};
+
+const FALLBACK = 'zh-CN';
+
+function detectLocale() {
+  const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const lang of langs) {
+    if (DICT[lang]) return lang;
+    const base = lang.split('-')[0];
+    const hit = Object.keys(DICT).find((k) => k.split('-')[0] === base);
+    if (hit) return hit;
+  }
+  return FALLBACK;
+}
+
+export function getLocale() {
+  return detectLocale();
+}
+
+export function t(key) {
+  const dict = DICT[detectLocale()] ?? DICT[FALLBACK];
+  return key.split('.').reduce((o, k) => o?.[k], dict) ?? key;
+}
