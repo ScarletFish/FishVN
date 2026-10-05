@@ -11,7 +11,18 @@ let instance: Db | null = null;
 /** 幂等：表结构演进都写在这里 */
 export function ensureSchema(db: Db): void {
   db.pragma('journal_mode = WAL');
-  // 首个表出现时在此生长
+  // 建表大量依赖 ON DELETE CASCADE，SQLite 自身默认关闭外键，显式打开
+  db.pragma('foreign_keys = ON');
+  db.exec(`
+    -- 作品身份：显示名 + VNDB 绑定。路径、元数据、用户状态各在其表。
+    -- vndb_id 可空且 UNIQUE：NULL 之间不算重复，一部 VN 只对应一条作品。
+    CREATE TABLE IF NOT EXISTS games (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      vndb_id    TEXT UNIQUE,
+      created_at INTEGER NOT NULL
+    );
+  `);
 }
 
 /** 惰性打开库：进程内单例 */
@@ -21,4 +32,10 @@ export function getDb(): Db {
   instance = new Database(join(DATA_DIR, DB_FILE));
   ensureSchema(instance);
   return instance;
+}
+
+/** 关闭并置空，下次 getDb() 重新打开 */
+export function closeDb(): void {
+  instance?.close();
+  instance = null;
 }

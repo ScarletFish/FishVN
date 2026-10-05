@@ -32,13 +32,65 @@ apps/server/
 
 ### 路径与数据
 
-- 端口/前缀/文件名 → `constants.ts`；路径 → `lib/paths.ts`。**禁止散落魔法字符串**
+- 端口/前缀/文件名/外部端点 → `constants.ts`；路径 → `lib/paths.ts`。**禁止散落魔法字符串**
 - `ROOT` 从编译产物位置上探三层（`dist/server/lib/` → 项目根），移动构建目录时这里要跟着改
 - 数据库单文件 `data/fishvn.db`，惰性 `getDb()` 进程内单例；表结构演进**只写在 `ensureSchema()`**，保持幂等
+- 测试用 `FISHVN_DATA_DIR` 指向临时库，跑真服打真请求
+
+### 数据模型
+
+作品身份、本地安装、VNDB 元数据、用户状态、磁盘扫描事实**各是一张表**。
+一张表一个自动写者；用户显式编辑优先，自动流程只填空字段。
+
+```text
+games              作品身份：id / name / vndb_id / created_at
+game_metadata      1:1 VNDB 与展示元数据
+user_game_state    1:1 用户状态、默认启动安装
+installations      1:N 本地安装，一部作品可有多个（不同发行版、不同盘）
+library_roots      1:N 库根
+scanned_paths      1:N 扫描到的物理目录事实
+```
+
+各表的列与写者：
+
+| 表 | 内容 | 写者 |
+|---|---|---|
+| `games` | 作品身份 | 用户创建与编辑 |
+| `game_metadata` | VNDB 标题、封面、评分、简介 | VNDB 同步填空字段；用户可改 |
+| `user_game_state` | 状态、用户评分、笔记、游玩次数 | 用户；启动行为更新游玩时间与次数 |
+| `installations` | 目录、入口 exe、版本标签 | 用户；启动行为更新游玩时间与次数 |
+| `library_roots` | 库根路径 | 用户；扫描记录时间 |
+| `scanned_paths` | 目录大小、可执行文件列表、扫描时间 | 扫描 |
+
+**`games` 四列**：新建条目只给 `name`，其余由后续流程填入。
+
+- `vndb_id` 可空且 `UNIQUE`：NULL 之间不算重复，一部 VN 只对应一条作品；
+  重复绑定回 409，提示该作品已存在
+- 一部作品对应多个安装时（汉化版 / 原版 / 不同盘），`installations.dir_path` 唯一
+
+### VNDB
+
+`lib/vndb.ts` 是访问 VNDB 的唯一出口。`vndb_id` 的校验在读的一侧做：搜索接口返回的候选直接来自 VNDB，
+同步元数据时按 `vndb_id` 取回的数据会与库里的值比对。写 `vndb_id` 本身是纯库内操作，编号由搜索结果带入。
+
+### 端点
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/health` | 存活探测 |
+| GET | `/api/games` | 列出全部作品，按创建时间倒序 |
+| POST | `/api/games` | 新建；`name` 必填，`vndb_id` 可选 |
+| PATCH | `/api/games/:id` | 改 `name` / `vndb_id`；`vndb_id: null` 解绑 |
+| DELETE | `/api/games/:id` | 删作品，关联记录随外键级联清除 |
+
+响应统一包一层：`{ games }` / `{ game }` / `{ error }`。DELETE 成功回 204 无正文。
 
 ### 新增接口检查清单
 
 - [ ] 路由在 `routes/` 独立文件，`server.ts` 只多一行挂载
 - [ ] 无 `any`，常量/路径没有散落
+- [ ] 新列挂对了表：路径进 `installations`，元数据进 `game_metadata`，状态进 `user_game_state`
+- [ ] 外部服务走 `lib/` 里的模块，不在路由里内联 fetch
+- [ ] 新增测试指向临时库，外部服务有假实现
 - [ ] 跑过 `npm run typecheck` + `npm test`
 - [ ] （涉及前端联调）vite 代理已覆盖，或直接请求 `/api/...` 验证过

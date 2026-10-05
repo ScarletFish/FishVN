@@ -9,10 +9,12 @@ import { API_PREFIX, DEFAULT_HOST, PORT } from './constants.js';
 import { getDb } from './db.js';
 import { WEB_DIR } from './lib/paths.js';
 import { healthRoutes } from './routes/health.js';
+import { gameRoutes } from './routes/games.js';
 
 const app = new Hono();
 
 app.route(API_PREFIX, healthRoutes);
+app.route(API_PREFIX, gameRoutes);
 
 // 静态托管放在 API 之后：/api/* 直接跳过，否则 SPA 兜底会把 API 路径也吃掉
 const serveWeb = serveStatic({ root: WEB_DIR });

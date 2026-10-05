@@ -6,5 +6,7 @@ export const ROOT = resolve(import.meta.dirname, '../../..');
 /** 前端构建产物（vite outDir 指向此处） */
 export const WEB_DIR = resolve(ROOT, 'dist/web');
 
-/** 运行时数据：数据库等 */
-export const DATA_DIR = resolve(ROOT, 'data');
+/** 运行时数据：数据库等。FISHVN_DATA_DIR 可覆盖，测试用它指向临时目录 */
+export const DATA_DIR = process.env.FISHVN_DATA_DIR
+  ? resolve(process.env.FISHVN_DATA_DIR)
+  : resolve(ROOT, 'data');
