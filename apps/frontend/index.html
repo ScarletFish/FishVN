@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FishVN</title>
+    <script>
+      // 主题钩子。浅色是 tokens.css 的 :root 默认值，只需在深色时打标记。
+      // 当前写死浅色单主题开发；将来加切换器时写 localStorage['fishvn.theme']，此处无需改动。
+      (() => {
+        if (localStorage.getItem('fishvn.theme') === 'dark') {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

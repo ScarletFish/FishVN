@@ -11,6 +11,9 @@ data/
 *.log
 npm-debug.log*
 
+# agent 截图
+.openchamber/
+
 # editor / OS
 .DS_Store
 Thumbs.db

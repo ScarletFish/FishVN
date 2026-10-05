@@ -1,0 +1,253 @@
+/* 全局 reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 文本输入由浏览器/用户主导选中，不受全局禁用影响 */
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
+/* ─── 全局元素基底 ─── */
+html {
+  background: var(--bg-page);
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--fg-default);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  font-weight: var(--fw-normal);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 滚动条跟随主题 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--fg-muted) 45%, transparent);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--fg-muted) 70%, transparent);
+}
+
+/* Firefox：标准属性 */
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-color: color-mix(in srgb, var(--fg-muted) 45%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/* FishVN 设计 token —— 三层结构
+ *
+ * L1 原始值    只有色值，零语义。组件禁止直接引用。
+ * L2 语义色槽  描述用途，不描述外观。组件唯一允许连接的层。
+ * L3 尺度      间距/圆角/字号/字重/字体/动效，无视主题。
+ *
+ * 主题：浅色在 :root（默认），深色在 [data-theme="dark"]。
+ */
+
+/* === L1 primitives === */
+:root {
+  /* 中性：表面用，暖调 */
+  --gray-25:  #fbfbf7;
+  --gray-50:  #f7f7f1;
+  --gray-100: #f5f4f1;
+  --gray-200: #f1f0ec;
+  --gray-800: #272727;
+  --gray-850: #1f1f1f;
+  --gray-900: #161616;
+  --gray-950: #121212;
+
+  /* 暖沙：前景文字用 */
+  --sand-100: #e0dbd4;
+  --sand-300: #9c9187;
+  --sand-400: #8a7a70;
+  --sand-500: #6b6763;
+  --sand-700: #4a4642;
+  --sand-950: #1a1816;
+
+  /* 红：仅 accent 一族 */
+  --red-300: #dd6079;
+  --red-400: #ff2d55;
+  --red-500: #e04560;
+  --red-600: #e13a5a;
+  --red-700: #c92a4a;
+
+  /* 墨色：供 border / shadow / scrim 做 alpha 合成 */
+  --ink-black: #000000;
+  --ink-white: #ffffff;
+}
+
+/* === L2 semantic · 浅色 === */
+:root {
+  /* 背景 —— 每一级高度 = 底色 + 阴影配对；浅色下明度余量不足 1.10，浮起由阴影承担 */
+  --bg-sidebar: var(--gray-200); /* 侧栏：导航 chrome，与内容区并列 */
+  --bg-page: var(--gray-100);
+  --bg-surface: var(--gray-25); /* 卡片、面板 */
+  --bg-raised: var(--ink-white); /* 下拉、模态、浮层 */
+  --bg-hover: color-mix(in srgb, var(--ink-black) 6%, transparent);
+  --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
+
+  /* 前景 */
+  --fg-default: var(--sand-950);
+  --fg-secondary: var(--sand-700);
+  --fg-muted: var(--sand-500);
+  --fg-on-accent: var(--ink-white);
+
+  /* accent */
+  --accent: var(--red-700);
+  --accent-soft: var(--red-500);
+  --accent-gradient: linear-gradient(135deg, var(--red-700), var(--red-500));
+  --accent-bg: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 25%, transparent);
+
+  /* 边框 */
+  --border-default: color-mix(in srgb, var(--ink-black) 12%, transparent);
+  --border-strong: color-mix(in srgb, var(--ink-black) 22%, transparent);
+  --focus-ring: var(--accent);
+
+  /* 高度 */
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--ink-black) 4%, transparent);
+  --shadow-md: 0 2px 4px color-mix(in srgb, var(--ink-black) 4%, transparent);
+  /* 浮层：接触阴影定边界 + 环境阴影定高度。浅色明度撑不起层级，全靠这两层 */
+  --shadow-raised: 0 1px 2px color-mix(in srgb, var(--ink-black) 5%, transparent),
+    0 8px 24px color-mix(in srgb, var(--ink-black) 10%, transparent);
+  --scrim: color-mix(in srgb, var(--ink-black) 45%, transparent);
+}
+
+/* === L2 semantic · 深色 === */
+[data-theme="dark"] {
+  --bg-sidebar: color-mix(in srgb, var(--ink-black) 25%, var(--gray-950));
+  --bg-page: var(--gray-950);
+  --bg-surface: var(--gray-850);
+  --bg-raised: var(--gray-800);
+  --bg-hover: color-mix(in srgb, var(--ink-white) 6%, transparent);
+  --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
+
+  --fg-default: var(--sand-100);
+  --fg-secondary: var(--sand-300);
+  --fg-muted: var(--sand-400);
+  --fg-on-accent: var(--ink-white);
+
+  --accent: var(--red-600);
+  --accent-soft: var(--red-300);
+  --accent-gradient: linear-gradient(135deg, var(--red-600), var(--red-400));
+  --accent-bg: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 16%, transparent);
+
+  --border-default: color-mix(in srgb, var(--ink-white) 12%, transparent);
+  --border-strong: color-mix(in srgb, var(--ink-white) 22%, transparent);
+  --focus-ring: var(--accent);
+
+  --shadow-sm: 0 2px 8px color-mix(in srgb, var(--ink-black) 50%, transparent);
+  --shadow-md: 0 4px 24px color-mix(in srgb, var(--ink-black) 60%, transparent);
+  /* 深色底上浅阴影看不出软边界，靠内描边定顶边、环境层更重 */
+  --shadow-raised: 0 2px 4px color-mix(in srgb, var(--ink-black) 40%, transparent),
+    0 12px 32px color-mix(in srgb, var(--ink-black) 55%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--ink-white) 6%, transparent);
+  --scrim: color-mix(in srgb, var(--ink-black) 85%, transparent);
+}
+
+/* === L3 scales · 间距 === */
+:root {
+  --space-025: 0.0625rem; /*  1px */
+  --space-050: 0.125rem;  /*  2px */
+  --space-075: 0.1875rem; /*  3px */
+  --space-1: 0.25rem;     /*  4px */
+  --space-150: 0.375rem;  /*  6px */
+  --space-2: 0.5rem;      /*  8px */
+  --space-250: 0.625rem;  /* 10px */
+  --space-3: 0.75rem;     /* 12px */
+  --space-350: 0.875rem;  /* 14px */
+  --space-4: 1rem;        /* 16px */
+  --space-5: 1.25rem;     /* 20px */
+  --space-6: 1.5rem;      /* 24px */
+  --space-8: 2rem;        /* 32px */
+  --space-10: 2.5rem;     /* 40px */
+  --space-12: 3rem;       /* 48px */
+}
+
+/* === L3 scales · 布局尺寸 === */
+:root {
+  --sidebar-w: 3.75rem;   /* 60px  侧栏图标条 */
+  --titlebar-h: 2.125rem; /* 34px  标题栏 */
+  --card-w: 17.3125rem;   /* 277px  库网格卡宽，固定 */
+}
+
+/* === L3 scales · 圆角 === */
+:root {
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-pill: 999px;
+}
+
+/* === L3 scales · 字体 === */
+:root {
+  /* DM Sans 尚未本地化打包，未就位前整条栈回落到系统字体 */
+  --font-sans: 'DM Sans', 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+}
+
+/* === L3 scales · 字号 === */
+:root {
+  --text-2xs: 0.781rem;
+  --text-xs: 0.899rem;
+  --text-sm: 0.938rem;
+  --text-base: 1.016rem;
+  --text-md: 1.094rem;
+  --text-body: 1.173rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.625rem;
+  --text-3xl: 2.25rem;
+
+  --text-compact-xs: 0.625rem;
+  --text-compact-sm: 0.6875rem;
+  --text-compact-md: 0.75rem;
+  --text-compact-lg: 0.8125rem;
+}
+
+/* === L3 scales · z-index === */
+:root {
+  --z-sticky:   10;
+  --z-float:    50;
+  --z-sidebar:  100;
+  --z-dropdown: 200;
+  --z-modal:    250;
+  --z-toast:    300;
+}
+
+/* === L3 scales · 动效 === */
+:root {
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 180ms;
+  --duration-normal: 300ms;
+}

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check:frontend": "echo \"TODO: js syntax + css token + build\" && vite build",
+    "check:tokens": "node scripts/check-css-tokens.js",
+    "check:frontend": "npm run check:tokens && vite build",
     "test": "vitest run"
   },
   "devDependencies": {
