@@ -79,8 +79,8 @@ body {
   /* 背景 —— 每一级高度 = 底色 + 阴影配对；浅色下明度余量不足 1.10，浮起由阴影承担 */
   --bg-sidebar: var(--gray-200); /* 侧栏：导航 chrome，与内容区并列 */
   --bg-page: var(--gray-100);
-  --bg-surface: var(--gray-25); /* 卡片、面板 */
-  --bg-raised: var(--ink-white); /* 下拉、模态、浮层 */
+  --bg-surface: var(--gray-25); /* 卡片、面板、弹窗底 */
+  --bg-raised: var(--ink-white); /* 浮在表面之上的元素：浮层、按钮 */
   --bg-hover: color-mix(in srgb, var(--ink-black) 6%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
 
@@ -94,6 +94,7 @@ body {
   --accent: var(--red-700);
   --accent-soft: var(--red-500);
   --accent-gradient: linear-gradient(135deg, var(--red-700), var(--red-500));
+  --accent-faint: color-mix(in srgb, var(--accent) 6%, transparent);
   --accent-bg: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 25%, transparent);
 

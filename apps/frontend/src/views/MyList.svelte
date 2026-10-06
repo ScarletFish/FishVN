@@ -3,6 +3,7 @@
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import GameCard from '../components/GameCard.svelte';
+  import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
 
   /** 分区与筛选栏的展示顺序：游玩中的排在最前 */
@@ -12,17 +13,22 @@
   let filter = $state('all');
   let loading = $state(true);
   let error = $state(null);
+  let formOpen = $state(false);
 
-  onMount(async () => {
+  // 写操作后由它重新拉取，不用表单返回值在本地拼聚合 —— 聚合的权威在后端
+async function load() {
     try {
       const { games: list } = await api.get('/games');
       games = list;
+      error = null;
     } catch (e) {
       error = e.message;
     } finally {
       loading = false;
     }
-  });
+  }
+
+  onMount(load);
 
   const byName = (a, b) => a.name.localeCompare(b.name, 'zh-CN');
 
@@ -66,6 +72,20 @@
 
   <header class="view-header">
     <h1>{t('mylist.title')}</h1>
+    <div class="view-header-right">
+      <button
+        type="button"
+        class="mylist-add"
+        onclick={() => (formOpen = true)}
+        aria-label={t('mylist.add')}
+        data-tooltip={t('mylist.add')}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
   </header>
 
   {#if loading}
@@ -96,3 +116,5 @@
     {/each}
   {/if}
 </section>
+
+<GameForm bind:open={formOpen} onsaved={load} />

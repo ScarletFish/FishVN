@@ -1,0 +1,71 @@
+/* 按钮。btn 是基态，btn-primary 是主行动。
+   底色取 --bg-raised（浮层档），压在 --bg-surface 的容器上靠投影分层；
+   hover 边框转中性深色而不是染 accent，避免和主按钮的 accent 语义混淆。 */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--fg-secondary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.btn svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.btn:hover {
+  color: var(--fg-default);
+  background: var(--bg-raised);
+  border-color: var(--border-strong);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.btn-primary {
+  color: var(--fg-on-accent);
+  background: var(--accent-gradient);
+  border-color: transparent;
+  font-weight: var(--fw-semibold);
+}
+
+/* 每个属性自己站住，不依赖 .btn:hover 有没有设过同名属性 ——
+   两者特异性相同，漏写一项就会被按顺序冲掉 */
+.btn-primary:hover {
+  color: var(--fg-on-accent);
+  background: var(--accent-gradient);
+  border-color: transparent;
+  box-shadow:
+    var(--shadow-sm),
+    0 0 0 var(--space-050) var(--accent-bg),
+    0 var(--space-075) var(--space-2) var(--accent-border);
+}

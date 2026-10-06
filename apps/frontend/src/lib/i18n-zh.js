@@ -7,6 +7,7 @@ export const DICT_ZH = {
   },
   mylist: {
     title: '我的列表',
+    add: '添加作品',
     empty: '列表还是空的',
     emptyFiltered: '{label}里没有条目',
     error: '读取列表失败',
@@ -16,6 +17,17 @@ export const DICT_ZH = {
   },
   common: {
     loading: '加载中',
+    cancel: '取消',
+    save: '保存',
+  },
+  gameForm: {
+    title: '添加作品',
+    field: {
+      name: '游戏名',
+    },
+    error: {
+      nameRequired: '请填写游戏名',
+    },
   },
   status: {
     playing: '游玩中',
