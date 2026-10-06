@@ -49,6 +49,8 @@ body {
   --gray-50:  #f7f7f1;
   --gray-100: #f5f4f1;
   --gray-200: #f1f0ec;
+  --gray-400: #d8d6d1;
+  --gray-700: #333333;
   --gray-800: #272727;
   --gray-850: #1f1f1f;
   --gray-900: #161616;
@@ -78,9 +80,11 @@ body {
 :root {
   /* 背景 —— 每一级高度 = 底色 + 阴影配对；浅色下明度余量不足 1.10，浮起由阴影承担 */
   --bg-sidebar: var(--gray-200); /* 侧栏：导航 chrome，与内容区并列 */
-  --bg-page: var(--gray-100);
-  --bg-surface: var(--gray-25); /* 卡片、面板、弹窗底 */
-  --bg-raised: var(--ink-white); /* 浮在表面之上的元素：浮层、按钮 */
+  --bg-page: var(--gray-100); /* 页面底、侧栏内的卡片 */
+  --bg-surface: var(--gray-25); /* 卡片、面板、弹窗内的块与输入框 */
+  --bg-raised: var(--ink-white); /* 按钮、下拉、浮层 */
+  --bg-modal: var(--gray-200); /* 弹窗底 */
+  --bg-floating: var(--gray-400); /* 最高层：浮在浮层之上的元素 */
   --bg-hover: color-mix(in srgb, var(--ink-black) 6%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
 
@@ -124,6 +128,8 @@ body {
   --bg-page: var(--gray-950);
   --bg-surface: var(--gray-850);
   --bg-raised: var(--gray-800);
+  --bg-modal: var(--gray-800);
+  --bg-floating: var(--gray-700);
   --bg-hover: color-mix(in srgb, var(--ink-white) 6%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
 

@@ -32,7 +32,7 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   overflow: hidden;
   width: 90%;
   max-width: 500px;
-  background: var(--bg-surface);
+  background: var(--bg-modal);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-raised);
@@ -117,7 +117,8 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   flex-shrink: 0;
 }
 
-.modal--form {
+.modal--form,
+.modal--settings {
   max-width: 900px;
   height: 830px;
   max-height: calc(100vh - var(--space-6) * 2);

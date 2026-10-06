@@ -17,6 +17,43 @@
   color: var(--fg-secondary);
 }
 
+.form-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-250) var(--space-3) var(--space-250) var(--space-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+/* 左缘竖条：常态中性灰，行内开关勾选后转 accent。左侧 padding 比右侧窄，竖条才贴得住边 */
+.form-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--fg-muted);
+  opacity: 0.3;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
+.form-row:has(input:checked)::before {
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+.form-row-label {
+  font-size: var(--text-md);
+  color: var(--fg-secondary);
+}
+
 .form-group input[type='text'],
 .form-group input[type='number'],
 .form-group select,
@@ -43,12 +80,12 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* hover 写在 focus 之前：两者特异性相同，focus 必须最后才能在悬停时赢 */
 .form-group input::placeholder,
 .form-group textarea::placeholder {
   color: var(--fg-muted);
 }
 
+/* hover 写在 focus 之前：两者特异性相同，focus 必须最后才能在悬停时赢 */
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {

@@ -19,6 +19,12 @@ export const DICT_ZH = {
     loading: '加载中',
     cancel: '取消',
     save: '保存',
+    close: '关闭',
+  },
+  settings: {
+    title: '设置',
+    theme: '深色主题',
+    themeHint: '切换浅色与深色两套配色',
   },
   gameForm: {
     title: '添加作品',
