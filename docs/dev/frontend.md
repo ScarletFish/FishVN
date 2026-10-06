@@ -1,5 +1,9 @@
 # 前端开发规范 — Frontend
 
+### 视觉参照
+
+组件的类名、布局、动效与交互对齐 MyAnimeDocker 的实现。抄之前先查 [visual-ref.md](./visual-ref.md) 里的 token 对照表与语法翻译表。
+
 ### 样式的三种形态
 
 1. **Token**（`css/tokens.css`）— 颜色/间距/圆角/字体的唯一来源
@@ -97,6 +101,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `3.75rem`（60px），标题�
 - [ ] 复用优先：先查过已有组件类
 - [ ] 面向用户的文案走 `t()`，无硬编码
 - [ ] 无复述代码的注释
+- [ ] `npm run check:dead-css` 没有输出死类
 - [ ] 新增小节是规则或语义，不是代码里读得到的实现描述
 - [ ] 跑过 `npm run check:frontend`
 
