@@ -15,7 +15,7 @@
   let error = $state(null);
   let formOpen = $state(false);
 
-  // 写操作后由它重新拉取，不用表单返回值在本地拼聚合 —— 聚合的权威在后端
+  // 写操作后由它重新拉取
 async function load() {
     try {
       const { games: list } = await api.get('/games');

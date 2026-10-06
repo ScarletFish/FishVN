@@ -1,5 +1,5 @@
-/* 模态容器。遮罩淡入，弹窗缩放位移入场；入场动效走 --ease-spring。
-   区块命名沿用同一套：modal / modal-header / modal-panels / modal-panel / modal-actions。
+/* 模态容器。区块命名是弹窗的通用一套：modal / modal-header / modal-panels /
+   modal-panel / modal-actions，各弹窗共用，不要按用途另起名字。
    表单变体把内边距让给各区块，区块自己排版。 */
 
 body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip) {

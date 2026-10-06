@@ -1,5 +1,3 @@
-/* 表单字段。form-group 是一个字段块。 */
-
 .form-group {
   margin-bottom: var(--space-5);
   position: relative;

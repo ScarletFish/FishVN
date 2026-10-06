@@ -11,7 +11,7 @@
   let saving = $state(false);
   let input = $state(null);
 
-  // inert 而不是 CSS pointer-events：后者挡得住鼠标但 Tab 仍能走到背景里。
+  // pointer-events 挡不住 Tab，键盘仍会走到背景里，所以用 inert。
   // 弹窗挂 #modal-root 与 #app 平级，只屏蔽背景不影响弹窗内交互。
   $effect(() => {
     const app = document.getElementById('app');
@@ -22,7 +22,7 @@
     };
   });
 
-  // 每次打开都重置，避免上次没关干净的内容留在输入框里
+  // 关闭时组件不卸载，字段要在这里重置
   $effect(() => {
     if (!open) return;
     name = '';
@@ -41,7 +41,7 @@
 
     const value = name.trim();
     if (!value) {
-      // 必填在前端拦，走 i18n；后端的必填错误只作为兜底出现
+      // 后端返回的错误文案不走 i18n，直接显示
       error = t('gameForm.error.nameRequired');
       return;
     }
