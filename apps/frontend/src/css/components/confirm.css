@@ -1,0 +1,7 @@
+/* 确认框正文。标题已在 modal-header，message 独立成段不缩进在标题下 */
+.confirm-message {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--fg-secondary);
+}

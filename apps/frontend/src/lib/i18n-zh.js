@@ -21,6 +21,14 @@ export const DICT_ZH = {
     save: '保存',
     close: '关闭',
   },
+  // 每个操作一组 title/message/confirm，调用处只传 action 名
+  confirm: {
+    deleteGame: {
+      title: '删除作品',
+      message: '《{name}》将从列表中移除，游玩记录一并删除',
+      confirm: '删除',
+    },
+  },
   settings: {
     title: '设置',
     theme: '深色主题',
