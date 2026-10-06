@@ -126,6 +126,9 @@ body {
   --border-strong: color-mix(in srgb, var(--ink-black) 22%, transparent);
   --focus-ring: var(--accent);
 
+  /* 封面上承载文字的压暗渐变；两个主题下都用暗色，封面本身明度不定 */
+  --cover-scrim: linear-gradient(transparent 20%, color-mix(in srgb, var(--ink-black) 88%, transparent) 80%);
+
   /* 高度 */
   --shadow-sm: 0 1px 2px color-mix(in srgb, var(--ink-black) 4%, transparent);
   --shadow-md: 0 2px 4px color-mix(in srgb, var(--ink-black) 4%, transparent);
@@ -191,7 +194,7 @@ body {
 :root {
   --sidebar-w: 3.75rem;   /* 60px  侧栏图标条 */
   --titlebar-h: 2.125rem; /* 34px  标题栏 */
-  --card-w: 17.3125rem;   /* 277px  库网格卡宽，固定 */
+  --card-w: 17.3125rem;   /* 277px  封面墙卡宽，固定 */
   --text-view-title: clamp(1.3rem, 2.2vw, 1.6rem);
 }
 
@@ -251,4 +254,5 @@ body {
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 180ms;
   --duration-normal: 300ms;
+  --accent-bar-w: 3px;
 }

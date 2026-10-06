@@ -38,3 +38,15 @@ export interface Installation {
   exes: string[] | null;
   size_bytes: number | null;
 }
+
+/** 列表投影：作品 + 状态 + 本地安装概况，卡片一次渲染所需 */
+export interface GameListItem extends Game {
+  status: Status;
+  user_rating: number | null;
+  last_played_at: number | null;
+  play_count: number;
+  /** 已登记的本地目录数 */
+  installation_count: number;
+  /** 至少有一个目录已指定入口 */
+  can_launch: boolean;
+}

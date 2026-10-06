@@ -68,7 +68,7 @@ src/css/
 
 chrome 尺寸固定，不随视口缩放：侧栏 `3.75rem`（60px），标题栏 34px。
 
-库网格的卡宽、列数、窗口化约束见 [grid-layout.md](./grid-layout.md)。
+封面墙的卡宽、列数、窗口化约束见 [grid-layout.md](./grid-layout.md)。
 
 
 ## 新增 UI 组件检查清单
@@ -82,7 +82,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `3.75rem`（60px），标题�
 
 ## 文案
 
-界面文案一律走 `lib/i18n.js` 的 `t()`，词条按命名空间集中在 `lib/i18n-zh.js`，命名沿用 `ns.key`（`nav.library` `library.title`）。`t()` 缺失词条回落 key，调试时能直接看出漏了哪条。
+界面文案一律走 `lib/i18n.js` 的 `t()`，词条按命名空间集中在 `lib/i18n-zh.js`，命名沿用 `ns.key`（`nav.mylist` `mylist.title`）。`t()` 缺失词条回落 key，`t(key, params)` 按参数名替换 `{占位}`。
 
 locale 跟随系统语言，只在已登记语言中匹配（全名 `zh-CN` → 基名 `zh` → fallback）。加语言只需扩 `i18n.js` 里的 `DICT`。
 

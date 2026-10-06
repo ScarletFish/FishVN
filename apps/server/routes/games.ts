@@ -4,7 +4,7 @@ import type { Context } from 'hono';
 import { getDb, type Db } from '../db.js';
 import { compileUpdate, isUniqueViolation, readObject } from '../lib/utils.js';
 import type { Reject } from '../lib/utils.js';
-import { STATUSES, type Game, type Status, type UserGameState } from '../types.js';
+import { STATUSES, type Game, type GameListItem, type Status, type UserGameState } from '../types.js';
 
 /** VNDB 编号形如 v14，v 前缀 + 数字 */
 const VNDB_ID = /^v\d+$/;
@@ -14,6 +14,14 @@ const DEFAULT_STATUS: Status = 'wishlist';
 const GAME_COLUMNS = 'id, name, vndb_id, created_at';
 const STATE_COLUMNS =
   'game_id, status, user_rating, notes, default_installation_id, last_played_at, play_count';
+
+/** 列表投影一次带出状态与安装概况，卡片不再逐条追问 */
+const LIST_COLUMNS = `
+  g.id, g.name, g.vndb_id, g.created_at,
+  s.status, s.user_rating, s.last_played_at, s.play_count,
+  COUNT(i.id) AS installation_count,
+  MAX(CASE WHEN i.entry_path IS NOT NULL THEN 1 ELSE 0 END) AS can_launch
+`;
 
 type Fields = { name?: string; vndb_id?: string | null };
 type StateFields = {
@@ -108,9 +116,16 @@ function insertGameWithState(db: Db, game: Game): void {
 
 export const gameRoutes = new Hono()
   .get('/games', (c) => {
-    const games = getDb()
-      .prepare(`SELECT ${GAME_COLUMNS} FROM games ORDER BY created_at DESC, id`)
-      .all() as Game[];
+    const rows = getDb()
+      .prepare(
+        `SELECT ${LIST_COLUMNS} FROM games g
+         JOIN user_game_state s ON s.game_id = g.id
+         LEFT JOIN installations i ON i.game_id = g.id
+         GROUP BY g.id
+         ORDER BY g.created_at DESC, g.id`
+      )
+      .all() as (Omit<GameListItem, 'can_launch'> & { can_launch: number })[];
+    const games = rows.map((r) => ({ ...r, can_launch: r.can_launch === 1 }));
     return c.json({ games });
   })
 

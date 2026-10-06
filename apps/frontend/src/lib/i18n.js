@@ -24,7 +24,9 @@ export function getLocale() {
   return detectLocale();
 }
 
-export function t(key) {
+export function t(key, params) {
   const dict = DICT[detectLocale()] ?? DICT[FALLBACK];
-  return key.split('.').reduce((o, k) => o?.[k], dict) ?? key;
+  const value = key.split('.').reduce((o, k) => o?.[k], dict) ?? key;
+  if (!params) return value;
+  return value.replace(/\{(\w+)\}/g, (whole, name) => params[name] ?? whole);
 }

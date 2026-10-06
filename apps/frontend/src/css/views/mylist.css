@@ -1,0 +1,114 @@
+/* 我的列表：状态筛选栏与状态分区 */
+
+.mylist-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-150);
+  margin-bottom: var(--space-2);
+}
+
+.mylist-status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  line-height: 1.65;
+  color: var(--fg-muted);
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.mylist-status-item:hover:not(.active) {
+  border-color: var(--fg-muted);
+  color: var(--fg-secondary);
+}
+
+.mylist-status-item.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--fg-on-accent);
+}
+
+.mylist-status-item b {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.mylist-status-item.active b {
+  color: var(--fg-on-accent);
+}
+
+.mylist-section {
+  margin-bottom: var(--space-6);
+}
+
+.mylist-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  position: relative;
+}
+
+.mylist-section-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: var(--space-1);
+  bottom: var(--space-1);
+  width: var(--accent-bar-w);
+  border-radius: var(--radius-xs);
+  background: var(--accent);
+}
+
+.mylist-section-title {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  color: var(--fg-default);
+}
+
+.mylist-section-count {
+  padding: var(--space-025) var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.mylist-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  color: var(--fg-muted);
+}
+
+.mylist-empty svg {
+  width: var(--space-8);
+  height: var(--space-8);
+  opacity: 0.5;
+}
+
+.mylist-note {
+  padding: var(--space-4) 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}

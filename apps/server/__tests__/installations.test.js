@@ -1,40 +1,26 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { after, before, test } from 'node:test';
-import { startTestServer } from './helper.js';
+import { makeFixture, startTestServer } from './helper.js';
 
 let server;
 let base = '';
-let fixture = '';
+let fixture;
 let library = '';
+let makeDir;
 
-// 目录读取要真实磁盘，夹具自己造
 before(async () => {
-  fixture = mkdtempSync(join(tmpdir(), 'fishvn-fs-'));
-  library = join(fixture, 'library');
-  mkdirSync(library, { recursive: true });
+  fixture = makeFixture();
+  library = fixture.library;
+  makeDir = fixture.makeDir;
   server = await startTestServer();
   base = server.base;
 });
 
 after(async () => {
   await server.stop();
-  rmSync(fixture, { recursive: true, force: true });
+  fixture.cleanup();
 });
-
-/** 每个用例独占一个目录，避免 dir_path 唯一约束让用例互相干扰 */
-let seq = 0;
-function makeDir(files) {
-  const dir = join(library, `case-${++seq}`);
-  for (const [rel, content] of Object.entries(files)) {
-    const full = join(dir, rel);
-    mkdirSync(dirname(full), { recursive: true });
-    writeFileSync(full, content);
-  }
-  return dir;
-}
 
 async function send(path, method, body) {
   const res = await fetch(`${base}${path}`, {

@@ -2,12 +2,12 @@
   import './lib/tooltip.js';
   import { t } from './lib/i18n.js';
   import Sidebar from './components/Sidebar.svelte';
-  import Library from './views/Library.svelte';
+  import MyList from './views/MyList.svelte';
 
   const NAV = [
     {
-      id: 'library',
-      label: t('nav.library'),
+      id: 'mylist',
+      label: t('nav.mylist'),
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>',
     },
     {
@@ -30,15 +30,15 @@
     },
   ];
 
-  let current = $state('library');
+  let current = $state('mylist');
 </script>
 
 <div class="shell">
   <Sidebar items={NAV} bottom={BOTTOM} bind:current />
 
   <main class="shell__main">
-    {#if current === 'library'}
-      <Library />
+    {#if current === 'mylist'}
+      <MyList />
     {:else}
       <section class="view">
         <header class="view-header">

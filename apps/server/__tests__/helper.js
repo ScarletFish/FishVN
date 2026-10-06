@@ -1,6 +1,6 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 /**
  * 起一个跑在临时库上的真服。
@@ -22,5 +22,32 @@ export async function startTestServer() {
       closeDb();
       rmSync(dataDir, { recursive: true, force: true });
     },
+  };
+}
+
+/**
+ * 建一棵真实的目录树供文件系统相关用例使用。
+ * makeDir 每次返回一个新目录：dir_path 唯一约束会让复用目录的用例互相干扰。
+ */
+export function makeFixture() {
+  const root = mkdtempSync(join(tmpdir(), 'fishvn-fs-'));
+  const library = join(root, 'library');
+  mkdirSync(library, { recursive: true });
+
+  let seq = 0;
+  const makeDir = (files) => {
+    const dir = join(library, `case-${++seq}`);
+    for (const [rel, content] of Object.entries(files)) {
+      const full = join(dir, rel);
+      mkdirSync(dirname(full), { recursive: true });
+      writeFileSync(full, content);
+    }
+    return dir;
+  };
+
+  return {
+    library,
+    makeDir,
+    cleanup: () => rmSync(root, { recursive: true, force: true }),
   };
 }
