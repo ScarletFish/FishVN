@@ -1,5 +1,5 @@
 <script>
-  /** 状态分区容器：组头 + 网格。children 由调用方渲染成卡片 */
+  /** 状态分区容器：组头 + 网格 */
   let { label, count, items, children } = $props();
 </script>
 

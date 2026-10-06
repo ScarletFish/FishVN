@@ -5,7 +5,7 @@
   import GameCard from '../components/GameCard.svelte';
   import StatusSection from '../components/StatusSection.svelte';
 
-  /** 与后端 user_game_state.status 同序：游玩中的排在最前 */
+  /** 分区与筛选栏的展示顺序：游玩中的排在最前 */
   const STATUS_ORDER = ['playing', 'wishlist', 'finished', 'dropped'];
 
   let games = $state([]);
@@ -37,7 +37,6 @@
     (filter === 'all' ? games : games.filter((g) => g.status === filter)).slice().sort(byName)
   );
 
-  /** 全部视图下按状态分区，单状态筛选下就是那一个分区 */
   const sections = $derived(
     STATUS_ORDER.map((status) => ({
       status,

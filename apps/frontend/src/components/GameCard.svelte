@@ -1,5 +1,5 @@
 <script>
-  /** 列表卡片：封面缺失时用游戏名首字符占位，标题在浮层里 */
+  /** 列表卡片：封面缺失时用游戏名首字符占位 */
   let { item } = $props();
 
   const initial = $derived((item.name || '?')[0].toUpperCase());

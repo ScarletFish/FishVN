@@ -1,4 +1,4 @@
-// 与本机后端通信。只连 127.0.0.1 的同源 /api，长任务（扫描）走各自的进度端点。
+// 与本机后端通信。只连同源 /api。
 
 async function request(path, { method = 'GET', body } = {}) {
   const res = await fetch(`/api${path}`, {

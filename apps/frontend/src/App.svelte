@@ -36,7 +36,7 @@
 <div class="shell">
   <Sidebar items={NAV} bottom={BOTTOM} bind:current />
 
-  <main class="shell__main">
+  <main class="shell__main" data-overlayscrollbars-initialize>
     {#if current === 'mylist'}
       <MyList />
     {:else}

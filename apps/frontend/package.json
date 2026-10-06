@@ -16,5 +16,8 @@
     "svelte": "^5.56.9",
     "vite": "^8.1.1",
     "vitest": "^4.0.0"
+  },
+  "dependencies": {
+    "overlayscrollbars": "^2.16.0"
   }
 }

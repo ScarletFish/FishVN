@@ -1,0 +1,59 @@
+/* overlayscrollbars 的外观：尺寸与色值全部走我们的 token。
+   theme 参数只能选库内置的 dark/light/none，它们只负责提供结构属性，
+   这里把结构与颜色一起覆盖掉，不依赖内置主题的具体取值。
+
+   竖带宽度即 --scrollbar-size-hover，手柄常态 --scrollbar-size，
+   指针进入竖带时加粗到竖带宽度。侧向与轴向 padding 归零让手柄贴住窗口四边。 */
+.os-scrollbar {
+  --os-padding-perpendicular: 0;
+  --os-padding-axis: 0;
+  --os-size: var(--scrollbar-size-hover);
+  --os-track-border-radius: var(--radius-pill);
+  --os-handle-border-radius: var(--radius-pill);
+  /* 手柄贴右缘、比竖带窄，差值补上后抓取区正好等于整条竖带 */
+  --os-handle-interactive-area-offset: calc(var(--scrollbar-size-hover) - var(--scrollbar-size));
+
+  /* transition 不是叠加而是整体替换，位置项要一并列出，否则手柄跟随滚动会瞬移 */
+  transition:
+    opacity var(--duration-normal) var(--ease-out),
+    visibility var(--duration-normal) var(--ease-out),
+    top var(--duration-fast) var(--ease-out),
+    right var(--duration-fast) var(--ease-out),
+    bottom var(--duration-fast) var(--ease-out),
+    left var(--duration-fast) var(--ease-out);
+}
+
+/* 库给纵向滚动条底部内缩一个 --os-size 给横向滚动条让位；纵向只有一条，铺满到底 */
+.os-scrollbar.os-scrollbar-vertical {
+  bottom: 0;
+}
+
+.os-scrollbar .os-scrollbar-track {
+  --os-track-bg: transparent;
+  --os-track-bg-hover: transparent;
+  --os-track-bg-active: transparent;
+  --os-track-border: transparent;
+}
+
+/* 常态细。库的 :hover 与 :active 宽度规则钉在常态值上，
+   加粗只有 is-edge 一个来源，滚动与拖拽都不改变宽度。 */
+.os-scrollbar .os-scrollbar-handle {
+  --os-handle-perpendicular-size: var(--scrollbar-size);
+  --os-handle-perpendicular-size-hover: var(--scrollbar-size);
+  --os-handle-perpendicular-size-active: var(--scrollbar-size);
+  --os-handle-bg: var(--scrollbar-thumb);
+  --os-handle-bg-hover: var(--scrollbar-thumb);
+  --os-handle-bg-active: var(--scrollbar-thumb);
+  --os-handle-border: transparent;
+
+  /* 加粗比淡入要跟手，用快时长 */
+  transition:
+    width var(--duration-fast) var(--ease-out),
+    opacity var(--duration-normal) var(--ease-out);
+}
+
+/* 指针进入右侧竖带：加粗。手柄已占满竖带，offset 归零，抓取区不变 */
+.os-scrollbar.is-edge .os-scrollbar-handle {
+  width: var(--scrollbar-size-hover);
+  --os-handle-interactive-area-offset: 0;
+}

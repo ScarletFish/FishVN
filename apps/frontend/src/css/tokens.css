@@ -33,35 +33,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 滚动条跟随主题 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--fg-muted) 45%, transparent);
-  border-radius: var(--radius-pill);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--fg-muted) 70%, transparent);
-}
-
-/* Firefox：标准属性 */
-@supports not selector(::-webkit-scrollbar) {
-  html {
-    scrollbar-color: color-mix(in srgb, var(--fg-muted) 45%, transparent) transparent;
-    scrollbar-width: thin;
-  }
-}
-
 /* FishVN 设计 token —— 三层结构
  *
  * L1 原始值    只有色值，零语义。组件禁止直接引用。
  * L2 语义色槽  描述用途，不描述外观。组件唯一允许连接的层。
- * L3 尺度      间距/圆角/字号/字重/字体/动效，无视主题。
+ * L3 尺度      间距/圆角/字号/字重/字体/布局尺寸/动效，无视主题。
  *
  * 主题：浅色在 :root（默认），深色在 [data-theme="dark"]。
  */
@@ -128,6 +104,9 @@ body {
 
   /* 封面上承载文字的压暗渐变；两个主题下都用暗色，封面本身明度不定 */
   --cover-scrim: linear-gradient(transparent 20%, color-mix(in srgb, var(--ink-black) 88%, transparent) 80%);
+
+  /* 滚动条手柄；由 components/scrollbars.css 喂给 overlayscrollbars */
+  --scrollbar-thumb: color-mix(in srgb, var(--fg-muted) 45%, transparent);
 
   /* 高度 */
   --shadow-sm: 0 1px 2px color-mix(in srgb, var(--ink-black) 4%, transparent);
@@ -255,4 +234,6 @@ body {
   --duration-fast: 180ms;
   --duration-normal: 300ms;
   --accent-bar-w: 3px;
+  --scrollbar-size: 8px;
+  --scrollbar-size-hover: 12px;
 }
