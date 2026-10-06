@@ -8,21 +8,27 @@ import { dirname, join } from 'node:path';
  */
 export async function startTestServer() {
   const dataDir = mkdtempSync(join(tmpdir(), 'fishvn-test-'));
-  process.env.FISHVN_DATA_DIR = dataDir;
+  try {
+    process.env.FISHVN_DATA_DIR = dataDir;
 
-  const { startServer } = await import('../../../dist/server/server.js');
-  const { closeDb } = await import('../../../dist/server/db.js');
+    const { startServer } = await import('../../../dist/server/server.js');
+    const { closeDb } = await import('../../../dist/server/db.js');
 
-  const running = await startServer(0, '127.0.0.1');
+    const running = await startServer(0, '127.0.0.1');
 
-  return {
-    base: `http://127.0.0.1:${running.port}`,
-    async stop() {
-      await running.close();
-      closeDb();
-      rmSync(dataDir, { recursive: true, force: true });
-    },
-  };
+    return {
+      base: `http://127.0.0.1:${running.port}`,
+      async stop() {
+        await running.close();
+        closeDb();
+        rmSync(dataDir, { recursive: true, force: true });
+      },
+    };
+  } catch (err) {
+    // 起服失败时调用方拿不到句柄，after 钩子也就不会跑，目录得在这里收
+    rmSync(dataDir, { recursive: true, force: true });
+    throw err;
+  }
 }
 
 /**
