@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check:tokens": "node scripts/check-css-tokens.js",
-    "check:frontend": "npm run check:tokens && vite build",
+    "check:dead-css": "node scripts/check-dead-css.js",
+    "check:frontend": "npm run check:tokens && npm run check:dead-css && vite build",
     "test": "vitest run"
   },
   "devDependencies": {

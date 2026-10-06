@@ -48,10 +48,12 @@
 
 ### 自动检查
 
-`npm run check:frontend` = CSS token 检查（`scripts/check-css-tokens.js`）+ 构建 dist/web/。
-`npm run check:tokens` 可单独跑检查。
+`npm run check:frontend` = CSS token 检查（`scripts/check-css-tokens.js`）+ 死 CSS 检查（`scripts/check-dead-css.js`）+ 构建 dist/web/。
+`npm run check:tokens` 与 `npm run check:dead-css` 可单独跑。
 
-检查项：① `var(--x)` 必须已定义 ② 组件禁止引用 L1 原始值 ③ L2 内禁止裸色值 ④ 组件与 Svelte `<style>` 内禁止裸色值。
+token 检查项：① `var(--x)` 必须已定义 ② 组件禁止引用 L1 原始值 ③ L2 内禁止裸色值 ④ 组件与 Svelte `<style>` 内禁止裸色值。
+
+死 CSS 检查输出定义了却无引用的类，只警告不阻断。类在 Svelte 的 `class` / `class:foo`、任意 JS 字符串、或其他 CSS 复合选择器里出现都算有引用。
 
 改完前端必跑，勿只跑其中一条，否则 dist 过期「改了没生效」。
 
