@@ -22,6 +22,7 @@ export const DICT_ZH = {
   },
   gameForm: {
     title: '添加作品',
+    namePlaceholder: '新的游戏',
     field: {
       name: '游戏名',
     },

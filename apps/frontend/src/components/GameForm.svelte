@@ -73,45 +73,46 @@
 
 {#if open}
   <div class="modal-overlay show" use:portal onclick={onOverlayClick} role="presentation">
-    <!-- form 元素承担 dialog 角色：回车提交走浏览器原生隐式提交，
-         隐藏 submit 按钮会被 Svelte 判为无标签控件 -->
-    <form
+    <div
       class="modal modal--form"
       role="dialog"
       aria-modal="true"
       aria-label={t('gameForm.title')}
-      onsubmit={submit}
     >
-      <div class="modal-header">
-        <h2>{t('gameForm.title')}</h2>
-      </div>
+      <!-- form 只负责回车隐式提交，dialog 角色必须挂在非交互元素上 -->
+      <form class="form-panel" onsubmit={submit}>
+        <div class="modal-header">
+          <h2>{t('gameForm.title')}</h2>
+        </div>
 
-      <div class="modal-panels">
-        <div class="modal-panel active">
-          <div class="form-group">
-            <label for="game-form-name">{t('gameForm.field.name')}</label>
-            <input
-              id="game-form-name"
-              type="text"
-              bind:value={name}
-              bind:this={input}
-              disabled={saving}
-            />
-            {#if error}
-              <p class="form-hint form-hint--error">{error}</p>
-            {/if}
+        <div class="modal-panels">
+          <div class="modal-panel active">
+            <div class="form-group">
+              <label for="game-form-name">{t('gameForm.field.name')}</label>
+              <input
+                id="game-form-name"
+                type="text"
+                bind:value={name}
+                bind:this={input}
+                placeholder={t('gameForm.namePlaceholder')}
+                disabled={saving}
+              />
+              {#if error}
+                <p class="form-hint form-hint--error">{error}</p>
+              {/if}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="modal-actions">
-        <button type="button" class="btn" onclick={close} disabled={saving}>
-          {t('common.cancel')}
-        </button>
-        <button type="submit" class="btn btn-primary" disabled={saving}>
-          {t('common.save')}
-        </button>
-      </div>
-    </form>
+        <div class="modal-actions">
+          <button type="button" class="btn" onclick={close} disabled={saving}>
+            {t('common.cancel')}
+          </button>
+          <button type="submit" class="btn btn-primary" disabled={saving}>
+            {t('common.save')}
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 {/if}

@@ -66,6 +66,13 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   background: var(--accent);
 }
 
+/* form 只做提交，视觉布局交给 .modal 的 flex 列，这层把三个区块接起来 */
+.form-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 /* 外壳固定件不参与收缩，视口不足时只有 modal-panels 滚动 */
 .modal-header {
   padding: var(--space-6) var(--space-6) 0;

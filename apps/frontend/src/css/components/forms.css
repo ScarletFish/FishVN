@@ -44,6 +44,11 @@
 }
 
 /* hover 写在 focus 之前：两者特异性相同，focus 必须最后才能在悬停时赢 */
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--fg-muted);
+}
+
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
