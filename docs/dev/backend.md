@@ -44,11 +44,10 @@ apps/server/
 
 ```text
 games              作品身份：id / name / vndb_id / created_at
-game_metadata      1:1 VNDB 与展示元数据
 user_game_state    1:1 用户状态、默认启动安装
-installations      1:N 本地安装，一部作品可有多个（不同发行版、不同盘）
-library_roots      1:N 库根
-scanned_paths      1:N 扫描到的物理目录事实
+installations      1:N 本地目录，一部作品可有多个（不同发行版、不同盘）
+game_metadata      1:1 VNDB 与展示元数据
+library_roots      配置：扫哪些目录
 ```
 
 各表的列与写者：
@@ -56,11 +55,10 @@ scanned_paths      1:N 扫描到的物理目录事实
 | 表 | 内容 | 写者 |
 |---|---|---|
 | `games` | 作品身份 | 用户创建与编辑 |
+| `user_game_state` | 状态、用户评分、笔记、默认启动安装、游玩时间与次数 | 用户；启动行为更新游玩时间与次数 |
+| `installations` | 本地目录、入口 exe、候选入口、目录大小 | 用户建与认领；启动行为不写 |
 | `game_metadata` | VNDB 标题、封面、评分、简介 | VNDB 同步填空字段；用户可改 |
-| `user_game_state` | 状态、用户评分、笔记、游玩次数 | 用户；启动行为更新游玩时间与次数 |
-| `installations` | 目录、入口 exe、版本标签 | 用户；启动行为更新游玩时间与次数 |
 | `library_roots` | 库根路径 | 用户；扫描记录时间 |
-| `scanned_paths` | 目录大小、可执行文件列表、扫描时间 | 扫描 |
 
 **`games` 四列**：新建条目只给 `name`，其余由后续流程填入。
 
@@ -76,6 +74,21 @@ scanned_paths      1:N 扫描到的物理目录事实
 新建作品时在同一事务里带上 `status = 'wishlist'` 的状态行，所以每部作品必然有状态，
 读状态接口不需要处理「不存在」。删作品时状态随外键级联清除。
 
+### 本地安装
+
+`installations` 一行是一个本地目录，`game_id` 为 NULL 表示待认领。
+`ON DELETE SET NULL` 而不是 CASCADE：删作品条目不带走目录记录，那个目录还在盘上，下次扫描还会遇到它。
+
+建安装时 `lib/fsinfo.ts` 读一次目录，填入 `exes` / `size_bytes`：
+
+- 候选入口是 `.exe` / `.bat` / `.cmd`，顶层记第 0 层、最深收到第 2 层，最多留 30 个，层数浅的在前
+- 大小累加全部深度，与候选深度无关。同步全深度遍历适合单个目录；批量遍历要另走异步并带进度
+
+候选只有一个时直接填 `entry_path`——没有选择余地。多个则留空，由用户选。
+
+`dir_path` 由文件管理器给出规范写法，所以不做大小写归一：`COLLATE NOCASE` 会在 macOS 与 Linux 上
+把两个真实不同的目录判成同一个。路径存绝对路径，`lib/fsinfo.ts` 之外没有其他地方碰文件系统。
+
 ### VNDB
 
 `lib/vndb.ts` 是访问 VNDB 的唯一出口。`vndb_id` 的校验在读的一侧做：搜索接口返回的候选直接来自 VNDB，
@@ -90,8 +103,12 @@ scanned_paths      1:N 扫描到的物理目录事实
 | POST | `/api/games` | 新建；`name` 必填，`vndb_id` 可选 |
 | PATCH | `/api/games/:id` | 改 `name` / `vndb_id`；`vndb_id: null` 解绑 |
 | DELETE | `/api/games/:id` | 删作品，关联记录随外键级联清除 |
-| GET | `/api/games/:id/state` | 读状态、评分、笔记 |
-| PATCH | `/api/games/:id/state` | 改 `status` / `user_rating` / `notes` |
+| GET | `/api/games/:id/state` | 读状态、评分、笔记、默认安装 |
+| PATCH | `/api/games/:id/state` | 改 `status` / `user_rating` / `notes` / `default_installation_id` |
+| GET | `/api/installations` | 列出全部安装；带 `?game_id=` 只看某作品的 |
+| POST | `/api/installations` | 建安装；读目录自动填候选入口与大小 |
+| PATCH | `/api/installations/:id` | 改 `entry_path` / `game_id`（认领） |
+| DELETE | `/api/installations/:id` | 删安装记录 |
 
 响应统一包一层：`{ games }` / `{ game }` / `{ error }`。DELETE 成功回 204 无正文。
 
@@ -100,6 +117,8 @@ scanned_paths      1:N 扫描到的物理目录事实
 - [ ] 路由在 `routes/` 独立文件，`server.ts` 只多一行挂载
 - [ ] 无 `any`，常量/路径没有散落
 - [ ] 新列挂对了表：路径进 `installations`，元数据进 `game_metadata`，状态进 `user_game_state`
+- [ ] 新增列有写入方，没有等着将来才填的空壳列
+- [ ] 文件系统访问在 `lib/` 的模块里，路由不直接调 `fs`
 - [ ] 外部服务走 `lib/` 里的模块，不在路由里内联 fetch
 - [ ] 新增测试指向临时库，外部服务有假实现
 - [ ] 跑过 `npm run typecheck` + `npm test`

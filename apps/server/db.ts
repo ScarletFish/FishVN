@@ -32,7 +32,28 @@ export function ensureSchema(db: Db): void {
       last_played_at INTEGER,
       play_count     INTEGER NOT NULL DEFAULT 0
     );
+
+    -- 一个本地目录，可已认领为某作品也可待认领。路径唯一由文件管理器给出规范写法。
+    CREATE TABLE IF NOT EXISTS installations (
+      id         TEXT PRIMARY KEY,
+      game_id    TEXT REFERENCES games(id) ON DELETE SET NULL,
+      dir_path   TEXT NOT NULL UNIQUE,
+      entry_path TEXT,
+      exes       TEXT,
+      size_bytes INTEGER
+    );
   `);
+
+  // ADD COLUMN 不幂等，先查列在不在
+  if (!hasColumn(db, 'user_game_state', 'default_installation_id')) {
+    db.exec(`ALTER TABLE user_game_state ADD COLUMN default_installation_id TEXT
+             REFERENCES installations(id) ON DELETE SET NULL`);
+  }
+}
+
+function hasColumn(db: Db, table: string, column: string): boolean {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  return cols.some((c) => c.name === column);
 }
 
 /** 惰性打开库：进程内单例 */

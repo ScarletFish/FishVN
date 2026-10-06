@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { getDb, type Db } from '../db.js';
+import { compileUpdate, isUniqueViolation, readObject } from '../lib/utils.js';
+import type { Reject } from '../lib/utils.js';
 import { STATUSES, type Game, type Status, type UserGameState } from '../types.js';
 
 /** VNDB 编号形如 v14，v 前缀 + 数字 */
@@ -10,24 +12,16 @@ const VNDB_ID = /^v\d+$/;
 const DEFAULT_STATUS: Status = 'wishlist';
 
 const GAME_COLUMNS = 'id, name, vndb_id, created_at';
-const STATE_COLUMNS = 'game_id, status, user_rating, notes, last_played_at, play_count';
+const STATE_COLUMNS =
+  'game_id, status, user_rating, notes, default_installation_id, last_played_at, play_count';
 
 type Fields = { name?: string; vndb_id?: string | null };
-type StateFields = { status?: Status; user_rating?: number | null; notes?: string | null };
-type Reject = { ok: false; error: string };
-type Update = { sets: string[]; params: unknown[] };
-
-/** 读 body 并确认是 JSON 对象 */
-async function readObject(c: Context): Promise<{ ok: true; body: Record<string, unknown> } | Reject> {
-  let raw: unknown;
-  try {
-    raw = await c.req.json();
-  } catch {
-    return { ok: false, error: 'body 不是合法 JSON' };
-  }
-  if (typeof raw !== 'object' || raw === null) return { ok: false, error: 'body 必须是 JSON 对象' };
-  return { ok: true, body: raw as Record<string, unknown> };
-}
+type StateFields = {
+  status?: Status;
+  user_rating?: number | null;
+  notes?: string | null;
+  default_installation_id?: string | null;
+};
 
 async function parseGameBody(c: Context): Promise<{ ok: true; fields: Fields } | Reject> {
   const read = await readObject(c);
@@ -84,22 +78,17 @@ async function parseStateBody(c: Context): Promise<{ ok: true; fields: StateFiel
     fields.notes = body.notes;
   }
 
+  if (body.default_installation_id !== undefined) {
+    if (body.default_installation_id !== null && typeof body.default_installation_id !== 'string') {
+      return { ok: false, error: 'default_installation_id 必须是字符串或 null' };
+    }
+    fields.default_installation_id = body.default_installation_id;
+  }
+
   return { ok: true, fields };
 }
 
 const now = (): number => Math.floor(Date.now() / 1000);
-
-/** 键名来自调用处的字面量，不是用户输入 */
-function compileUpdate(fields: Record<string, unknown>): Update | null {
-  const sets: string[] = [];
-  const params: unknown[] = [];
-  for (const [column, value] of Object.entries(fields)) {
-    if (value === undefined) continue;
-    sets.push(`${column} = ?`);
-    params.push(value);
-  }
-  return sets.length > 0 ? { sets, params } : null;
-}
 
 /** 建作品与它的初始状态，同一事务 */
 function insertGameWithState(db: Db, game: Game): void {
@@ -115,11 +104,6 @@ function insertGameWithState(db: Db, game: Game): void {
       DEFAULT_STATUS
     );
   })();
-}
-
-/** UNIQUE 冲突即「vndb_id 已归属另一条作品」，是业务状态，回 409 */
-function isUniqueViolation(err: unknown): boolean {
-  return err instanceof Error && (err as { code?: string }).code === 'SQLITE_CONSTRAINT_UNIQUE';
 }
 
 export const gameRoutes = new Hono()
@@ -195,6 +179,17 @@ export const gameRoutes = new Hono()
     if (!parsed.ok) return c.json({ error: parsed.error }, 400);
 
     const id = c.req.param('id');
+
+    // 默认安装必须属于这部作品，否则一键启动会指到别的游戏上
+    const wanted = parsed.fields.default_installation_id;
+    if (wanted) {
+      const owner = getDb().prepare('SELECT game_id FROM installations WHERE id = ?').get(wanted) as
+        | { game_id: string | null }
+        | undefined;
+      if (!owner) return c.json({ error: '安装记录不存在' }, 404);
+      if (owner.game_id !== id) return c.json({ error: '该安装不属于这部作品' }, 400);
+    }
+
     const update = compileUpdate(parsed.fields);
     if (!update) return c.json({ error: '没有可更新的字段' }, 400);
     update.params.push(id);
