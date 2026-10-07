@@ -15,6 +15,16 @@ textarea,
   user-select: auto;
 }
 
+/* ─── 焦点可见 ───
+   只在键盘导航时描边：鼠标点击后焦点环是多余的，而 Tab 导航时它是唯一的定位线索。
+   offset 取负值让环压在边框内侧，与元素自身的 border 贴合 —— 正偏移会在
+   边框外留出一圈空隙，看着像双层边。下面单条规则兜底；
+   自带焦点样式的组件要显式关掉，避免叠成双环。 */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
 /* ─── 全局元素基底 ─── */
 html {
   background: var(--bg-page);
@@ -121,7 +131,10 @@ body {
   /* 边框 */
   --border-default: color-mix(in srgb, var(--ink-black) 12%, transparent);
   --border-strong: color-mix(in srgb, var(--ink-black) 22%, transparent);
-  --focus-ring: var(--accent);
+  /* 焦点环用中性色而非 accent：accent 表示「确认/添加」这类操作，
+     焦点是当前位置提示，两者混用会让红色语义过载。
+     比 border-strong 更实一档 —— 焦点是主动导航，不该和常态边框同等分量 */
+  --focus-ring: color-mix(in srgb, var(--ink-black) 65%, transparent);
 
   /* 封面上承载文字的压暗渐变；两个主题下都用暗色，封面本身明度不定 */
   --cover-scrim: linear-gradient(transparent 20%, color-mix(in srgb, var(--ink-black) 88%, transparent) 80%);
@@ -162,7 +175,7 @@ body {
 
   --border-default: color-mix(in srgb, var(--ink-white) 12%, transparent);
   --border-strong: color-mix(in srgb, var(--ink-white) 22%, transparent);
-  --focus-ring: var(--accent);
+  --focus-ring: color-mix(in srgb, var(--ink-white) 75%, transparent);
 
   --shadow-sm: 0 2px 8px color-mix(in srgb, var(--ink-black) 50%, transparent);
   --shadow-md: 0 4px 24px color-mix(in srgb, var(--ink-black) 60%, transparent);

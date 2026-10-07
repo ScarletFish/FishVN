@@ -85,7 +85,8 @@
   color: var(--fg-muted);
 }
 
-/* hover 写在 focus 之前：两者特异性相同，focus 必须最后才能在悬停时赢 */
+/* hover 写在 focus 之前：两者特异性相同，focus 必须最后才能在悬停时赢。
+   :focus-visible 也要清 outline，否则会和下面这圈 box-shadow 叠成双环 */
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
@@ -93,6 +94,12 @@
   background: var(--bg-raised);
   border-color: var(--accent-border);
   box-shadow: 0 0 0 2px var(--accent-faint);
+}
+
+.form-group input:focus-visible,
+.form-group select:focus-visible,
+.form-group textarea:focus-visible {
+  outline: none;
 }
 
 .form-group textarea {

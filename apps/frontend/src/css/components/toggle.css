@@ -16,6 +16,17 @@
   height: 0;
 }
 
+/* input 是 0 尺寸，全局 outline 会画在看不见的地方。焦点环转到滑块上，
+   用 + 相邻兄弟把焦点态传过去 */
+.toggle-switch input:focus-visible {
+  outline: none;
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px; /* 药丸小且边框淡，外描才看得出离开轨道 */
+}
+
 .toggle-slider {
   position: absolute;
   cursor: pointer;
