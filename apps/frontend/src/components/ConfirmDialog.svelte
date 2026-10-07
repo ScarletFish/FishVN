@@ -15,7 +15,7 @@
   title={t(`confirm.${action}.title`)}
   onclose={() => settle(false)}
 >
-  <div class="modal-panels">
+  <div class="modal-panels modal-panels--static">
     <div class="modal-panel active">
       <p class="confirm-message">{t(`confirm.${action}.message`, { name })}</p>
     </div>

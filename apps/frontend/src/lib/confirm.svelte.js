@@ -15,6 +15,14 @@ function handleResult(result) {
   done?.(result);
 }
 
+/**
+ * 弹出确认框，resolve 用户的选择：确定 true，取消/遮罩/Esc false。
+ *
+ * action 必须在 i18n-zh.js 有 confirm.<action>.{title,message,confirm} 三条词条，
+ * 缺了就直接把 key 显示给用户 —— t() 缺失回落 key，这里刻意不做兜底。
+ * @param {string} action 如 'deleteGame'
+ * @param {string} [name]  填进消息里的作品名
+ */
 export function confirm(action, name = '') {
   // 同时只允许一个确认框。复用上一个 promise 会让两次不同操作的调用方
   // 拿到同一个答案 —— 删 A 的确认框弹出时又请求删 B，A 就会删掉 B。
