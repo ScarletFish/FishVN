@@ -15,7 +15,7 @@
   let error = $state(null);
   let formOpen = $state(false);
 
-  // 写操作后由它重新拉取
+  // 写操作后调用它重拉
 async function load() {
     try {
       const { games: list } = await api.get('/games');

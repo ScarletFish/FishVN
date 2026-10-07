@@ -98,7 +98,7 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   display: block;
 }
 
-/* 确认框文案长度固定，不会溢出；不带滚动条，入场动画期间也不会闪 */
+/* 确认框文案长度固定，不会溢出 */
 .modal-panels--static {
   overflow-y: hidden;
 }

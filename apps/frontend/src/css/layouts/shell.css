@@ -1,5 +1,4 @@
-/* 应用外壳：侧栏 + 内容区。chrome 固定，不随视口缩放
-   高度链：body 定高 100vh → .shell 吃掉剩余 → .shell__main 内滚动 */
+/* 高度链：body 定高 100vh → .shell 吃掉剩余 → .shell__main 内滚动 */
 
 .shell {
   display: flex;

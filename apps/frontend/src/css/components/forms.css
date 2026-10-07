@@ -33,7 +33,8 @@
   border-color: var(--border-strong);
 }
 
-/* 左缘竖条：常态中性灰，行内开关勾选后转 accent。左侧 padding 比右侧窄，竖条才贴得住边 */
+/* 左缘竖条：常态中性灰，行内开关勾选后转 accent。
+   左侧 padding 必须比右侧窄，竖条才贴得住边 */
 .form-row::before {
   content: '';
   position: absolute;

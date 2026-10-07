@@ -1,4 +1,4 @@
-/* 全局提示气泡 —— data-tooltip="文本" 即生效，行为见 lib/tooltip.js */
+/* data-tooltip="文本" 即生效，行为见 lib/tooltip.js */
 
 #globalTooltip {
   position: fixed;

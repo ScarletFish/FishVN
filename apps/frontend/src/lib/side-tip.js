@@ -1,4 +1,3 @@
-// 侧栏提示气泡。锚定按钮右缘，带指向箭头。
 // 用法：<button data-tip="库" use:sideTip>
 // 与 lib/tooltip.js 的全局气泡并存：定位与外观不同，互不干扰。
 

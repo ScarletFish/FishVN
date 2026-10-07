@@ -99,7 +99,7 @@
   border-radius: var(--radius-pill);
 }
 
-/* ─── 侧栏提示气泡：锚定按钮右缘，带指向箭头 ─── */
+/* ─── 提示气泡：锚定按钮右缘，带指向箭头 ─── */
 
 .sidebar-tooltip {
   position: fixed;

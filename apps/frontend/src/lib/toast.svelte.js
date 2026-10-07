@@ -1,10 +1,10 @@
-// Toast 状态与调用入口。渲染在 components/Toaster.svelte，挂在 App.svelte 里。
-// 用 .svelte.js 后缀是因为要 $state —— .js 里编译不了 rune。
+// 渲染在 components/Toaster.svelte，挂在 App.svelte 里。
+// 用 .svelte.js 后缀：要 $state，.js 里编译不了 rune。
 
 export const items = $state([]);
 let counter = 0;
 
-// 计时器簿记用普通 Map：不需要响应式，留在 $state 里会白白触发更新
+// 计时器簿记不要放 $state，否则每次读写都触发更新
 const timers = new Map();
 
 const DURATIONS = {
@@ -35,8 +35,8 @@ export function toast(msg, type = 'info', opts = {}) {
   items.unshift(item);
   start(item);
 
-  // 超出上限时挤掉最旧的。必须走退场动画而不是直接移除 ——
-  // 正在 dismissing 的不计入，否则叠加上限会被退场中的条目绕过
+  // 溢出走退场动画而不是直接移除，元素才有东西可播。
+  // 判定放在 push 之后，且不计 dismissing 的，否则上限会被退场中的条目绕过
   for (const old of items.filter((t) => !t.dismissing).slice(MAX)) dismiss(old.id);
 
   return id;
@@ -48,8 +48,8 @@ export function dismiss(id) {
   item.dismissing = true;
   stop(id);
   setTimeout(() => {
-    // 退场结束才移除，元素才有动画可播。indexOf 可能是 -1，
-    // splice(-1) 会误删最后一条，所以先判存在
+    // 退场结束才移除，元素才有动画可播。
+    // 先判 indexOf —— 条目可能已被移除，splice(-1) 会误删最后一条
     const at = items.indexOf(item);
     if (at !== -1) items.splice(at, 1);
   }, 300);
@@ -61,8 +61,8 @@ function start(item) {
   timers.set(item.id, { timer, at: Date.now() });
 }
 
-// 悬停暂停：进度条是 animation，暂停靠 CSS 的 animation-play-state，
-// 但计时器在 JS 里，只能手动记下剩余时长
+// 暂停要手动记剩余时长：进度条的暂停靠 CSS animation-play-state，
+// 计时器在 JS 里，两者不通
 export function pause(item) {
   const rec = timers.get(item.id);
   if (!rec) return;

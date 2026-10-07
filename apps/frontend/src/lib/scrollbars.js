@@ -1,6 +1,5 @@
 import { OverlayScrollbars } from 'overlayscrollbars';
 
-// 滚动条默认隐藏；滚动或指针移入内容区时淡入。
 // autoHideDelay 是最后一次滚动/移入到开始淡出的等待；淡出时长在 CSS 里（--duration-normal）。
 // theme 只作为库的结构钩子，尺寸与色值由 components/scrollbars.css 全量覆盖。
 const OPTIONS = {
@@ -21,9 +20,9 @@ export function useScrollbars(target) {
 /**
  * 指针进入右侧竖带时挂 is-edge，CSS 据此加粗手柄。拖拽期间不看指针位置。
  *
- * 命中判定按坐标做，不走滚动条的 :hover —— 库给滚动条整体设了 pointer-events: none，
- * 放开命中后落在带上的滚轮会进库自己的 wheel 监听并被 preventDefault，竖带上就滚不动。
- * 判定线取竖带自身的左边界，竖带宽度变了不用改这里。
+ * 命中判定必须按坐标做，不能走滚动条的 :hover —— 库给滚动条整体设了
+ * pointer-events: none，放开命中后落在带上的滚轮会进库自己的 wheel 监听
+ * 并被 preventDefault，竖带上就滚不动。
  */
 function watchRightEdge(target) {
   let scrollbar = null;

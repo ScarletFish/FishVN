@@ -1,4 +1,4 @@
-/* 封面墙网格：卡宽固定，列数由 auto-fit 依容器实测宽度决定
+/* 卡宽固定，列数由 auto-fit 依容器实测宽度决定
    规格与实测数据见 docs/dev/grid-layout.md */
 
 .cover-grid {

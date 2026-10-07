@@ -10,7 +10,7 @@
   --os-size: var(--scrollbar-size-hover);
   --os-track-border-radius: var(--radius-pill);
   --os-handle-border-radius: var(--radius-pill);
-  /* 手柄贴右缘、比竖带窄，差值补上后抓取区正好等于整条竖带 */
+  /* 手柄贴右缘、比竖带窄，offset 补上差值后抓取区正好等于整条竖带 */
   --os-handle-interactive-area-offset: calc(var(--scrollbar-size-hover) - var(--scrollbar-size));
 
   /* transition 不是叠加而是整体替换，位置项要一并列出，否则手柄跟随滚动会瞬移 */
@@ -35,8 +35,8 @@
   --os-track-border: transparent;
 }
 
-/* 常态细。库的 :hover 与 :active 宽度规则钉在常态值上，
-   加粗只有 is-edge 一个来源，滚动与拖拽都不改变宽度。 */
+/* 三个宽度都要写：库的 :hover 与 :active 默认会改宽度，
+   不钉死的话加粗就不只由 is-edge 一个来源触发 */
 .os-scrollbar .os-scrollbar-handle {
   --os-handle-perpendicular-size: var(--scrollbar-size);
   --os-handle-perpendicular-size-hover: var(--scrollbar-size);
@@ -46,13 +46,13 @@
   --os-handle-bg-active: var(--scrollbar-thumb);
   --os-handle-border: transparent;
 
-  /* 加粗比淡入要跟手，用快时长 */
+  /* 加粗比淡入跟手，用快时长 */
   transition:
     width var(--duration-fast) var(--ease-out),
     opacity var(--duration-normal) var(--ease-out);
 }
 
-/* 指针进入右侧竖带：加粗。手柄已占满竖带，offset 归零，抓取区不变 */
+/* 手柄已占满竖带，offset 归零，抓取区保持整条竖带 */
 .os-scrollbar.is-edge .os-scrollbar-handle {
   width: var(--scrollbar-size-hover);
   --os-handle-interactive-area-offset: 0;

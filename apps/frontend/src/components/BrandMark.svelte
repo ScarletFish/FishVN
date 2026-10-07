@@ -1,6 +1,5 @@
 <script>
-  // 品牌角标：圆角矩形 + 鱼形剪影。
-  // 鱼身与鱼尾用页面底色、眼珠用 accent 色，在 accent 底上互相挖空。
+  // 鱼身与鱼尾用 --bg-page、眼珠用 --accent，靠底色互相挖空
   let { label = 'FishVN' } = $props();
 </script>
 
