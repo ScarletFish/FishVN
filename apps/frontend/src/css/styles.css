@@ -7,6 +7,7 @@
 @import "./components/toggle.css";
 @import "./components/modal.css";
 @import "./components/confirm.css";
+@import "./components/toast.css";
 @import "./components/scrollbars.css";
 @import "./components/sidebar.css";
 @import "./components/view-header.css";

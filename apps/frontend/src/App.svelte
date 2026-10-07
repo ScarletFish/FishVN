@@ -3,6 +3,7 @@
   import { t } from './lib/i18n.js';
   import Sidebar from './components/Sidebar.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
+  import Toaster from './components/Toaster.svelte';
   import MyList from './views/MyList.svelte';
 
   let settingsOpen = $state(false);
@@ -54,3 +55,4 @@
 </div>
 
 <SettingsDialog bind:open={settingsOpen} />
+<Toaster />

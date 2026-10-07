@@ -44,6 +44,10 @@ export const DICT_ZH = {
       nameRequired: '请填写游戏名',
     },
   },
+  toast: {
+    copied: '已复制',
+    copyFailed: '复制失败',
+  },
   status: {
     playing: '游玩中',
     wishlist: '计划中',

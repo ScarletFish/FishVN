@@ -1,0 +1,156 @@
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--space-6)) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* 退场分两段：先淡出并右移，再收高度与内边距让下方条目上移 */
+@keyframes toast-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    max-height: 120px;
+    margin-bottom: 0;
+  }
+  40% {
+    opacity: 0;
+    transform: translateX(40px) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(40px) scale(0.9);
+    max-height: 0;
+    margin-bottom: calc(-1 * var(--space-2));
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+  }
+}
+
+@keyframes toast-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.toast-container {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  display: flex;
+  /* column-reverse：新通知插在最底部，不推开已有的 */
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+  z-index: var(--z-toast);
+  pointer-events: none;
+  width: calc(100% - var(--space-8));
+  max-width: 400px;
+}
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-250);
+  padding: var(--space-3) var(--space-350) var(--space-3) 0;
+  background: var(--bg-floating);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: toast-in var(--duration-normal) var(--ease-spring) forwards;
+}
+
+.toast.dismissing {
+  animation: toast-out var(--duration-normal) var(--ease-out) forwards;
+}
+
+.toast:hover {
+  border-color: var(--border-strong);
+}
+
+.toast:hover .toast-progress {
+  animation-play-state: paused;
+}
+
+/* 左缘竖条，与 .form-row 同一套语言 */
+.toast::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--accent-bar-w);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-left: 0.875rem;
+  margin-top: 1px;
+}
+
+.toast-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-size: var(--text-base);
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+  color: var(--fg-default);
+}
+
+/* silent 是最弱的一档，标题跟着降级 */
+.toast[data-type='silent'] .toast-title {
+  color: var(--fg-secondary);
+  font-weight: var(--fw-medium);
+}
+
+.toast-desc {
+  margin-top: var(--space-050);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--fg-muted);
+}
+
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 0 0 0 var(--radius-md);
+  opacity: 0.5;
+  animation: toast-progress linear forwards;
+}
+
+.toast[data-type='success']::before { background: var(--success); }
+.toast[data-type='error']::before   { background: var(--error); }
+.toast[data-type='warning']::before { background: var(--warning); }
+.toast[data-type='info']::before    { background: var(--info); }
+.toast[data-type='silent']::before  { background: var(--fg-muted); opacity: 0.5; }
+
+.toast[data-type='success'] .toast-icon { color: var(--success); }
+.toast[data-type='error']   .toast-icon { color: var(--error); }
+.toast[data-type='warning'] .toast-icon { color: var(--warning); }
+.toast[data-type='info']    .toast-icon { color: var(--info); }
+.toast[data-type='silent']  .toast-icon { color: var(--fg-muted); opacity: 0.6; }
+
+.toast[data-type='success'] .toast-progress { background: var(--success); }
+.toast[data-type='error']   .toast-progress { background: var(--error); }
+.toast[data-type='warning'] .toast-progress { background: var(--warning); }
+.toast[data-type='info']    .toast-progress { background: var(--info); }
+.toast[data-type='silent']  .toast-progress { background: var(--fg-muted); }

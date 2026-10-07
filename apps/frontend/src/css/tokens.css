@@ -51,6 +51,7 @@ body {
   --gray-200: #f1f0ec;
   --gray-400: #d8d6d1;
   --gray-700: #333333;
+  --gray-750: #3d3d3d;
   --gray-800: #272727;
   --gray-850: #1f1f1f;
   --gray-900: #161616;
@@ -71,6 +72,11 @@ body {
   --red-600: #e13a5a;
   --red-700: #c92a4a;
 
+  /* 状态色原值：仅 --success/--warning/--info 一族引用 */
+  --green-500: #22c55e;
+  --amber-500: #f59e0b;
+  --violet-400: #a78bfa;
+
   /* 墨色：供 border / shadow / scrim 做 alpha 合成 */
   --ink-black: #000000;
   --ink-white: #ffffff;
@@ -78,13 +84,16 @@ body {
 
 /* === L2 semantic · 浅色 === */
 :root {
-  /* 背景 —— 每一级高度 = 底色 + 阴影配对；浅色下明度余量不足 1.10，浮起由阴影承担 */
+  /* 背景 —— 单调递增：越靠前越亮，两个主题同向。
+     浅色下相邻档明度差常不足 1.10，靠底色分不出层级，浮起由边框与阴影承担。
+     --bg-raised 之下仍有三档，所以按钮用纯白不占顶端；
+     --bg-floating 只压页面或弹窗，不必压过 --bg-raised。 */
   --bg-sidebar: var(--gray-200); /* 侧栏：导航 chrome，与内容区并列 */
-  --bg-page: var(--gray-100); /* 页面底、侧栏内的卡片 */
-  --bg-surface: var(--gray-25); /* 卡片、面板、弹窗内的块与输入框 */
-  --bg-raised: var(--ink-white); /* 按钮、下拉、浮层 */
-  --bg-modal: var(--gray-200); /* 弹窗底 */
-  --bg-floating: var(--gray-400); /* 最高层：浮在浮层之上的元素 */
+  --bg-page: var(--gray-200); /* 页面底 */
+  --bg-modal: var(--gray-100); /* 弹窗底 */
+  --bg-surface: var(--gray-50); /* 卡片、面板、弹窗内的块与输入框 */
+  --bg-raised: var(--gray-25); /* 按钮、下拉、tooltip */
+  --bg-floating: var(--ink-white); /* Toast：压页面或弹窗，靠阴影与边框分层 */
   --bg-hover: color-mix(in srgb, var(--ink-black) 6%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
 
@@ -101,6 +110,13 @@ body {
   --accent-faint: color-mix(in srgb, var(--accent) 6%, transparent);
   --accent-bg: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 25%, transparent);
+
+  /* 状态色。语义色不分主题，两个主题同值 —— --error 与 --accent 同属红系，
+     错误提示的红色竖条会和主按钮的红色接近 */
+  --success: var(--green-500);
+  --warning: var(--amber-500);
+  --error: var(--red-500);
+  --info: var(--violet-400);
 
   /* 边框 */
   --border-default: color-mix(in srgb, var(--ink-black) 12%, transparent);
@@ -129,7 +145,7 @@ body {
   --bg-surface: var(--gray-850);
   --bg-raised: var(--gray-800);
   --bg-modal: var(--gray-800);
-  --bg-floating: var(--gray-700);
+  --bg-floating: var(--gray-750);
   --bg-hover: color-mix(in srgb, var(--ink-white) 6%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
 
