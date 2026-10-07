@@ -18,7 +18,9 @@
     color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
+    box-shadow var(--duration-fast) var(--ease-out),
+    /* .btn-primary:hover 用 brightness 提亮，不过滤会瞬间跳变 */
+    filter var(--duration-fast) var(--ease-out);
 }
 
 .btn svg {
@@ -59,6 +61,7 @@
   color: var(--fg-on-accent);
   background: var(--accent-gradient);
   border-color: transparent;
+  filter: brightness(1.12);
   box-shadow:
     var(--shadow-sm),
     0 0 0 var(--space-050) var(--accent-bg),

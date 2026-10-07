@@ -68,9 +68,9 @@
 }
 
 .mylist-add:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-bg);
+  color: var(--fg-default);
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
 }
 
 .mylist-add svg {
