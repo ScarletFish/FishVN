@@ -1,0 +1,415 @@
+#![allow(non_ascii_idents)]
+
+mod common;
+
+use common::{message, variant, Db, Tree};
+use fishvn::games::{
+    create_game, delete_game, get_game, get_game_state, list_games, update_game, update_game_state,
+};
+use fishvn::installations::create_installation;
+use fishvn::types::{GameListItem, GamePatch, NewGame, StatePatch, Status};
+
+fn new_game(db: &Db, name: &str) -> String {
+    create_game(
+        db,
+        &NewGame {
+            name: name.into(),
+            vndb_id: None,
+        },
+    )
+    .expect("建作品失败")
+    .id
+}
+
+fn find(db: &Db, id: &str) -> Option<GameListItem> {
+    list_games(db)
+        .expect("列作品失败")
+        .into_iter()
+        .find(|g| g.id == id)
+}
+
+#[test]
+fn 只给名字就能建条目其余字段留空() {
+    let db = Db::new();
+    let game = create_game(
+        &db,
+        &NewGame {
+            name: "  星空  ".into(),
+            vndb_id: None,
+        },
+    )
+    .expect("建作品失败");
+
+    assert_eq!(game.name, "星空", "两端空白要修掉");
+    assert_eq!(game.vndb_id, None);
+    assert!(!game.id.is_empty(), "id 应是 uuid");
+    assert!(game.created_at > 0, "created_at 应该是 unix 秒");
+}
+
+#[test]
+fn 多条未匹配条目合法_vndb_id的null之间不算重复() {
+    let db = Db::new();
+    assert_ne!(new_game(&db, "A"), new_game(&db, "B"));
+}
+
+#[test]
+fn name为空返回400() {
+    let db = Db::new();
+    let err = create_game(
+        &db,
+        &NewGame {
+            name: "   ".into(),
+            vndb_id: None,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(variant(&err), "400");
+}
+
+#[test]
+fn vndb_id格式非法返回400() {
+    let db = Db::new();
+    for bad in ["14", "v", "v14x", "vv1", "V14", ""] {
+        let err = create_game(
+            &db,
+            &NewGame {
+                name: "X".into(),
+                vndb_id: Some(bad.into()),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(variant(&err), "400", "vndb_id={bad:?} 应该被拒");
+        assert_eq!(message(&err), "vndb_id 必须是 v+数字，或 null 解绑");
+    }
+}
+
+#[test]
+fn name与vndb_id同时非法时报name那个() {
+    // 校验顺序：先 name 后 vndb_id。顺序反了错误信息就变了
+    let db = Db::new();
+    let err = create_game(
+        &db,
+        &NewGame {
+            name: "   ".into(),
+            vndb_id: Some("bad".into()),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(message(&err), "name 不能为空");
+}
+
+#[test]
+fn 建条目时可以带上vndb_id() {
+    let db = Db::new();
+    let game = create_game(
+        &db,
+        &NewGame {
+            name: "命中".into(),
+            vndb_id: Some("v20001".into()),
+        },
+    )
+    .expect("建作品失败");
+    assert_eq!(game.vndb_id.as_deref(), Some("v20001"));
+}
+
+#[test]
+fn 建条目撞上已占用的vndb_id返回409_事务不留下残行() {
+    let db = Db::new();
+    create_game(
+        &db,
+        &NewGame {
+            name: "先到".into(),
+            vndb_id: Some("v20010".into()),
+        },
+    )
+    .expect("建作品失败");
+
+    let err = create_game(
+        &db,
+        &NewGame {
+            name: "后到".into(),
+            vndb_id: Some("v20010".into()),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(variant(&err), "409");
+
+    let games = list_games(&db).expect("列作品失败");
+    assert!(
+        !games.iter().any(|g| g.name == "后到"),
+        "失败的作品不应留下 games 行"
+    );
+    // 事务回滚也要带走状态行，否则会出现没有作品的孤儿状态
+    assert!(
+        games.iter().all(|g| get_game_state(&db, &g.id).is_ok()),
+        "不应出现没有作品的孤儿状态"
+    );
+}
+
+#[test]
+fn get列出全部条目带状态与安装概况() {
+    let db = Db::new();
+    for n in ["一", "二", "三", "四"] {
+        new_game(&db, n);
+    }
+
+    let games = list_games(&db).expect("列作品失败");
+    assert!(games.len() >= 4, "期望至少 4 条，实际 {}", games.len());
+    assert!(!games[0].can_launch, "没有安装时不该可启动");
+    assert_eq!(games[0].installation_count, 0);
+
+    for w in games.windows(2) {
+        assert!(
+            w[0].created_at >= w[1].created_at,
+            "未按创建时间倒序：{} 然后 {}",
+            w[0].created_at,
+            w[1].created_at
+        );
+    }
+}
+
+#[test]
+fn 列表里的状态跟随状态表变化() {
+    let db = Db::new();
+    let id = new_game(&db, "列表状态");
+    assert_eq!(find(&db, &id).unwrap().status, Status::Wishlist);
+
+    update_game_state(
+        &db,
+        &id,
+        &StatePatch {
+            status: Some(Status::Playing),
+            ..Default::default()
+        },
+    )
+    .expect("改状态失败");
+
+    assert_eq!(find(&db, &id).unwrap().status, Status::Playing);
+}
+
+#[test]
+fn 列表统计本地安装数与可启动判定() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let id = new_game(&db, "安装统计");
+
+    let before = find(&db, &id).unwrap();
+    assert_eq!(before.installation_count, 0);
+    assert!(!before.can_launch);
+
+    let dir_a = tree.make_dir(&[("a.exe", "a")]);
+    let inst = create_installation(
+        &db,
+        &fishvn::types::NewInstallation {
+            game_id: id.clone(),
+            dir_path: common::path_str(&dir_a),
+        },
+    )
+    .expect("建安装失败");
+    assert_eq!(
+        inst.entry_path.as_deref(),
+        Some("a.exe"),
+        "候选唯一应自动填入口"
+    );
+
+    let dir_b = tree.make_dir(&[("b.exe", "b")]);
+    create_installation(
+        &db,
+        &fishvn::types::NewInstallation {
+            game_id: id.clone(),
+            dir_path: common::path_str(&dir_b),
+        },
+    )
+    .expect("建第二个安装失败");
+
+    let after = find(&db, &id).unwrap();
+    assert_eq!(after.installation_count, 2);
+    assert!(after.can_launch);
+}
+
+#[test]
+fn patch改name与绑定vndb_id() {
+    let db = Db::new();
+    let id = new_game(&db, "原名");
+    update_game(
+        &db,
+        &id,
+        &GamePatch {
+            name: Some("新名".into()),
+            vndb_id: Some(Some("v20002".into())),
+        },
+    )
+    .expect("改作品失败");
+
+    let game = get_game(&db, &id).expect("读作品失败");
+    assert_eq!(game.name, "新名");
+    assert_eq!(game.vndb_id.as_deref(), Some("v20002"));
+}
+
+#[test]
+fn patch绑到已被占用的vndb_id返回409() {
+    let db = Db::new();
+    let holder = create_game(
+        &db,
+        &NewGame {
+            name: "占用者".into(),
+            vndb_id: Some("v20003".into()),
+        },
+    )
+    .unwrap();
+    let latecomer = create_game(
+        &db,
+        &NewGame {
+            name: "后来者".into(),
+            vndb_id: None,
+        },
+    )
+    .unwrap();
+
+    let err = update_game(
+        &db,
+        &latecomer.id,
+        &GamePatch {
+            name: None,
+            vndb_id: Some(Some("v20003".into())),
+        },
+    )
+    .unwrap_err();
+
+    assert_eq!(variant(&err), "409");
+    assert!(message(&err).contains("占用"), "错误信息要说明是占用");
+    assert_eq!(
+        get_game(&db, &holder.id).unwrap().vndb_id.as_deref(),
+        Some("v20003"),
+        "占用者不该被顶掉"
+    );
+}
+
+#[test]
+fn patch_vndb_id给null是解绑之后另一条可以绑同一个号() {
+    let db = Db::new();
+    let a = create_game(
+        &db,
+        &NewGame {
+            name: "原持有".into(),
+            vndb_id: Some("v20004".into()),
+        },
+    )
+    .unwrap();
+    let b = create_game(
+        &db,
+        &NewGame {
+            name: "接盘".into(),
+            vndb_id: None,
+        },
+    )
+    .unwrap();
+
+    update_game(
+        &db,
+        &a.id,
+        &GamePatch {
+            name: None,
+            vndb_id: Some(None),
+        },
+    )
+    .expect("解绑失败");
+    assert_eq!(get_game(&db, &a.id).unwrap().vndb_id, None);
+
+    update_game(
+        &db,
+        &b.id,
+        &GamePatch {
+            name: None,
+            vndb_id: Some(Some("v20004".into())),
+        },
+    )
+    .expect("接盘失败");
+    assert_eq!(
+        get_game(&db, &b.id).unwrap().vndb_id.as_deref(),
+        Some("v20004")
+    );
+}
+
+#[test]
+fn patch不存在的id返回404() {
+    let db = Db::new();
+    let err = update_game(
+        &db,
+        common::ghost(),
+        &GamePatch {
+            name: Some("x".into()),
+            vndb_id: None,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(variant(&err), "404");
+}
+
+#[test]
+fn delete删掉条目列表里不再出现() {
+    let db = Db::new();
+    let id = new_game(&db, "待删");
+    assert!(find(&db, &id).is_some());
+
+    delete_game(&db, &id).expect("删除失败");
+    assert!(find(&db, &id).is_none(), "列表里不该再有这条");
+}
+
+#[test]
+fn delete同一id第二次返回404() {
+    let db = Db::new();
+    let id = new_game(&db, "删一次");
+    delete_game(&db, &id).expect("首次删除失败");
+
+    let err = delete_game(&db, &id).unwrap_err();
+    assert_eq!(variant(&err), "404");
+    assert!(message(&err).contains("不存在"));
+}
+
+#[test]
+fn delete不存在的id返回404() {
+    let db = Db::new();
+    assert_eq!(
+        variant(&delete_game(&db, common::ghost()).unwrap_err()),
+        "404"
+    );
+}
+
+#[test]
+fn patch空body返回400() {
+    let db = Db::new();
+    let id = new_game(&db, "空改");
+    let err = update_game(&db, &id, &GamePatch::default()).unwrap_err();
+    assert_eq!(variant(&err), "400");
+    assert_eq!(message(&err), "没有可更新的字段");
+}
+
+#[test]
+fn patch只给vndb_id解绑不动name() {
+    let db = Db::new();
+    let id = new_game(&db, "只解绑");
+    update_game(
+        &db,
+        &id,
+        &GamePatch {
+            name: None,
+            vndb_id: Some(Some("v30001".into())),
+        },
+    )
+    .expect("绑定失败");
+
+    update_game(
+        &db,
+        &id,
+        &GamePatch {
+            name: None,
+            vndb_id: Some(None),
+        },
+    )
+    .expect("解绑失败");
+
+    let game = get_game(&db, &id).unwrap();
+    assert_eq!(game.vndb_id, None);
+    assert_eq!(game.name, "只解绑", "没给的字段不该被动到");
+}
