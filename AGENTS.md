@@ -54,7 +54,7 @@ Svelte 5 SPA + Node.js HTTP server + Tauri v2 壳的桌面应用
 6. **不为未实现的功能留注释**：YAGNI 同一条
 7. **中文注释**：注释与文档用中文
 
-逐条核对清单见 `docs/dev/frontend.md` 与 `docs/dev/backend.md` 的「注释」小节。
+判据、实例与逐条核对清单见 [docs/dev/comments.md](docs/dev/comments.md)。
 
 ## Git 提交
 
