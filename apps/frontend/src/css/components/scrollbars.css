@@ -21,6 +21,13 @@
     right var(--duration-fast) var(--ease-out),
     bottom var(--duration-fast) var(--ease-out),
     left var(--duration-fast) var(--ease-out);
+
+  /* autoHide: 'never'，显隐由 lib/scrollbars.js 的 is-visible 控制 */
+  opacity: 0;
+}
+
+.os-scrollbar.is-visible {
+  opacity: 1;
 }
 
 /* 库给纵向滚动条底部内缩一个 --os-size 给横向滚动条让位；纵向只有一条，铺满到底 */
