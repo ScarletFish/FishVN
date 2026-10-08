@@ -3,7 +3,15 @@ name = "fishvn"
 version = "0.0.0"
 edition = "2021"
 
+[lib]
+name = "fishvn"
+crate-type = ["lib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
 [dependencies]
+tauri = { version = "2", features = [] }
 rusqlite = { version = "0.40", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

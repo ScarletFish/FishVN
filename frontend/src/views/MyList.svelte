@@ -18,8 +18,7 @@
   // 写操作后调用它重拉
 async function load() {
     try {
-      const { games: list } = await api.get('/games');
-      games = list;
+      games = await api.listGames();
       error = null;
     } catch (e) {
       error = e.message;

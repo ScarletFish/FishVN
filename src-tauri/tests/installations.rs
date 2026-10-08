@@ -109,30 +109,30 @@ fn 没有可执行文件时入口留空等用户指认() {
 }
 
 #[test]
-fn 目录不存在返回400() {
+fn 目录不存在返回_bad_request() {
     let db = Db::new();
     let tree = Tree::new();
     let game_id = new_game(&db, "路径错误");
 
     let err = add(&db, &game_id, &tree.missing()).unwrap_err();
-    assert_eq!(variant(&err), "400");
+    assert_eq!(variant(&err), "BadRequest");
     assert!(message(&err).contains("不存在"));
 }
 
 #[test]
-fn 路径是文件而非目录返回400() {
+fn 路径是文件而非目录返回_bad_request() {
     let db = Db::new();
     let mut tree = Tree::new();
     let game_id = new_game(&db, "传了文件");
     let file = tree.make_dir(&[("x.txt", "x")]).join("x.txt");
 
     let err = add(&db, &game_id, &file).unwrap_err();
-    assert_eq!(variant(&err), "400");
+    assert_eq!(variant(&err), "BadRequest");
     assert!(message(&err).contains("不是目录"));
 }
 
 #[test]
-fn 缺game_id或dir_path返回400() {
+fn 缺game_id或dir_path返回_bad_request() {
     let db = Db::new();
     let mut tree = Tree::new();
     let game_id = new_game(&db, "参数缺失");
@@ -146,7 +146,7 @@ fn 缺game_id或dir_path返回400() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&no_game), "400");
+    assert_eq!(variant(&no_game), "BadRequest");
     assert_eq!(message(&no_game), "game_id 必填");
 
     let no_dir = create_installation(
@@ -157,7 +157,7 @@ fn 缺game_id或dir_path返回400() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&no_dir), "400");
+    assert_eq!(variant(&no_dir), "BadRequest");
     assert_eq!(message(&no_dir), "dir_path 必填");
 
     let blank = create_installation(
@@ -168,22 +168,22 @@ fn 缺game_id或dir_path返回400() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&blank), "400");
+    assert_eq!(variant(&blank), "BadRequest");
     assert_eq!(message(&blank), "dir_path 必填");
 }
 
 #[test]
-fn 作品不存在返回404() {
+fn 作品不存在返回_not_found() {
     let db = Db::new();
     let mut tree = Tree::new();
     let dir = tree.make_dir(&[("a.exe", "a")]);
 
     let err = add(&db, common::ghost(), &dir).unwrap_err();
-    assert_eq!(variant(&err), "404");
+    assert_eq!(variant(&err), "NotFound");
 }
 
 #[test]
-fn 同一目录重复建安装返回409() {
+fn 同一目录重复建安装返回_conflict() {
     let db = Db::new();
     let mut tree = Tree::new();
     let dir = tree.make_dir(&[("a.exe", "a")]);
@@ -192,7 +192,7 @@ fn 同一目录重复建安装返回409() {
 
     add(&db, &first, &dir).expect("首次登记失败");
     let err = add(&db, &second, &dir).unwrap_err();
-    assert_eq!(variant(&err), "409");
+    assert_eq!(variant(&err), "Conflict");
     assert!(message(&err).contains("已有安装记录"));
 }
 
@@ -238,7 +238,7 @@ fn patch改入口与改归属作品() {
 }
 
 #[test]
-fn patch把归属改成不存在的作品返回404() {
+fn patch把归属改成不存在的作品返回_not_found() {
     let db = Db::new();
     let mut tree = Tree::new();
     let game_id = new_game(&db, "待改归属");
@@ -254,11 +254,11 @@ fn patch把归属改成不存在的作品返回404() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&err), "404");
+    assert_eq!(variant(&err), "NotFound");
 }
 
 #[test]
-fn patch归属给空串返回404_不是外键错误() {
+fn patch归属给空串返回_not_found_不是外键错误() {
     let db = Db::new();
     let mut tree = Tree::new();
     let game_id = new_game(&db, "空串归属");
@@ -274,12 +274,16 @@ fn patch归属给空串返回404_不是外键错误() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&err), "404", "空串当真实 id 查，查不到就该是 404");
+    assert_eq!(
+        variant(&err),
+        "NotFound",
+        "空串当真实 id 查，查不到就是不存在"
+    );
     assert!(!message(&err).contains("FOREIGN"), "不该漏成数据库外键错误");
 }
 
 #[test]
-fn patch_entry_path为空串返回400() {
+fn patch_entry_path为空串返回_bad_request() {
     let db = Db::new();
     let mut tree = Tree::new();
     let game_id = new_game(&db, "字段校验");
@@ -295,14 +299,14 @@ fn patch_entry_path为空串返回400() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&empty), "400");
+    assert_eq!(variant(&empty), "BadRequest");
     assert_eq!(message(&empty), "entry_path 是非空字符串或 null");
 }
 
 #[test]
-fn 归属与入口同时非法时报400不是404() {
+fn 归属与入口同时非法时报输入问题不是不存在() {
     // 校验顺序：entry_path 的合法性先判，归属查不到是后面的事。
-    // 顺序反了同一个请求会从 400 变成 404
+    // 顺序反了同一个请求会从「输入有问题」变成「不存在」
     let db = Db::new();
     let mut tree = Tree::new();
     let game_id = new_game(&db, "双错");
@@ -318,11 +322,15 @@ fn 归属与入口同时非法时报400不是404() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&err), "400", "两个都非法时该报 entry_path 那个");
+    assert_eq!(
+        variant(&err),
+        "BadRequest",
+        "两个都非法时该报 entry_path 那个"
+    );
 }
 
 #[test]
-fn patch空body返回400() {
+fn patch空body返回_bad_request() {
     let db = Db::new();
     let mut tree = Tree::new();
     let game_id = new_game(&db, "空改安装");
@@ -330,12 +338,12 @@ fn patch空body返回400() {
     let id = add(&db, &game_id, &dir).expect("建安装失败");
 
     let err = update_installation(&db, &id, &InstallationPatch::default()).unwrap_err();
-    assert_eq!(variant(&err), "400");
+    assert_eq!(variant(&err), "BadRequest");
     assert_eq!(message(&err), "没有可更新的字段");
 }
 
 #[test]
-fn patch不存在的安装返回404() {
+fn patch不存在的安装返回_not_found() {
     let db = Db::new();
     let err = update_installation(
         &db,
@@ -346,7 +354,7 @@ fn patch不存在的安装返回404() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&err), "404");
+    assert_eq!(variant(&err), "NotFound");
 }
 
 #[test]
@@ -392,7 +400,10 @@ fn delete删记录不删磁盘文件可重新登记() {
     let id = add(&db, &game_id, &dir).expect("建安装失败");
 
     delete_installation(&db, &id).expect("删除失败");
-    assert_eq!(variant(&delete_installation(&db, &id).unwrap_err()), "404");
+    assert_eq!(
+        variant(&delete_installation(&db, &id).unwrap_err()),
+        "NotFound"
+    );
 
     // 目录仍在，可以重新登记
     assert!(dir.exists(), "删记录不该动磁盘");
@@ -417,7 +428,7 @@ fn 默认安装只接受属于该作品的安装() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&wrong), "400");
+    assert_eq!(variant(&wrong), "BadRequest");
     assert!(message(&wrong).contains("不属于这部作品"));
 
     let missing = update_game_state(
@@ -429,7 +440,7 @@ fn 默认安装只接受属于该作品的安装() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&missing), "404");
+    assert_eq!(variant(&missing), "NotFound");
 
     let ok = update_game_state(
         &db,
@@ -444,7 +455,7 @@ fn 默认安装只接受属于该作品的安装() {
 }
 
 #[test]
-fn 默认安装给空串返回400_不是外键错误() {
+fn 默认安装给空串返回_bad_request_不是外键错误() {
     // 空串会被 SQLite 当成真实 id 去查，撞外键后报成未处理的数据库错误
     let db = Db::new();
     let game_id = new_game(&db, "空串默认安装");
@@ -458,7 +469,7 @@ fn 默认安装给空串返回400_不是外键错误() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&err), "400");
+    assert_eq!(variant(&err), "BadRequest");
     assert_eq!(message(&err), "default_installation_id 是非空字符串或 null");
 }
 

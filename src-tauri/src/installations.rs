@@ -116,8 +116,8 @@ pub fn update_installation(
     id: &str,
     patch: &InstallationPatch,
 ) -> Result<Installation> {
-    // entry_path 的合法性先判：归属查不到是 404，入口不合法是 400，
-    // 两个同时非法时要报 400 那个
+    // entry_path 的合法性先判：归属查不到是「不存在」，入口不合法是「输入有问题」，
+    // 两个同时非法时要报后者
     if let Some(Some(entry)) = &patch.entry_path {
         if entry.is_empty() {
             return Err(AppError::BadRequest(

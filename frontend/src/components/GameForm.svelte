@@ -37,7 +37,7 @@
     saving = true;
     error = '';
     try {
-      await api.post('/games', { name: value });
+      await api.createGame({ name: value });
       open = false;
       onsaved?.();
     } catch (err) {

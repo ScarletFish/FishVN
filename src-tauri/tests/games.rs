@@ -53,7 +53,7 @@ fn 多条未匹配条目合法_vndb_id的null之间不算重复() {
 }
 
 #[test]
-fn name为空返回400() {
+fn name为空返回_bad_request() {
     let db = Db::new();
     let err = create_game(
         &db,
@@ -63,11 +63,11 @@ fn name为空返回400() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&err), "400");
+    assert_eq!(variant(&err), "BadRequest");
 }
 
 #[test]
-fn vndb_id格式非法返回400() {
+fn vndb_id格式非法返回_bad_request() {
     let db = Db::new();
     for bad in ["14", "v", "v14x", "vv1", "V14", ""] {
         let err = create_game(
@@ -78,7 +78,7 @@ fn vndb_id格式非法返回400() {
             },
         )
         .unwrap_err();
-        assert_eq!(variant(&err), "400", "vndb_id={bad:?} 应该被拒");
+        assert_eq!(variant(&err), "BadRequest", "vndb_id={bad:?} 应该被拒");
         assert_eq!(message(&err), "vndb_id 必须是 v+数字，或 null 解绑");
     }
 }
@@ -113,7 +113,7 @@ fn 建条目时可以带上vndb_id() {
 }
 
 #[test]
-fn 建条目撞上已占用的vndb_id返回409_事务不留下残行() {
+fn 建条目撞上已占用的vndb_id返回_conflict_事务不留下残行() {
     let db = Db::new();
     create_game(
         &db,
@@ -132,7 +132,7 @@ fn 建条目撞上已占用的vndb_id返回409_事务不留下残行() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&err), "409");
+    assert_eq!(variant(&err), "Conflict");
 
     let games = list_games(&db).expect("列作品失败");
     assert!(
@@ -247,7 +247,7 @@ fn patch改name与绑定vndb_id() {
 }
 
 #[test]
-fn patch绑到已被占用的vndb_id返回409() {
+fn patch绑到已被占用的vndb_id返回_conflict() {
     let db = Db::new();
     let holder = create_game(
         &db,
@@ -276,7 +276,7 @@ fn patch绑到已被占用的vndb_id返回409() {
     )
     .unwrap_err();
 
-    assert_eq!(variant(&err), "409");
+    assert_eq!(variant(&err), "Conflict");
     assert!(message(&err).contains("占用"), "错误信息要说明是占用");
     assert_eq!(
         get_game(&db, &holder.id).unwrap().vndb_id.as_deref(),
@@ -332,7 +332,7 @@ fn patch_vndb_id给null是解绑之后另一条可以绑同一个号() {
 }
 
 #[test]
-fn patch不存在的id返回404() {
+fn patch不存在的id返回_not_found() {
     let db = Db::new();
     let err = update_game(
         &db,
@@ -343,7 +343,7 @@ fn patch不存在的id返回404() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&err), "404");
+    assert_eq!(variant(&err), "NotFound");
 }
 
 #[test]
@@ -357,31 +357,31 @@ fn delete删掉条目列表里不再出现() {
 }
 
 #[test]
-fn delete同一id第二次返回404() {
+fn delete同一id第二次返回_not_found() {
     let db = Db::new();
     let id = new_game(&db, "删一次");
     delete_game(&db, &id).expect("首次删除失败");
 
     let err = delete_game(&db, &id).unwrap_err();
-    assert_eq!(variant(&err), "404");
+    assert_eq!(variant(&err), "NotFound");
     assert!(message(&err).contains("不存在"));
 }
 
 #[test]
-fn delete不存在的id返回404() {
+fn delete不存在的id返回_not_found() {
     let db = Db::new();
     assert_eq!(
         variant(&delete_game(&db, common::ghost()).unwrap_err()),
-        "404"
+        "NotFound"
     );
 }
 
 #[test]
-fn patch空body返回400() {
+fn patch空body返回_bad_request() {
     let db = Db::new();
     let id = new_game(&db, "空改");
     let err = update_game(&db, &id, &GamePatch::default()).unwrap_err();
-    assert_eq!(variant(&err), "400");
+    assert_eq!(variant(&err), "BadRequest");
     assert_eq!(message(&err), "没有可更新的字段");
 }
 

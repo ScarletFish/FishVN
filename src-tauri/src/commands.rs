@@ -1,0 +1,96 @@
+//! Tauri 命令层：只做转发，业务逻辑全在 games / installations 里。
+//!
+//! Connection 是 Send 但不是 Sync，所以用 Mutex 包起来交给 State 管。
+//! 锁毒化之后每次调用都会失败，转成错误上报而不是 unwrap。
+
+use std::sync::{Mutex, MutexGuard};
+
+use rusqlite::Connection;
+use tauri::State;
+
+use crate::error::{AppError, Result};
+use crate::games;
+use crate::installations;
+use crate::types::{
+    Game, GameListItem, GamePatch, Installation, InstallationPatch, NewGame, NewInstallation,
+    StatePatch, UserGameState,
+};
+
+type Shared<'a> = State<'a, Mutex<Connection>>;
+
+fn lock<'a>(shared: &'a Shared<'_>) -> Result<MutexGuard<'a, Connection>> {
+    shared
+        .lock()
+        .map_err(|_| AppError::Io(std::io::Error::other("数据库锁已毒化，之前的命令 panic 了")))
+}
+
+#[tauri::command]
+pub fn list_games(shared: Shared<'_>) -> Result<Vec<GameListItem>> {
+    games::list_games(&*lock(&shared)?)
+}
+
+#[tauri::command]
+pub fn get_game(shared: Shared<'_>, id: String) -> Result<Game> {
+    games::get_game(&*lock(&shared)?, &id)
+}
+
+#[tauri::command]
+pub fn create_game(shared: Shared<'_>, input: NewGame) -> Result<Game> {
+    games::create_game(&*lock(&shared)?, &input)
+}
+
+#[tauri::command]
+pub fn update_game(shared: Shared<'_>, id: String, patch: GamePatch) -> Result<Game> {
+    games::update_game(&*lock(&shared)?, &id, &patch)
+}
+
+#[tauri::command]
+pub fn delete_game(shared: Shared<'_>, id: String) -> Result<()> {
+    games::delete_game(&*lock(&shared)?, &id)
+}
+
+#[tauri::command]
+pub fn get_game_state(shared: Shared<'_>, id: String) -> Result<UserGameState> {
+    games::get_game_state(&*lock(&shared)?, &id)
+}
+
+#[tauri::command]
+pub fn update_game_state(
+    shared: Shared<'_>,
+    id: String,
+    patch: StatePatch,
+) -> Result<UserGameState> {
+    games::update_game_state(&*lock(&shared)?, &id, &patch)
+}
+
+#[tauri::command]
+pub fn list_installations(
+    shared: Shared<'_>,
+    game_id: Option<String>,
+) -> Result<Vec<Installation>> {
+    installations::list_installations(&*lock(&shared)?, game_id.as_deref())
+}
+
+#[tauri::command]
+pub fn get_installation(shared: Shared<'_>, id: String) -> Result<Installation> {
+    installations::get_installation(&*lock(&shared)?, &id)
+}
+
+#[tauri::command]
+pub fn create_installation(shared: Shared<'_>, input: NewInstallation) -> Result<Installation> {
+    installations::create_installation(&*lock(&shared)?, &input)
+}
+
+#[tauri::command]
+pub fn update_installation(
+    shared: Shared<'_>,
+    id: String,
+    patch: InstallationPatch,
+) -> Result<Installation> {
+    installations::update_installation(&*lock(&shared)?, &id, &patch)
+}
+
+#[tauri::command]
+pub fn delete_installation(shared: Shared<'_>, id: String) -> Result<()> {
+    installations::delete_installation(&*lock(&shared)?, &id)
+}

@@ -1,7 +1,7 @@
 # FishVN
 
 Galgame 本地游戏管理库。本地为主，云端（VNDB）为主要元数据来源。
-Svelte 5 SPA + Node.js HTTP server + Tauri v2 壳的桌面应用
+Svelte 5 SPA + Rust 后端的 Tauri v2 桌面应用
 
 ## Workflow
 
@@ -16,7 +16,7 @@ Svelte 5 SPA + Node.js HTTP server + Tauri v2 壳的桌面应用
 
 **硬闸门：需求与方案未经用户过目确认，禁止进入实现。沉默、"随便"、"你决定"均视为未确认。**
 
-改完跑对应验证：前端 `npm run check:frontend`；后端 `npm run typecheck` + `npm test`。
+改完跑对应验证：前端 `npm run check:frontend`；后端 `npm run check:rust` + `npm test`。
 只在用户明确要求时 git 提交。
 
 ## 项目原则
@@ -27,22 +27,21 @@ Svelte 5 SPA + Node.js HTTP server + Tauri v2 壳的桌面应用
 ## 技术栈
 
 - **前端**: Svelte 5+ Vite；样式为纯 CSS——手写 token（`tokens.css`）+ Svelte scoped style + 普通 CSS 类
-- **后端**: Node server + **Hono**（`hono` + `@hono/node-server`）；TypeScript strict，禁止 `any`
-- **数据库**: better-sqlite3（单文件，迁移走 `ensureSchema()`）
-- **桌面壳**: Tauri v2；Rust 侧只负责启动外部命令
+- **后端**: Rust crate `src-tauri`，`#[tauri::command]` 转发到领域函数
+- **数据库**: rusqlite（单文件，建表与迁移走 `ensure_schema()`）
+- **桌面壳**: Tauri v2；前后端同一进程
 - **元数据源**: VNDB API（唯一）
 
 ## Commands
 
 | 命令 | 说明 |
 |------|------|
-| `npm run dev` | 同时起前后端（concurrently）：Vite 5173 + 后端 4545 |
-| `npm run dev:frontend` | 只起 Vite dev，`http://127.0.0.1:5173` |
-| `npm run dev:server` | 后端 `tsc` 编译并起服，`127.0.0.1:4545` |
-| `npm run typecheck` | 后端 TS strict 检查 |
-| `npm test` | 后端测试（先 tsc 再 node --test） |
-| `npm run check:frontend` | 前端：JS 语法 + CSS token + 构建 `dist/web` |
-| `npm run build` | 前端生产构建 → `dist/web` |
+| `npm run dev` | `tauri dev`：起 Vite 5173 并拉起桌面窗口 |
+| `npm run dev:frontend` | 只起 Vite 5173；`tauri dev` 通过 `beforeDevCommand` 调它，浏览器里单独跑没有 IPC |
+| `npm run check:rust` | 后端 `cargo clippy --all-targets` |
+| `npm test` | 后端 `cargo test` |
+| `npm run check:frontend` | 前端：JS 语法 + CSS token + 构建 `frontend/dist` |
+| `npm run build` | 前端生产构建 → `frontend/dist` |
 
 ## 注释与文档
 

@@ -1,12 +1,14 @@
 use std::fmt;
 
+use serde::{Serialize, Serializer};
+
 #[derive(Debug)]
 pub enum AppError {
-    /// 输入不合法，对应 400
+    /// 输入不合法
     BadRequest(String),
-    /// 目标不存在，对应 404
+    /// 目标不存在
     NotFound(String),
-    /// 唯一约束撞了，对应 409
+    /// 唯一约束撞了
     Conflict(String),
     Db(rusqlite::Error),
     Json(serde_json::Error),
@@ -25,6 +27,13 @@ impl fmt::Display for AppError {
 }
 
 impl std::error::Error for AppError {}
+
+/// 过 IPC 时前端只需要一句中文说明，错误种类留在 Rust 侧自己判断
+impl Serialize for AppError {
+    fn serialize<S: Serializer>(&self, s: S) -> std::result::Result<S::Ok, S::Error> {
+        s.serialize_str(&self.to_string())
+    }
+}
 
 impl From<rusqlite::Error> for AppError {
     fn from(e: rusqlite::Error) -> Self {

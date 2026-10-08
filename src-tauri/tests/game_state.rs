@@ -161,20 +161,20 @@ fn user_rating与notes类型错反序列化就失败() {
 }
 
 #[test]
-fn patch状态空body返回400() {
+fn patch状态空body返回_bad_request() {
     let db = Db::new();
     let id = new_game(&db, "空改状态");
     let err = update_game_state(&db, &id, &StatePatch::default()).unwrap_err();
-    assert_eq!(variant(&err), "400");
+    assert_eq!(variant(&err), "BadRequest");
     assert_eq!(message(&err), "没有可更新的字段");
 }
 
 #[test]
-fn 读改不存在的作品状态返回404() {
+fn 读改不存在的作品状态返回_not_found() {
     let db = Db::new();
     assert_eq!(
         variant(&get_game_state(&db, common::ghost()).unwrap_err()),
-        "404"
+        "NotFound"
     );
 
     let err = update_game_state(
@@ -186,7 +186,7 @@ fn 读改不存在的作品状态返回404() {
         },
     )
     .unwrap_err();
-    assert_eq!(variant(&err), "404");
+    assert_eq!(variant(&err), "NotFound");
 }
 
 #[test]
@@ -195,5 +195,5 @@ fn 删作品时状态随外键级联清除() {
     let id = new_game(&db, "随主删除");
     delete_game(&db, &id).expect("删除失败");
 
-    assert_eq!(variant(&get_game_state(&db, &id).unwrap_err()), "404");
+    assert_eq!(variant(&get_game_state(&db, &id).unwrap_err()), "NotFound");
 }

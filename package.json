@@ -4,21 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "apps/*"
+    "frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:server\"",
-    "dev:frontend": "npm run dev --prefix apps/frontend",
-    "dev:server": "npm run dev --prefix apps/server",
-    "build": "npm run build --prefix apps/frontend",
-    "check:frontend": "npm run check:frontend --prefix apps/frontend",
-    "typecheck": "npm run typecheck --prefix apps/server",
-    "test": "npm test --prefix apps/server"
-  },
-  "allowScripts": {
-    "better-sqlite3": true
+    "dev": "tauri dev",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "check:frontend": "npm run check:frontend --prefix frontend",
+    "check:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml"
   },
   "devDependencies": {
-    "concurrently": "^10.0.5"
+    "@tauri-apps/cli": "^2.9.0"
   }
 }

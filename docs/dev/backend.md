@@ -2,40 +2,56 @@
 
 ### 架构一览
 
-- **Hono**（`hono` + `@hono/node-server`），无其他框架依赖
-- **ESM + nodenext**：相对 import 一律带 `.js` 后缀
-- **strict 全绿，禁止 `any`**；改完必跑 `npm run typecheck` + `npm test`
-- 构建产物 → 根 `dist/server/`；运行时数据 → 根 `data/`
+- 后端是 Rust crate `src-tauri`，与前端同在 Tauri 进程里
+- 前端通过 `invoke` 调 `#[tauri::command]`，命令层只转发，业务逻辑在 `games.rs` / `installations.rs`
+- 数据类型只定义一次：`types.rs` 的 serde struct 同时喂给 rusqlite 的行映射与 IPC 序列化
+- 改完必跑 `cargo clippy --all-targets` + `cargo test`
 
 ```
-apps/server/
-├── server.ts        # 只做：装配路由 + 静态托管 + 启动
-├── constants.ts     # PORT/DEFAULT_HOST/API_PREFIX/DB_FILE 单点
-├── db.ts            # getDb() 惰性单例 + ensureSchema()
-├── lib/paths.ts     # ROOT/WEB_DIR/DATA_DIR 路径单点
-├── routes/<域>.ts   # 一个域一个文件，导出 hono 路由
-└── __tests__/       # node --test 原生，起真服打真请求
+src-tauri/
+├── main.rs          # 窗口 + 状态 + invoke_handler；数据目录在这里定
+├── commands.rs      # #[tauri::command] 转发层，不写业务
+├── db.rs            # 连接与 ensure_schema()
+├── error.rs         # AppError，过 IPC 时序列化成一句中文
+├── types.rs         # 表行与 PATCH 参数
+├── games.rs         # 作品与用户状态
+├── installations.rs # 本地目录
+└── fsinfo.rs        # 目录遍历
 ```
 
-### 端口与监听
+### 调用链
 
-- 默认 `4545`，显式只听 `127.0.0.1`（不暴露局域网）；局域网访问用 `HOST=0.0.0.0` 覆盖
-- **地址全项目统一字面量 `127.0.0.1`**：后端绑定、vite 代理、vite dev 绑定、测试、
-  将来 Tauri 壳的 start_url。不用 `localhost`——本机解析先 `::1` 后 `127.0.0.1`，
-  IPv6-first 客户端（Chromium 系）先连 `::1` 失败再回退
+```
+前端 api.js  →  invoke('list_games')  →  commands::list_games  →  games::list_games(&Connection)
+```
 
-### 路由规则
+新增一个后端动作要动四处：领域函数 → `commands.rs` 加一个薄命令 → `main.rs` 的
+`generate_handler!` 列表加一行 → 前端 `api.js` 加一个方法。少任何一处都会在运行时报错。
 
-- 新增端点：`routes/<域>.ts` 建文件 → `server.ts` 里 `app.route(API_PREFIX, ...)` 挂一行
-- `/api` 前缀之外的路径全部属于前端（静态/SPA 兜底），API 404 返回 JSON
-- 路径参数用 hono 原生 `app.get('/games/:id')`，不手写解析
+### 数据目录
 
-### 路径与数据
+| 构建 | 位置 | 理由 |
+|---|---|---|
+| `cargo run` / `tauri dev` | 仓库根 `data/` | 与开发时看到的数据一致 |
+| 打包后 | 系统应用数据目录（`app_data_dir()`） | 仓库根不在用户机器上 |
 
-- 端口/前缀/文件名/外部端点 → `constants.ts`；路径 → `lib/paths.ts`。**禁止散落魔法字符串**
-- `ROOT` 从编译产物位置上探三层（`dist/server/lib/` → 项目根），移动构建目录时这里要跟着改
-- 数据库单文件 `data/fishvn.db`，惰性 `getDb()` 进程内单例；表结构演进**只写在 `ensureSchema()`**，保持幂等
-- 测试用 `FISHVN_DATA_DIR` 指向临时库，跑真服打真请求
+由 `main.rs` 的 `cfg(debug_assertions)` 分开，**两边不共用**，开发数据不会混进安装版。
+改这段要先想清楚是哪一边在动。
+
+### 命令层规则
+
+- `Connection` 是 `Send` 不是 `Sync`，用 `Mutex<Connection>` 交给 `app.manage`
+- 命令里必须走 `lock()` 取连接，锁毒化要转成错误上报，不能 `unwrap`
+- `State` 是注入的，前端不传；其余参数由 serde 从 JSON 反序列化
+- 参数类型本身就是校验：非法枚举值、错的字段类型在反序列化就进不来，不需要手写 typeof 检查
+
+### PATCH 的三态
+
+可空字段用 `Option<Option<T>>`：外层 `None` 是「没给这个字段」，内层 `Some(None)` 是
+「显式置空」。单层 `Option` 分不清这两者，PATCH 会写坏数据。
+
+`status` 例外 —— 它是 `NOT NULL`，没有清空语义，所以是单层 `Option`，给 `null`
+等于「没给」。
 
 ### 数据模型
 
@@ -52,26 +68,31 @@ apps/server/
 
 几条从表结构看不出来的语义：
 
-- `vndb_id` 可空且 `UNIQUE`：NULL 之间不算重复，一部 VN 只对应一条作品；重复绑定回 409
+- `vndb_id` 可空且 `UNIQUE`：NULL 之间不算重复，一部 VN 只对应一条作品；重复绑定报冲突
 - `installations.game_id` 为 NULL 表示待认领。删作品走 `SET NULL` 而不是 CASCADE —— 目录还在盘上，下次扫描还会遇到它
-- 状态取值与 VNDB 一致，定义在 `types.ts` 的 `STATUSES`。表上不加 `CHECK`，SQLite 改约束要重建整张表
+- 状态取值与 VNDB 一致，定义在 `types.rs` 的 `Status` 枚举。表上不加 `CHECK`，SQLite 改约束要重建整张表
 - `dir_path` 由文件管理器给出规范写法，不做大小写归一 —— `COLLATE NOCASE` 会在 macOS 与 Linux 上把不同目录判成同一个
 
-响应统一包一层：`{ games }` / `{ game }` / `{ error }`。DELETE 成功回 204 无正文。
+表结构演进**只写在 `ensure_schema()`**，保持幂等。外键列不能拼进 SQL 去查，`has_column`
+只收字面量。
+
+### 外键列不能收空串
+
+`game_id` / `default_installation_id` 给 `""` 会被 SQLite 当成真实 id 去查，撞外键后
+报成未处理的数据库错误。写入前先判空串，当成非法输入拒掉。
 
 ### 注释
 
 规则见 [comments.md](./comments.md)。判据一句话：**删掉这条注释，会不会有人因此走错路**。
 
-## 新增接口检查清单
+## 新增命令检查清单
 
-- [ ] 路由在 `routes/` 独立文件，`server.ts` 只多一行挂载
-- [ ] 无 `any`，常量/路径没有散落
+- [ ] 领域函数在 `games.rs` / `installations.rs`，`commands.rs` 只转发
+- [ ] 挂进 `main.rs` 的 `generate_handler!`，前端 `api.js` 有对应方法
 - [ ] 新列挂对了表：路径进 `installations`，元数据进 `game_metadata`，状态进 `user_game_state`
 - [ ] 新增列有写入方
-- [ ] 文件系统与外部服务的访问在 `lib/` 的模块里，路由不直接调
-- [ ] 新增测试指向临时库，外部服务有假实现
+- [ ] 可空字段的 PATCH 用双层 `Option`，语义在 types.rs 上看得见
+- [ ] 外键列判了空串
+- [ ] 新增测试指向临时库，文件系统用例有真目录树
 - [ ] 注释过了 comments.md 的判据
-- [ ] 新增小节是规则或语义，不是代码里读得到的实现描述
-- [ ] 跑过 `npm run typecheck` + `npm test`
-- [ ] （涉及前端联调）vite 代理已覆盖，或直接请求 `/api/...` 验证过
+- [ ] 跑过 `npm run check:rust` + `npm test`

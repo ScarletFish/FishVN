@@ -19,6 +19,7 @@
     "vitest": "^4.0.0"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.9.0",
     "overlayscrollbars": "^2.16.0"
   }
 }

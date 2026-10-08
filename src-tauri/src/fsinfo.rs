@@ -18,7 +18,7 @@ pub struct DirInfo {
     pub exes: Vec<String>,
 }
 
-/// 相对路径接上工作目录，`.` 与 `..` 一并归一化，与 Node 的 path.resolve 同义。
+/// 相对路径接上工作目录，`.` 与 `..` 一并归一化成规范写法。
 /// 不 stat 目标：路径是否真的存在留给 ensure_dir 判，好让调用方先查重再读盘。
 pub fn resolve_path(input: &str) -> PathBuf {
     std::path::absolute(input).unwrap_or_else(|_| PathBuf::from(input))

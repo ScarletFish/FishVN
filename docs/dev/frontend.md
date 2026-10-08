@@ -48,7 +48,7 @@
 
 ### 自动检查
 
-`npm run check:frontend` = CSS token 检查（`scripts/check-css-tokens.js`）+ 死 CSS 检查（`scripts/check-dead-css.js`）+ 构建 dist/web/。
+`npm run check:frontend` = CSS token 检查（`scripts/check-css-tokens.js`）+ 死 CSS 检查（`scripts/check-dead-css.js`）+ 构建 `dist/`。
 `npm run check:tokens` 与 `npm run check:dead-css` 可单独跑。
 
 token 检查项：① `var(--x)` 必须已定义 ② 组件禁止引用 L1 原始值 ③ L2 内禁止裸色值 ④ 组件与 Svelte `<style>` 内禁止裸色值。

@@ -86,13 +86,13 @@ impl Default for Tree {
 }
 
 /// 错误变体取出来断言用：拿不到变体名就只能断言「是某种错误」，
-/// 而 400/404/409 三者行为不同，混在一起就测不出区别。
+/// 而 BadRequest / NotFound / Conflict 三者行为不同，混在一起就测不出区别。
 pub fn variant(err: &fishvn::error::AppError) -> &'static str {
     use fishvn::error::AppError::*;
     match err {
-        BadRequest(_) => "400",
-        NotFound(_) => "404",
-        Conflict(_) => "409",
+        BadRequest(_) => "BadRequest",
+        NotFound(_) => "NotFound",
+        Conflict(_) => "Conflict",
         Db(_) | Json(_) | Io(_) => "db",
     }
 }
