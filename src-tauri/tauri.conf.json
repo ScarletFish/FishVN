@@ -5,7 +5,7 @@
   "build": {
     "beforeDevCommand": "npm run dev:frontend",
     "beforeBuildCommand": "npm run build:frontend",
-    "devUrl": "http://127.0.0.1:5173",
+    "devUrl": "http://127.0.0.1:4545",
     "frontendDist": "../frontend/dist"
   },
   "app": {

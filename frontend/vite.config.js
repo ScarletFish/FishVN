@@ -8,8 +8,12 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    // 与全项目统一：只绑 IPv4 回环，不用 localhost（本机解析先 ::1，
-    // 会让 127.0.0.1 访问被拒 / IPv6-first 的客户端多吃回退延迟）
+    // host / port 要与 tauri.conf.json 的 devUrl 同协议族、同端口：
+    // localhost 会让 vite 只绑 ::1，devUrl 的 IPv4 字面量就够不着；
+    // strictPort 让端口占用直接失败，不自动往上换
     host: '127.0.0.1',
+    port: 4545,
+    strictPort: true,
+    watch: { ignored: ['**/src-tauri/**'] },
   },
 });

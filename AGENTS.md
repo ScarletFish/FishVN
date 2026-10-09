@@ -36,8 +36,8 @@ Svelte 5 SPA + Rust 后端的 Tauri v2 桌面应用
 
 | 命令 | 说明 |
 |------|------|
-| `npm run dev` | `tauri dev`：起 Vite 5173 并拉起桌面窗口 |
-| `npm run dev:frontend` | 只起 Vite 5173；`tauri dev` 通过 `beforeDevCommand` 调它，浏览器里单独跑没有 IPC |
+| `npm run dev` | `tauri dev`：起 Vite 4545 并拉起桌面窗口 |
+| `npm run dev:frontend` | 只起 Vite 4545；`tauri dev` 通过 `beforeDevCommand` 调它，浏览器里单独跑没有 IPC |
 | `npm run check:rust` | 后端 `cargo clippy --all-targets` |
 | `npm test` | 后端 `cargo test` |
 | `npm run check:frontend` | 前端：JS 语法 + CSS token + 构建 `frontend/dist` |
