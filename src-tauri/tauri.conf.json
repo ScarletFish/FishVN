@@ -13,8 +13,8 @@
       {
         "label": "main",
         "title": "FishVN",
-        "width": 1280,
-        "height": 800,
+        "width": 1920,
+        "height": 1080,
         "minWidth": 960,
         "minHeight": 600,
         "center": true

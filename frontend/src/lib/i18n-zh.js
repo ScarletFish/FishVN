@@ -21,6 +21,11 @@ export const DICT_ZH = {
     save: '保存',
     close: '关闭',
   },
+  detail: {
+    notFound: '作品不存在',
+    voteCount: '{count} 人',
+    error: '读取作品失败',
+  },
   // 每个操作一组 title/message/confirm，调用处只传 action 名
   confirm: {
     deleteGame: {

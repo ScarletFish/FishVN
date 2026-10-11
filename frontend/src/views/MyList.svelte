@@ -1,10 +1,13 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
+  import { getScrollViewport } from '../lib/scrollbars.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
+
+  let { onopen, scroll = 0, onscroll } = $props();
 
   /** 分区与筛选栏的展示顺序：游玩中的排在最前 */
   const STATUS_ORDER = ['playing', 'wishlist', 'finished', 'dropped'];
@@ -25,9 +28,23 @@ async function load() {
     } finally {
       loading = false;
     }
+    await restoreScroll();
+  }
+
+  async function restoreScroll() {
+    if (!scroll) return;
+    const viewport = getScrollViewport();
+    if (!viewport) return;
+    await tick();
+    viewport.scrollTop = scroll;
   }
 
   onMount(load);
+
+  onDestroy(() => {
+    const viewport = getScrollViewport();
+    if (viewport) onscroll?.(viewport.scrollTop);
+  });
 
   const byName = (a, b) => a.name.localeCompare(b.name, 'zh-CN');
 
@@ -109,7 +126,7 @@ async function load() {
     {#each sections as section (section.status)}
       <StatusSection label={section.label} items={section.items}>
         {#snippet children(item)}
-          <GameCard {item} />
+          <GameCard {item} onopen={() => onopen(item.id)} />
         {/snippet}
       </StatusSection>
     {/each}

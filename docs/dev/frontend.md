@@ -76,6 +76,8 @@ chrome 尺寸固定，不随视口缩放：侧栏 `3.75rem`（60px），标题�
 
 封面墙的卡宽、列数、窗口化约束见 [grid-layout.md](./grid-layout.md)。
 
+模糊优先用 `filter`。`backdrop-filter: blur()` 只在背后存在未模糊内容时才有效果——背后已是模糊色块时它是空转（实测加与不加像素一致），所以只有浮在原图之上的组件才值得考虑。当前模糊取值见 `css/views/detail.css`。
+
 作品的聚合划分、消费方的字段归属判据、写权限分类、加载策略与数据流见 [view-contracts.md](./view-contracts.md)。
 
 

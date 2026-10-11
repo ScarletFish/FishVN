@@ -18,10 +18,16 @@ const HIDE_DELAY = 800;
 const LINGER_DELAY = 1000;
 const EDGE_TOLERANCE = 12;
 
+let instance = null;
+
 export function useScrollbars(target) {
   if (!target) return;
-  const instance = OverlayScrollbars(target, OPTIONS);
+  instance = OverlayScrollbars(target, OPTIONS);
   watchRightEdge(target, instance);
+}
+
+export function getScrollViewport() {
+  return instance?.elements().viewport;
 }
 
 /**

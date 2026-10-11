@@ -5,6 +5,7 @@
   import SettingsDialog from './components/SettingsDialog.svelte';
   import Toaster from './components/Toaster.svelte';
   import MyList from './views/MyList.svelte';
+  import Detail from './views/Detail.svelte';
 
   let settingsOpen = $state(false);
 
@@ -36,14 +37,27 @@
   ];
 
   let current = $state('mylist');
+  let detailId = $state(null);
+  let listScroll = $state(0);
+
+  $effect(() => {
+    current;
+    if (detailId !== null && current !== 'mylist') detailId = null;
+  });
 </script>
 
 <div class="shell">
   <Sidebar items={NAV} bottom={BOTTOM} bind:current />
 
   <main class="shell__main" data-overlayscrollbars-initialize>
-    {#if current === 'mylist'}
-      <MyList />
+    {#if detailId !== null}
+      <Detail gameId={detailId} onclose={() => (detailId = null)} />
+    {:else if current === 'mylist'}
+      <MyList
+        onopen={(id) => (detailId = id)}
+        scroll={listScroll}
+        onscroll={(top) => (listScroll = top)}
+      />
     {:else}
       <section class="view">
         <header class="view-header">

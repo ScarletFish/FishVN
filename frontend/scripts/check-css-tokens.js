@@ -19,6 +19,10 @@ const SECTION_MARKER = /===\s*L([123])\b/;
 const DEF_RE = /(--[a-zA-Z0-9_-]+)\s*:/g;
 const USE_RE = /var\(\s*(--[a-zA-Z0-9_-]+)/g;
 const RAW_COLOR_RE = /#[0-9a-fA-F]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\(/;
+// mask 渐变只读 alpha，颜色分量按规范无意义（black / transparent / rgb(0 0 0 / 50%)），
+// 不存在「该连哪个语义槽」的问题，不算裸色值。整条声明剥掉后再查，保留换行以免行号错位。
+const MASK_DECL_RE = /(^|[\s;])(-webkit-)?mask(-image)?\s*:[^;{}]*;?/g;
+const stripMaskDecls = (code) => code.replace(MASK_DECL_RE, (m) => m.replace(/[^\n]/g, ' '));
 
 const errors = [];
 const report = (file, line, msg) => errors.push(`${file}:${line}  ${msg}`);
@@ -49,9 +53,10 @@ function parseTokens() {
 
 /** 逐行校验一段 CSS：var 引用必须已定义且不得指向 L1；禁止裸色值。 */
 function checkSnippet(file, baseLine, code, defs) {
+  const stripped = stripMaskDecls(code).split(/\r?\n/);
   code.split(/\r?\n/).forEach((raw, i) => {
     const lineNo = baseLine + i;
-    if (RAW_COLOR_RE.test(raw)) {
+    if (RAW_COLOR_RE.test(stripped[i])) {
       report(file, lineNo, '裸色值：请引用 L2 语义槽（L2 内可引用 L1 或用 color-mix 合成）');
     }
     for (const m of raw.matchAll(USE_RE)) {
