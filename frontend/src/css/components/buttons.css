@@ -56,6 +56,32 @@
   font-weight: var(--fw-semibold);
 }
 
+/* 次要操作：去掉填充与阴影，只留描边 */
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border-default);
+  box-shadow: none;
+}
+
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+/* 破坏性操作：描边与文字用 error 色 */
+.btn-danger {
+  color: var(--error);
+  background: transparent;
+  border-color: var(--border-default);
+  box-shadow: none;
+}
+
+.btn-danger:hover {
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 12%, transparent);
+  border-color: var(--error);
+}
+
 /* 与 .btn:hover 特异性相同，逐项写全才不会漏掉被按顺序冲掉的属性 */
 .btn-primary:hover {
   color: var(--fg-on-accent);

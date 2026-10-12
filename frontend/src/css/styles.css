@@ -13,5 +13,8 @@
 @import "./components/view-header.css";
 @import "./components/tooltip.css";
 @import "./components/cover-grid.css";
+@import "./components/section-card.css";
+@import "./components/hscroll.css";
+@import "./components/scroll-dots.css";
 @import "./views/mylist.css";
 @import "./views/detail.css";

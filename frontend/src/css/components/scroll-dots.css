@@ -1,0 +1,39 @@
+/* 水平滚动分页基建 · 圆点指示器
+   供任意水平滚动 section 复用（角色区等）。列数与卡宽的均分契约见 .hscroll-section。 */
+
+.scroll-dots {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.scroll-dot {
+  width: 15px;
+  height: 10px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--fg-muted);
+  opacity: 0.2;
+  cursor: pointer;
+  transition:
+    width var(--duration-normal) var(--ease-out),
+    opacity var(--duration-normal) var(--ease-out),
+    background var(--duration-normal) var(--ease-out);
+}
+
+.scroll-dot.active {
+  width: 18px;
+  opacity: 1;
+  background: var(--accent);
+}
+
+.scroll-dot:hover {
+  opacity: 0.6;
+}
+
+.scroll-dot.active:hover {
+  opacity: 1;
+}

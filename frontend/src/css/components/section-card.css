@@ -1,0 +1,8 @@
+/* Section 容器：带背景与边框的内容区块，用于把一块内容与页面底色区分开。
+   各实例自行设置 padding/margin。 */
+
+.section-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}

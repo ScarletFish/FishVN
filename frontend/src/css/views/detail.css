@@ -4,6 +4,23 @@
   padding: 0 var(--space-12) var(--space-8);
 }
 
+.detail-banner-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.detail-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.detail-actions .btn {
+  padding: var(--space-150) var(--space-350);
+  font-size: var(--text-sm);
+}
+
 /* 与列表卡 .cover-card 的尺寸、圆角、占位要一起改 */
 .detail-cover {
   width: var(--card-w);
@@ -23,8 +40,9 @@
   object-fit: cover;
 }
 
-/* padding-top 把两列压到氛围底下沿之下。氛围底的高度与 mask 停点只决定它画到哪，
-   决定内容从哪起的是这里——靠调那两个值凑不出同样的位置关系。 */
+/* padding-top 决定内容从哪起。氛围底的高度与 mask 停点只决定它画到哪，
+   两者独立：上移内容不会改变氛围底的覆盖范围，但栏体可能因此落进氛围底的
+   实色区而不是淡出段——改了这里要同时看 .detail-info-line 的落位。 */
 .detail-banner {
   position: relative;
   z-index: 1;
@@ -32,27 +50,28 @@
   grid-template-columns: var(--card-w) 1fr;
   gap: clamp(1.875rem, 3vw, 3.75rem);
   align-items: start;
-  padding-top: 12.5rem;
+  padding-top: 10rem;
   padding-bottom: var(--space-4);
 }
 
 /* 绝对定位且是 .detail 的直接子元素，才不吃左右 padding 而满幅——挪进
    .detail-banner 会左右各留一条空白边。
    mask 必须分段：压回两站时收口线附近仍接近不透明，底图会被切出硬边。
-   实色边界 = 高度 × 停点%，改这两者都要重测栏体落在淡出段的哪一段。 */
+   实色边界 = 高度 × 停点%，现为 335px × 31.3% ≈ 105px。改高度若要保住
+   实色边界不变，停点需同步调整（105/高度）。 */
 .detail-ambience {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 23.4375rem;
+  height: 20.9375rem;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
   mask-image: linear-gradient(
     to bottom,
     black 0%,
-    black 28%,
+    black 31.3%,
     rgb(0 0 0 / 66%) 52%,
     rgb(0 0 0 / 34%) 72%,
     rgb(0 0 0 / 13%) 89%,
@@ -223,4 +242,195 @@
   margin-top: var(--space-8);
   font-size: var(--text-sm);
   color: var(--fg-muted);
+}
+
+/* ─── 角色 ─── */
+.detail-chars {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.detail-chars-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.detail-chars-header h3 {
+  font-size: var(--text-body);
+  font-weight: var(--fw-semibold);
+  color: var(--fg-default);
+}
+
+.detail-chars-count {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  color: var(--fg-muted);
+}
+
+/* 基准卡宽是档位门槛：1920 窗口下算 7 列，960 下算 3 列。改这里要同步
+   lib/scroll-dots.svelte.js 的列数计算口径。 */
+.detail-chars-scroll {
+  --card-w: 220px;
+}
+
+.detail-char-card {
+  display: flex;
+  flex-direction: column;
+  /* 比所在 section 的 --bg-surface 高一档，否则卡片与容器底色同档、边界糊掉 */
+  background: var(--bg-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.detail-char-card:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-raised);
+}
+
+/* 展开态只改配色：动尺寸会触发分页重算，卡宽与 --cols 一帧塌缩 */
+.detail-char-card.expanded {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* 立绘用原图比例，裁头裁脚都突兀 */
+.detail-char-portrait {
+  aspect-ratio: 208 / 300;
+  background: var(--bg-page);
+}
+
+.detail-char-portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-char-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-050);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-default);
+}
+
+.detail-char-name {
+  max-width: 100%;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--fg-default);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-char-cv {
+  align-self: flex-end;
+  max-width: 100%;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-char-panel {
+  display: grid;
+  grid-template-columns: 13.5rem 1fr;
+  gap: var(--space-6);
+  align-items: start;
+  padding: var(--space-5);
+  background: var(--bg-floating);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  animation: detail-char-panel-in var(--duration-normal) var(--ease-out);
+}
+
+@keyframes detail-char-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--space-2)));
+  }
+}
+
+.detail-char-panel-art {
+  aspect-ratio: 208 / 300;
+  background: var(--bg-page);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.detail-char-panel-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-char-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.detail-char-panel-body h4 {
+  font-size: var(--text-xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01em;
+  color: var(--fg-default);
+}
+
+.detail-char-original {
+  margin-top: calc(-1 * var(--space-250));
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+/* 属性与 trait 分组共用表格式布局：标题列定宽，长值列吃剩余宽度 */
+.detail-char-facts,
+.detail-char-traits {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.detail-char-traits {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-default);
+}
+
+.detail-char-facts dt,
+.detail-char-traits dt {
+  color: var(--fg-muted);
+}
+
+.detail-char-facts dd,
+.detail-char-traits dd {
+  min-width: 0;
+  color: var(--fg-secondary);
+  user-select: text;
+}
+
+.detail-char-desc {
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--fg-secondary);
+  user-select: text;
 }

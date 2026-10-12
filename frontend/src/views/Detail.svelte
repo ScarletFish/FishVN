@@ -1,6 +1,7 @@
 <script>
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
+  import DetailCharacters from './DetailCharacters.svelte';
 
   let { gameId, onclose } = $props();
 
@@ -150,8 +151,17 @@ As Shirou and Saber navigate the dangerous Holy Grail War, they form alliances a
       <img src={SAMPLE_COVER} alt="" />
     </div>
     <div class="detail-banner">
-      <div class="detail-cover">
-        <img src={SAMPLE_COVER} alt={game.name} />
+      <div class="detail-banner-left">
+        <div class="detail-cover">
+          <img src={SAMPLE_COVER} alt={game.name} />
+        </div>
+        <!-- 三个按钮只占位不接动作：启动需要后端有 launch command，
+     元数据同步与删除同理，都等元数据链落地后再接 -->
+      <div class="detail-actions">
+          <button type="button" class="btn btn-primary">{t('detail.actionPlay')}</button>
+          <button type="button" class="btn btn-ghost">{t('detail.actionSync')}</button>
+          <button type="button" class="btn btn-danger">{t('detail.actionDelete')}</button>
+        </div>
       </div>
       <div class="detail-info">
         <h1>{title}</h1>
@@ -196,5 +206,6 @@ As Shirou and Saber navigate the dangerous Holy Grail War, they form alliances a
         </div>
       </div>
     </div>
+    <DetailCharacters />
   {/if}
 </section>
