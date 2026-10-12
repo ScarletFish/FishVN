@@ -50,6 +50,26 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           exes       TEXT,
           size_bytes INTEGER
         );
+
+        -- VNDB 元数据：一部作品一行。除 game_id 外每列都可由用户手改，
+        -- 同步时逐字段比对现存值与新值，冲突由调用方决定覆盖还是跳过。
+        -- titles / tags / developers 存 JSON 文本而非标量，要按其中某个键筛
+        -- 只能整列取出后在 Rust 侧解。
+        -- image_id 是 VNDB 侧的 cv 编号，只用来判断封面要不要重下；
+        -- image_path 是本地缓存文件的位置，两者不是一回事。
+        CREATE TABLE IF NOT EXISTS game_metadata (
+          game_id     TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+          title       TEXT NOT NULL,
+          titles      TEXT,
+          rating      REAL,
+          votecount   INTEGER NOT NULL,
+          released    TEXT,
+          description TEXT,
+          image_id    TEXT,
+          image_path  TEXT,
+          tags        TEXT,
+          developers  TEXT
+        );
         ",
     )?;
 

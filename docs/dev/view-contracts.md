@@ -41,7 +41,7 @@
 |---|---|---|
 | 用户输入 | `name` · `status` · `user_rating` · `notes` | 表单自由编辑 |
 | 系统派生 | `created_at` · `play_count` · `last_played_at` · `installation_count` · `can_launch` | 由动作产生 |
-| 外部元数据 | VNDB 标题 · 封面 · 评分 · 简介 | 只读；同步填空字段 |
+| 外部元数据 | VNDB 标题 · 封面 · 评分 · 简介 | 同步只写用户没改过的字段；冲突逐字段由用户选覆盖或跳过 |
 | 本地事实 | `dir_path` · `entry_path` · `size_bytes` | 通过目录选择器替换 |
 
 `installation_count` 与 `can_launch` 是查询期算出来的，其余系统派生字段有列，写者见 [backend.md](./backend.md)。
