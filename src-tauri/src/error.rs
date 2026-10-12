@@ -10,6 +10,10 @@ pub enum AppError {
     NotFound(String),
     /// 唯一约束撞了
     Conflict(String),
+    /// 触发 VNDB 限流
+    RateLimited,
+    /// 上游故障：5xx、连接失败、响应不是 JSON
+    Upstream(String),
     Db(rusqlite::Error),
     Json(serde_json::Error),
     Io(std::io::Error),
@@ -22,6 +26,8 @@ impl fmt::Display for AppError {
             Self::Db(e) => write!(f, "{e}"),
             Self::Json(e) => write!(f, "{e}"),
             Self::Io(e) => write!(f, "{e}"),
+            Self::RateLimited => f.write_str("VNDB 请求太频繁，已触发限流，请稍后再试"),
+            Self::Upstream(m) => write!(f, "VNDB 服务异常：{m}"),
         }
     }
 }

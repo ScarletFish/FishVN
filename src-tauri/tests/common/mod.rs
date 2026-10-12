@@ -93,6 +93,8 @@ pub fn variant(err: &fishvn::error::AppError) -> &'static str {
         BadRequest(_) => "BadRequest",
         NotFound(_) => "NotFound",
         Conflict(_) => "Conflict",
+        RateLimited => "RateLimited",
+        Upstream(_) => "Upstream",
         Db(_) | Json(_) | Io(_) => "db",
     }
 }

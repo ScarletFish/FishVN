@@ -6,6 +6,7 @@ use std::sync::Mutex;
 
 use fishvn::commands;
 use fishvn::db;
+use fishvn::vndb::RateLimiter;
 use tauri::Manager;
 
 /// 开发期指向仓库根的 data/。打包后仓库根不在用户机器上，改用系统应用数据目录 ——
@@ -30,6 +31,7 @@ fn main() {
         .setup(|app| {
             let conn = db::open(&data_dir(app.handle())?)?;
             app.manage(Mutex::new(conn));
+            app.manage(RateLimiter::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -45,6 +47,8 @@ fn main() {
             commands::create_installation,
             commands::update_installation,
             commands::delete_installation,
+            commands::search_vndb,
+            commands::fetch_vn_metadata,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 启动失败");

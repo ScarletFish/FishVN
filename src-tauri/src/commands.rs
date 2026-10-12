@@ -11,6 +11,7 @@ use tauri::State;
 use crate::error::{AppError, Result};
 use crate::games;
 use crate::installations;
+use crate::vndb::{self, RateLimiter, VnMetadata, VnSearchHit};
 use crate::types::{
     Game, GameListItem, GamePatch, Installation, InstallationPatch, NewGame, NewInstallation,
     StatePatch, UserGameState,
@@ -93,4 +94,25 @@ pub fn update_installation(
 #[tauri::command]
 pub fn delete_installation(shared: Shared<'_>, id: String) -> Result<()> {
     installations::delete_installation(&*lock(&shared)?, &id)
+}
+
+/// 不取 Connection 锁：那是全局单锁，跨网络 I/O 持着会卡住所有库操作
+#[tauri::command]
+pub async fn search_vndb(
+    rate: State<'_, RateLimiter>,
+    keyword: String,
+) -> Result<Vec<VnSearchHit>> {
+    let keyword = vndb::validate_keyword(&keyword)?;
+    rate.acquire().await;
+    vndb::search(vndb::http(), &keyword).await
+}
+
+#[tauri::command]
+pub async fn fetch_vn_metadata(
+    rate: State<'_, RateLimiter>,
+    vndb_id: String,
+) -> Result<VnMetadata> {
+    let vndb_id = vndb::validate_vn_id(&vndb_id)?;
+    rate.acquire().await;
+    vndb::fetch_vn(vndb::http(), &vndb_id).await
 }

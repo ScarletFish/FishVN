@@ -81,6 +81,21 @@ POST JSON body，`Content-Type: application/json`。响应恒为 JSON，`Accept`
 
 余量查不到，客户端只能自己按低于服务端的口径节流。
 
+### `search` 传数组会静默失效
+
+`search` 是多值过滤器，写 `["search","=",["clannad","air"]]` **不报错**，而是返回按 id 排序的
+无条件结果（v1、v2、v3…）。比报错更危险：请求看起来成功了，最相关的作品却排不到前面。
+`search` 只能写字符串值。
+
+### `sort:"searchrank"` 要求顶层过滤器就是 `search`
+
+顶层换成 `or` 组合或别的过滤器时带 `sort:"searchrank"` 会 400。搜索请求的形状不要自由拼。
+
+### 单请求超时
+
+服务端会中断超过 3 秒的请求，客户端因此把超时设在 3 秒：主动放弃的错误可判断，
+被服务端掐断只剩一个语义不明的连接错误。
+
 ### 一次请求合并多部作品
 
 `id` 的 flag 只有 `o` 没有 `m`，直接传数组会 400（`Invalid 'id' filter: Invalid value.`）。
