@@ -3,25 +3,140 @@
   import Modal from './Modal.svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
+  import { readCache, writeCache } from '../lib/vndb-cache.js';
 
   let { open = $bindable(false), onsaved } = $props();
 
+  const TABS = ['basic', 'profile', 'tags'];
+
+  const STATUS_KEYS = ['playing', 'wishlist', 'finished', 'dropped'];
+
   let name = $state('');
+  let vndbId = $state(null);
+  let status = $state('wishlist');
+  let userRating = $state(null);
+  let notes = $state('');
   let error = $state('');
   let saving = $state(false);
   let input = $state(null);
+
+  let title = $state('');
+  let released = $state('');
+  let rating = $state('');
+  let votecount = $state('');
+  let description = $state('');
+  let developers = $state('');
+  let tags = $state([]);
+  let coverPath = $state('');
+
+  let tagDraft = $state('');
+  let coverBroken = $state(false);
+
+  let tab = $state('basic');
+  let statusOpen = $state(false);
+
+  let searchOpen = $state(false);
+  let searching = $state(false);
+  let searchError = $state('');
+  let hits = $state([]);
 
   // 关闭时组件不卸载，字段要在这里重置
   $effect(() => {
     if (!open) return;
     name = '';
+    vndbId = null;
+    status = 'wishlist';
+    userRating = null;
+    notes = '';
     error = '';
+    title = '';
+    released = '';
+    rating = '';
+    votecount = '';
+    description = '';
+    developers = '';
+    tags = [];
+    coverPath = '';
+    tagDraft = '';
+    coverBroken = false;
+    tab = 'basic';
+    statusOpen = false;
+    searchOpen = false;
+    searching = false;
+    searchError = '';
+    hits = [];
     tick().then(() => input?.focus());
   });
+
+  function statusLabel(key) {
+    return t(`status.${key}`);
+  }
+
+  function stepRating(delta) {
+    const current = userRating ?? 0;
+    const next = Math.round((current + delta) * 2) / 2;
+    if (next <= 0) {
+      userRating = delta < 0 ? null : 0.5;
+      return;
+    }
+    userRating = Math.min(10, next);
+  }
+
+  function addTag() {
+    const value = tagDraft.trim();
+    if (!value) return;
+    if (!tags.includes(value)) tags = [...tags, value];
+    tagDraft = '';
+  }
+
+  function removeTag(index) {
+    tags = tags.filter((_, i) => i !== index);
+  }
+
+  function onTagKeydown(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+      return;
+    }
+    if (e.key === 'Backspace' && !tagDraft && tags.length) {
+      e.preventDefault();
+      removeTag(tags.length - 1);
+    }
+  }
 
   function close() {
     if (saving) return false;
     open = false;
+  }
+
+  async function searchVndb() {
+    const keyword = name.trim();
+    if (!keyword || searching) return;
+
+    searchOpen = true;
+    searchError = '';
+
+    const cached = readCache(keyword);
+    if (cached) {
+      hits = cached;
+      searching = false;
+      return;
+    }
+
+    // 换词重搜时先清空，避免旧结果与新请求的空窗期显示错配
+    hits = [];
+    searching = true;
+    try {
+      const result = await api.searchVndb(keyword);
+      writeCache(keyword, result);
+      hits = result;
+    } catch (err) {
+      // 后端与网络错误不走 i18n，原样显示
+      searchError = err.message;
+    } finally {
+      searching = false;
+    }
   }
 
   async function submit(e) {
@@ -37,7 +152,7 @@
     saving = true;
     error = '';
     try {
-      await api.createGame({ name: value });
+      await api.createGame({ name: value, vndb_id: vndbId });
       open = false;
       onsaved?.();
     } catch (err) {
@@ -49,29 +164,281 @@
   }
 </script>
 
-<Modal bind:open title={t('gameForm.title')} variant="modal--form" onclose={close}>
+<Modal
+  bind:open
+  bind:asideOpen={searchOpen}
+  title={t('gameForm.title')}
+  variant="modal--form"
+  asideTitle={t('gameForm.search.title')}
+  onclose={close}
+>
   <!-- form 只负责回车隐式提交，dialog 角色必须挂在非交互元素上 -->
   <form class="form-panel" onsubmit={submit}>
+    <div class="modal-tabs" role="tablist">
+      {#each TABS as key (key)}
+        <button
+          type="button"
+          role="tab"
+          class="modal-tab"
+          class:active={tab === key}
+          aria-selected={tab === key}
+          onclick={() => (tab = key)}
+        >
+          {t(`gameForm.tab.${key}`)}
+        </button>
+      {/each}
+    </div>
+
     <div class="modal-panels">
-      <div class="modal-panel active">
+      <div class="modal-panel" class:active={tab === 'basic'}>
+        <div class="panel-grid">
+          <div class="form-group panel-grid__full">
+            <label for="game-form-name">{t('gameForm.field.name')}</label>
+            <input
+              id="game-form-name"
+              type="text"
+              bind:value={name}
+              bind:this={input}
+              placeholder={t('gameForm.namePlaceholder')}
+              disabled={saving}
+            />
+            {#if error}
+              <p class="form-hint form-hint--error">{error}</p>
+            {/if}
+          </div>
+
+          <div class="form-group">
+            <label for="game-form-status">{t('gameForm.field.status')}</label>
+            <div class="select-dd" class:is-open={statusOpen}>
+              <button
+                id="game-form-status"
+                type="button"
+                class="select-dd-trigger"
+                aria-haspopup="listbox"
+                aria-expanded={statusOpen}
+                disabled={saving}
+                onclick={() => (statusOpen = !statusOpen)}
+                onblur={() => (statusOpen = false)}
+              >
+                <span class="select-dd-text">{statusLabel(status)}</span>
+                <svg
+                  class="select-dd-chevron"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {#if statusOpen}
+                <div class="select-dd-menu" role="listbox">
+                  {#each STATUS_KEYS as key (key)}
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={status === key}
+                      class="select-dd-opt"
+                      class:is-selected={status === key}
+                      onmousedown={(e) => e.preventDefault()}
+                      onclick={() => {
+                        status = key;
+                        statusOpen = false;
+                      }}
+                    >
+                      <span>{statusLabel(key)}</span>
+                      <svg
+                        class="select-dd-opt-check"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="game-form-rating">{t('gameForm.field.userRating')}</label>
+            <div class="num-stepper">
+              <button type="button" class="num-stepper-btn" onclick={() => stepRating(-0.5)}>−</button>
+              <input
+                id="game-form-rating"
+                class="num-stepper-val"
+                type="text"
+                inputmode="decimal"
+                value={userRating ?? '—'}
+                readonly
+                aria-label={t('gameForm.field.userRating')}
+              />
+              <button type="button" class="num-stepper-btn" onclick={() => stepRating(0.5)}>+</button>
+            </div>
+          </div>
+
+          <div class="form-group panel-grid__full">
+            <label for="game-form-notes">{t('gameForm.field.notes')}</label>
+            <textarea
+              id="game-form-notes"
+              bind:value={notes}
+              placeholder={t('gameForm.placeholder.notes')}
+              disabled={saving}
+            ></textarea>
+          </div>
+
+          <div class="form-group panel-grid__full form-group--tall">
+            <label for="game-form-description">{t('gameForm.field.description')}</label>
+            <textarea
+              id="game-form-description"
+              class="scroll-thin"
+              bind:value={description}
+              placeholder={t('gameForm.placeholder.description')}
+              disabled={saving}
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-panel" class:active={tab === 'profile'}>
+        <div class="panel-grid">
+          <div class="form-group panel-grid__full">
+            <label for="game-form-meta-title">{t('gameForm.field.title')}</label>
+            <input
+              id="game-form-meta-title"
+              type="text"
+              bind:value={title}
+              placeholder={t('gameForm.placeholder.title')}
+              disabled={saving}
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="game-form-meta-released">{t('gameForm.field.released')}</label>
+            <input
+              id="game-form-meta-released"
+              type="text"
+              bind:value={released}
+              placeholder={t('gameForm.placeholder.released')}
+              disabled={saving}
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="game-form-meta-rating">{t('gameForm.field.rating')}</label>
+            <input
+              id="game-form-meta-rating"
+              type="text"
+              inputmode="decimal"
+              bind:value={rating}
+              placeholder={t('gameForm.placeholder.empty')}
+              disabled={saving}
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="game-form-meta-votecount">{t('gameForm.field.votecount')}</label>
+            <input
+              id="game-form-meta-votecount"
+              type="text"
+              inputmode="numeric"
+              bind:value={votecount}
+              placeholder={t('gameForm.placeholder.empty')}
+              disabled={saving}
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="game-form-meta-developers">{t('gameForm.field.developers')}</label>
+            <input
+              id="game-form-meta-developers"
+              type="text"
+              bind:value={developers}
+              placeholder={t('gameForm.placeholder.developers')}
+              disabled={saving}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-panel" class:active={tab === 'tags'}>
         <div class="form-group">
-          <label for="game-form-name">{t('gameForm.field.name')}</label>
-          <input
-            id="game-form-name"
-            type="text"
-            bind:value={name}
-            bind:this={input}
-            placeholder={t('gameForm.namePlaceholder')}
-            disabled={saving}
-          />
-          {#if error}
-            <p class="form-hint form-hint--error">{error}</p>
-          {/if}
+          <label for="game-form-tags">{t('gameForm.field.tags')}</label>
+          <div class="tag-input scroll-thin">
+            {#each tags as tag, i (tag)}
+              <span class="tag-pill">
+                {tag}
+                <button
+                  type="button"
+                  class="tag-pill__remove"
+                  aria-label={t('gameForm.action.removeTag')}
+                  onmousedown={(e) => e.preventDefault()}
+                  onclick={() => removeTag(i)}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </span>
+            {/each}
+            <input
+              id="game-form-tags"
+              class="tag-input__field"
+              type="text"
+              bind:value={tagDraft}
+              onkeydown={onTagKeydown}
+              onblur={addTag}
+              placeholder={tags.length ? '' : t('gameForm.placeholder.tags')}
+              disabled={saving}
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="game-form-cover">{t('gameForm.field.cover')}</label>
+          <div class="cover-field">
+            <div class="cover-field__preview">
+              {#if coverPath && !coverBroken}
+                <img
+                  src={coverPath}
+                  alt=""
+                  onerror={() => (coverBroken = true)}
+                />
+              {:else}
+                <div class="cover-field__ph">{t('gameForm.placeholder.empty')}</div>
+              {/if}
+            </div>
+            <div class="cover-field__main">
+              <input
+                id="game-form-cover"
+                type="text"
+                bind:value={coverPath}
+                oninput={() => (coverBroken = false)}
+                placeholder={t('gameForm.placeholder.cover')}
+                disabled={saving}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="modal-actions">
+      <button
+        type="button"
+        class="game-form__sync btn"
+        onclick={searchVndb}
+        disabled={saving || searching || !name.trim()}
+      >
+        {t('gameForm.action.sync')}
+      </button>
       <button type="button" class="btn" onclick={close} disabled={saving}>
         {t('common.cancel')}
       </button>
@@ -80,4 +447,184 @@
       </button>
     </div>
   </form>
+
+  {#snippet aside()}
+    <div class="modal-panels scroll-thin">
+      <div class="modal-panel active">
+        {#if searching}
+          <div class="vndb-progress" role="progressbar" aria-label={t('gameForm.search.loading')}>
+            <span class="vndb-progress__bar"></span>
+          </div>
+        {:else if searchError}
+          <p class="vndb-note vndb-note--error">{searchError}</p>
+        {:else if hits.length === 0}
+          <p class="vndb-note">{t('gameForm.search.empty')}</p>
+        {:else}
+          <ul class="vndb-hits">
+            {#each hits as hit (hit.id)}
+              <li>
+                <button
+                  type="button"
+                  class="vndb-hit"
+                  class:active={vndbId === hit.id}
+                  onclick={() => (vndbId = hit.id)}
+                >
+                  <span class="vndb-hit__cover">
+                    {#if hit.image?.thumbnail}
+                      <img src={hit.image.thumbnail} alt="" loading="lazy" decoding="async" />
+                    {:else}
+                      <span class="vndb-hit__ph">{(hit.alttitle || hit.title || '?')[0]}</span>
+                    {/if}
+                  </span>
+                  <span class="vndb-hit__text">
+                    <span class="vndb-hit__title">{hit.alttitle || hit.title}</span>
+                    {#if hit.alttitle && hit.alttitle !== hit.title}
+                      <span class="vndb-hit__alt">{hit.title}</span>
+                    {/if}
+                    <span class="vndb-hit__meta">
+                      {[hit.released?.slice(0, 4), hit.olang].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn" onclick={() => (searchOpen = false)}>
+        {t('gameForm.search.close')}
+      </button>
+    </div>
+  {/snippet}
 </Modal>
+
+<style>
+  .game-form__sync {
+    margin-right: auto;
+  }
+
+  .vndb-note {
+    padding: var(--space-4) 0;
+    font-size: var(--text-base);
+    color: var(--fg-muted);
+  }
+
+  .vndb-note--error {
+    color: var(--error);
+  }
+
+  .vndb-progress {
+    position: relative;
+    overflow: hidden;
+    height: var(--space-075);
+    margin-top: var(--space-2);
+    background: var(--bg-surface);
+    border-radius: var(--radius-pill);
+  }
+
+  .vndb-progress__bar {
+    position: absolute;
+    inset-block: 0;
+    width: 40%;
+    background: var(--accent-gradient);
+    border-radius: var(--radius-pill);
+    animation: vndb-sweep 1.1s var(--ease-out) infinite;
+  }
+
+  @keyframes vndb-sweep {
+    from {
+      left: -40%;
+    }
+    to {
+      left: 100%;
+    }
+  }
+
+  .vndb-hits {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    list-style: none;
+  }
+
+  .vndb-hit {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3);
+    text-align: left;
+    color: var(--fg-default);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition:
+      background var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out);
+  }
+
+  .vndb-hit:hover {
+    background: var(--bg-raised);
+    border-color: var(--border-strong);
+  }
+
+  .vndb-hit.active {
+    background: var(--bg-selected);
+    border-color: var(--accent-border);
+  }
+
+  .vndb-hit__cover {
+    flex-shrink: 0;
+    width: var(--space-28);
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    background: var(--bg-raised);
+    border-radius: var(--radius-sm);
+  }
+
+  .vndb-hit__cover img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .vndb-hit__ph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: var(--text-xl);
+    color: var(--fg-muted);
+  }
+
+  .vndb-hit__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .vndb-hit__title {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: var(--text-body);
+    font-weight: var(--fw-medium);
+    color: var(--fg-default);
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .vndb-hit__alt,
+  .vndb-hit__meta {
+    overflow: hidden;
+    font-size: var(--text-base);
+    color: var(--fg-muted);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+</style>

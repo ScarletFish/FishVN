@@ -23,4 +23,5 @@ export const api = {
   createInstallation: (input) => call('create_installation', { input }),
   updateInstallation: (id, patch) => call('update_installation', { id, patch }),
   deleteInstallation: (id) => call('delete_installation', { id }),
+  searchVndb: (keyword) => call('search_vndb', { keyword }),
 };

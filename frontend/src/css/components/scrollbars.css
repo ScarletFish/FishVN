@@ -64,3 +64,35 @@
   width: var(--scrollbar-size-hover);
   --os-handle-interactive-area-offset: 0;
 }
+
+/* 弹窗内的原生滚动条。overlayscrollbars 的 instance 是单例、只服务主视图，弹窗不能复用。
+   这个类要挂在真正 overflow-y: auto 的元素上，套一层外壳就断高度约束 */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.scroll-thin:hover {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.scroll-thin::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+}
+
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--radius-pill);
+}
+
+.scroll-thin:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-muted);
+}
