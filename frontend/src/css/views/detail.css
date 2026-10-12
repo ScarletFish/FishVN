@@ -39,7 +39,7 @@
 /* 绝对定位且是 .detail 的直接子元素，才不吃左右 padding 而满幅——挪进
    .detail-banner 会左右各留一条空白边。
    mask 必须分段：压回两站时收口线附近仍接近不透明，底图会被切出硬边。
-   实色边界 = 高度 × 停点%，改这两者都要重测 .detail-info-line 是否仍横跨淡出段。 */
+   实色边界 = 高度 × 停点%，改这两者都要重测栏体落在淡出段的哪一段。 */
 .detail-ambience {
   position: absolute;
   top: 0;
@@ -107,7 +107,7 @@
   color: var(--fg-default);
 }
 
-/* 负边距把别名往标题方向收紧，与标题算作一组 */
+/* 负边距把别名往标题方向收紧，与标题算作一组（副标题用法）。 */
 .detail-alias {
   margin: calc(-1 * var(--space-250)) 0 0;
   font-size: var(--text-md);
@@ -115,16 +115,14 @@
   color: var(--fg-secondary);
 }
 
-/* margin-top 把栏体下沿钉在氛围底收口线上。它同时被 .detail-banner 的 padding-top、
-   .detail-ambience 的 height 与 mask 停点牵动，改任一项都要重测下沿差，别目测。
-   边框是承重结构：底色 55% 不透明度且浮在淡出段上，去掉边框栏体就塌。
+/* 边框是承重结构：底色 55% 不透明度且浮在氛围底的淡出段上，去掉边框栏体就塌。
    背后必须有 .detail-ambience，删掉它这层几乎不可见。 */
 .detail-info-line {
   display: flex;
   justify-content: space-between;
   align-items: center;
   max-width: min(25rem, 100%);
-  margin-top: 1.125rem;
+  margin: var(--space-2) 0 var(--space-3);
   padding: var(--space-150) var(--space-2);
   background: color-mix(in srgb, var(--bg-raised) 55%, transparent);
   border: 1px solid var(--border-default);
@@ -157,16 +155,68 @@
   justify-content: flex-end;
 }
 
-.info-pill {
+/* 胶囊几何共用，配色按角色分开。tag 走中性色是刻意的：一屏几十个 tag 全用
+   accent 会把强调色稀释，也压过标题；accent 留给 info-bar 里的评分与信息项。 */
+.pill {
   display: inline-flex;
   align-items: center;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
-  background: var(--accent-bg);
-  color: var(--accent-soft);
+  font-family: inherit;
   font-size: var(--text-xs);
   font-weight: var(--fw-medium);
   white-space: nowrap;
+}
+
+.pill--info {
+  background: var(--accent-bg);
+  color: var(--accent-soft);
+}
+
+.pill--tag {
+  background: var(--bg-hover);
+  color: var(--fg-secondary);
+}
+
+/* .pill--more 落在 <button> 上：按钮的边框和字体不继承，去掉这两行会露出系统默认样式 */
+.pill--more {
+  margin: 0;
+  border: 0;
+  background: var(--bg-hover);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.pill--more:hover {
+  background: var(--bg-selected);
+  color: var(--accent-soft);
+}
+
+.detail-tags {
+  margin-bottom: var(--space-2);
+}
+
+.detail-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* 夹 4 行依赖 -webkit-box 三件套，-webkit-box-orient 缺了 ellipsis 不出现。
+   元数据源（VNDB）无中文简介，正文以英文为主，同样行数装下的信息量多于中文。 */
+.detail-summary {
+  display: -webkit-box;
+  width: 100%;
+  overflow: hidden;
+  color: var(--fg-secondary);
+  font-size: var(--text-base);
+  line-height: 1.7;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.detail-summary p + p {
+  margin-top: var(--space-2);
 }
 
 .detail-note {

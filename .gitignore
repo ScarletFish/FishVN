@@ -27,3 +27,6 @@ Thumbs.db
 
 src-tauri/target/
 src-tauri/gen/schemas/
+
+#临时
+vndb-sample/
