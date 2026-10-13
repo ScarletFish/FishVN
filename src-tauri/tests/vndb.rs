@@ -5,7 +5,7 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use fishvn::vndb::{RateLimiter, VnEnvelope, VnMetadata, validate_keyword, validate_vn_id};
+use fishvn::vndb::{validate_keyword, validate_vn_id, RateLimiter, VnEnvelope, VnMetadata};
 
 #[tokio::test]
 async fn 限流器满员后要等到窗口出位() {
@@ -185,7 +185,10 @@ fn 搜索响应能反序列化_封面只带缩略图() {
     let image = hit.image.as_ref().unwrap();
     assert_eq!(image.url, None);
     assert_eq!(image.dims, None);
-    assert_eq!(image.thumbnail.as_deref(), Some("https://t.vndb.org/cv.t/91/78491.jpg"));
+    assert_eq!(
+        image.thumbnail.as_deref(),
+        Some("https://t.vndb.org/cv.t/91/78491.jpg")
+    );
     assert_eq!(image.thumbnail_dims, Some(vec![256, 144]));
 }
 

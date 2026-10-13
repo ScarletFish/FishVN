@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 use crate::error::{AppError, Result};
 
@@ -210,9 +210,10 @@ pub async fn fetch_vn(http: &reqwest::Client, vndb_id: &str) -> Result<VnMetadat
         "results": 1,
     });
     let env: VnEnvelope<VnMetadata> = post(http, body).await?;
-    env.results.into_iter().next().ok_or_else(|| {
-        AppError::NotFound(format!("VNDB 没有这条记录：{vndb_id}"))
-    })
+    env.results
+        .into_iter()
+        .next()
+        .ok_or_else(|| AppError::NotFound(format!("VNDB 没有这条记录：{vndb_id}")))
 }
 
 async fn post<T: for<'de> Deserialize<'de>>(
@@ -236,7 +237,9 @@ async fn post<T: for<'de> Deserialize<'de>>(
         200 => serde_json::from_str(&text)
             .map_err(|e| AppError::Upstream(format!("VNDB 响应不是预期 JSON：{e}"))),
         // 400 是我们请求写错了，body 里是 VNDB 指出的字段名，要带上报错现场
-        400 => Err(AppError::BadRequest(format!("VNDB 拒绝请求（400）：{text}"))),
+        400 => Err(AppError::BadRequest(format!(
+            "VNDB 拒绝请求（400）：{text}"
+        ))),
         429 => Err(AppError::RateLimited),
         _ => Err(AppError::Upstream(format!("VNDB 返回 {status}"))),
     }
