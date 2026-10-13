@@ -83,6 +83,7 @@ export const DICT_ZH = {
       status: '状态',
       userRating: '我的评分',
       notes: '备注',
+      alias: '别名',
       released: '发行日期',
       rating: '评分',
       votecount: '评分人数',
@@ -91,9 +92,15 @@ export const DICT_ZH = {
       tags: '标签',
       cover: '封面',
     },
+    hint: {
+      ratingScale: 'VNDB 原始评分，0 到 100 的百分制',
+    },
     placeholder: {
       notes: '还没有备注',
       empty: '尚未同步',
+      rating: '如 86.3',
+      votecount: '如 19334',
+      alias: '作品的别称，详情页显示在标题下方',
       released: '如 2005-08-02',
       description: '作品的简介',
       developers: '多个用逗号分隔',
@@ -112,6 +119,8 @@ export const DICT_ZH = {
     },
     error: {
       nameRequired: '请填写游戏名',
+      ratingRange: '评分要在 0 到 100 之间（百分制）',
+      votecountRange: '评分人数要是 0 或更大的整数',
     },
   },
   toast: {

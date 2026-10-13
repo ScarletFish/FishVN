@@ -26,8 +26,13 @@
 
   let alias = $derived(meta?.alias ?? '');
 
-  // VNDB 的 rating 是百分制，界面按十分制展示
-  let ratingScore = $derived(meta?.rating != null ? (meta.rating / 10).toFixed(2) : '');
+  // VNDB 的 rating 是百分制，界面按十分制展示。91 要显示 9.1 而不是 9.10：
+  // 固定两位会补出一个没有信息量的 0
+  function trimScore(value) {
+    return String(Number(value.toFixed(2)));
+  }
+
+  let ratingScore = $derived(meta?.rating != null ? trimScore(meta.rating / 10) : '');
   let releaseYear = $derived(meta?.released?.slice(0, 4) ?? '');
   let developer = $derived(meta?.developers?.[0] ?? '');
 

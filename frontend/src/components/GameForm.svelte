@@ -21,9 +21,12 @@
   let loading = $state(false);
   let input = $state(null);
 
+  let alias = $state('');
   let released = $state('');
   let rating = $state('');
   let votecount = $state('');
+  let ratingError = $state('');
+  let votecountError = $state('');
   let description = $state('');
   let developers = $state('');
   let tags = $state([]);
@@ -50,8 +53,11 @@
     notes = '';
     error = '';
     released = '';
+    alias = '';
     rating = '';
     votecount = '';
+    ratingError = '';
+    votecountError = '';
     description = '';
     developers = '';
     tags = [];
@@ -88,6 +94,7 @@
       userRating = state.user_rating;
       notes = state.notes ?? '';
       released = meta?.released ?? '';
+      alias = meta?.alias ?? '';
       rating = meta?.rating != null ? String(meta.rating) : '';
       votecount = meta?.votecount != null ? String(meta.votecount) : '';
       description = meta?.description ?? '';
@@ -181,10 +188,28 @@
     return value === null ? null : Math.trunc(value);
   }
 
-  // alias 与 titles 不进 patch：表单没有这两项，双层 Option 缺外层是「不动」，
-  // 写 null 反而会把它们清掉。image_id 同理，由封面下载管线自己写。
+  // 评分与人数在库里是 VNDB 的原值：评分是百分制，详情页再除以 10 展示。
+  // 这里只挡越界与非数字，越界值存进去会让详情页显示成不可信的分数。
+  // 文案渲染在各字段旁边而不是共用的 error，那一处只在基本信息 tab 里
+  function validateRanges() {
+    ratingError = '';
+    votecountError = '';
+    const score = toNumber(rating);
+    if (rating.trim() && (score === null || score < 0 || score > 100)) {
+      ratingError = t('gameForm.error.ratingRange');
+    }
+    const votes = toNumber(votecount);
+    if (votecount.trim() && (votes === null || votes < 0)) {
+      votecountError = t('gameForm.error.votecountRange');
+    }
+    return ratingError || votecountError;
+  }
+
+  // titles 不进 patch：表单没有这一项，双层 Option 缺外层是「不动」，
+  // 写 null 反而会把同步来的本地化标题清掉。image_id 同理，由封面下载管线自己写。
   function buildMetadataPatch() {
     return {
+      alias: alias.trim() || null,
       released: released.trim() || null,
       rating: toNumber(rating),
       votecount: toInteger(votecount),
@@ -213,6 +238,13 @@
     const value = name.trim();
     if (!value) {
       error = t('gameForm.error.nameRequired');
+      return;
+    }
+
+    const rangeError = validateRanges();
+    if (rangeError) {
+      // 保存按钮在 tab 面板之外，从基本信息页提交也要能看见资料数据那两处的报错
+      tab = 'profile';
       return;
     }
 
@@ -391,6 +423,17 @@
 
       <div class="modal-panel" class:active={tab === 'profile'}>
         <div class="panel-grid">
+          <div class="form-group panel-grid__full">
+            <label for="game-form-meta-alias">{t('gameForm.field.alias')}</label>
+            <input
+              id="game-form-meta-alias"
+              type="text"
+              bind:value={alias}
+              placeholder={t('gameForm.placeholder.alias')}
+              disabled={saving}
+            />
+          </div>
+
           <div class="form-group">
             <label for="game-form-meta-released">{t('gameForm.field.released')}</label>
             <input
@@ -403,15 +446,24 @@
           </div>
 
           <div class="form-group">
-            <label for="game-form-meta-rating">{t('gameForm.field.rating')}</label>
+            <label
+              for="game-form-meta-rating"
+              data-tooltip={t('gameForm.hint.ratingScale')}
+            >
+              {t('gameForm.field.rating')}
+            </label>
             <input
               id="game-form-meta-rating"
               type="text"
               inputmode="decimal"
               bind:value={rating}
-              placeholder={t('gameForm.placeholder.empty')}
+              placeholder={t('gameForm.placeholder.rating')}
               disabled={saving}
             />
+            <p class="form-hint">{t('gameForm.hint.ratingScale')}</p>
+            {#if ratingError}
+              <p class="form-hint form-hint--error">{ratingError}</p>
+            {/if}
           </div>
 
           <div class="form-group">
@@ -421,9 +473,12 @@
               type="text"
               inputmode="numeric"
               bind:value={votecount}
-              placeholder={t('gameForm.placeholder.empty')}
+              placeholder={t('gameForm.placeholder.votecount')}
               disabled={saving}
             />
+            {#if votecountError}
+              <p class="form-hint form-hint--error">{votecountError}</p>
+            {/if}
           </div>
 
           <div class="form-group">
