@@ -323,6 +323,16 @@ fn 资料写失败时作品与状态都不留行() {
 }
 
 #[test]
+fn 评分人数带小数反序列化失败() {
+    // 输入框给的是字符串，转数字可能带小数；i64 接不住，整个包都读不出来
+    assert!(
+        serde_json::from_str::<MetadataPatch>(r#"{"votecount":12.5}"#).is_err(),
+        "浮点评分人数不该被当成 i64 收下"
+    );
+    assert!(serde_json::from_str::<MetadataPatch>(r#"{"votecount":12}"#).is_ok());
+}
+
+#[test]
 fn 没资料也能改状态() {
     let db = Db::new();
     let id = new_game(&db, "只改状态");

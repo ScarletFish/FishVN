@@ -24,4 +24,6 @@ export const api = {
   updateInstallation: (id, patch) => call('update_installation', { id, patch }),
   deleteInstallation: (id) => call('delete_installation', { id }),
   searchVndb: (keyword) => call('search_vndb', { keyword }),
+  getGameMetadata: (id) => call('get_game_metadata', { id }),
+  updateGameMetadata: (id, patch) => call('update_game_metadata', { id, patch }),
 };

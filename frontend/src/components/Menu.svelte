@@ -1,0 +1,42 @@
+<script>
+  /** items 为 { label, onclick } 列表；variant: btn = .btn.btn-ghost，plain = 浮在内容上的裸图标 */
+  let { items = [], label, variant = 'btn', open = $bindable(false) } = $props();
+</script>
+
+<div class="menu" class:is-open={open} data-variant={variant}>
+  <button
+    type="button"
+    class={variant === 'plain' ? 'menu__trigger' : 'menu__trigger btn btn-ghost'}
+    aria-haspopup="menu"
+    aria-expanded={open}
+    aria-label={label}
+    onclick={() => (open = !open)}
+    onblur={(e) => {
+      // 焦点整个移出菜单才关，点菜单项时 blur 先于 click 触发
+      if (!e.currentTarget.parentElement.contains(e.relatedTarget)) open = false;
+    }}
+  >
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="12" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="19" cy="12" r="1.8" />
+    </svg>
+  </button>
+  {#if open}
+    <div class="menu__list" role="menu">
+      {#each items as item (item.label)}
+        <button
+          type="button"
+          role="menuitem"
+          class="menu__item"
+          onclick={() => {
+            open = false;
+            item.onclick();
+          }}
+        >
+          {item.label}
+        </button>
+      {/each}
+    </div>
+  {/if}
+</div>

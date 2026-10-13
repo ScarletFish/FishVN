@@ -5,7 +5,7 @@
   import { t } from '../lib/i18n.js';
   import { readCache, writeCache } from '../lib/vndb-cache.js';
 
-  let { open = $bindable(false), onsaved } = $props();
+  let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
 
   const TABS = ['basic', 'profile', 'tags'];
 
@@ -18,9 +18,9 @@
   let notes = $state('');
   let error = $state('');
   let saving = $state(false);
+  let loading = $state(false);
   let input = $state(null);
 
-  let title = $state('');
   let released = $state('');
   let rating = $state('');
   let votecount = $state('');
@@ -49,7 +49,6 @@
     userRating = null;
     notes = '';
     error = '';
-    title = '';
     released = '';
     rating = '';
     votecount = '';
@@ -65,11 +64,41 @@
     searching = false;
     searchError = '';
     hits = [];
+    loading = Boolean(gameId);
+    if (gameId) loadExisting(gameId);
     tick().then(() => input?.focus());
   });
 
   function statusLabel(key) {
     return t(`status.${key}`);
+  }
+
+  async function loadExisting(id) {
+    try {
+      const [game, state, meta] = await Promise.all([
+        api.getGame(id),
+        api.getGameState(id),
+        api.getGameMetadata(id),
+      ]);
+      // 作品在回填期间被删掉时表单已不可见，不必再报错
+      if (gameId !== id) return;
+      name = game.name;
+      vndbId = game.vndb_id;
+      status = state.status;
+      userRating = state.user_rating;
+      notes = state.notes ?? '';
+      released = meta?.released ?? '';
+      rating = meta?.rating != null ? String(meta.rating) : '';
+      votecount = meta?.votecount != null ? String(meta.votecount) : '';
+      description = meta?.description ?? '';
+      developers = (meta?.developers ?? []).join(', ');
+      tags = (meta?.tags ?? []).map((tag) => tag.name);
+      coverPath = meta?.image_path ?? '';
+    } catch (err) {
+      error = err.message;
+    } finally {
+      loading = false;
+    }
   }
 
   function stepRating(delta) {
@@ -139,9 +168,47 @@
     }
   }
 
+  function toNumber(raw) {
+    const text = raw.trim();
+    if (!text) return null;
+    const value = Number(text);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  // 评分人数在库里是 i64，带小数送过去 serde 整个包都反序列化失败
+  function toInteger(raw) {
+    const value = toNumber(raw);
+    return value === null ? null : Math.trunc(value);
+  }
+
+  // alias 与 titles 不进 patch：表单没有这两项，双层 Option 缺外层是「不动」，
+  // 写 null 反而会把它们清掉。image_id 同理，由封面下载管线自己写。
+  function buildMetadataPatch() {
+    return {
+      released: released.trim() || null,
+      rating: toNumber(rating),
+      votecount: toInteger(votecount),
+      description: description.trim() || null,
+      image_path: coverPath.trim() || null,
+      tags: tags.map((name) => ({
+        id: null,
+        name,
+        category: null,
+        rating: null,
+        vn_count: null,
+        spoiler: null,
+        lie: null,
+      })),
+      developers: developers
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    };
+  }
+
   async function submit(e) {
     e.preventDefault();
-    if (saving) return;
+    if (saving || loading) return;
 
     const value = name.trim();
     if (!value) {
@@ -152,7 +219,23 @@
     saving = true;
     error = '';
     try {
-      await api.createGame({ name: value, vndb_id: vndbId });
+      const state = {
+        status,
+        user_rating: userRating,
+        notes: notes.trim() || null,
+      };
+      if (gameId) {
+        await api.updateGame(gameId, { name: value, vndb_id: vndbId });
+        await api.updateGameState(gameId, state);
+        await api.updateGameMetadata(gameId, buildMetadataPatch());
+      } else {
+        const created = await api.createGame({
+          name: value,
+          vndb_id: vndbId,
+          metadata: buildMetadataPatch(),
+        });
+        await api.updateGameState(created.id, state);
+      }
       open = false;
       onsaved?.();
     } catch (err) {
@@ -308,17 +391,6 @@
 
       <div class="modal-panel" class:active={tab === 'profile'}>
         <div class="panel-grid">
-          <div class="form-group panel-grid__full">
-            <label for="game-form-meta-title">{t('gameForm.field.title')}</label>
-            <input
-              id="game-form-meta-title"
-              type="text"
-              bind:value={title}
-              placeholder={t('gameForm.placeholder.title')}
-              disabled={saving}
-            />
-          </div>
-
           <div class="form-group">
             <label for="game-form-meta-released">{t('gameForm.field.released')}</label>
             <input

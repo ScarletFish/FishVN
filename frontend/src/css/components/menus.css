@@ -1,0 +1,54 @@
+/* 菜单留在触发器的层叠上下文里，不移出 DOM */
+
+.menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu__trigger {
+  padding-inline: var(--space-2);
+}
+
+/* 裸图标变体浮在内容图上，必须自带底色才读得出图标 */
+.menu[data-variant='plain'] .menu__trigger {
+  padding: var(--space-1);
+  color: var(--fg-default);
+  background: color-mix(in srgb, var(--bg-floating) 78%, transparent);
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.menu__list {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 9rem;
+  padding: var(--space-1);
+  background: var(--bg-floating);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.menu__item {
+  display: block;
+  width: 100%;
+  padding: var(--space-150) var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  text-align: left;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.menu__item:hover {
+  color: var(--fg-default);
+  background: var(--bg-hover);
+}

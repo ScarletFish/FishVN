@@ -20,6 +20,8 @@ export const DICT_ZH = {
     cancel: '取消',
     save: '保存',
     close: '关闭',
+    actionMore: '更多操作',
+    actionEdit: '编辑游戏详情',
   },
   detail: {
     notFound: '作品不存在',
@@ -81,7 +83,6 @@ export const DICT_ZH = {
       status: '状态',
       userRating: '我的评分',
       notes: '备注',
-      title: '标题',
       released: '发行日期',
       rating: '评分',
       votecount: '评分人数',
@@ -93,7 +94,6 @@ export const DICT_ZH = {
     placeholder: {
       notes: '还没有备注',
       empty: '尚未同步',
-      title: '作品的原始标题',
       released: '如 2005-08-02',
       description: '作品的简介',
       developers: '多个用逗号分隔',

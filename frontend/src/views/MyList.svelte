@@ -17,6 +17,13 @@
   let loading = $state(true);
   let error = $state(null);
   let formOpen = $state(false);
+  let formGameId = $state(null);
+
+  // 打开前先落 gameId，GameForm 的 $effect 与 open 同一帧读到的是最终值
+  function openForm(id) {
+    formGameId = id;
+    formOpen = true;
+  }
 
   // 写操作后调用它重拉
 async function load() {
@@ -92,7 +99,7 @@ async function load() {
       <button
         type="button"
         class="mylist-add"
-        onclick={() => (formOpen = true)}
+        onclick={() => openForm(null)}
         aria-label={t('mylist.add')}
         data-tooltip={t('mylist.add')}
       >
@@ -126,11 +133,11 @@ async function load() {
     {#each sections as section (section.status)}
       <StatusSection label={section.label} items={section.items}>
         {#snippet children(item)}
-          <GameCard {item} onopen={() => onopen(item.id)} />
+          <GameCard {item} onopen={() => onopen(item.id)} onedit={openForm} />
         {/snippet}
       </StatusSection>
     {/each}
   {/if}
 </section>
 
-<GameForm bind:open={formOpen} onsaved={load} />
+<GameForm bind:open={formOpen} bind:gameId={formGameId} onsaved={load} />
