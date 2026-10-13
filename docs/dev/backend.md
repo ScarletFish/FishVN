@@ -63,7 +63,7 @@ src-tauri/
 | `games` | 作品身份 | 用户创建与编辑 |
 | `user_game_state` | 状态、用户评分、笔记、默认安装、游玩时间与次数 | 用户；启动行为更新游玩时间与次数 |
 | `installations` | 本地目录、入口 exe、候选入口、目录大小 | 用户建与认领 |
-| `game_metadata` | VNDB 标题、封面、发行日期、评分、简介、标签、开发商 | 元数据同步逐字段比对后由用户选，或用户直接编辑 |
+| `game_metadata` | 别名与本地化标题、封面、发行日期、评分与人数、简介、标签、开发商 | 用户直接编辑；同步时逐字段比对后由用户选覆盖或跳过 |
 | `library_roots` | 库根路径 | 用户；扫描记录时间 |
 
 几条从表结构看不出来的语义：
@@ -72,6 +72,8 @@ src-tauri/
 - `installations.game_id` 为 NULL 表示待认领。删作品走 `SET NULL` 而不是 CASCADE —— 目录还在盘上，下次扫描还会遇到它
 - 状态取值与 VNDB 一致，定义在 `types.rs` 的 `Status` 枚举。表上不加 `CHECK`，SQLite 改约束要重建整张表
 - `dir_path` 由文件管理器给出规范写法，不做大小写归一 —— `COLLATE NOCASE` 会在 macOS 与 Linux 上把不同目录判成同一个
+- `game_metadata` 除 `game_id` 外每列都可空：一部不绑 VNDB 的作品同样要有资料行，没有数据就是空而不是占位值
+- 作品正式名在 `games.name`，`game_metadata` 不重复存。VNDB 那份 `titles` 里已带 `official` / `main` 标记的正式标题，别名另存 `alias`
 
 元数据每列都可由用户手改。同步不按「哪些列空了」判断该不该写，而是逐字段比对库里现值与
 新值——不同的就是冲突，交给调用方逐字段选覆盖或跳过。用「只填空字段」的话，VNDB 换了封面

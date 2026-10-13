@@ -123,10 +123,68 @@ pub struct InstallationPatch {
     pub entry_path: Option<Option<String>>,
 }
 
+/// 作品正式名在 games.name，这里不重复存
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GameMetadata {
+    pub game_id: String,
+    pub alias: Option<String>,
+    pub titles: Option<Vec<LocalizedTitle>>,
+    pub rating: Option<f64>,
+    pub votecount: Option<i64>,
+    pub released: Option<String>,
+    pub description: Option<String>,
+    /// VNDB 侧的 cv 编号，只用来判断封面要不要重下
+    pub image_id: Option<String>,
+    pub image_path: Option<String>,
+    pub tags: Option<Vec<MetadataTag>>,
+    pub developers: Option<Vec<String>>,
+}
+
+/// 一部作品可能一条中文标题都没有，靠 lang 挑不出想要的那条，只能看 official / main
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LocalizedTitle {
+    pub lang: String,
+    pub title: String,
+    pub latin: Option<String>,
+    pub official: Option<bool>,
+    pub main: Option<bool>,
+}
+
+/// 用户手打的标签没有排序键与剧透等级，同一列里两种都可能有
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MetadataTag {
+    /// VNDB 标签编号；用户手打或本地自建的标签没有
+    pub id: Option<String>,
+    pub name: String,
+    pub category: Option<String>,
+    pub rating: Option<f64>,
+    pub vn_count: Option<i64>,
+    pub spoiler: Option<i64>,
+    pub lie: Option<bool>,
+}
+
+/// PATCH 的可空字段用双层 Option：外层 None = 没给，内层 None = 显式置空。
+/// 字段留空表示「不动」，写空字符串与置 null 是两回事。
+#[derive(Debug, Default, Clone, PartialEq, Deserialize)]
+pub struct MetadataPatch {
+    pub alias: Option<Option<String>>,
+    pub titles: Option<Option<Vec<LocalizedTitle>>>,
+    pub rating: Option<Option<f64>>,
+    pub votecount: Option<Option<i64>>,
+    pub released: Option<Option<String>>,
+    pub description: Option<Option<String>>,
+    pub image_path: Option<Option<String>>,
+    /// 整列替换，不按标签逐个合并
+    pub tags: Option<Option<Vec<MetadataTag>>>,
+    pub developers: Option<Option<Vec<String>>>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct NewGame {
     pub name: String,
     pub vndb_id: Option<String>,
+    /// 给 Some 但一个字段都没填时，upsert 报「没有可更新的字段」而不是当没给
+    pub metadata: Option<MetadataPatch>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -2,6 +2,7 @@ use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Row};
 
 use crate::error::{write_conflict, AppError, Result};
+use crate::metadata;
 use crate::types::{Game, GameListItem, GamePatch, NewGame, StatePatch, Status, UserGameState};
 use crate::{new_id, now};
 
@@ -83,6 +84,10 @@ pub fn create_game(conn: &Connection, input: &NewGame) -> Result<Game> {
         "INSERT INTO user_game_state (game_id, status) VALUES (?, ?)",
         params![&game.id, DEFAULT_STATUS],
     )?;
+    // 三张表要么都成要么都不成：作品建出来而资料没存上，等于用户填的东西被吞了
+    if let Some(patch) = &input.metadata {
+        metadata::upsert(&tx, &game.id, patch)?;
+    }
     tx.commit()?;
     Ok(game)
 }

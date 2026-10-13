@@ -18,7 +18,8 @@ pub fn open(dir: &Path) -> Result<Connection> {
 
 /// 幂等：表结构演进都写在这里
 pub fn ensure_schema(conn: &Connection) -> Result<()> {
-    // 建表大量依赖 ON DELETE CASCADE，SQLite 自身默认关闭外键，显式打开
+    // 内建的 SQLite 编译时带 SQLITE_DEFAULT_FOREIGN_KEYS=1，外键默认就开着，这行看着多余。
+    // 但建表全靠 ON DELETE CASCADE，去掉它等于把级联交给传递依赖的编译选项。
     conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;")?;
     conn.execute_batch(
         "
@@ -51,18 +52,18 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           size_bytes INTEGER
         );
 
-        -- VNDB 元数据：一部作品一行。除 game_id 外每列都可由用户手改，
-        -- 同步时逐字段比对现存值与新值，冲突由调用方决定覆盖还是跳过。
+        -- 作品资料：一部作品一行，每列都可空。作品正式名在 games.name，这里不重复存；
+        -- VNDB 那份 titles 里已含 official / main 的正式标题，别名存 alias。
         -- titles / tags / developers 存 JSON 文本而非标量，要按其中某个键筛
         -- 只能整列取出后在 Rust 侧解。
         -- image_id 是 VNDB 侧的 cv 编号，只用来判断封面要不要重下；
         -- image_path 是本地缓存文件的位置，两者不是一回事。
         CREATE TABLE IF NOT EXISTS game_metadata (
           game_id     TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
-          title       TEXT NOT NULL,
+          alias       TEXT,
           titles      TEXT,
           rating      REAL,
-          votecount   INTEGER NOT NULL,
+          votecount   INTEGER,
           released    TEXT,
           description TEXT,
           image_id    TEXT,

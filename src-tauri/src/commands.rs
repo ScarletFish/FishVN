@@ -11,11 +11,12 @@ use tauri::State;
 use crate::error::{AppError, Result};
 use crate::games;
 use crate::installations;
-use crate::vndb::{self, RateLimiter, VnMetadata, VnSearchHit};
+use crate::metadata;
 use crate::types::{
-    Game, GameListItem, GamePatch, Installation, InstallationPatch, NewGame, NewInstallation,
-    StatePatch, UserGameState,
+    Game, GameListItem, GameMetadata, GamePatch, Installation, InstallationPatch, MetadataPatch,
+    NewGame, NewInstallation, StatePatch, UserGameState,
 };
+use crate::vndb::{self, RateLimiter, VnMetadata, VnSearchHit};
 
 type Shared<'a> = State<'a, Mutex<Connection>>;
 
@@ -94,6 +95,20 @@ pub fn update_installation(
 #[tauri::command]
 pub fn delete_installation(shared: Shared<'_>, id: String) -> Result<()> {
     installations::delete_installation(&*lock(&shared)?, &id)
+}
+
+#[tauri::command]
+pub fn get_game_metadata(shared: Shared<'_>, id: String) -> Result<Option<GameMetadata>> {
+    metadata::get(&*lock(&shared)?, &id)
+}
+
+#[tauri::command]
+pub fn update_game_metadata(
+    shared: Shared<'_>,
+    id: String,
+    patch: MetadataPatch,
+) -> Result<GameMetadata> {
+    metadata::upsert(&*lock(&shared)?, &id, &patch)
 }
 
 /// 不取 Connection 锁：那是全局单锁，跨网络 I/O 持着会卡住所有库操作

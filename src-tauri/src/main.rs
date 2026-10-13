@@ -47,6 +47,8 @@ fn main() {
             commands::create_installation,
             commands::update_installation,
             commands::delete_installation,
+            commands::get_game_metadata,
+            commands::update_game_metadata,
             commands::search_vndb,
             commands::fetch_vn_metadata,
         ])

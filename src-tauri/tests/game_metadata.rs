@@ -1,79 +1,342 @@
 mod common;
 
-use common::Db;
+use common::{variant, Db};
 use fishvn::games::{create_game, delete_game};
-use fishvn::types::NewGame;
+use fishvn::metadata;
+use fishvn::types::{
+    LocalizedTitle, MetadataPatch, MetadataTag, NewGame, StatePatch, UserGameState,
+};
 
-/// 建一条元数据，用裸 SQL —— 领域函数随同步命令一起进来
-fn put(db: &Db, game_id: &str, title: &str) {
-    db.execute(
-        "INSERT INTO game_metadata (game_id, title, votecount) VALUES (?, ?, 0)",
-        rusqlite::params![game_id, title],
+fn new_game(db: &Db, name: &str) -> String {
+    create_game(
+        db,
+        &NewGame {
+            name: name.into(),
+            vndb_id: None,
+            metadata: None,
+        },
     )
-    .expect("写元数据失败");
+    .expect("建作品失败")
+    .id
 }
 
-fn count(db: &Db, game_id: &str) -> i64 {
-    db.query_row(
-        "SELECT COUNT(*) FROM game_metadata WHERE game_id = ?",
-        rusqlite::params![game_id],
-        |row| row.get(0),
-    )
-    .expect("数元数据失败")
+fn alias_patch(alias: &str) -> MetadataPatch {
+    MetadataPatch {
+        alias: Some(Some(alias.to_owned())),
+        ..Default::default()
+    }
 }
 
-#[test]
-fn 元数据可空列留空() {
-    let db = Db::new();
-    let game = create_game(&db, &NewGame { name: "只填标题".into(), vndb_id: None }).unwrap();
-    put(&db, &game.id, "Fate/stay night");
-
-    let row: (String, Option<String>, Option<f64>, Option<String>) = db
-        .query_row(
-            "SELECT title, description, rating, image_path FROM game_metadata WHERE game_id = ?",
-            rusqlite::params![game.id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        )
-        .expect("读元数据失败");
-
-    assert_eq!(row.0, "Fate/stay night");
-    assert_eq!(row.1, None, "description 应为 NULL");
-    assert_eq!(row.2, None, "rating 应为 NULL");
-    assert_eq!(row.3, None, "image_path 应为 NULL");
-}
-
-/// 外键要真的生效才测得到级联，而 SQLite 默认关闭外键，靠 ensure_schema 打开。
-/// 少了那行 PRAGMA 这条会失败 —— 孤行会留在库里、作品列表再也看不到它。
 #[test]
 fn 删作品连带删掉元数据() {
     let db = Db::new();
-    let game = create_game(&db, &NewGame { name: "待删".into(), vndb_id: None }).unwrap();
-    put(&db, &game.id, "标题");
-    assert_eq!(count(&db, &game.id), 1);
+    let id = new_game(&db, "待删");
+    metadata::upsert(&db, &id, &alias_patch("别名")).expect("写元数据失败");
 
-    delete_game(&db, &game.id).expect("删除失败");
-    assert_eq!(count(&db, &game.id), 0, "元数据不该留在库里");
+    delete_game(&db, &id).expect("删除失败");
+
+    let left: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM game_metadata WHERE game_id = ?",
+            rusqlite::params![id],
+            |row| row.get(0),
+        )
+        .expect("数元数据失败");
+    assert_eq!(left, 0, "元数据不该留在库里");
 }
 
-/// 一部作品一行：同步要更新而不是插入第二份
 #[test]
-fn 同一部作品只能有一份元数据() {
+fn 一部作品只有一行重复写是更新() {
     let db = Db::new();
-    let game = create_game(&db, &NewGame { name: "重复写".into(), vndb_id: None }).unwrap();
-    put(&db, &game.id, "第一次");
-    db.execute(
-        "UPDATE game_metadata SET title = ? WHERE game_id = ?",
-        rusqlite::params!["第二次", game.id],
-    )
-    .expect("更新失败");
+    let id = new_game(&db, "重复写");
 
-    assert_eq!(count(&db, &game.id), 1);
-    let title: String = db
+    metadata::upsert(&db, &id, &alias_patch("第一次")).unwrap();
+    metadata::upsert(&db, &id, &alias_patch("第二次")).unwrap();
+
+    assert_eq!(
+        metadata::get(&db, &id).unwrap().unwrap().alias.as_deref(),
+        Some("第二次")
+    );
+    let rows: i64 = db
         .query_row(
-            "SELECT title FROM game_metadata WHERE game_id = ?",
-            rusqlite::params![game.id],
+            "SELECT COUNT(*) FROM game_metadata WHERE game_id = ?",
+            rusqlite::params![id],
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(title, "第二次");
+    assert_eq!(rows, 1);
+}
+
+#[test]
+fn 不给元数据就没有元数据行() {
+    let db = Db::new();
+    let id = new_game(&db, "只填了名字");
+
+    assert_eq!(metadata::get(&db, &id).unwrap(), None);
+}
+
+#[test]
+fn 纯本地作品只填几个字段也存得下() {
+    let db = Db::new();
+    let id = new_game(&db, "本地作品");
+
+    let stored = metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            description: Some(Some("用户自己写的简介".into())),
+            developers: Some(Some(vec!["同人社团".into()])),
+            ..Default::default()
+        },
+    )
+    .expect("存本地资料失败");
+
+    assert_eq!(stored.alias, None, "没填的别名该是空");
+    assert_eq!(
+        stored.votecount, None,
+        "没同步过的评分人数该是空，不能拿 0 充数"
+    );
+    assert_eq!(stored.description.as_deref(), Some("用户自己写的简介"));
+    assert_eq!(stored.developers.unwrap(), vec!["同人社团".to_owned()]);
+}
+
+#[test]
+fn 外层不给就不动内层置空才清掉() {
+    let db = Db::new();
+    let id = new_game(&db, "取舍");
+
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            alias: Some(Some("别名".into())),
+            released: Some(Some("2004-01-30".into())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            alias: Some(None),
+            ..Default::default()
+        },
+    )
+    .expect("只给别名就该成功");
+    let after = metadata::get(&db, &id).unwrap().unwrap();
+    assert_eq!(after.alias, None, "显式置空要真的清掉");
+    assert_eq!(
+        after.released.as_deref(),
+        Some("2004-01-30"),
+        "没给的字段不该被动到"
+    );
+}
+
+#[test]
+fn 空补丁没有可更新的字段() {
+    let db = Db::new();
+    let id = new_game(&db, "空补丁");
+
+    let err = metadata::upsert(&db, &id, &MetadataPatch::default()).unwrap_err();
+    assert_eq!(variant(&err), "BadRequest");
+}
+
+#[test]
+fn 作品不存在时两个入口都报_not_found() {
+    let db = Db::new();
+    let ghost = common::ghost();
+
+    assert_eq!(variant(&metadata::get(&db, ghost).unwrap_err()), "NotFound");
+    assert_eq!(
+        variant(&metadata::upsert(&db, ghost, &alias_patch("别名")).unwrap_err()),
+        "NotFound"
+    );
+}
+
+#[test]
+fn 标签带排序键往返不断() {
+    let db = Db::new();
+    let id = new_game(&db, "带标签");
+
+    let tags = vec![
+        MetadataTag {
+            id: Some("p1".into()),
+            name: "作品".into(),
+            category: Some("cont".into()),
+            rating: Some(92.5),
+            vn_count: Some(19334),
+            spoiler: Some(0),
+            lie: Some(false),
+        },
+        // 用户自己加的标签没有 VNDB 编号，也没有排序键
+        MetadataTag {
+            name: "重玩向".into(),
+            ..Default::default()
+        },
+    ];
+
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            tags: Some(Some(tags.clone())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        metadata::get(&db, &id).unwrap().unwrap().tags.unwrap(),
+        tags
+    );
+}
+
+#[test]
+fn 标签整列替换() {
+    let db = Db::new();
+    let id = new_game(&db, "删标签");
+
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            tags: Some(Some(vec![
+                MetadataTag {
+                    name: "甲".into(),
+                    ..Default::default()
+                },
+                MetadataTag {
+                    name: "乙".into(),
+                    ..Default::default()
+                },
+            ])),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            tags: Some(Some(vec![MetadataTag {
+                name: "乙".into(),
+                ..Default::default()
+            }])),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let tags = metadata::get(&db, &id).unwrap().unwrap().tags.unwrap();
+    assert_eq!(tags.len(), 1, "删掉的标签不该因为 id 相同而复活");
+    assert_eq!(tags[0].name, "乙");
+}
+
+#[test]
+fn 本地化标题原样往返() {
+    let db = Db::new();
+    let id = new_game(&db, "多语言");
+
+    let titles = vec![
+        LocalizedTitle {
+            lang: "zh-Hans".into(),
+            title: "中文标题".into(),
+            official: Some(true),
+            main: Some(true),
+            ..Default::default()
+        },
+        LocalizedTitle {
+            lang: "ja".into(),
+            title: "フェイト／ステイナイト".into(),
+            ..Default::default()
+        },
+    ];
+
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            titles: Some(Some(titles.clone())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        metadata::get(&db, &id).unwrap().unwrap().titles.unwrap(),
+        titles
+    );
+}
+
+#[test]
+fn 建作品时一并写资料() {
+    let db = Db::new();
+
+    let game = create_game(
+        &db,
+        &NewGame {
+            name: "带资料建的".into(),
+            vndb_id: Some("v11".into()),
+            metadata: Some(MetadataPatch {
+                alias: Some(Some("别名".into())),
+                rating: Some(Some(86.3)),
+                ..Default::default()
+            }),
+        },
+    )
+    .expect("建作品失败");
+
+    let stored = metadata::get(&db, &game.id)
+        .unwrap()
+        .expect("资料行该建出来");
+    assert_eq!(stored.alias.as_deref(), Some("别名"));
+    assert_eq!(stored.rating, Some(86.3));
+}
+
+#[test]
+fn 资料写失败时作品与状态都不留行() {
+    let db = Db::new();
+
+    let err = create_game(
+        &db,
+        &NewGame {
+            name: "资料不合法".into(),
+            vndb_id: None,
+            // 空补丁没有可写的列，upsert 在执行 SQL 前就报错
+            metadata: Some(MetadataPatch::default()),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(variant(&err), "BadRequest");
+
+    for (table, label) in [("games", "作品"), ("user_game_state", "状态")] {
+        let left: i64 = db
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                row.get(0)
+            })
+            .unwrap_or_else(|e| panic!("数{label}失败：{e}"));
+        assert_eq!(left, 0, "{label}行不该留在库里");
+    }
+}
+
+#[test]
+fn 没资料也能改状态() {
+    let db = Db::new();
+    let id = new_game(&db, "只改状态");
+
+    let state = fishvn::games::update_game_state(
+        &db,
+        &id,
+        &StatePatch {
+            status: Some(fishvn::types::Status::Playing),
+            ..Default::default()
+        },
+    )
+    .expect("改状态失败");
+
+    assert!(matches!(state, UserGameState { .. }));
+    assert_eq!(metadata::get(&db, &id).unwrap(), None);
 }

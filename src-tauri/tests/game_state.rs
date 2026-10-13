@@ -12,6 +12,7 @@ fn new_game(db: &Db, name: &str) -> String {
         &NewGame {
             name: name.into(),
             vndb_id: None,
+            metadata: None,
         },
     )
     .expect("建作品失败")

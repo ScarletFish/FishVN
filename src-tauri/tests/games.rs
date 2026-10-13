@@ -15,6 +15,7 @@ fn new_game(db: &Db, name: &str) -> String {
         &NewGame {
             name: name.into(),
             vndb_id: None,
+            metadata: None,
         },
     )
     .expect("建作品失败")
@@ -36,6 +37,7 @@ fn 只给名字就能建条目其余字段留空() {
         &NewGame {
             name: "  星空  ".into(),
             vndb_id: None,
+            metadata: None,
         },
     )
     .expect("建作品失败");
@@ -60,6 +62,7 @@ fn name为空返回_bad_request() {
         &NewGame {
             name: "   ".into(),
             vndb_id: None,
+            metadata: None,
         },
     )
     .unwrap_err();
@@ -75,6 +78,7 @@ fn vndb_id格式非法返回_bad_request() {
             &NewGame {
                 name: "X".into(),
                 vndb_id: Some(bad.into()),
+                metadata: None,
             },
         )
         .unwrap_err();
@@ -92,6 +96,7 @@ fn name与vndb_id同时非法时报name那个() {
         &NewGame {
             name: "   ".into(),
             vndb_id: Some("bad".into()),
+            metadata: None,
         },
     )
     .unwrap_err();
@@ -106,6 +111,7 @@ fn 建条目时可以带上vndb_id() {
         &NewGame {
             name: "命中".into(),
             vndb_id: Some("v20001".into()),
+            metadata: None,
         },
     )
     .expect("建作品失败");
@@ -120,6 +126,7 @@ fn 建条目撞上已占用的vndb_id返回_conflict_事务不留下残行() {
         &NewGame {
             name: "先到".into(),
             vndb_id: Some("v20010".into()),
+            metadata: None,
         },
     )
     .expect("建作品失败");
@@ -129,6 +136,7 @@ fn 建条目撞上已占用的vndb_id返回_conflict_事务不留下残行() {
         &NewGame {
             name: "后到".into(),
             vndb_id: Some("v20010".into()),
+            metadata: None,
         },
     )
     .unwrap_err();
@@ -254,6 +262,7 @@ fn patch绑到已被占用的vndb_id返回_conflict() {
         &NewGame {
             name: "占用者".into(),
             vndb_id: Some("v20003".into()),
+            metadata: None,
         },
     )
     .unwrap();
@@ -262,6 +271,7 @@ fn patch绑到已被占用的vndb_id返回_conflict() {
         &NewGame {
             name: "后来者".into(),
             vndb_id: None,
+            metadata: None,
         },
     )
     .unwrap();
@@ -293,6 +303,7 @@ fn patch_vndb_id给null是解绑之后另一条可以绑同一个号() {
         &NewGame {
             name: "原持有".into(),
             vndb_id: Some("v20004".into()),
+            metadata: None,
         },
     )
     .unwrap();
@@ -301,6 +312,7 @@ fn patch_vndb_id给null是解绑之后另一条可以绑同一个号() {
         &NewGame {
             name: "接盘".into(),
             vndb_id: None,
+            metadata: None,
         },
     )
     .unwrap();
