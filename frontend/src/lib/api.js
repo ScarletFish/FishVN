@@ -1,9 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-
-// 开发通道，后端见 src-tauri/src/devhttp.rs，用 ?dev-http 打开。
-// 打同源的 /dev-http 走 vite 代理，改成 4546 直连会被 CORS 预检挡掉
-const DEV_HTTP = import.meta.env.DEV && location.search.includes('dev-http');
-const DEV_HTTP_BASE = '/dev-http';
+import { DEV_HTTP, DEV_HTTP_BASE } from './env.js';
 
 // invoke 会把 gameId 这类驼峰参数转成 snake_case，裸 HTTP 没有这层转换
 function toSnake(args) {
@@ -53,4 +49,5 @@ export const api = {
   fetchVnMetadata: (vndbId) => call('fetch_vn_metadata', { vndbId }),
   getGameMetadata: (id) => call('get_game_metadata', { id }),
   updateGameMetadata: (id, patch) => call('update_game_metadata', { id, patch }),
+  allowLocalFile: (path) => call('allow_local_file', { path }),
 };

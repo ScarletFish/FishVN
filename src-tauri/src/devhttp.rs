@@ -17,7 +17,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, Result};
 use crate::vndb::RateLimiter;
-use crate::{games, installations, metadata, vndb};
+use crate::{commands, games, installations, metadata, vndb};
 
 /// 与 vite 的 4545 分开：撞上会自己请求自己
 pub const PORT: u16 = 4546;
@@ -43,6 +43,7 @@ type Reply = std::result::Result<Json<Value>, Fail>;
 pub struct Dev {
     pub conn: Arc<Mutex<Connection>>,
     pub rate: Arc<RateLimiter>,
+    pub app: tauri::AppHandle,
 }
 
 /// 字段用命令原样的 snake_case：camelCase 到 snake 的转换只有 Tauri 侧有
@@ -60,6 +61,8 @@ pub struct Args {
     pub keyword: Option<String>,
     #[serde(default)]
     pub vndb_id: Option<String>,
+    #[serde(default)]
+    pub path: Option<String>,
 }
 
 impl Args {
@@ -83,6 +86,10 @@ impl Args {
     pub fn parse<T: DeserializeOwned>(&self, slot: Option<&Value>, name: &str) -> Result<T> {
         let raw = slot.ok_or_else(|| AppError::BadRequest(format!("缺少 {name}")))?;
         serde_json::from_value(raw.clone()).map_err(AppError::from)
+    }
+
+    pub fn path(&self) -> Result<&str> {
+        self.need(self.path.as_ref(), "path")
     }
 }
 
@@ -152,6 +159,10 @@ async fn fetch_vn_metadata(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) 
     finish(vndb::fetch_vn(vndb::http(), &vndb_id).await)
 }
 
+async fn allow_local_file(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    finish(a.path().and_then(|p| commands::allow_local_file(dev.app.clone(), p.to_owned())))
+}
+
 pub fn router(dev: Dev) -> Router {
     Router::new()
         .route("/list_games", post(list_games))
@@ -170,6 +181,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/update_game_metadata", post(update_game_metadata))
         .route("/search_vndb", post(search_vndb))
         .route("/fetch_vn_metadata", post(fetch_vn_metadata))
+        .route("/allow_local_file", post(allow_local_file))
         .with_state(dev)
 }
 
@@ -191,4 +203,5 @@ pub const COMMANDS: &[&str] = &[
     "update_game_metadata",
     "search_vndb",
     "fetch_vn_metadata",
+    "allow_local_file",
 ];

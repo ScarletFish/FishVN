@@ -40,6 +40,28 @@
   object-fit: cover;
 }
 
+.detail-cover__ph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 100%;
+}
+
+.detail-cover__initial {
+  font-size: var(--text-3xl);
+  line-height: 1;
+  color: var(--fg-secondary);
+}
+
+.detail-cover__label {
+  font-size: var(--text-compact-md);
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+
 /* padding-top 决定内容从哪起。氛围底的高度与 mask 停点只决定它画到哪，
    两者独立：上移内容不会改变氛围底的覆盖范围，但栏体可能因此落进氛围底的
    实色区而不是淡出段——改了这里要同时看 .detail-info-line 的落位。 */
@@ -107,6 +129,15 @@
     to bottom,
     color-mix(in srgb, var(--bg-page) 58%, transparent) 0%,
     color-mix(in srgb, var(--bg-page) 22%, transparent) 72%,
+    transparent 100%
+  );
+}
+
+.detail-ambience--empty {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--fg-muted) 22%, transparent) 0%,
+    color-mix(in srgb, var(--fg-muted) 6%, transparent) 72%,
     transparent 100%
   );
 }

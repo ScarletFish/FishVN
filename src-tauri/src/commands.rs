@@ -3,10 +3,11 @@
 //! Connection 是 Send 但不是 Sync，所以用 Mutex 包起来交给 State 管。
 //! 锁毒化之后每次调用都会失败，转成错误上报而不是 unwrap。
 
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use rusqlite::Connection;
-use tauri::State;
+use tauri::{Manager, State};
 
 use crate::error::{AppError, Result};
 use crate::games;
@@ -130,4 +131,19 @@ pub async fn fetch_vn_metadata(
     let vndb_id = vndb::validate_vn_id(&vndb_id)?;
     rate.acquire().await;
     vndb::fetch_vn(vndb::http(), &vndb_id).await
+}
+
+/// dialog 插件只放行 fs_scope，不碰 asset 协议，所以本地封面渲染前要补一次授权。
+/// 授权只活在本次进程，重启后靠 tauri.conf.json 的静态 scope 兜底。
+#[tauri::command]
+pub fn allow_local_file(app: tauri::AppHandle, path: String) -> Result<()> {
+    let path = PathBuf::from(path.trim());
+    let meta = std::fs::metadata(&path)
+        .map_err(|_| AppError::BadRequest("文件不存在".into()))?;
+    if !meta.is_file() {
+        return Err(AppError::BadRequest("不是文件".into()));
+    }
+    app.asset_protocol_scope()
+        .allow_file(&path)
+        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))
 }

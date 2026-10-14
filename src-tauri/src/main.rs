@@ -11,7 +11,11 @@ use tauri::Manager;
 
 /// 只绑回环地址：本机任何进程都能读写用户的库
 #[cfg(debug_assertions)]
-fn spawn_dev_channel(conn: Arc<Mutex<rusqlite::Connection>>, rate: Arc<RateLimiter>) {
+fn spawn_dev_channel(
+    conn: Arc<Mutex<rusqlite::Connection>>,
+    rate: Arc<RateLimiter>,
+    app: tauri::AppHandle,
+) {
     use fishvn::devhttp::{router, Dev, PORT};
 
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], PORT));
@@ -24,7 +28,7 @@ fn spawn_dev_channel(conn: Arc<Mutex<rusqlite::Connection>>, rate: Arc<RateLimit
             }
         };
         println!("开发通道已开： http://{addr}");
-        let _ = axum::serve(listener, router(Dev { conn, rate })).await;
+        let _ = axum::serve(listener, router(Dev { conn, rate, app })).await;
     });
 }
 
@@ -47,6 +51,7 @@ fn data_dir(app: &tauri::AppHandle) -> Result<PathBuf, Box<dyn std::error::Error
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let conn = Arc::new(Mutex::new(db::open(&data_dir(app.handle())?)?));
             let rate = Arc::new(RateLimiter::new());
@@ -54,7 +59,7 @@ fn main() {
             app.manage(rate.clone());
             #[cfg(debug_assertions)]
             if std::env::var_os("FISHVN_DEV_HTTP").is_some() {
-                spawn_dev_channel(conn, rate);
+                spawn_dev_channel(conn, rate, app.handle().clone());
             }
             Ok(())
         })
@@ -75,6 +80,7 @@ fn main() {
             commands::update_game_metadata,
             commands::search_vndb,
             commands::fetch_vn_metadata,
+            commands::allow_local_file,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 启动失败");

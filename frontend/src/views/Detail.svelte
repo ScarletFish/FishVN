@@ -1,6 +1,7 @@
 <script>
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
+  import { coverSrc } from '../lib/cover-src.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
@@ -13,11 +14,8 @@
   let failed = $state(false);
   let formOpen = $state(false);
   let menuOpen = $state(false);
-
-  // 临时：封面还没有本地缓存管线，远程图先顶着。csp 为 null 所以能直接加载。
-  // 删掉它的前提是 image_path 真能渲染 —— 那需要下载管线加 assetProtocol 配置。
-  const SAMPLE_COVER = 'https://t.vndb.org/cv/98/75598.jpg';
-
+  let coverUrl = $state(null);
+  let coverBroken = $state(false);
 
   const TAGS_PREVIEW = 8;
   let tagsExpanded = $state(false);
@@ -74,6 +72,22 @@
     };
   });
 
+  $effect(() => {
+    const path = meta?.image_path;
+    coverBroken = false;
+    coverUrl = null;
+    if (!path) return;
+    let live = true;
+    coverSrc(path)
+      .then((url) => {
+        if (live) coverUrl = url;
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  });
+
   function handleSideMouse(e) {
     // 3 = 鼠标后退侧键；4 是前进，不接
     if (e.button === 3) onclose?.();
@@ -90,13 +104,22 @@
   {:else if !game}
     <p class="detail-note">{t('detail.notFound')}</p>
   {:else}
-    <div class="detail-ambience" aria-hidden="true">
-      <img src={SAMPLE_COVER} alt="" />
+    <div class="detail-ambience" class:detail-ambience--empty={!coverUrl || coverBroken} aria-hidden="true">
+      {#if coverUrl && !coverBroken}
+        <img src={coverUrl} alt="" onerror={() => (coverBroken = true)} />
+      {/if}
     </div>
     <div class="detail-banner">
       <div class="detail-banner-left">
         <div class="detail-cover">
-          <img src={SAMPLE_COVER} alt={game.name} />
+          {#if coverUrl && !coverBroken}
+            <img src={coverUrl} alt={game.name} onerror={() => (coverBroken = true)} />
+          {:else}
+            <div class="detail-cover__ph">
+              <span class="detail-cover__initial" aria-hidden="true">{(game.name || '?')[0]}</span>
+              <span class="detail-cover__label">{t('detail.coverEmpty')}</span>
+            </div>
+          {/if}
         </div>
         <!-- 两个按钮只占位不接动作：启动需要后端有 launch command，删除同理 -->
         <div class="detail-actions">

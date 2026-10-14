@@ -6,6 +6,8 @@
   import { createVndbSearch } from '../lib/vndb-search.svelte.js';
   import { buildMetadataPatch, toNumber } from '../lib/form-metadata.js';
   import { applyIncoming, conflictRows } from '../lib/vn-merge.js';
+  import { coverSrc } from '../lib/cover-src.js';
+  import { pickImage } from '../lib/pick-path.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
 
   let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
@@ -43,6 +45,8 @@
   let pulling = $state(false);
   let incoming = $state(null);
   let coverBroken = $state(false);
+  let coverUrl = $state(null);
+  let coverError = $state('');
 
   let tab = $state('basic');
   let statusOpen = $state(false);
@@ -70,6 +74,8 @@
     developers = '';
     tags = [];
     coverPath = '';
+    coverUrl = null;
+    coverError = '';
     tagDraft = '';
     tagInputOpen = false;
     coverBroken = false;
@@ -117,6 +123,32 @@
       error = err.message;
     } finally {
       loading = false;
+    }
+  }
+
+  $effect(() => {
+    const path = coverPath.trim();
+    coverBroken = false;
+    coverUrl = null;
+    if (!path) return;
+    let live = true;
+    coverSrc(path)
+      .then((url) => {
+        if (live) coverUrl = url;
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  });
+
+  async function browseCover() {
+    coverError = '';
+    try {
+      const picked = await pickImage(t('gameForm.field.cover'));
+      if (picked) coverPath = picked;
+    } catch (err) {
+      coverError = err.message;
     }
   }
 
@@ -602,9 +634,9 @@
           <label for="game-form-cover">{t('gameForm.field.cover')}</label>
           <div class="cover-field">
             <div class="cover-field__preview">
-              {#if coverPath && !coverBroken}
+              {#if coverUrl && !coverBroken}
                 <img
-                  src={coverPath}
+                  src={coverUrl}
                   alt=""
                   onerror={() => (coverBroken = true)}
                 />
@@ -613,14 +645,26 @@
               {/if}
             </div>
             <div class="cover-field__main">
-              <input
-                id="game-form-cover"
-                type="text"
-                bind:value={coverPath}
-                oninput={() => (coverBroken = false)}
-                placeholder={t('gameForm.placeholder.cover')}
-                disabled={saving}
-              />
+              <div class="cover-field__row">
+                <input
+                  id="game-form-cover"
+                  type="text"
+                  bind:value={coverPath}
+                  placeholder={t('gameForm.placeholder.cover')}
+                  disabled={saving}
+                />
+                <button
+                  type="button"
+                  class="btn cover-field__browse"
+                  onclick={browseCover}
+                  disabled={saving}
+                >
+                  {t('gameForm.action.browseCover')}
+                </button>
+              </div>
+              {#if coverError}
+                <p class="form-hint form-hint--error">{coverError}</p>
+              {/if}
             </div>
           </div>
         </div>
