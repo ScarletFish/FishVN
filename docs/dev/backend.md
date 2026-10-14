@@ -9,7 +9,7 @@
 
 ```
 src-tauri/
-├── main.rs          # 窗口 + 状态 + invoke_handler；数据目录在这里定
+├── main.rs          # 窗口 + 状态 + invoke_handler
 ├── commands.rs      # #[tauri::command] 转发层，不写业务
 ├── db.rs            # 连接与 ensure_schema()
 ├── error.rs         # AppError，过 IPC 时序列化成一句中文
@@ -25,8 +25,10 @@ src-tauri/
 前端 api.js  →  invoke('list_games')  →  commands::list_games  →  games::list_games(&Connection)
 ```
 
-新增一个后端动作要动四处：领域函数 → `commands.rs` 加一个薄命令 → `main.rs` 的
-`generate_handler!` 列表加一行 → 前端 `api.js` 加一个方法。少任何一处都会在运行时报错。
+每个 `#[tauri::command]` 都要端到端接通：领域函数 → `commands.rs` 转发 → `main.rs` 的
+`generate_handler!` 注册 → 前端 `api.js` 方法 → devhttp 路由与 `COMMANDS` 登记。
+
+devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令，漏接路由会在 `cargo test` 期失败。以测试通过为准。
 
 ### 数据目录
 
@@ -35,8 +37,7 @@ src-tauri/
 | `cargo run` / `tauri dev` | 仓库根 `data/` | 与开发时看到的数据一致 |
 | 打包后 | 系统应用数据目录（`app_data_dir()`） | 仓库根不在用户机器上 |
 
-由 `main.rs` 的 `cfg(debug_assertions)` 分开，**两边不共用**，开发数据不会混进安装版。
-改这段要先想清楚是哪一边在动。
+开发期与打包期**两边不共用**，开发数据不会混进安装版。解析逻辑定义在 lib（bin 与 commands 都要用），由 `cfg(debug_assertions)` 选边。改这段先想清楚是哪一边在动。
 
 ### 命令层规则
 
