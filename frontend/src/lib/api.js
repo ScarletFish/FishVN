@@ -49,6 +49,8 @@ export const api = {
   fetchVnMetadata: (vndbId) => call('fetch_vn_metadata', { vndbId }),
   getGameMetadata: (id) => call('get_game_metadata', { id }),
   updateGameMetadata: (id, patch) => call('update_game_metadata', { id, patch }),
+  listGameCharacters: (id) => call('list_game_characters', { id }),
+  saveGameCharacters: (id, characters) => call('save_game_characters', { id, characters }),
   allowLocalFile: (path) => call('allow_local_file', { path }),
   thumbnail: (src) => call('thumbnail', { src }),
 };

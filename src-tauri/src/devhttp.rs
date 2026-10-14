@@ -17,7 +17,8 @@ use serde_json::Value;
 
 use crate::error::{AppError, Result};
 use crate::vndb::RateLimiter;
-use crate::{commands, games, installations, metadata, vndb};
+use crate::types::GameCharacter;
+use crate::{characters, commands, games, installations, metadata, vndb};
 
 /// 与 vite 的 4545 分开：撞上会自己请求自己
 pub const PORT: u16 = 4546;
@@ -63,6 +64,9 @@ pub struct Args {
     pub vndb_id: Option<String>,
     #[serde(default)]
     pub path: Option<String>,
+    /// characters 是整包替换的角色数组，不是 patch，所以用 Value 透传给 serde
+    #[serde(default)]
+    pub characters: Option<Value>,
 }
 
 impl Args {
@@ -140,6 +144,11 @@ handler!(get_game_metadata, |c, a| metadata::get(c, a.id()?));
 handler!(update_game_metadata, |c, a| {
     metadata::upsert(c, a.id()?, &a.parse(a.patch.as_ref(), "patch")?)
 });
+handler!(list_game_characters, |c, a| characters::list(c, a.id()?));
+handler!(save_game_characters, |c, a| {
+    let list: Vec<GameCharacter> = a.parse(a.characters.as_ref(), "characters")?;
+    characters::replace_all(c, a.id()?, &list)
+});
 
 async fn search_vndb(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     let keyword = match a.keyword().and_then(vndb::validate_keyword) {
@@ -185,6 +194,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/delete_installation", post(delete_installation))
         .route("/get_game_metadata", post(get_game_metadata))
         .route("/update_game_metadata", post(update_game_metadata))
+        .route("/list_game_characters", post(list_game_characters))
+        .route("/save_game_characters", post(save_game_characters))
         .route("/search_vndb", post(search_vndb))
         .route("/fetch_vn_metadata", post(fetch_vn_metadata))
         .route("/allow_local_file", post(allow_local_file))
@@ -208,6 +219,8 @@ pub const COMMANDS: &[&str] = &[
     "delete_installation",
     "get_game_metadata",
     "update_game_metadata",
+    "list_game_characters",
+    "save_game_characters",
     "search_vndb",
     "fetch_vn_metadata",
     "allow_local_file",

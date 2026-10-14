@@ -115,8 +115,10 @@
 
 .cover-field__preview {
   flex-shrink: 0;
-  width: var(--cover-preview-w);
-  aspect-ratio: 3 / 4;
+  /* 取与 hscroll 卡同一均分式，改一边要跟着改另一边：
+     写成固定宽度就会随旁窗开合与角色卡不同宽 */
+  width: calc((100% - var(--space-4) * 3) / 4);
+  aspect-ratio: 208 / 300;
   overflow: hidden;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);

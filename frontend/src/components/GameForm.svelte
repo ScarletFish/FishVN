@@ -9,10 +9,13 @@
   import { coverSrc } from '../lib/cover-src.js';
   import { pickImage } from '../lib/pick-path.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
+  import CharacterEditor from './CharacterEditor.svelte';
+  import { toDraft, toPayload } from '../lib/characters.js';
+  import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
 
   let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
 
-  const TABS = ['basic', 'profile', 'tags'];
+  const TABS = ['basic', 'profile', 'tags', 'characters'];
 
   const STATUS_KEYS = ['playing', 'wishlist', 'finished', 'dropped'];
 
@@ -40,6 +43,7 @@
 
   let tagDraft = $state('');
   let tagInputOpen = $state(false);
+  let characters = $state([]);
   let mergeOpen = $state(false);
   let mergeRows = $state([]);
   let pulling = $state(false);
@@ -53,6 +57,9 @@
 
   let searchOpen = $state(false);
   const search = createVndbSearch();
+
+  let panelsEl = $state(null);
+  let panelsSb = null;
 
   // 关闭时组件不卸载，字段要在这里重置
   $effect(() => {
@@ -78,6 +85,7 @@
     coverError = '';
     tagDraft = '';
     tagInputOpen = false;
+    characters = [];
     coverBroken = false;
     tab = 'basic';
     statusOpen = false;
@@ -92,16 +100,29 @@
     tick().then(() => input?.focus());
   });
 
+  // 覆盖式滚动条浮在内容上、不占布局宽：占宽的话竖条一出现整排卡片就变窄。
+  // 弹窗关闭时组件不卸载，实例只能跟着 open 挂与销毁。
+  $effect(() => {
+    if (open && panelsEl && !panelsSb) {
+      panelsSb = attachScrollbars(panelsEl);
+    } else if ((!open || !panelsEl) && panelsSb) {
+      destroyScrollbars(panelsSb);
+      panelsSb = null;
+    }
+  });
+
   function statusLabel(key) {
     return t(`status.${key}`);
   }
 
   async function loadExisting(id) {
     try {
-      const [game, state, meta] = await Promise.all([
+      const [game, state, meta, roles] = await Promise.all([
         api.getGame(id),
         api.getGameState(id),
         api.getGameMetadata(id),
+        // 角色读不出来不该拖垮整张表单的回填：它在这张表里是附加信息
+        api.listGameCharacters(id).catch(() => []),
       ]);
       // 作品在回填期间被删掉时表单已不可见，不必再报错
       if (gameId !== id) return;
@@ -119,6 +140,7 @@
       developers = (meta?.developers ?? []).join(', ');
       tags = (meta?.tags ?? []).map((tag) => ({ ...tag }));
       coverPath = meta?.image_path ?? '';
+      characters = roles.map(toDraft);
     } catch (err) {
       error = err.message;
     } finally {
@@ -333,6 +355,7 @@
         await api.updateGame(gameId, { name: value, vndb_id: vndbId });
         await api.updateGameState(gameId, state);
         await api.updateGameMetadata(gameId, patch);
+        await api.saveGameCharacters(gameId, characters.map(toPayload));
       } else {
         const created = await api.createGame({
           name: value,
@@ -340,6 +363,7 @@
           metadata: patch,
         });
         await api.updateGameState(created.id, state);
+          await api.saveGameCharacters(created.id, characters.map(toPayload));
       }
       open = false;
       onsaved?.();
@@ -377,7 +401,7 @@
       {/each}
     </div>
 
-    <div class="modal-panels scroll-thin">
+    <div class="modal-panels scroll-thin scroll-form" bind:this={panelsEl}>
       <div class="modal-panel" class:active={tab === 'basic'}>
         <div class="panel-grid">
           <div class="form-group panel-grid__full">
@@ -669,6 +693,10 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="modal-panel" class:active={tab === 'characters'}>
+        <CharacterEditor bind:characters disabled={saving} />
       </div>
     </div>
 

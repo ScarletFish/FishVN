@@ -180,6 +180,59 @@ pub struct MetadataPatch {
     pub developers: Option<Option<Vec<String>>>,
 }
 
+/// characters 表行：角色属于作品。VNDB 上同一角色在不同作品里是不同条目
+/// （数据详略与立绘各不相同），所以 c 编号按作品各存一行，不建共享本体
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GameCharacter {
+    /// VNDB c 编号，或本地自建的 `local-<uuid>`
+    pub id: String,
+    pub name: Option<String>,
+    pub original: Option<String>,
+    pub aliases: Option<Vec<String>>,
+    pub description: Option<String>,
+    pub gender: Option<Vec<String>>,
+    pub age: Option<i64>,
+    pub birthday: Option<String>,
+    pub blood_type: Option<String>,
+    pub height: Option<i64>,
+    pub weight: Option<i64>,
+    pub bust: Option<i64>,
+    pub waist: Option<i64>,
+    pub hips: Option<i64>,
+    pub cup: Option<String>,
+    /// VNDB 的出场定位：main / primary / side / appears
+    pub role: Option<String>,
+    pub image_id: Option<String>,
+    pub image_path: Option<String>,
+    /// 由写入位置决定（见 characters::replace_all），读取端据此还原顺序
+    pub sort_order: i64,
+    pub traits: Option<Vec<CharacterTrait>>,
+    pub va: Option<Vec<CharacterVa>>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CharacterTrait {
+    /// VNDB trait 编号（i 前缀的一组数字）
+    pub id: Option<String>,
+    pub name: String,
+    pub group_name: Option<String>,
+    pub spoiler: Option<i64>,
+    pub lie: Option<bool>,
+}
+
+/// 角色 × 声优。写入时只用 staff_id / name / original 建 staffs 行，
+/// note 是版本标记（如 Realta Nua），同一对角色与声优可带多条不同 note
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CharacterVa {
+    pub staff_id: String,
+    pub name: Option<String>,
+    pub original: Option<String>,
+    pub note: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct NewGame {
     pub name: String,

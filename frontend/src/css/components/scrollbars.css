@@ -65,8 +65,10 @@
   --os-handle-interactive-area-offset: 0;
 }
 
-/* 弹窗内的原生滚动条。overlayscrollbars 的 instance 是单例、只服务主视图，弹窗不能复用。
-   这个类要挂在真正 overflow-y: auto 的元素上，套一层外壳就断高度约束 */
+/* 原生细滚动条：弹窗内嵌的小滚动区（标签框、简介 textarea 等）用它。
+   只走标准属性 scrollbar-width / scrollbar-color：Chromium 设了标准属性就禁用
+   ::-webkit-scrollbar-*，两套混用会静默失效。平时全透明，移入元素才显色。
+   要挂在真正 overflow-y: auto 的元素上，套一层外壳就断高度约束 */
 .scroll-thin {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
@@ -76,23 +78,15 @@
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-.scroll-thin::-webkit-scrollbar {
-  width: var(--scrollbar-size);
-}
+/* 三类滚动条分工：
+   - 主视图 / 详情页（useScrollbars）：「贴右缘加粗」的边缘悬停反馈，
+     显隐由 lib/scrollbars.js 的 watchRightEdge 加 .is-visible 控制。
+   - 弹窗表单（attachScrollbars + .scroll-form）：整块 hover 的「移入才显示」，
+     overlay 浮层不占布局位置。不挂 watchRightEdge——那套 edge/inside 判定
+     在弹窗里会把滚动条卡在加粗态回不去，加粗反馈只保留在主视图。
+   - 内嵌小滚动区（.scroll-thin）：原生细条，见上。 */
 
-.scroll-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scroll-thin::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: var(--radius-pill);
-}
-
-.scroll-thin:hover::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-}
-
-.scroll-thin::-webkit-scrollbar-thumb:hover {
-  background: var(--fg-muted);
+/* 移入表单才显示，移出即隐藏 */
+.scroll-form:hover .os-scrollbar {
+  opacity: 1;
 }

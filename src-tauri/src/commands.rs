@@ -9,13 +9,14 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use rusqlite::Connection;
 use tauri::{Manager, State};
 
+use crate::characters;
 use crate::error::{AppError, Result};
 use crate::games;
 use crate::installations;
 use crate::metadata;
 use crate::types::{
-    Game, GameListItem, GameMetadata, GamePatch, Installation, InstallationPatch, MetadataPatch,
-    NewGame, NewInstallation, StatePatch, UserGameState,
+    Game, GameCharacter, GameListItem, GameMetadata, GamePatch, Installation,
+    InstallationPatch, MetadataPatch, NewGame, NewInstallation, StatePatch, UserGameState,
 };
 use crate::thumbs;
 use crate::vndb::{self, RateLimiter, VnMetadata, VnSearchHit};
@@ -111,6 +112,20 @@ pub fn update_game_metadata(
     patch: MetadataPatch,
 ) -> Result<GameMetadata> {
     metadata::upsert(&*lock(&shared)?, &id, &patch)
+}
+
+#[tauri::command]
+pub fn save_game_characters(
+    shared: Shared<'_>,
+    id: String,
+    characters: Vec<GameCharacter>,
+) -> Result<Vec<GameCharacter>> {
+    characters::replace_all(&*lock(&shared)?, &id, &characters)
+}
+
+#[tauri::command]
+pub fn list_game_characters(shared: Shared<'_>, id: String) -> Result<Vec<GameCharacter>> {
+    characters::list(&*lock(&shared)?, &id)
 }
 
 /// 不取 Connection 锁：那是全局单锁，跨网络 I/O 持着会卡住所有库操作

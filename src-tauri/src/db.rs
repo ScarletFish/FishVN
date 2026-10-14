@@ -72,6 +72,56 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           tags        TEXT,
           developers  TEXT
         );
+
+        -- 角色。属于作品，随作品删除而清除，不建跨作品的共享本体：
+        -- VNDB 上同一角色在不同作品里就是不同条目（数据详略、立绘各自独立）。
+        -- id 平时是 VNDB c 编号，用户手建的行是 local-<uuid>，两种混排。
+        -- traits 是 trait 全量数组，一篇下来上百条，本地录入不给它入口；
+        -- VNDB 同步时才写。
+        CREATE TABLE IF NOT EXISTS characters (
+          game_id     TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+          id          TEXT NOT NULL,
+          name        TEXT,
+          original    TEXT,
+          aliases     TEXT,
+          description TEXT,
+          gender      TEXT,
+          age         INTEGER,
+          birthday    TEXT,
+          blood_type  TEXT,
+          height      INTEGER,
+          weight      INTEGER,
+          bust        INTEGER,
+          waist       INTEGER,
+          hips        INTEGER,
+          cup         TEXT,
+          role        TEXT,
+          image_id    TEXT,
+          image_path  TEXT,
+          sort_order  INTEGER NOT NULL DEFAULT 0,
+          traits      TEXT,
+          PRIMARY KEY (game_id, id)
+        );
+
+        -- 声优。全局表，不随作品删除：换一部作品再遇到同一个 s 编号还是同一人。
+        -- 本地手填的行没有 s 编号，用 local-<uuid> 占位
+        CREATE TABLE IF NOT EXISTS staffs (
+          id       TEXT PRIMARY KEY,
+          name     TEXT,
+          original TEXT
+        );
+
+        -- 配音关系。跟着角色行走，所以主键里带着 game_id。
+        -- note 是版本标记，同一对角色与声优可有多条；SQLite 允许主键列为空，
+        -- 空 note 一律存 ''，免得同一条关系被 NULL 与 '' 写成两行
+        CREATE TABLE IF NOT EXISTS character_va (
+          game_id      TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+          character_id TEXT NOT NULL,
+          staff_id     TEXT NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
+          note         TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (game_id, character_id, staff_id, note),
+          FOREIGN KEY (game_id, character_id) REFERENCES characters(game_id, id) ON DELETE CASCADE
+        );
         ",
     )?;
 

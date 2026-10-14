@@ -18,16 +18,33 @@ const HIDE_DELAY = 800;
 const LINGER_DELAY = 1000;
 const EDGE_TOLERANCE = 12;
 
-let instance = null;
+// 只记主视图：MyList 靠 getScrollViewport 还原列表滚动位置，弹窗实例写进来会把它顶掉
+let mainInstance = null;
 
 export function useScrollbars(target) {
   if (!target) return;
-  instance = OverlayScrollbars(target, OPTIONS);
-  watchRightEdge(target, instance);
+  mainInstance = OverlayScrollbars(target, OPTIONS);
+  watchRightEdge(target, mainInstance);
 }
 
 export function getScrollViewport() {
-  return instance?.elements().viewport;
+  return mainInstance?.elements().viewport;
+}
+
+// 弹窗表单的滚动容器：不挂 watchRightEdge —— 那套 edge/inside 坐标判定
+// 在弹窗里会把滚动条卡在加粗态回不去，加粗反馈只保留在主视图。
+export function attachScrollbars(target) {
+  if (!target) return null;
+  return OverlayScrollbars(target, OPTIONS);
+}
+
+export function destroyScrollbars(inst) {
+  if (!inst) return;
+  try {
+    inst.destroy();
+  } catch {
+    /* 已销毁则忽略 */
+  }
 }
 
 /**
@@ -97,15 +114,13 @@ function watchRightEdge(target, instance) {
     lingering = false;
   };
 
-  // 库接管后 scroll 事件在内部 viewport 上，target 上收不到
-  const viewport = instance.elements().viewport;
-  viewport.addEventListener('scroll', () => {
+  const onScroll = () => {
     apply();
     show();
     scheduleHide();
-  }, { passive: true });
+  };
 
-  target.addEventListener('pointermove', (e) => {
+  const onPointerMove = (e) => {
     if (!scrollbar) sync();
     const next = e.clientX >= edge;
     if (next === inside) return;
@@ -120,35 +135,33 @@ function watchRightEdge(target, instance) {
       if (dragging) hide();
       else scheduleLinger();
     }
-  });
+  };
 
-  target.addEventListener('pointerleave', () => {
+  const onPointerLeaveTarget = () => {
     if (!inside) return;
     inside = false;
     apply();
     scheduleLinger();
-  });
+  };
 
-  // 竖带上只有手柄可命中，别处的按下是穿透到内容的，不算拖拽
-  target.addEventListener('pointerdown', (e) => {
+  const onPointerDown = (e) => {
     if (e.target.closest('.os-scrollbar-handle')) {
       dragging = true;
       apply();
       show();
     }
-  });
+  };
 
   // 指针离开整个窗口：立即收起并清状态。抬手发生在窗口外时
   // pointerup 收不到，不清 dragging 会卡在加粗状态
-  document.addEventListener('pointerleave', () => {
+  const onDocLeave = () => {
     inside = false;
     dragging = false;
     cancelLinger();
     apply();
     hide();
-  });
+  };
 
-  // 抬手可能落在容器外
   const release = () => {
     if (!dragging) return;
     dragging = false;
@@ -156,13 +169,24 @@ function watchRightEdge(target, instance) {
     if (inside) show();
     else scheduleLinger();
   };
-  window.addEventListener('pointerup', release);
-  window.addEventListener('pointercancel', release);
 
-  window.addEventListener('resize', () => {
+  const onResize = () => {
     sync();
     inside = false;
     cancelLinger();
     apply();
-  });
+  };
+
+  const viewport = instance.elements().viewport;
+  viewport.addEventListener('scroll', onScroll, { passive: true });
+  target.addEventListener('pointermove', onPointerMove);
+  target.addEventListener('pointerleave', onPointerLeaveTarget);
+  target.addEventListener('pointerdown', onPointerDown);
+  document.addEventListener('pointerleave', onDocLeave);
+  window.addEventListener('pointerup', release);
+  window.addEventListener('pointercancel', release);
+  window.addEventListener('resize', onResize);
+
+  // 先算一次竖带位置，避免首次移动指针时 edge=0 导致到处都判定为「在边缘」
+  sync();
 }

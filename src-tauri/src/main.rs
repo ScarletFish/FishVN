@@ -64,6 +64,8 @@ fn main() {
             commands::delete_installation,
             commands::get_game_metadata,
             commands::update_game_metadata,
+            commands::list_game_characters,
+            commands::save_game_characters,
             commands::search_vndb,
             commands::fetch_vn_metadata,
             commands::allow_local_file,
