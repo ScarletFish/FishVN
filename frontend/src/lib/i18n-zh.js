@@ -110,6 +110,7 @@ export const DICT_ZH = {
     action: {
       sync: '同步元数据',
       removeTag: '移除标签',
+      addTag: '添加标签',
     },
     search: {
       title: 'VNDB 搜索结果',

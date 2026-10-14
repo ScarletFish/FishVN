@@ -3,7 +3,7 @@
   import Modal from './Modal.svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
-  import { readCache, writeCache } from '../lib/vndb-cache.js';
+  import { createVndbSearch } from '../lib/vndb-search.svelte.js';
 
   let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
 
@@ -33,15 +33,14 @@
   let coverPath = $state('');
 
   let tagDraft = $state('');
+  let tagInputOpen = $state(false);
   let coverBroken = $state(false);
 
   let tab = $state('basic');
   let statusOpen = $state(false);
 
   let searchOpen = $state(false);
-  let searching = $state(false);
-  let searchError = $state('');
-  let hits = $state([]);
+  const search = createVndbSearch();
 
   // 关闭时组件不卸载，字段要在这里重置
   $effect(() => {
@@ -63,13 +62,12 @@
     tags = [];
     coverPath = '';
     tagDraft = '';
+    tagInputOpen = false;
     coverBroken = false;
     tab = 'basic';
     statusOpen = false;
     searchOpen = false;
-    searching = false;
-    searchError = '';
-    hits = [];
+    search.reset();
     loading = Boolean(gameId);
     if (gameId) loadExisting(gameId);
     tick().then(() => input?.focus());
@@ -99,7 +97,7 @@
       votecount = meta?.votecount != null ? String(meta.votecount) : '';
       description = meta?.description ?? '';
       developers = (meta?.developers ?? []).join(', ');
-      tags = (meta?.tags ?? []).map((tag) => tag.name);
+      tags = (meta?.tags ?? []).map((tag) => ({ ...tag }));
       coverPath = meta?.image_path ?? '';
     } catch (err) {
       error = err.message;
@@ -118,21 +116,27 @@
     userRating = Math.min(10, next);
   }
 
+  function newTag(name) {
+    return { name };
+  }
+
   function addTag() {
     const value = tagDraft.trim();
     if (!value) return;
-    if (!tags.includes(value)) tags = [...tags, value];
+    if (!tags.some((tag) => tag.name === value)) tags = [...tags, newTag(value)];
     tagDraft = '';
   }
 
-  function removeTag(index) {
-    tags = tags.filter((_, i) => i !== index);
-  }
-
-  function onTagKeydown(e) {
+  function onTagNewKeydown(e) {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       addTag();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      tagDraft = '';
+      tagInputOpen = false;
       return;
     }
     if (e.key === 'Backspace' && !tagDraft && tags.length) {
@@ -141,39 +145,18 @@
     }
   }
 
+  function removeTag(index) {
+    tags = tags.filter((_, i) => i !== index);
+  }
+
+  
+
   function close() {
     if (saving) return false;
     open = false;
   }
 
-  async function searchVndb() {
-    const keyword = name.trim();
-    if (!keyword || searching) return;
-
-    searchOpen = true;
-    searchError = '';
-
-    const cached = readCache(keyword);
-    if (cached) {
-      hits = cached;
-      searching = false;
-      return;
-    }
-
-    // 换词重搜时先清空，避免旧结果与新请求的空窗期显示错配
-    hits = [];
-    searching = true;
-    try {
-      const result = await api.searchVndb(keyword);
-      writeCache(keyword, result);
-      hits = result;
-    } catch (err) {
-      // 后端与网络错误不走 i18n，原样显示
-      searchError = err.message;
-    } finally {
-      searching = false;
-    }
-  }
+  
 
   function toNumber(raw) {
     const text = raw.trim();
@@ -215,15 +198,7 @@
       votecount: toInteger(votecount),
       description: description.trim() || null,
       image_path: coverPath.trim() || null,
-      tags: tags.map((name) => ({
-        id: null,
-        name,
-        category: null,
-        rating: null,
-        vn_count: null,
-        spoiler: null,
-        lie: null,
-      })),
+      tags,
       developers: developers
         .split(',')
         .map((item) => item.trim())
@@ -498,9 +473,9 @@
         <div class="form-group">
           <label for="game-form-tags">{t('gameForm.field.tags')}</label>
           <div class="tag-input scroll-thin">
-            {#each tags as tag, i (tag)}
+            {#each tags as tag, i (tag.id ?? tag.name)}
               <span class="tag-pill">
-                {tag}
+                {tag.name}
                 <button
                   type="button"
                   class="tag-pill__remove"
@@ -515,17 +490,31 @@
                 </button>
               </span>
             {/each}
+            <button
+              type="button"
+              class="tag-input__add"
+              aria-expanded={tagInputOpen}
+              aria-label={t('gameForm.action.addTag')}
+              onclick={() => (tagInputOpen = !tagInputOpen)}
+              disabled={saving}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
+          {#if tagInputOpen}
             <input
-              id="game-form-tags"
-              class="tag-input__field"
+              id="game-form-tag-new"
+              class="tag-input__new"
               type="text"
               bind:value={tagDraft}
-              onkeydown={onTagKeydown}
-              onblur={addTag}
-              placeholder={tags.length ? '' : t('gameForm.placeholder.tags')}
+              onkeydown={onTagNewKeydown}
+              placeholder={t('gameForm.placeholder.tags')}
               disabled={saving}
             />
-          </div>
+          {/if}
         </div>
 
         <div class="form-group">
@@ -561,8 +550,11 @@
       <button
         type="button"
         class="game-form__sync btn"
-        onclick={searchVndb}
-        disabled={saving || searching || !name.trim()}
+        onclick={() => {
+          searchOpen = true;
+          search.search(name);
+        }}
+        disabled={saving || search.searching || !name.trim()}
       >
         {t('gameForm.action.sync')}
       </button>
@@ -578,17 +570,17 @@
   {#snippet aside()}
     <div class="modal-panels scroll-thin">
       <div class="modal-panel active">
-        {#if searching}
+        {#if search.searching}
           <div class="vndb-progress" role="progressbar" aria-label={t('gameForm.search.loading')}>
             <span class="vndb-progress__bar"></span>
           </div>
-        {:else if searchError}
+        {:else if search.searchError}
           <p class="vndb-note vndb-note--error">{searchError}</p>
         {:else if hits.length === 0}
           <p class="vndb-note">{t('gameForm.search.empty')}</p>
         {:else}
           <ul class="vndb-hits">
-            {#each hits as hit (hit.id)}
+            {#each search.hits as hit (hit.id)}
               <li>
                 <button
                   type="button"

@@ -193,6 +193,40 @@ fn 标签带排序键往返不断() {
     );
 }
 
+/// Option 字段缺键时 serde 补 None，只有 name 是必填的
+#[test]
+fn 标签只给名字能读出来() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    conn.execute_batch(
+        "
+        CREATE TABLE games (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+        CREATE TABLE game_metadata (
+          game_id TEXT PRIMARY KEY, alias TEXT, titles TEXT, rating REAL,
+          votecount INTEGER, released TEXT, description TEXT, image_id TEXT,
+          image_path TEXT, tags TEXT, developers TEXT
+        );
+        INSERT INTO games VALUES ('g1', '作品');
+        ",
+    )
+    .unwrap();
+
+    conn.execute(
+        "INSERT INTO game_metadata (game_id, tags) VALUES ('g1', ?)",
+        rusqlite::params![r#"[{"name":"只有名字"}]"#],
+    )
+    .unwrap();
+    let tag = metadata::get(&conn, "g1").unwrap().unwrap().tags.unwrap().remove(0);
+    assert_eq!(tag.name, "只有名字");
+    assert_eq!(tag.rating, None);
+
+    conn.execute(
+        "UPDATE game_metadata SET tags = ? WHERE game_id = 'g1'",
+        rusqlite::params![r#"[{"category":"cont"}]"#],
+    )
+    .unwrap();
+    assert!(metadata::get(&conn, "g1").is_err(), "没有 name 的标签该读不出来");
+}
+
 #[test]
 fn 标签整列替换() {
     let db = Db::new();
