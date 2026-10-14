@@ -156,11 +156,17 @@ async fn fetch_vn_metadata(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) 
         Err(e) => return Err(Fail(StatusCode::BAD_REQUEST, e.to_string())),
     };
     dev.rate.acquire().await;
-    finish(vndb::fetch_vn(vndb::http(), &vndb_id).await)
+    let dir = crate::data_dir(&dev.app)
+        .map_err(|e| Fail(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    finish(vndb::fetch_vn(vndb::http(), &vndb_id, &dir).await)
 }
 
 async fn allow_local_file(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     finish(a.path().and_then(|p| commands::allow_local_file(dev.app.clone(), p.to_owned())))
+}
+
+async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    finish(a.path().and_then(|p| commands::thumbnail(dev.app.clone(), p.to_owned())))
 }
 
 pub fn router(dev: Dev) -> Router {
@@ -182,6 +188,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/search_vndb", post(search_vndb))
         .route("/fetch_vn_metadata", post(fetch_vn_metadata))
         .route("/allow_local_file", post(allow_local_file))
+        .route("/thumbnail", post(thumbnail))
         .with_state(dev)
 }
 
@@ -204,4 +211,5 @@ pub const COMMANDS: &[&str] = &[
     "search_vndb",
     "fetch_vn_metadata",
     "allow_local_file",
+    "thumbnail",
 ];

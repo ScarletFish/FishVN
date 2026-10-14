@@ -17,6 +17,7 @@ use crate::types::{
     Game, GameListItem, GameMetadata, GamePatch, Installation, InstallationPatch, MetadataPatch,
     NewGame, NewInstallation, StatePatch, UserGameState,
 };
+use crate::thumbs;
 use crate::vndb::{self, RateLimiter, VnMetadata, VnSearchHit};
 
 type Shared<'a> = State<'a, Arc<Mutex<Connection>>>;
@@ -115,7 +116,7 @@ pub fn update_game_metadata(
 /// 不取 Connection 锁：那是全局单锁，跨网络 I/O 持着会卡住所有库操作
 #[tauri::command]
 pub async fn search_vndb(
-    rate: State<'_, RateLimiter>,
+    rate: State<'_, Arc<RateLimiter>>,
     keyword: String,
 ) -> Result<Vec<VnSearchHit>> {
     let keyword = vndb::validate_keyword(&keyword)?;
@@ -125,12 +126,23 @@ pub async fn search_vndb(
 
 #[tauri::command]
 pub async fn fetch_vn_metadata(
-    rate: State<'_, RateLimiter>,
+    app: tauri::AppHandle,
+    rate: State<'_, Arc<RateLimiter>>,
     vndb_id: String,
 ) -> Result<VnMetadata> {
     let vndb_id = vndb::validate_vn_id(&vndb_id)?;
     rate.acquire().await;
-    vndb::fetch_vn(vndb::http(), &vndb_id).await
+    let dir = crate::data_dir(&app)
+        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    vndb::fetch_vn(vndb::http(), &vndb_id, &dir).await
+}
+
+#[tauri::command]
+pub fn thumbnail(app: tauri::AppHandle, src: String) -> Result<String> {
+    let dir = crate::data_dir(&app)
+        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    let path = thumbs::cached(&src, &dir)?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 /// dialog 插件只放行 fs_scope，不碰 asset 协议，所以本地封面渲染前要补一次授权。

@@ -56,8 +56,9 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
         -- VNDB 那份 titles 里已含 official / main 的正式标题，别名存 alias。
         -- titles / tags / developers 存 JSON 文本而非标量，要按其中某个键筛
         -- 只能整列取出后在 Rust 侧解。
-        -- image_id 是 VNDB 侧的 cv 编号，只用来判断封面要不要重下；
-        -- image_path 是本地缓存文件的位置，两者不是一回事。
+        -- image_id 是 VNDB 侧的 cv 编号，本项目不写它：下载判重靠
+        -- covers/vndb/<cv编号>.jpg 是否存在，同步冲突靠 image_path 是否为空。
+        -- image_path 是本地文件的位置，两者不是一回事。
         CREATE TABLE IF NOT EXISTS game_metadata (
           game_id     TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
           alias       TEXT,

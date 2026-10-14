@@ -9,16 +9,20 @@ use crate::{new_id, now};
 const DEFAULT_STATUS: Status = Status::Wishlist;
 
 pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
-    // 列表投影一次带出状态与安装概况，卡片不再逐条追问
+    // 列表投影一次带出状态与安装概况，卡片不再逐条追问。
+    // game_metadata 必须一并进 GROUP BY：选了 m.image_path 却不在分组键里，
+    // SQLite 会取任意一行的值。它是主键，一作品一行，不改变行数
     let mut stmt = conn.prepare(
         "SELECT g.id, g.name, g.vndb_id, g.created_at,
                 s.status, s.user_rating, s.last_played_at, s.play_count,
                 COUNT(i.id) AS installation_count,
-                MAX(CASE WHEN i.entry_path IS NOT NULL THEN 1 ELSE 0 END) AS can_launch
+                MAX(CASE WHEN i.entry_path IS NOT NULL THEN 1 ELSE 0 END) AS can_launch,
+                m.image_path AS cover_path
          FROM games g
          JOIN user_game_state s ON s.game_id = g.id
          LEFT JOIN installations i ON i.game_id = g.id
-         GROUP BY g.id
+         LEFT JOIN game_metadata m ON m.game_id = g.id
+         GROUP BY g.id, m.image_path
          ORDER BY g.created_at DESC, g.id",
     )?;
     let rows = stmt.query_map([], |row| {
@@ -33,6 +37,7 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
             play_count: row.get("play_count")?,
             installation_count: row.get("installation_count")?,
             can_launch: row.get::<_, i64>("can_launch")? == 1,
+            cover_path: row.get("cover_path")?,
         })
     })?;
 

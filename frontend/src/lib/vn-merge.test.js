@@ -12,6 +12,7 @@ const VN = {
   titles: [{ lang: 'ja', title: 'フェイト／ステイナイト' }],
   tags: [{ id: 'g1', name: 'Gore', rating: 3 }],
   developers: [{ id: 'd1', name: 'TYPE-MOON', original: 'タイプムーン' }],
+  image: { id: 'cv75598', local_path: 'D:\\data\\covers\\vndb\\cv75598.jpg' },
 };
 
 function form(over = {}) {
@@ -24,6 +25,7 @@ function form(over = {}) {
     description: '',
     tags: [],
     developers: '',
+    coverPath: '',
     ...over,
   };
 }
@@ -47,6 +49,28 @@ test('全空的表单没有冲突，全部直接填', () => {
   expect(next.name).toBe('Fate/stay night');
   expect(next.tags.map((t) => t.name)).toEqual(['Gore']);
   expect(next.developers).toBe('TYPE-MOON');
+  expect(next.coverPath).toBe('D:\\data\\covers\\vndb\\cv75598.jpg');
+});
+
+test('本地空封面直接采用 VNDB 的，不进冲突列表', () => {
+  expect(conflictRows(form(), VN)).toEqual([]);
+});
+
+test('本地有封面时进冲突列表，勾选才替换', () => {
+  const current = form({ coverPath: 'D:\\pics\\mine.jpg' });
+  const keys = conflictRows(current, VN).map((r) => r.key);
+  expect(keys).toEqual(['coverPath']);
+  expect(applyIncoming(current, VN, new Set()).coverPath).toBe('D:\\pics\\mine.jpg');
+  expect(applyIncoming(current, VN, new Set(['coverPath'])).coverPath).toBe(
+    'D:\\data\\covers\\vndb\\cv75598.jpg'
+  );
+});
+
+test('VNDB 没下到封面就不动本地', () => {
+  const current = form({ coverPath: 'D:\\pics\\mine.jpg' });
+  const failed = { ...VN, image: { id: 'cv75598', local_path: null } };
+  expect(conflictRows(current, failed)).toEqual([]);
+  expect(applyIncoming(current, failed, new Set()).coverPath).toBe('D:\\pics\\mine.jpg');
 });
 
 test('一样的值不算冲突', () => {

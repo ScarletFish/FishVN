@@ -1,21 +1,26 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { api } from './api.js';
 
-// 本地图经 asset 协议渲染，而协议白名单默认是空的：不先授权，<img> 只会拿到 403 空响应
-const granted = new Set();
+// 缓存的是最终的 asset URL 而非原图路径：键是原图路径，对它调 convertFileSrc
+// 拿到的会是原图的 URL，派生图就白换了。
+// 授权不能省：asset 协议白名单默认为空，不放行则 <img> 拿到 403 空响应
+const cache = new Map();
 const inFlight = new Map();
 
 export function coverSrc(path) {
   if (!path) return Promise.resolve(null);
-  if (granted.has(path)) return Promise.resolve(convertFileSrc(path));
+
+  const hit = cache.get(path);
+  if (hit) return Promise.resolve(hit);
 
   let job = inFlight.get(path);
   if (!job) {
     job = api
-      .allowLocalFile(path)
-      .then(() => {
-        granted.add(path);
-        return convertFileSrc(path);
+      .thumbnail(path)
+      .then((thumb) => api.allowLocalFile(thumb).then(() => convertFileSrc(thumb)))
+      .then((url) => {
+        cache.set(path, url);
+        return url;
       })
       .finally(() => inFlight.delete(path));
     inFlight.set(path, job);

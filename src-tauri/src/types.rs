@@ -100,6 +100,7 @@ pub struct GameListItem {
     pub installation_count: i64,
     /// 至少有一个目录已指定入口
     pub can_launch: bool,
+    pub cover_path: Option<String>,
 }
 
 /// PATCH 的可空字段用双层 Option：外层 None = 没给，内层 None = 显式置空

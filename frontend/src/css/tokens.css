@@ -207,6 +207,9 @@ body {
   --sidebar-w: 3.75rem;   /* 60px  侧栏图标条 */
   --titlebar-h: 2.125rem; /* 34px  标题栏 */
   --card-w: 17.3125rem;   /* 277px  封面墙卡宽，固定 */
+  /* 不能往 --card-w(277px) 靠：那会把旁边的路径输入框挤到放不下完整路径 */
+  --cover-preview-w: 11.25rem;
+  --cover-thumb-w: 5.625rem;
   --text-view-title: clamp(1.3rem, 2.2vw, 1.6rem);
   /* 水平滚动分页的列数与卡间距。--cols 初值只是首帧兜底，实际值由
      lib/scroll-dots.svelte.js 按容器宽写回，改算法要同步 hscroll.css 的均分公式 */

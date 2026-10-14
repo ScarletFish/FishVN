@@ -267,6 +267,7 @@
     description = next.description;
     tags = next.tags;
     developers = next.developers;
+    coverPath = next.coverPath;
     mergeOpen = false;
     incoming = null;
   }

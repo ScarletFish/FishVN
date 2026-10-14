@@ -7,7 +7,8 @@ use fishvn::games::{
     create_game, delete_game, get_game, get_game_state, list_games, update_game, update_game_state,
 };
 use fishvn::installations::create_installation;
-use fishvn::types::{GameListItem, GamePatch, NewGame, StatePatch, Status};
+use fishvn::metadata;
+use fishvn::types::{GameListItem, GamePatch, MetadataPatch, NewGame, StatePatch, Status};
 
 fn new_game(db: &Db, name: &str) -> String {
     create_game(
@@ -193,6 +194,62 @@ fn 列表里的状态跟随状态表变化() {
     .expect("改状态失败");
 
     assert_eq!(find(&db, &id).unwrap().status, Status::Playing);
+}
+
+#[test]
+fn 列表带出封面路径_没有元数据行时为None() {
+    let db = Db::new();
+    let bare = new_game(&db, "无封面");
+    let covered = new_game(&db, "有封面");
+
+    assert_eq!(
+        find(&db, &bare).unwrap().cover_path,
+        None,
+        "没有元数据行时不能报错，也不能拿空串当路径"
+    );
+
+    metadata::upsert(
+        &db,
+        &covered,
+        &MetadataPatch {
+            image_path: Some(Some("D:\\covers\\vndb\\cv75598.jpg".into())),
+            ..Default::default()
+        },
+    )
+    .expect("写元数据失败");
+
+    assert_eq!(
+        find(&db, &covered).unwrap().cover_path.as_deref(),
+        Some("D:\\covers\\vndb\\cv75598.jpg")
+    );
+}
+
+#[test]
+fn 联表封面不放大安装计数() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let id = new_game(&db, "计数");
+
+    let dir = tree.make_dir(&[("a.exe", "a"), ("b.exe", "b")]);
+    create_installation(
+        &db,
+        &fishvn::types::NewInstallation {
+            game_id: id.clone(),
+            dir_path: common::path_str(&dir),
+        },
+    )
+    .expect("建安装失败");
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            image_path: Some(Some("D:\\covers\\cv1.jpg".into())),
+            ..Default::default()
+        },
+    )
+    .expect("写元数据失败");
+
+    assert_eq!(find(&db, &id).unwrap().installation_count, 1);
 }
 
 #[test]

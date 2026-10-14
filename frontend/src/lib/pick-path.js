@@ -1,7 +1,9 @@
 import { open } from '@tauri-apps/plugin-dialog';
 import { DEV_HTTP } from './env.js';
 
-const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif'];
+// avif 解码要 libdav1d（C 库），gif 只会取首帧，都不收。
+// 后端 image crate 的 feature 与这份清单要一致，见 src-tauri/Cargo.toml
+const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'bmp'];
 
 function guard() {
   if (DEV_HTTP) throw new Error('浏览器模式选不了文件，请在应用窗口里操作');

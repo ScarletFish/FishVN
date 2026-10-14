@@ -2,8 +2,30 @@
   /** 列表卡片：封面缺失时用游戏名首字符占位 */
   import { t } from '../lib/i18n.js';
   import Menu from './Menu.svelte';
+  import { coverSrc } from '../lib/cover-src.js';
 
   let { item, onopen, onedit } = $props();
+
+  let coverBroken = $state(false);
+  let coverUrl = $state(null);
+
+  $effect(() => {
+    const path = item.cover_path;
+    coverBroken = false;
+    coverUrl = null;
+    if (!path) return;
+    let live = true;
+    coverSrc(path)
+      .then((url) => {
+        if (live) coverUrl = url;
+      })
+      .catch(() => {
+        if (live) coverBroken = true;
+      });
+    return () => {
+      live = false;
+    };
+  });
 
   const initial = $derived((item.name || '?')[0].toUpperCase());
 
@@ -14,8 +36,14 @@
 
 <div class="cover-card">
   <div class="cover-card__media">
-    {#if item.cover_path}
-      <img src={item.cover_path} alt="" loading="lazy" decoding="async" />
+    {#if coverUrl && !coverBroken}
+      <img
+        src={coverUrl}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        onerror={() => (coverBroken = true)}
+      />
     {:else}
       <div class="cover-ph">{initial}</div>
     {/if}

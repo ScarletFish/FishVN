@@ -16,7 +16,9 @@ const API_BASE: &str = "https://api.vndb.org/kana";
 /// 搜索阶段：只够判断是哪部作品，不取 description 与 tags
 const SEARCH_FIELDS: &str = "id,title,alttitle,released,olang,image{id,thumbnail,thumbnail_dims}";
 
-/// 元数据阶段：详情页真正渲染的字段
+/// 元数据阶段：详情页真正渲染的字段。
+/// 分级标记 sexual / violence 刻意不取：默认全下载，过滤留给设置项，
+/// 别当成漏做过滤补上
 const META_FIELDS: &str = "id,title,alttitle,olang,released,devstatus,rating,votecount,description,titles{lang,title,latin,official,main},image{id,url,dims},tags{id,name,category,rating,spoiler,lie,vn_count},developers{id,name,original,type}";
 
 const SEARCH_RESULTS: usize = 25;
@@ -24,6 +26,10 @@ const SEARCH_RESULTS: usize = 25;
 /// 刻意与 VNDB「单请求超 3 秒被服务端中断」对齐：主动放弃的错误可判断，
 /// 被服务端掐断只剩一个语义不明的连接错误
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// 图片走另一个客户端。图片响应体比 API 的 JSON 大得多，
+/// 3 秒那条中断线是按 API 定的
+const IMAGE_TIMEOUT: Duration = Duration::from_secs(8);
 
 /// 服务端额度是 200 次 / 5 分钟且不暴露余量，客户端取更保守的口径
 const RATE_LIMIT_MAX: usize = 20;
@@ -36,6 +42,16 @@ pub fn http() -> &'static reqwest::Client {
             .timeout(REQUEST_TIMEOUT)
             .build()
             .expect("HTTP 客户端建不起来")
+    })
+}
+
+pub fn image_http() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(IMAGE_TIMEOUT)
+            .build()
+            .expect("图片客户端建不起来")
     })
 }
 
@@ -107,6 +123,8 @@ pub struct VnImage {
     pub thumbnail: Option<String>,
     pub dims: Option<Vec<i64>>,
     pub thumbnail_dims: Option<Vec<i64>>,
+    /// VNDB 响应里没有这个键，由 fetch_vn 落盘后回填
+    pub local_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -203,17 +221,76 @@ pub async fn search(http: &reqwest::Client, keyword: &str) -> Result<Vec<VnSearc
     Ok(env.results)
 }
 
-pub async fn fetch_vn(http: &reqwest::Client, vndb_id: &str) -> Result<VnMetadata> {
+pub async fn fetch_vn(
+    http: &reqwest::Client,
+    vndb_id: &str,
+    data_dir: &std::path::Path,
+) -> Result<VnMetadata> {
     let body = json!({
         "filters": ["id", "=", vndb_id],
         "fields": META_FIELDS,
         "results": 1,
     });
     let env: VnEnvelope<VnMetadata> = post(http, body).await?;
-    env.results
+    let mut vn = env
+        .results
         .into_iter()
         .next()
-        .ok_or_else(|| AppError::NotFound(format!("VNDB 没有这条记录：{vndb_id}")))
+        .ok_or_else(|| AppError::NotFound(format!("VNDB 没有这条记录：{vndb_id}")))?;
+    if let Some(img) = vn.image.as_mut() {
+        img.local_path = fetch_image(image_http(), img, data_dir).await;
+    }
+    Ok(vn)
+}
+
+/// 下 url 不下 thumbnail：thumbnail 宽度不足以覆盖 2× 屏，2× 屏要 554 宽
+///
+/// 下载失败只记日志不返回错误 —— 图挂了不该让整次元数据同步失败
+async fn fetch_image(
+    http: &reqwest::Client,
+    img: &mut VnImage,
+    data_dir: &std::path::Path,
+) -> Option<String> {
+    let (Some(url), Some(id)) = (img.url.as_deref(), img.id.as_deref()) else {
+        return None;
+    };
+    // cv 编号是 VNDB 给每张图的永久身份，换图才换号，拿它当文件名即可判断重下
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric()) {
+        return None;
+    }
+
+    let dir = data_dir.join("covers").join("vndb");
+    let dst = dir.join(format!("{id}.jpg"));
+    if dst.is_file() {
+        return Some(dst.to_string_lossy().into_owned());
+    }
+    if std::fs::create_dir_all(&dir).is_err() {
+        return None;
+    }
+
+    let resp = match http.get(url).send().await {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("封面下载失败 {url}：{e}");
+            return None;
+        }
+    };
+    if !resp.status().is_success() {
+        eprintln!("封面下载失败 {url}：HTTP {}", resp.status());
+        return None;
+    }
+    let bytes = match resp.bytes().await {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("封面读取失败 {url}：{e}");
+            return None;
+        }
+    };
+    if let Err(e) = std::fs::write(&dst, &bytes) {
+        eprintln!("封面落盘失败 {}：{e}", dst.display());
+        return None;
+    }
+    Some(dst.to_string_lossy().into_owned())
 }
 
 async fn post<T: for<'de> Deserialize<'de>>(

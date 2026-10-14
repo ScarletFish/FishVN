@@ -115,7 +115,7 @@
 
 .cover-field__preview {
   flex-shrink: 0;
-  width: 120px;
+  width: var(--cover-preview-w);
   aspect-ratio: 3 / 4;
   overflow: hidden;
   background: var(--bg-surface);

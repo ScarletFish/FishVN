@@ -2,13 +2,42 @@
   import Modal from './Modal.svelte';
   import { t } from '../lib/i18n.js';
   import { asText } from '../lib/vn-merge.js';
+  import { coverSrc } from '../lib/cover-src.js';
 
   let { open = $bindable(false), rows = [], onaccept, oncancel } = $props();
 
   let picked = $state(new Set());
+  let thumbs = $state([]);
 
   $effect(() => {
     if (open) picked = new Set(rows.map((r) => r.key));
+  });
+
+  $effect(() => {
+    const paths = rows.map((r) => (r.key === 'coverPath' ? [r.current, r.incoming] : []));
+    let live = true;
+    Promise.all(
+      paths.map(async (pair) => {
+        const out = [];
+        for (const p of pair) {
+          if (!p) {
+            out.push(null);
+            continue;
+          }
+          try {
+            out.push(await coverSrc(p));
+          } catch {
+            out.push(null);
+          }
+        }
+        return out;
+      })
+    ).then((all) => {
+      if (live) thumbs = all;
+    });
+    return () => {
+      live = false;
+    };
   });
 
   function toggle(key) {
@@ -16,6 +45,10 @@
     if (next.has(key)) next.delete(key);
     else next.add(key);
     picked = next;
+  }
+
+  function isCover(key) {
+    return key === 'coverPath';
   }
 </script>
 
@@ -29,13 +62,28 @@
       <span>{t('gameForm.merge.incoming')}</span>
     </div>
     <ul class="vn-merge__rows scroll-thin">
-      {#each rows as row (row.key)}
+      {#each rows as row, index (row.key)}
         {@const on = picked.has(row.key)}
         <li class="vn-merge__row">
           <span class="vn-merge__label">{t(`gameForm.field.${row.key}`)}</span>
           {#each [[row.current, !on], [row.incoming, on]] as [value, active], side}
             <span class="vn-merge__cell" class:is-active={active}>
-              <span class="vn-merge__text">{asText(row.key, value)}</span>
+              {#if isCover(row.key)}
+                <span class="vn-merge__thumb">
+                  {#if thumbs[index]?.[side]}
+                    <img
+                      src={thumbs[index][side]}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  {:else}
+                    <span class="vn-merge__thumb-ph" aria-hidden="true">—</span>
+                  {/if}
+                </span>
+              {:else}
+                <span class="vn-merge__text">{asText(row.key, value)}</span>
+              {/if}
               <button
                 type="button"
                 class="vn-merge__dot"

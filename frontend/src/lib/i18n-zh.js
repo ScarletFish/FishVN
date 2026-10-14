@@ -93,6 +93,7 @@ export const DICT_ZH = {
       developers: '开发商',
       tags: '标签',
       cover: '封面',
+      coverPath: '封面',
     },
     hint: {
       ratingScale: '0-100百分制',
