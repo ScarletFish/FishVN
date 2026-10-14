@@ -9,8 +9,9 @@
     "preview": "vite preview",
     "check:tokens": "node scripts/check-css-tokens.js",
     "check:dead-css": "node scripts/check-dead-css.js",
-    "check:frontend": "npm run check:tokens && npm run check:dead-css && vite build",
-    "test": "vitest run"
+    "check:frontend": "npm run check:tokens && npm run check:dead-css && vitest run && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",

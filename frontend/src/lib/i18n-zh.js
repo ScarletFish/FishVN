@@ -93,12 +93,13 @@ export const DICT_ZH = {
       cover: '封面',
     },
     hint: {
-      ratingScale: 'VNDB 原始评分，0 到 100 的百分制',
+      ratingScale: '0-100百分制',
+      userRating: '0-100百分制',
     },
     placeholder: {
       notes: '还没有备注',
       empty: '尚未同步',
-      rating: '如 86.3',
+      rating: '0-100',
       votecount: '如 19334',
       alias: '作品的别称，详情页显示在标题下方',
       released: '如 2005-08-02',
@@ -111,6 +112,8 @@ export const DICT_ZH = {
       sync: '同步元数据',
       removeTag: '移除标签',
       addTag: '添加标签',
+      ratingDown: '降低我的评分',
+      ratingUp: '提高我的评分',
     },
     search: {
       title: 'VNDB 搜索结果',

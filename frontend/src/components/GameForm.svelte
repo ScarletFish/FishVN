@@ -4,6 +4,7 @@
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { createVndbSearch } from '../lib/vndb-search.svelte.js';
+  import { buildMetadataPatch, toNumber } from '../lib/form-metadata.js';
 
   let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
 
@@ -15,6 +16,7 @@
   let vndbId = $state(null);
   let status = $state('wishlist');
   let userRating = $state(null);
+  let userRatingDraft = $state('');
   let notes = $state('');
   let error = $state('');
   let saving = $state(false);
@@ -49,6 +51,7 @@
     vndbId = null;
     status = 'wishlist';
     userRating = null;
+    userRatingDraft = '';
     notes = '';
     error = '';
     released = '';
@@ -90,6 +93,7 @@
       vndbId = game.vndb_id;
       status = state.status;
       userRating = state.user_rating;
+      userRatingDraft = state.user_rating == null ? '' : String(state.user_rating);
       notes = state.notes ?? '';
       released = meta?.released ?? '';
       alias = meta?.alias ?? '';
@@ -108,12 +112,41 @@
 
   function stepRating(delta) {
     const current = userRating ?? 0;
-    const next = Math.round((current + delta) * 2) / 2;
+    const next = Math.round((current + delta) * 10) / 10;
     if (next <= 0) {
-      userRating = delta < 0 ? null : 0.5;
+      userRating = delta < 0 ? null : 5;
+    } else {
+      userRating = Math.min(100, next);
+    }
+    userRatingDraft = userRating === null ? '' : String(userRating);
+  }
+
+  // 只留数字与第一个小数点、至多一位小数，否则输入 8..5 会存成 8
+  function onUserRatingInput(e) {
+    let cleaned = e.target.value.replace(/[^\d.]/g, '');
+    const dot = cleaned.indexOf('.');
+    if (dot !== -1) {
+      cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
+    }
+    if (cleaned.includes('.')) {
+      const [int, dec] = cleaned.split('.');
+      cleaned = `${int}.${dec.slice(0, 1)}`;
+    }
+    e.target.value = cleaned;
+    userRatingDraft = cleaned;
+    userRating = cleaned === '' ? null : toNumber(cleaned);
+  }
+
+  // 失焦才夹范围：边打边夹会让「10」这种东西没法输入
+  function onUserRatingBlur(e) {
+    if (userRating === null) {
+      e.target.value = '';
       return;
     }
-    userRating = Math.min(10, next);
+    const clamped = Math.min(100, Math.max(0, userRating));
+    userRating = Math.round(clamped * 10) / 10;
+    userRatingDraft = String(userRating);
+    e.target.value = userRatingDraft;
   }
 
   function newTag(name) {
@@ -156,21 +189,6 @@
     open = false;
   }
 
-  
-
-  function toNumber(raw) {
-    const text = raw.trim();
-    if (!text) return null;
-    const value = Number(text);
-    return Number.isFinite(value) ? value : null;
-  }
-
-  // 评分人数在库里是 i64，带小数送过去 serde 整个包都反序列化失败
-  function toInteger(raw) {
-    const value = toNumber(raw);
-    return value === null ? null : Math.trunc(value);
-  }
-
   // 评分与人数在库里是 VNDB 的原值：评分是百分制，详情页再除以 10 展示。
   // 这里只挡越界与非数字，越界值存进去会让详情页显示成不可信的分数。
   // 文案渲染在各字段旁边而不是共用的 error，那一处只在基本信息 tab 里
@@ -186,24 +204,6 @@
       votecountError = t('gameForm.error.votecountRange');
     }
     return ratingError || votecountError;
-  }
-
-  // titles 不进 patch：表单没有这一项，双层 Option 缺外层是「不动」，
-  // 写 null 反而会把同步来的本地化标题清掉。image_id 同理，由封面下载管线自己写。
-  function buildMetadataPatch() {
-    return {
-      alias: alias.trim() || null,
-      released: released.trim() || null,
-      rating: toNumber(rating),
-      votecount: toInteger(votecount),
-      description: description.trim() || null,
-      image_path: coverPath.trim() || null,
-      tags,
-      developers: developers
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean),
-    };
   }
 
   async function submit(e) {
@@ -225,6 +225,16 @@
 
     saving = true;
     error = '';
+    const patch = buildMetadataPatch({
+      alias,
+      released,
+      rating,
+      votecount,
+      description,
+      coverPath,
+      tags,
+      developers,
+    });
     try {
       const state = {
         status,
@@ -234,12 +244,12 @@
       if (gameId) {
         await api.updateGame(gameId, { name: value, vndb_id: vndbId });
         await api.updateGameState(gameId, state);
-        await api.updateGameMetadata(gameId, buildMetadataPatch());
+        await api.updateGameMetadata(gameId, patch);
       } else {
         const created = await api.createGame({
           name: value,
           vndb_id: vndbId,
-          metadata: buildMetadataPatch(),
+          metadata: patch,
         });
         await api.updateGameState(created.id, state);
       }
@@ -359,18 +369,34 @@
           <div class="form-group">
             <label for="game-form-rating">{t('gameForm.field.userRating')}</label>
             <div class="num-stepper">
-              <button type="button" class="num-stepper-btn" onclick={() => stepRating(-0.5)}>−</button>
+              <button
+                type="button"
+                class="num-stepper-btn"
+                onclick={() => stepRating(-5)}
+                disabled={saving}
+                aria-label={t('gameForm.action.ratingDown')}
+              >−</button>
               <input
                 id="game-form-rating"
                 class="num-stepper-val"
                 type="text"
                 inputmode="decimal"
-                value={userRating ?? '—'}
-                readonly
+                value={userRatingDraft}
+                placeholder={t('gameForm.placeholder.rating')}
+                oninput={onUserRatingInput}
+                onblur={onUserRatingBlur}
+                disabled={saving}
                 aria-label={t('gameForm.field.userRating')}
               />
-              <button type="button" class="num-stepper-btn" onclick={() => stepRating(0.5)}>+</button>
+              <button
+                type="button"
+                class="num-stepper-btn"
+                onclick={() => stepRating(5)}
+                disabled={saving}
+                aria-label={t('gameForm.action.ratingUp')}
+              >+</button>
             </div>
+            <p class="form-hint">{t('gameForm.hint.userRating')}</p>
           </div>
 
           <div class="form-group panel-grid__full">

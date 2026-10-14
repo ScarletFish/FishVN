@@ -16,4 +16,7 @@ export default defineConfig({
     strictPort: true,
     watch: { ignored: ['**/src-tauri/**'] },
   },
+  test: {
+    include: ['src/**/*.test.js'],
+  },
 });
