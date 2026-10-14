@@ -3,7 +3,7 @@
 //! Connection 是 Send 但不是 Sync，所以用 Mutex 包起来交给 State 管。
 //! 锁毒化之后每次调用都会失败，转成错误上报而不是 unwrap。
 
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use rusqlite::Connection;
 use tauri::State;
@@ -18,7 +18,7 @@ use crate::types::{
 };
 use crate::vndb::{self, RateLimiter, VnMetadata, VnSearchHit};
 
-type Shared<'a> = State<'a, Mutex<Connection>>;
+type Shared<'a> = State<'a, Arc<Mutex<Connection>>>;
 
 fn lock<'a>(shared: &'a Shared<'_>) -> Result<MutexGuard<'a, Connection>> {
     shared

@@ -50,8 +50,8 @@ echo   Dev Mode
 echo ========================================
 echo.
 echo  Vite:http://127.0.0.1:4545
-echo  Window opens on its own; the frontend cannot
-echo  run in a plain browser (no Tauri IPC there).
+echo  Window opens on its own; to debug in a browser
+echo  open http://127.0.0.1:4545/?dev-http
 echo.
 echo  Press Ctrl+C to stop
 echo ========================================

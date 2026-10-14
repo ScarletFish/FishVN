@@ -15,6 +15,14 @@ export default defineConfig({
     port: 4545,
     strictPort: true,
     watch: { ignored: ['**/src-tauri/**'] },
+    proxy: {
+      // 开发通道：只在这里放开跨源转发
+      '/dev-http': {
+        target: 'http://127.0.0.1:4546',
+        rewrite: (p) => p.replace(/^\/dev-http/, ''),
+        changeOrigin: false,
+      },
+    },
   },
   test: {
     include: ['src/**/*.test.js'],

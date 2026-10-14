@@ -7,6 +7,8 @@ pub mod installations;
 pub mod metadata;
 pub mod types;
 pub mod vndb;
+#[cfg(debug_assertions)]
+pub mod devhttp;
 
 /// 主键形态：带连字符的小写 uuid v4。已有行是这个形状，换生成方式要一并迁移
 pub fn new_id() -> String {

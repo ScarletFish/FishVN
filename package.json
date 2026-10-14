@@ -7,7 +7,7 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "tauri dev",
+    "dev": "set FISHVN_DEV_HTTP=1&& tauri dev",
     "dev:frontend": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
     "check:frontend": "npm run check:frontend --prefix frontend",
