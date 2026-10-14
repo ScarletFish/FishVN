@@ -55,6 +55,16 @@ for (const file of codeFiles) {
   for (const m of code.matchAll(/class[:=]\s*"([^"]*)"/g)) {
     for (const w of m[1].split(/\s+/)) if (w) referenced.add(w);
   }
+  // class:is-open={open} 的指令名本身就是类名
+  for (const m of code.matchAll(/class:([\w-]+)/g)) referenced.add(m[1]);
+  // class={cond ? 'a' : 'b'} 从表达式里取引号字面量
+  for (const m of code.matchAll(/class=\{([^}]*)\}/g)) {
+    for (const q of m[1].matchAll(/['"]([^'"]+)['"]/g)) {
+      for (const w of q[1].split(/\s+/)) if (w) referenced.add(w);
+    }
+  }
+  // 组件从别的属性收类名，如 <Modal variant="modal--merge">
+  for (const m of code.matchAll(/\bvariant="([^"]+)"/g)) referenced.add(m[1]);
   for (const m of code.matchAll(/'([^'\n]+)'/g)) referenced.add(m[1]);
   for (const m of code.matchAll(/`([^`\n]+)`/g)) {
     for (const w of m[1].split(/\s+/)) if (w) referenced.add(w);

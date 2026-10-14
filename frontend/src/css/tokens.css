@@ -128,8 +128,6 @@ body {
   --border-strong: color-mix(in srgb, var(--ink-black) 22%, transparent);
   /* 焦点环取中性墨色，与 accent 分开：accent 留给操作类语义 */
   --focus-ring: color-mix(in srgb, var(--ink-black) 65%, transparent);
-  /* 取值在 border-default 与 border-strong 之间 */
-  --focus-ring-faint: color-mix(in srgb, var(--ink-black) 15%, transparent);
 
   /* 封面文字的压暗渐变；两个主题都用暗色，封面本身明度不定 */
   --cover-scrim: linear-gradient(transparent 20%, color-mix(in srgb, var(--ink-black) 88%, transparent) 80%);
@@ -171,7 +169,6 @@ body {
   --border-default: color-mix(in srgb, var(--ink-white) 12%, transparent);
   --border-strong: color-mix(in srgb, var(--ink-white) 22%, transparent);
   --focus-ring: color-mix(in srgb, var(--ink-white) 75%, transparent);
-  --focus-ring-faint: color-mix(in srgb, var(--ink-white) 18%, transparent);
 
   --shadow-sm: 0 2px 8px color-mix(in srgb, var(--ink-black) 50%, transparent);
   --shadow-md: 0 4px 24px color-mix(in srgb, var(--ink-black) 60%, transparent);

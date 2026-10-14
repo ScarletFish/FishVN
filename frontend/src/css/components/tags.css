@@ -25,7 +25,7 @@
 .tag-input:focus-within {
   background: var(--bg-raised);
   border-color: var(--border-strong);
-  box-shadow: 0 0 0 3px var(--accent-faint);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 输入框吃掉剩余宽度，最小宽度保证空标签时也能点进去打字 */

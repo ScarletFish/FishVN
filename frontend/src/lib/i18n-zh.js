@@ -31,6 +31,7 @@ export const DICT_ZH = {
     actionPlay: '开始游戏',
     actionSync: '同步元数据',
     actionDelete: '删除',
+    actionEdit: '编辑游戏详情',
     fewerTags: '收起',
     characters: '角色',
     charGender: '性别',
@@ -110,6 +111,7 @@ export const DICT_ZH = {
     },
     action: {
       sync: '同步元数据',
+      searchVndb: '下载资料数据',
       removeTag: '移除标签',
       addTag: '添加标签',
       ratingDown: '降低我的评分',
@@ -121,10 +123,20 @@ export const DICT_ZH = {
       empty: '没有匹配的结果',
       close: '关闭',
     },
+    merge: {
+      title: '同步 VNDB 元数据',
+      current: '当前',
+      incoming: 'VNDB',
+      adopt: '采用 VNDB',
+      keep: '保留当前',
+      empty: '没有需要取舍的字段',
+      accept: '接受 {count} 项',
+    },
     error: {
       nameRequired: '请填写游戏名',
       ratingRange: '评分要在 0 到 100 之间（百分制）',
       votecountRange: '评分人数要是 0 或更大的整数',
+      pullFailed: '拉取 VNDB 元数据失败',
     },
   },
   toast: {

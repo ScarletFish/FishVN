@@ -5,6 +5,8 @@
   import { t } from '../lib/i18n.js';
   import { createVndbSearch } from '../lib/vndb-search.svelte.js';
   import { buildMetadataPatch, toNumber } from '../lib/form-metadata.js';
+  import { applyIncoming, conflictRows } from '../lib/vn-merge.js';
+  import VnMergeDialog from './VnMergeDialog.svelte';
 
   let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
 
@@ -36,6 +38,10 @@
 
   let tagDraft = $state('');
   let tagInputOpen = $state(false);
+  let mergeOpen = $state(false);
+  let mergeRows = $state([]);
+  let pulling = $state(false);
+  let incoming = $state(null);
   let coverBroken = $state(false);
 
   let tab = $state('basic');
@@ -70,6 +76,10 @@
     tab = 'basic';
     statusOpen = false;
     searchOpen = false;
+    mergeOpen = false;
+    mergeRows = [];
+    incoming = null;
+    pulling = false;
     search.reset();
     loading = Boolean(gameId);
     if (gameId) loadExisting(gameId);
@@ -184,6 +194,51 @@
 
   
 
+  function formFields() {
+    return {
+      name,
+      alias,
+      released,
+      rating,
+      votecount,
+      description,
+      coverPath,
+      tags,
+      developers,
+    };
+  }
+
+  async function pickHit(id) {
+    vndbId = id;
+    if (pulling) return;
+    pulling = true;
+    error = '';
+    try {
+      incoming = await api.fetchVnMetadata(id);
+      mergeRows = conflictRows(formFields(), incoming);
+      mergeOpen = true;
+    } catch (err) {
+      incoming = null;
+      error = err.message;
+    } finally {
+      pulling = false;
+    }
+  }
+
+  function acceptMerge(picked) {
+    const next = applyIncoming(formFields(), incoming, picked);
+    name = next.name;
+    alias = next.alias;
+    released = next.released;
+    rating = next.rating;
+    votecount = next.votecount;
+    description = next.description;
+    tags = next.tags;
+    developers = next.developers;
+    mergeOpen = false;
+    incoming = null;
+  }
+
   function close() {
     if (saving) return false;
     open = false;
@@ -289,7 +344,7 @@
       {/each}
     </div>
 
-    <div class="modal-panels">
+    <div class="modal-panels scroll-thin">
       <div class="modal-panel" class:active={tab === 'basic'}>
         <div class="panel-grid">
           <div class="form-group panel-grid__full">
@@ -582,7 +637,7 @@
         }}
         disabled={saving || search.searching || !name.trim()}
       >
-        {t('gameForm.action.sync')}
+        {t('gameForm.action.searchVndb')}
       </button>
       <button type="button" class="btn" onclick={close} disabled={saving}>
         {t('common.cancel')}
@@ -601,8 +656,8 @@
             <span class="vndb-progress__bar"></span>
           </div>
         {:else if search.searchError}
-          <p class="vndb-note vndb-note--error">{searchError}</p>
-        {:else if hits.length === 0}
+          <p class="vndb-note vndb-note--error">{search.searchError}</p>
+        {:else if search.hits.length === 0}
           <p class="vndb-note">{t('gameForm.search.empty')}</p>
         {:else}
           <ul class="vndb-hits">
@@ -612,7 +667,8 @@
                   type="button"
                   class="vndb-hit"
                   class:active={vndbId === hit.id}
-                  onclick={() => (vndbId = hit.id)}
+              disabled={pulling}
+                  onclick={() => pickHit(hit.id)}
                 >
                   <span class="vndb-hit__cover">
                     {#if hit.image?.thumbnail}
@@ -645,6 +701,13 @@
     </div>
   {/snippet}
 </Modal>
+
+<VnMergeDialog
+  bind:open={mergeOpen}
+  rows={mergeRows}
+  onaccept={acceptMerge}
+  oncancel={() => (mergeOpen = false)}
+/>
 
 <style>
   .game-form__sync {
@@ -718,9 +781,9 @@
   }
 
   .vndb-hit.active {
-    background: var(--bg-selected);
-    border-color: var(--accent-border);
-  }
+  background: var(--bg-raised);
+  border-color: var(--border-strong);
+}
 
   .vndb-hit__cover {
     flex-shrink: 0;

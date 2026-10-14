@@ -98,11 +98,9 @@
         <div class="detail-cover">
           <img src={SAMPLE_COVER} alt={game.name} />
         </div>
-        <!-- 前三个按钮只占位不接动作：启动需要后端有 launch command，
-             元数据同步与删除同理，都等对应链路落地后再接 -->
+        <!-- 两个按钮只占位不接动作：启动需要后端有 launch command，删除同理 -->
         <div class="detail-actions">
           <button type="button" class="btn btn-primary">{t('detail.actionPlay')}</button>
-          <button type="button" class="btn btn-ghost">{t('detail.actionSync')}</button>
           <button type="button" class="btn btn-danger">{t('detail.actionDelete')}</button>
           <Menu
             bind:open={menuOpen}

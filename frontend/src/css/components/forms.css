@@ -140,7 +140,7 @@
 .num-stepper:focus-within {
   background: var(--bg-raised);
   border-color: var(--border-strong);
-  box-shadow: 0 0 0 3px var(--accent-faint);
+  box-shadow: var(--shadow-sm);
 }
 
 .num-stepper-btn {

@@ -207,6 +207,12 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   max-height: calc(100vh - var(--space-6) * 2);
 }
 
+.modal--merge {
+  max-width: 1200px;
+  height: 760px;
+  max-height: calc(100vh - var(--space-6) * 2);
+}
+
 /* 并排双窗：一个遮罩里放两个 .modal，旁窗加出来、主窗不让位。
    不设 min-width（会先撑破遮罩），不能加 flex-wrap（换行就不再并排） */
 .modal-overlay--split {
