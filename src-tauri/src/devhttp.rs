@@ -16,8 +16,8 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::error::{AppError, Result};
-use crate::vndb::RateLimiter;
 use crate::types::GameCharacter;
+use crate::vndb::RateLimiter;
 use crate::{characters, commands, games, installations, metadata, vndb};
 
 /// 与 vite 的 4545 分开：撞上会自己请求自己
@@ -120,7 +120,10 @@ macro_rules! handler {
 
 handler!(list_games, |c, _a| games::list_games(c));
 handler!(get_game, |c, a| games::get_game(c, a.id()?));
-handler!(create_game, |c, a| games::create_game(c, &a.parse(a.input.as_ref(), "input")?));
+handler!(create_game, |c, a| games::create_game(
+    c,
+    &a.parse(a.input.as_ref(), "input")?
+));
 handler!(update_game, |c, a| {
     games::update_game(c, a.id()?, &a.parse(a.patch.as_ref(), "patch")?)
 });
@@ -132,14 +135,19 @@ handler!(update_game_state, |c, a| {
 handler!(list_installations, |c, a| {
     installations::list_installations(c, a.game_id.as_deref())
 });
-handler!(get_installation, |c, a| installations::get_installation(c, a.id()?));
+handler!(get_installation, |c, a| installations::get_installation(
+    c,
+    a.id()?
+));
 handler!(create_installation, |c, a| {
     installations::create_installation(c, &a.parse(a.input.as_ref(), "input")?)
 });
 handler!(update_installation, |c, a| {
     installations::update_installation(c, a.id()?, &a.parse(a.patch.as_ref(), "patch")?)
 });
-handler!(delete_installation, |c, a| installations::delete_installation(c, a.id()?));
+handler!(delete_installation, |c, a| {
+    installations::delete_installation(c, a.id()?)
+});
 handler!(get_game_metadata, |c, a| metadata::get(c, a.id()?));
 handler!(update_game_metadata, |c, a| {
     metadata::upsert(c, a.id()?, &a.parse(a.patch.as_ref(), "patch")?)
@@ -164,18 +172,26 @@ async fn fetch_vn_metadata(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) 
         Ok(v) => v,
         Err(e) => return Err(Fail(StatusCode::BAD_REQUEST, e.to_string())),
     };
+    // 与命令层同源：元数据与角色两次请求，额度各扣一次
+    dev.rate.acquire().await;
     dev.rate.acquire().await;
     let dir = crate::data_dir(&dev.app)
         .map_err(|e| Fail(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    finish(vndb::fetch_vn(vndb::http(), &vndb_id, &dir).await)
+    finish(vndb::fetch_sync(vndb::http(), &vndb_id, &dir).await)
 }
 
 async fn allow_local_file(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
-    finish(a.path().and_then(|p| commands::allow_local_file(dev.app.clone(), p.to_owned())))
+    finish(
+        a.path()
+            .and_then(|p| commands::allow_local_file(dev.app.clone(), p.to_owned())),
+    )
 }
 
 async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
-    finish(a.path().and_then(|p| commands::thumbnail(dev.app.clone(), p.to_owned())))
+    finish(
+        a.path()
+            .and_then(|p| commands::thumbnail(dev.app.clone(), p.to_owned())),
+    )
 }
 
 pub fn router(dev: Dev) -> Router {

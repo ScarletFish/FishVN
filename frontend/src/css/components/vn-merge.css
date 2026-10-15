@@ -60,6 +60,17 @@
   color: var(--fg-default);
 }
 
+/* 角色行的标签列装的是名字，比字段名长；栅格与作品级一致，靠折行消化宽度 */
+.vn-merge__row--char .vn-merge__label {
+  overflow-wrap: anywhere;
+}
+
+.vn-merge__meta {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
 .vn-merge__thumb {
   flex: none;
   width: var(--cover-thumb-w);

@@ -9,9 +9,12 @@
   import { coverSrc } from '../lib/cover-src.js';
   import { pickImage } from '../lib/pick-path.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
+  import CharacterMergeDialog from './CharacterMergeDialog.svelte';
   import CharacterEditor from './CharacterEditor.svelte';
   import { namedOnly, toDraft, toPayload } from '../lib/characters.js';
+  import { applyCharacters, planCharacters } from '../lib/char-merge.js';
   import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
+  import { toast } from '../lib/toast.svelte.js';
 
   let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
 
@@ -25,6 +28,8 @@
   let userRating = $state(null);
   let userRatingDraft = $state('');
   let notes = $state('');
+  // 只承载字段级校验：操作失败（拉取、存盘）走 toast，那时用户可能停在角色 tab
+  // 或搜索侧栏，这一条不在他视野里
   let error = $state('');
   let saving = $state(false);
   let loading = $state(false);
@@ -47,6 +52,10 @@
   
   let mergeOpen = $state(false);
   let mergeRows = $state([]);
+  let charMergeOpen = $state(false);
+  let charMergeRows = $state([]);
+  // 角色单独走 incomingCharacters：混进 incoming 会被 applyIncoming 当成作品字段
+  let incomingCharacters = $state([]);
   let pulling = $state(false);
   let incoming = $state(null);
   let coverBroken = $state(false);
@@ -94,6 +103,9 @@
     searchOpen = false;
     mergeOpen = false;
     mergeRows = [];
+    charMergeOpen = false;
+    charMergeRows = [];
+    incomingCharacters = [];
     incoming = null;
     pulling = false;
     search.reset();
@@ -144,7 +156,7 @@
       coverPath = meta?.image_path ?? '';
       characters = roles.map(toDraft);
     } catch (err) {
-      error = err.message;
+      toast(err.message, 'error');
     } finally {
       loading = false;
     }
@@ -271,11 +283,13 @@
     error = '';
     try {
       incoming = await api.fetchVnMetadata(id);
+      incomingCharacters = incoming?.characters ?? [];
       mergeRows = conflictRows(formFields(), incoming);
       mergeOpen = true;
     } catch (err) {
       incoming = null;
-      error = err.message;
+      incomingCharacters = [];
+      toast(err.message, 'error');
     } finally {
       pulling = false;
     }
@@ -294,6 +308,28 @@
     coverPath = next.coverPath;
     mergeOpen = false;
     incoming = null;
+    openCharacterMerge();
+  }
+
+  // 与作品级同口径：没有取舍项就不开面板，直接把新增角色填进来
+  function openCharacterMerge() {
+    const local = characters.map(toPayload);
+    const plan = planCharacters(local, incomingCharacters);
+    if (plan.conflicts.length === 0) {
+      characters = applyCharacters(local, incomingCharacters, new Set()).map(toDraft);
+      incomingCharacters = [];
+      return;
+    }
+    charMergeRows = plan.conflicts;
+    charMergeOpen = true;
+  }
+
+  function acceptCharacterMerge(adopted) {
+    characters = applyCharacters(characters.map(toPayload), incomingCharacters, adopted).map(
+      toDraft
+    );
+    charMergeOpen = false;
+    incomingCharacters = [];
   }
 
   function close() {
@@ -371,7 +407,7 @@
       onsaved?.();
     } catch (err) {
       // 后端与网络错误不走 i18n，原样显示
-      error = err.message;
+      toast(err.message, 'error');
     } finally {
       saving = false;
     }
@@ -735,7 +771,13 @@
         {:else if search.hits.length === 0}
           <p class="vndb-note">{t('gameForm.search.empty')}</p>
         {:else}
-          <ul class="vndb-hits">
+          {#if pulling}
+            <p class="vndb-note">{t('gameForm.search.pulling')}</p>
+            <div class="vndb-progress" role="progressbar" aria-label={t('gameForm.search.pulling')}>
+              <span class="vndb-progress__bar"></span>
+            </div>
+          {/if}
+          <ul class="vndb-hits" class:is-pulling={pulling}>
             {#each search.hits as hit (hit.id)}
               <li>
                 <button
@@ -782,6 +824,13 @@
   rows={mergeRows}
   onaccept={acceptMerge}
   oncancel={() => (mergeOpen = false)}
+/>
+
+<CharacterMergeDialog
+  bind:open={charMergeOpen}
+  rows={charMergeRows}
+  onaccept={acceptCharacterMerge}
+  oncancel={() => (charMergeOpen = false)}
 />
 
 <style>
@@ -831,6 +880,12 @@
     flex-direction: column;
     gap: var(--space-3);
     list-style: none;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+
+  /* 等待拉取时列表仍可读：请求回来直接进冲突面板，得留住用户点了哪一条 */
+  .vndb-hits.is-pulling {
+    opacity: 0.45;
   }
 
   .vndb-hit {

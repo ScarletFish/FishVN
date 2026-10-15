@@ -14,12 +14,12 @@ use crate::error::{AppError, Result};
 use crate::games;
 use crate::installations;
 use crate::metadata;
-use crate::types::{
-    Game, GameCharacter, GameListItem, GameMetadata, GamePatch, Installation,
-    InstallationPatch, MetadataPatch, NewGame, NewInstallation, StatePatch, UserGameState,
-};
 use crate::thumbs;
-use crate::vndb::{self, RateLimiter, VnMetadata, VnSearchHit};
+use crate::types::{
+    Game, GameCharacter, GameListItem, GameMetadata, GamePatch, Installation, InstallationPatch,
+    MetadataPatch, NewGame, NewInstallation, StatePatch, UserGameState,
+};
+use crate::vndb::{self, RateLimiter, VnSearchHit, VnSync};
 
 type Shared<'a> = State<'a, Arc<Mutex<Connection>>>;
 
@@ -144,18 +144,20 @@ pub async fn fetch_vn_metadata(
     app: tauri::AppHandle,
     rate: State<'_, Arc<RateLimiter>>,
     vndb_id: String,
-) -> Result<VnMetadata> {
+) -> Result<VnSync> {
     let vndb_id = vndb::validate_vn_id(&vndb_id)?;
+    // 元数据与角色是两次请求，额度按请求数各扣一次
     rate.acquire().await;
-    let dir = crate::data_dir(&app)
-        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
-    vndb::fetch_vn(vndb::http(), &vndb_id, &dir).await
+    rate.acquire().await;
+    let dir =
+        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    vndb::fetch_sync(vndb::http(), &vndb_id, &dir).await
 }
 
 #[tauri::command]
 pub fn thumbnail(app: tauri::AppHandle, src: String) -> Result<String> {
-    let dir = crate::data_dir(&app)
-        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    let dir =
+        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
     let path = thumbs::cached(&src, &dir)?;
     Ok(path.to_string_lossy().into_owned())
 }
@@ -165,8 +167,7 @@ pub fn thumbnail(app: tauri::AppHandle, src: String) -> Result<String> {
 #[tauri::command]
 pub fn allow_local_file(app: tauri::AppHandle, path: String) -> Result<()> {
     let path = PathBuf::from(path.trim());
-    let meta = std::fs::metadata(&path)
-        .map_err(|_| AppError::BadRequest("文件不存在".into()))?;
+    let meta = std::fs::metadata(&path).map_err(|_| AppError::BadRequest("文件不存在".into()))?;
     if !meta.is_file() {
         return Err(AppError::BadRequest("不是文件".into()));
     }

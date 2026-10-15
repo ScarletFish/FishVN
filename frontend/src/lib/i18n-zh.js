@@ -151,6 +151,7 @@ export const DICT_ZH = {
       title: 'VNDB 搜索结果',
       loading: '搜索中',
       empty: '没有匹配的结果',
+      pulling: '正在拉取元数据与角色立绘',
       close: '关闭',
     },
     merge: {
@@ -160,6 +161,8 @@ export const DICT_ZH = {
       adopt: '采用 VNDB',
       keep: '保留当前',
       empty: '没有需要取舍的字段',
+      charTitle: '同步 VNDB 角色',
+      charEmpty: '没有需要取舍的角色',
       accept: '接受 {count} 项',
     },
     // VNDB 的 vns.role 取值
