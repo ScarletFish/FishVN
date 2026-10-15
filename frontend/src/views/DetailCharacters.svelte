@@ -2,7 +2,8 @@
   import { tick } from 'svelte';
   import { t } from '../lib/i18n.js';
   import { initScrollDots } from '../lib/scroll-dots.svelte.js';
-  import { SAMPLE_CHARACTERS } from '../lib/sample-characters.js';
+  import { api } from '../lib/api.js';
+  import { coverSrc } from '../lib/cover-src.js';
 
   // VNDB 的 trait 分组无序号字段，固定一个展示顺序；不在这张表里的新分组排到末尾
   const TRAIT_GROUP_ORDER = [
@@ -21,18 +22,63 @@
     return i < 0 ? TRAIT_GROUP_ORDER.length : i;
   };
 
+  let { gameId } = $props();
+
   let scrollEl = $state(null);
   let headerEl = $state(null);
   let panelEl = $state(null);
   let expandedId = $state(null);
+  let characters = $state([]);
+  let artUrls = $state({});
 
-  const expanded = $derived(SAMPLE_CHARACTERS.find((c) => c.id === expandedId) ?? null);
+  // 读不到角色不是失败：后端在该作品没有角色时给空数组，所以异常可以吞掉
+  $effect(() => {
+    characters = [];
+    expandedId = null;
+    let live = true;
+    api
+      .listGameCharacters(gameId)
+      .then((list) => {
+        if (live) characters = list;
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  });
+
+  // 立绘走封面那条 coverSrc 管线：缩图与 asset 协议授权都在那边做过了
+  $effect(() => {
+    let live = true;
+    for (const character of characters) {
+      const path = character.image_path?.trim();
+      if (!path || artUrls[path]) continue;
+      coverSrc(path)
+        .then((url) => {
+          if (live) artUrls = { ...artUrls, [path]: url };
+        })
+        .catch(() => {});
+    }
+    return () => {
+      live = false;
+    };
+  });
+
+  function art(path) {
+    if (!path) return null;
+    return artUrls[path.trim()] ?? null;
+  }
+
+  // 名字优先级与 lib/characters.js 的 displayName 一致，两边不能各定一套
+  const charName = (c) => c.original || c.name || '';
+
+  const expanded = $derived(characters.find((c) => c.id === expandedId) ?? null);
 
   $effect(() => {
     if (!scrollEl || !headerEl) return;
     return initScrollDots({
       scroll: scrollEl,
-      total: SAMPLE_CHARACTERS.length,
+      total: characters.length,
       dotsParent: headerEl,
     });
   });
@@ -86,7 +132,7 @@
       expanded?.va?.length && {
         label: t('detail.charVoice'),
         value: expanded.va
-          .map((v) => `${v.name}${v.original ? ` (${v.original})` : ''}`)
+          .map((v) => `${v.name ?? ''}${v.original ? ` (${v.original})` : ''}`.trim())
           .join(' / '),
       },
     ].filter(Boolean)
@@ -100,75 +146,81 @@
   }
 </script>
 
-<section class="detail-chars section-card">
-  <div class="detail-chars-header" bind:this={headerEl}>
-    <h3>{t('detail.characters')}</h3>
-    <span class="detail-chars-count">{SAMPLE_CHARACTERS.length}</span>
-  </div>
-
-  <div class="hscroll-section detail-chars-scroll" bind:this={scrollEl}>
-    {#each SAMPLE_CHARACTERS as c (c.id)}
-      <div
-        class="hscroll-card detail-char-card"
-        class:expanded={expandedId === c.id}
-        role="button"
-        tabindex="0"
-        aria-expanded={expandedId === c.id}
-        onclick={() => toggle(c.id)}
-        onkeydown={(e) => {
-          if (e.key === 'Enter') toggle(c.id);
-        }}
-      >
-        <div class="detail-char-portrait">
-          {#if c.image?.url}
-            <img src={c.image.url} alt={c.name} />
-          {/if}
-        </div>
-        <div class="detail-char-foot">
-          <span class="detail-char-name">{c.original ?? c.name}</span>
-          {#if c.va?.[0]?.original}
-            <span class="detail-char-cv">{c.va[0].original}</span>
-          {/if}
-        </div>
-      </div>
-    {/each}
-  </div>
-
-  {#if expanded}
-    <div class="detail-char-panel" bind:this={panelEl}>
-      <div class="detail-char-panel-art">
-        {#if expanded.image?.url}
-          <img src={expanded.image.url} alt={expanded.name} />
-        {/if}
-      </div>
-      <div class="detail-char-panel-body">
-        <h4>{expanded.name}</h4>
-        {#if expanded.original}
-          <p class="detail-char-original">{expanded.original}</p>
-        {/if}
-
-        {#if facts.length}
-          <dl class="detail-char-facts">
-            {#each facts as f (f.label)}
-              <dt>{f.label}</dt>
-              <dd>{f.value}</dd>
-            {/each}
-          </dl>
-        {/if}
-
-        {#if plain(expanded.description)}
-          <p class="detail-char-desc">{plain(expanded.description)}</p>
-        {/if}
-
-        {#if traitGroups.length}
-          <dl class="detail-char-traits">
-            {#each traitGroups as g (g.label)}
-              <dt>{g.label}</dt>
-              <dd>{g.names.join(', ')}</dd>
-            {/each}
-          </dl>
-        {/if}
-      </div>
+{#if characters.length}
+  <section class="detail-chars section-card">
+    <div class="detail-chars-header" bind:this={headerEl}>
+      <h3>{t('detail.characters')}</h3>
+      <span class="detail-chars-count">{characters.length}</span>
     </div>
-  {/if}
-</section>
+
+    <div class="hscroll-section detail-chars-scroll" bind:this={scrollEl}>
+      {#each characters as c (c.id)}
+        <div
+          class="hscroll-card detail-char-card"
+          class:expanded={expandedId === c.id}
+          role="button"
+          tabindex="0"
+          aria-expanded={expandedId === c.id}
+          onclick={() => toggle(c.id)}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') toggle(c.id);
+          }}
+        >
+          <div class="detail-char-portrait">
+            {#if art(c.image_path)}
+              <img src={art(c.image_path)} alt={charName(c)} />
+            {:else}
+              <div class="detail-char-portrait-ph">
+                <span class="detail-char-ph-name">{charName(c)}</span>
+                {#if c.va?.[0]?.original}
+                  <span class="detail-char-ph-cv">{c.va[0].original}</span>
+                {/if}
+              </div>
+            {/if}
+          </div>
+          {#if art(c.image_path)}
+            <div class="detail-char-foot">
+              <span class="detail-char-name">{charName(c)}</span>
+              {#if c.va?.[0]?.original}
+                <span class="detail-char-cv">{c.va[0].original}</span>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
+
+    {#if expanded}
+      <div class="detail-char-panel" bind:this={panelEl}>
+        <div class="detail-char-panel-body">
+          <h4>{expanded.name ?? charName(expanded)}</h4>
+          {#if expanded.original}
+            <p class="detail-char-original">{expanded.original}</p>
+          {/if}
+
+          {#if facts.length}
+            <dl class="detail-char-facts">
+              {#each facts as f (f.label)}
+                <dt>{f.label}</dt>
+                <dd>{f.value}</dd>
+              {/each}
+            </dl>
+          {/if}
+
+          {#if plain(expanded.description)}
+            <p class="detail-char-desc">{plain(expanded.description)}</p>
+          {/if}
+
+          {#if traitGroups.length}
+            <dl class="detail-char-traits">
+              {#each traitGroups as g (g.label)}
+                <dt>{g.label}</dt>
+                <dd>{g.names.join(', ')}</dd>
+              {/each}
+            </dl>
+          {/if}
+        </div>
+      </div>
+    {/if}
+  </section>
+{/if}

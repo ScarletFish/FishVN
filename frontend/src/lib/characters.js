@@ -91,6 +91,15 @@ export function displayName(draft) {
   return draft.original.trim() || draft.name.trim();
 }
 
+/** 无名角色存进去会占掉一个名字，撞上按角色名比对同名的 VNDB 同步（docs/dev/characters.md） */
+function isUnnamed(draft) {
+  return !displayName(draft);
+}
+
+export function namedOnly(list) {
+  return list.filter((draft) => !isUnnamed(draft));
+}
+
 /** 顺序是角色的唯一真相，不另存序号 */
 export function moveCharacters(list, index, delta) {
   const target = index + delta;

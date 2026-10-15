@@ -10,7 +10,7 @@
   import { pickImage } from '../lib/pick-path.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
   import CharacterEditor from './CharacterEditor.svelte';
-  import { toDraft, toPayload } from '../lib/characters.js';
+  import { namedOnly, toDraft, toPayload } from '../lib/characters.js';
   import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
 
   let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
@@ -44,6 +44,7 @@
   let tagDraft = $state('');
   let tagInputOpen = $state(false);
   let characters = $state([]);
+  
   let mergeOpen = $state(false);
   let mergeRows = $state([]);
   let pulling = $state(false);
@@ -86,6 +87,7 @@
     tagDraft = '';
     tagInputOpen = false;
     characters = [];
+    
     coverBroken = false;
     tab = 'basic';
     statusOpen = false;
@@ -355,7 +357,7 @@
         await api.updateGame(gameId, { name: value, vndb_id: vndbId });
         await api.updateGameState(gameId, state);
         await api.updateGameMetadata(gameId, patch);
-        await api.saveGameCharacters(gameId, characters.map(toPayload));
+        await api.saveGameCharacters(gameId, namedOnly(characters).map(toPayload));
       } else {
         const created = await api.createGame({
           name: value,
@@ -363,7 +365,7 @@
           metadata: patch,
         });
         await api.updateGameState(created.id, state);
-          await api.saveGameCharacters(created.id, characters.map(toPayload));
+          await api.saveGameCharacters(created.id, namedOnly(characters).map(toPayload));
       }
       open = false;
       onsaved?.();

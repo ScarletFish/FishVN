@@ -3,6 +3,7 @@ import {
   blankCharacter,
   displayName,
   moveCharacters,
+  namedOnly,
   toDraft,
   toPayload,
 } from './characters.js';
@@ -98,4 +99,17 @@ test('卡片名优先级与详情页一致', () => {
   expect(displayName({ original: '遠坂凛', name: 'Rin' })).toBe('遠坂凛');
   expect(displayName({ original: '  ', name: 'Rin' })).toBe('Rin');
   expect(displayName({ original: '', name: '' })).toBe('');
+});
+
+test('无名角色被滤掉，有名的按原顺序留下', () => {
+  const blank = blankCharacter();
+  const list = [
+    blank,
+    { ...blank, id: 'n', name: 'Saber' },
+    { ...blank, id: 'o', original: 'セイバー' },
+    { ...blank, id: 'w', name: '  ', original: '\t\n' },
+    { ...blank, id: 'm', name: 'Mordred', original: 'モルドレッド' },
+  ];
+
+  expect(namedOnly(list).map((c) => c.id)).toEqual(['n', 'o', 'm']);
 });

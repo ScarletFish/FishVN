@@ -179,7 +179,7 @@
         </div>
       </div>
     </div>
-    <DetailCharacters />
+    <DetailCharacters gameId={gameId} />
   {/if}
 </section>
 
