@@ -103,8 +103,8 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           PRIMARY KEY (game_id, id)
         );
 
-        -- 声优。全局表，不随作品删除：换一部作品再遇到同一个 s 编号还是同一人。
-        -- 本地手填的行没有 s 编号，用 local-<uuid> 占位
+        -- 声优。实体表：换一部作品再遇到同一个 s 编号还是同一人。
+        -- 本地手填的行没有 s 编号，用 local-<uuid> 占位；跨作品复用，行在无人引用时由下面的触发器回收
         CREATE TABLE IF NOT EXISTS staffs (
           id       TEXT PRIMARY KEY,
           name     TEXT,
@@ -122,6 +122,21 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           PRIMARY KEY (game_id, character_id, staff_id, note),
           FOREIGN KEY (game_id, character_id) REFERENCES characters(game_id, id) ON DELETE CASCADE
         );
+
+        -- 触发器的残留检查按 staff_id 查，主键前缀用不上，缺索引会全表扫
+        CREATE INDEX IF NOT EXISTS character_va_staff ON character_va(staff_id);
+
+        -- 声优的去留交给关系表判：角色删掉、连带删掉配音关系后，某个声优可能
+        -- 一次关系都不剩，那行就再也走不到任何作品，是垃圾。
+        -- 三条删除来源（删作品、删角色、整包替换）共用这一条回收路径
+        CREATE TRIGGER IF NOT EXISTS character_va_prune_staff
+        AFTER DELETE ON character_va
+        BEGIN
+          DELETE FROM staffs WHERE id = OLD.staff_id
+            AND NOT EXISTS (
+              SELECT 1 FROM character_va WHERE staff_id = OLD.staff_id
+            );
+        END;
         ",
     )?;
 

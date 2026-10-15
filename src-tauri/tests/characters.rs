@@ -107,8 +107,7 @@ fn 重排后顺序按新的数组下标() {
     replace_all(&db, &id, &roles).expect("写角色失败");
 
     // 客户端给的顺序就是新顺序，入参里的 sort_order 一律重排
-    replace_all(&db, &id, &[character("c2", "乙"), character("c1", "甲")])
-        .expect("重排失败");
+    replace_all(&db, &id, &[character("c2", "乙"), character("c1", "甲")]).expect("重排失败");
 
     let got = list(&db, &id).expect("读角色失败");
     assert_eq!(got[0].id, "c2");
@@ -120,12 +119,7 @@ fn 重排后顺序按新的数组下标() {
 fn 整包替换会带走数组里没出现的角色() {
     let db = Db::new();
     let id = new_game(&db, "删一个角色");
-    replace_all(
-        &db,
-        &id,
-        &[character("c1", "甲"), character("c2", "乙")],
-    )
-    .expect("写角色失败");
+    replace_all(&db, &id, &[character("c1", "甲"), character("c2", "乙")]).expect("写角色失败");
 
     replace_all(&db, &id, &[character("c1", "甲")]).expect("整包替换失败");
 
@@ -154,8 +148,14 @@ fn 同一编号在不同作品各存一行() {
     replace_all(&db, &first, &[character("c33", "甲的形象")]).expect("写前作失败");
     replace_all(&db, &second, &[character("c33", "乙的形象")]).expect("写续作失败");
 
-    assert_eq!(list(&db, &first).expect("读前作失败")[0].name.as_deref(), Some("甲的形象"));
-    assert_eq!(list(&db, &second).expect("读续作失败")[0].name.as_deref(), Some("乙的形象"));
+    assert_eq!(
+        list(&db, &first).expect("读前作失败")[0].name.as_deref(),
+        Some("甲的形象")
+    );
+    assert_eq!(
+        list(&db, &second).expect("读续作失败")[0].name.as_deref(),
+        Some("乙的形象")
+    );
 }
 
 #[test]
@@ -177,14 +177,27 @@ fn 重复编号被拒() {
 fn 缺编号被拒() {
     let db = Db::new();
     let id = new_game(&db, "缺 id");
-    let err = replace_all(&db, &id, &[character("  ", "没名字也算缺")])
-        .expect_err("空编号竟然通过了");
+    let err =
+        replace_all(&db, &id, &[character("  ", "没名字也算缺")]).expect_err("空编号竟然通过了");
 
     assert_eq!(variant(&err), "BadRequest");
 }
 
 #[test]
-fn 读不存在的作品报NotFound() {
+fn 缺声优编号的配音被拒() {
+    let db = Db::new();
+    let id = new_game(&db, "缺声优");
+    // 空编号会落成一条 id 为空的声优行，所有无名声优还会挤成同一行
+    let err = replace_all(&db, &id, &[with_va("c1", "甲", &[("  ", "没编号", "")])])
+        .expect_err("空声优编号竟然通过了");
+
+    assert_eq!(variant(&err), "BadRequest");
+    assert_eq!(count(&db, "characters", &id), 0);
+    assert_eq!(count(&db, "character_va", &id), 0);
+}
+
+#[test]
+fn 读不存在的作品报_not_found() {
     let db = Db::new();
     let err = list(&db, common::ghost()).expect_err("不存在的作品竟然有角色");
     assert_eq!(variant(&err), "NotFound");
@@ -199,7 +212,11 @@ fn 声优随角色读出并按角色归组() {
         &id,
         &[
             with_va("c1", "甲", &[("s1", "声优甲", "")]),
-            with_va("c2", "乙", &[("s2", "声优乙", "重制版"), ("s3", "声优丙", "")]),
+            with_va(
+                "c2",
+                "乙",
+                &[("s2", "声优乙", "重制版"), ("s3", "声优丙", "")],
+            ),
         ],
     )
     .expect("写配音失败");
@@ -220,10 +237,18 @@ fn 同编号在两部作品的配音互不串台() {
     let db = Db::new();
     let first = new_game(&db, "前作");
     let second = new_game(&db, "续作");
-    replace_all(&db, &first, &[with_va("c33", "甲", &[("s1", "前作声优", "")])])
-        .expect("写前作失败");
-    replace_all(&db, &second, &[with_va("c33", "乙", &[("s2", "续作声优", "")])])
-        .expect("写续作失败");
+    replace_all(
+        &db,
+        &first,
+        &[with_va("c33", "甲", &[("s1", "前作声优", "")])],
+    )
+    .expect("写前作失败");
+    replace_all(
+        &db,
+        &second,
+        &[with_va("c33", "乙", &[("s2", "续作声优", "")])],
+    )
+    .expect("写续作失败");
 
     let got = list(&db, &first).expect("读前作失败");
     let credited = got[0].va.clone().expect("前作没有配音记录");
@@ -272,31 +297,64 @@ fn 同一角色同一声优的不同版本各自保留() {
 fn 已有的声优行不被本地名字盖掉() {
     let db = Db::new();
     let id = new_game(&db, "同名声优");
-    replace_all(&db, &id, &[with_va("c1", "甲", &[("s1", "全称 A", "")])])
-        .expect("首次写入失败");
+    replace_all(&db, &id, &[with_va("c1", "甲", &[("s1", "全称 A", "")])]).expect("首次写入失败");
 
-    replace_all(&db, &id, &[with_va("c2", "乙", &[("s1", "简称 B", "")])])
-        .expect("二次写入失败");
+    replace_all(&db, &id, &[with_va("c2", "乙", &[("s1", "简称 B", "")])]).expect("二次写入失败");
 
     let kept: String = db
-        .query_row("SELECT name FROM staffs WHERE id = 's1'", [], |row| row.get(0))
+        .query_row("SELECT name FROM staffs WHERE id = 's1'", [], |row| {
+            row.get(0)
+        })
         .expect("查声优失败");
     assert_eq!(kept, "全称 A");
 }
 
+fn staff_count(db: &Db, staff_id: &str) -> i64 {
+    db.query_row(
+        "SELECT COUNT(*) FROM staffs WHERE id = ?",
+        [staff_id],
+        |row| row.get(0),
+    )
+    .expect("查声优失败")
+}
+
 #[test]
-fn 删作品连带清掉角色与配音关系但留下声优() {
+fn 删作品连带清掉角色配音关系与只属于它的声优() {
     let db = Db::new();
     let id = new_game(&db, "待删");
-    replace_all(&db, &id, &[with_va("c1", "甲", &[("s1", "声优甲", "")])])
-        .expect("写角色失败");
+    replace_all(&db, &id, &[with_va("c1", "甲", &[("s1", "声优甲", "")])]).expect("写角色失败");
 
     delete_game(&db, &id).expect("删除失败");
 
     assert_eq!(count(&db, "characters", &id), 0);
     assert_eq!(count(&db, "character_va", &id), 0);
-    let staffs: i64 = db
-        .query_row("SELECT COUNT(*) FROM staffs WHERE id = 's1'", [], |row| row.get(0))
-        .expect("查声优失败");
-    assert_eq!(staffs, 1);
+    assert_eq!(staff_count(&db, "s1"), 0);
+}
+
+#[test]
+fn 删作品不动别家也在用的声优() {
+    let db = Db::new();
+    let a = new_game(&db, "甲作");
+    let b = new_game(&db, "乙作");
+    let credit = [("s1", "声优甲", "")];
+    replace_all(&db, &a, &[with_va("c1", "甲", &credit)]).expect("写甲失败");
+    replace_all(&db, &b, &[with_va("c2", "乙", &credit)]).expect("写乙失败");
+
+    delete_game(&db, &a).expect("删除失败");
+
+    assert_eq!(staff_count(&db, "s1"), 1);
+    assert_eq!(count(&db, "character_va", &b), 1);
+}
+
+#[test]
+fn 整包替换换掉角色也回收它的声优() {
+    let db = Db::new();
+    let id = new_game(&db, "替换");
+    replace_all(&db, &id, &[with_va("c1", "甲", &[("s1", "声优甲", "")])]).expect("写角色失败");
+
+    // 同一编号、换一位声优：老声优失去最后一个引用，该跟着走
+    replace_all(&db, &id, &[with_va("c1", "甲", &[("s2", "声优乙", "")])]).expect("写角色失败");
+
+    assert_eq!(staff_count(&db, "s1"), 0);
+    assert_eq!(staff_count(&db, "s2"), 1);
 }

@@ -164,7 +164,7 @@
         role="button"
         tabindex="0"
         aria-expanded={selectedId === c.id}
-        title={c.va[0] ? `${displayName(c)} · CV ${c.va[0].name}` : displayName(c)}
+        title={c.va[0] ? `${displayName(c)} · CV ${c.va[0].original || c.va[0].name}` : displayName(c)}
         onclick={() => toggle(c.id)}
         onkeydown={(e) => {
           if (e.key === 'Enter') toggle(c.id);

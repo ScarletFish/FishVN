@@ -3,7 +3,7 @@
 //! 与 metadata 那张表的差别是这里是集合：同一部作品有多行，一次保存要能
 //! 同时处理新增、修改与删除，所以写路径不做逐字段 patch。
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Row};
@@ -74,17 +74,75 @@ pub fn replace_all(
         if !seen.insert(entry.id.as_str()) {
             return Err(AppError::BadRequest("同一部作品里出现重复的角色 id".into()));
         }
+        for credit in entry.va.iter().flatten() {
+            if credit.staff_id.trim().is_empty() {
+                return Err(AppError::BadRequest("配音记录缺少声优 id".into()));
+            }
+        }
     }
 
     // 删与插在一个事务里：中途失败会退回调用前的整套角色，不会留下删一半的状态
     let tx = conn.unchecked_transaction()?;
+    // 删角色会级联删光配音关系，触发器随即回收无人引用的声优行——包括这次
+    // 马上要按同一批数据写回去的那些。所以删之前先留下它们已有的名字，
+    // 不然「已存在的声优行不被本地手填的名字盖掉」这条就没了
+    let kept_staff = staff_snapshot(&tx, game_id)?;
     conn.execute("DELETE FROM characters WHERE game_id = ?", params![game_id])?;
     for (index, entry) in characters.iter().enumerate() {
-        insert_character(&tx, game_id, entry, index as i64)?;
+        insert_character(&tx, game_id, entry, index as i64, &kept_staff)?;
     }
     tx.commit()?;
 
     list(conn, game_id)
+}
+
+/// 该作品在用的声优行，按声优编号索引
+fn staff_snapshot(conn: &Connection, game_id: &str) -> Result<HashMap<String, StaffName>> {
+    let mut stmt = conn.prepare(
+        "SELECT DISTINCT s.id, s.name, s.original
+         FROM character_va v JOIN staffs s ON s.id = v.staff_id
+         WHERE v.game_id = ?",
+    )?;
+    let rows = stmt
+        .query_map(params![game_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                StaffName {
+                    name: row.get::<_, Option<String>>(1)?,
+                    original: row.get::<_, Option<String>>(2)?,
+                },
+            ))
+        })?
+        .collect::<rusqlite::Result<HashMap<_, _>>>()?;
+    Ok(rows)
+}
+
+/// 空串与 null 一样算没有，好让更全的那份填进来
+#[derive(Clone)]
+struct StaffName {
+    name: Option<String>,
+    original: Option<String>,
+}
+
+impl StaffName {
+    fn keep(
+        &self,
+        incoming_name: &Option<String>,
+        incoming_original: &Option<String>,
+    ) -> (String, String) {
+        let pick = |kept: &Option<String>, incoming: &Option<String>| {
+            let kept = kept.as_deref().unwrap_or("").trim();
+            if kept.is_empty() {
+                incoming.as_deref().unwrap_or("").to_owned()
+            } else {
+                kept.to_owned()
+            }
+        };
+        (
+            pick(&self.name, incoming_name),
+            pick(&self.original, incoming_original),
+        )
+    }
 }
 
 fn insert_character(
@@ -92,6 +150,7 @@ fn insert_character(
     game_id: &str,
     entry: &GameCharacter,
     sort_order: i64,
+    kept_staff: &HashMap<String, StaffName>,
 ) -> Result<()> {
     let values: Vec<Value> = vec![
         Value::Text(game_id.to_owned()),
@@ -118,15 +177,13 @@ fn insert_character(
     ];
     let placeholders = vec!["?"; values.len()].join(", ");
     conn.execute(
-        &format!(
-            "INSERT INTO characters (game_id, {CHARACTER_COLUMNS}) VALUES ({placeholders})"
-        ),
+        &format!("INSERT INTO characters (game_id, {CHARACTER_COLUMNS}) VALUES ({placeholders})"),
         params_from_iter(values.iter()),
     )?;
 
     if let Some(va) = &entry.va {
         for credit in va {
-            insert_va(conn, game_id, &entry.id, credit)?;
+            insert_va(conn, game_id, &entry.id, credit, kept_staff)?;
         }
     }
     Ok(())
@@ -137,16 +194,25 @@ fn insert_va(
     game_id: &str,
     character_id: &str,
     entry: &CharacterVa,
+    kept_staff: &HashMap<String, StaffName>,
 ) -> Result<()> {
-    // 已存在的 staffs 行不动：VNDB 同步写的那条信息更全，不该被本地手填的名字盖掉
+    // 本次删除带走的行已不在库里，名字由 kept_staff 兜；别的作品共用的行还在，
+    // 由 ON CONFLICT 分支兜住
+    let (name, original) = kept_staff
+        .get(&entry.staff_id)
+        .map(|kept| kept.keep(&entry.name, &entry.original))
+        .unwrap_or_else(|| {
+            (
+                entry.name.as_deref().unwrap_or("").to_owned(),
+                entry.original.as_deref().unwrap_or("").to_owned(),
+            )
+        });
     conn.execute(
         "INSERT INTO staffs (id, name, original) VALUES (?1, ?2, ?3)
-         ON CONFLICT(id) DO NOTHING",
-        params![
-            entry.staff_id,
-            entry.name.as_deref().unwrap_or_default(),
-            entry.original.as_deref().unwrap_or_default()
-        ],
+         ON CONFLICT(id) DO UPDATE SET
+           name     = COALESCE(NULLIF(staffs.name, ''), excluded.name),
+           original = COALESCE(NULLIF(staffs.original, ''), excluded.original)",
+        params![entry.staff_id, name, original],
     )?;
     conn.execute(
         "INSERT INTO character_va (game_id, character_id, staff_id, note)
@@ -224,7 +290,11 @@ fn to_api(conn: &Connection, game_id: &str, row: &CharacterRow) -> Result<GameCh
 
 /// game_id 是查询条件的一部分：同一个 c 编号会在不同作品里各存一行，
 /// 只按 character_id 查会把别的作品的配音一起捞出来
-fn load_va(conn: &Connection, game_id: &str, character_id: &str) -> Result<Option<Vec<CharacterVa>>> {
+fn load_va(
+    conn: &Connection,
+    game_id: &str,
+    character_id: &str,
+) -> Result<Option<Vec<CharacterVa>>> {
     let mut stmt = conn.prepare(
         "SELECT v.staff_id, s.name, s.original, v.note
          FROM character_va v

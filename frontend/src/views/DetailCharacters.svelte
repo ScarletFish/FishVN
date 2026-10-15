@@ -72,6 +72,9 @@
   // 名字优先级与 lib/characters.js 的 displayName 一致，两边不能各定一套
   const charName = (c) => c.original || c.name || '';
 
+  const altName = (c) => (c.original && c.name && c.original !== c.name ? c.name : '');
+  const vaName = (v) => v?.original || v?.name || '';
+
   const expanded = $derived(characters.find((c) => c.id === expandedId) ?? null);
 
   $effect(() => {
@@ -131,9 +134,7 @@
       expanded?.age && { label: t('detail.charAge'), value: String(expanded.age) },
       expanded?.va?.length && {
         label: t('detail.charVoice'),
-        value: expanded.va
-          .map((v) => `${v.name ?? ''}${v.original ? ` (${v.original})` : ''}`.trim())
-          .join(' / '),
+        value: expanded.va.map(vaName).filter(Boolean).join(' / '),
       },
     ].filter(Boolean)
   );
@@ -172,8 +173,8 @@
             {:else}
               <div class="detail-char-portrait-ph">
                 <span class="detail-char-ph-name">{charName(c)}</span>
-                {#if c.va?.[0]?.original}
-                  <span class="detail-char-ph-cv">{c.va[0].original}</span>
+                {#if vaName(c.va?.[0])}
+                  <span class="detail-char-ph-cv">{vaName(c.va[0])}</span>
                 {/if}
               </div>
             {/if}
@@ -181,8 +182,8 @@
           {#if art(c.image_path)}
             <div class="detail-char-foot">
               <span class="detail-char-name">{charName(c)}</span>
-              {#if c.va?.[0]?.original}
-                <span class="detail-char-cv">{c.va[0].original}</span>
+              {#if vaName(c.va?.[0])}
+                <span class="detail-char-cv">{vaName(c.va[0])}</span>
               {/if}
             </div>
           {/if}
@@ -193,9 +194,9 @@
     {#if expanded}
       <div class="detail-char-panel" bind:this={panelEl}>
         <div class="detail-char-panel-body">
-          <h4>{expanded.name ?? charName(expanded)}</h4>
-          {#if expanded.original}
-            <p class="detail-char-original">{expanded.original}</p>
+          <h4>{charName(expanded)}</h4>
+          {#if altName(expanded)}
+            <p class="detail-char-original">{altName(expanded)}</p>
           {/if}
 
           {#if facts.length}

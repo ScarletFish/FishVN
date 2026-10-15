@@ -26,7 +26,7 @@ function syncedRow() {
     waist: 53,
     hips: 76,
     blood_type: 'a',
-    va: [{ staff_id: 's1', name: '川澄綾子', original: null, note: '' }],
+    va: [{ staff_id: 's1', name: 'Kawasumi Ayako', original: '川澄綾子', note: '' }],
   };
 }
 
@@ -39,6 +39,15 @@ test('取回的行按表单口径铺开', () => {
   expect(draft.gender).toBe('f');
   expect(draft.va).toHaveLength(1);
   expect(draft.va[0].staffId).toBe('s1');
+});
+
+// 原名只在展示时露出（表单里没有这一栏），往返要原样带回：丢一次就补不回来，
+// 每次保存都会把同步来的原名抹成空
+test('声优原名经表单往返不丢', () => {
+  const payload = toPayload(toDraft(syncedRow()));
+
+  expect(payload.va[0].original).toBe('川澄綾子');
+  expect(payload.va[0].name).toBe('Kawasumi Ayako');
 });
 
 test('表单没露出的字段原样带回去', () => {
