@@ -215,7 +215,12 @@ fn 标签只给名字能读出来() {
         rusqlite::params![r#"[{"name":"只有名字"}]"#],
     )
     .unwrap();
-    let tag = metadata::get(&conn, "g1").unwrap().unwrap().tags.unwrap().remove(0);
+    let tag = metadata::get(&conn, "g1")
+        .unwrap()
+        .unwrap()
+        .tags
+        .unwrap()
+        .remove(0);
     assert_eq!(tag.name, "只有名字");
     assert_eq!(tag.rating, None);
 
@@ -224,7 +229,10 @@ fn 标签只给名字能读出来() {
         rusqlite::params![r#"[{"category":"cont"}]"#],
     )
     .unwrap();
-    assert!(metadata::get(&conn, "g1").is_err(), "没有 name 的标签该读不出来");
+    assert!(
+        metadata::get(&conn, "g1").is_err(),
+        "没有 name 的标签该读不出来"
+    );
 }
 
 #[test]

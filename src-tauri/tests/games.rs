@@ -197,7 +197,7 @@ fn 列表里的状态跟随状态表变化() {
 }
 
 #[test]
-fn 列表带出封面路径_没有元数据行时为None() {
+fn 列表带出封面路径_没有元数据行时为_none() {
     let db = Db::new();
     let bare = new_game(&db, "无封面");
     let covered = new_game(&db, "有封面");

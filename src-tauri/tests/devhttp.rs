@@ -45,5 +45,8 @@ fn 路由表覆盖全部命令() {
     assert!(missing.is_empty(), "命令没进 devhttp 路由：{missing:?}");
 
     let extra: Vec<_> = routed.difference(&declared).collect();
-    assert!(extra.is_empty(), "devhttp 里有 commands.rs 没有的命令：{extra:?}");
+    assert!(
+        extra.is_empty(),
+        "devhttp 里有 commands.rs 没有的命令：{extra:?}"
+    );
 }

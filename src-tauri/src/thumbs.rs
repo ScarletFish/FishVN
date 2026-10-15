@@ -18,8 +18,8 @@ const QUALITY: u8 = 85;
 
 pub fn cached(src: &str, data_dir: &Path) -> Result<PathBuf> {
     let src = std::path::PathBuf::from(src.trim());
-    let meta = std::fs::metadata(&src)
-        .map_err(|_| AppError::BadRequest("封面文件不存在".into()))?;
+    let meta =
+        std::fs::metadata(&src).map_err(|_| AppError::BadRequest("封面文件不存在".into()))?;
     if !meta.is_file() {
         return Err(AppError::BadRequest("封面不是文件".into()));
     }
@@ -40,11 +40,14 @@ fn cache_key(src: &Path, meta: &std::fs::Metadata) -> u64 {
     let mut h = DefaultHasher::new();
     src.to_string_lossy().hash(&mut h);
     meta.len().hash(&mut h);
-    meta.modified().ok().map(|t| {
-        t.duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    }).hash(&mut h);
+    meta.modified()
+        .ok()
+        .map(|t| {
+            t.duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        })
+        .hash(&mut h);
     h.finish()
 }
 
@@ -65,8 +68,8 @@ fn generate(src: &Path, dst: &Path) -> Result<()> {
 /// EXIF 方向要在缩放前应用：Rotate90 会把宽高对调，先缩放就算错目标边长。
 /// orientation() 需要 ImageDecoder 在作用域内，且 receiver 是 &mut
 fn decode(src: &Path) -> Result<DynamicImage> {
-    let reader = ImageReader::open(src)
-        .map_err(|e| AppError::BadRequest(format!("封面读不出来：{e}")))?;
+    let reader =
+        ImageReader::open(src).map_err(|e| AppError::BadRequest(format!("封面读不出来：{e}")))?;
     let mut decoder = reader
         .into_decoder()
         .map_err(|e| AppError::BadRequest(format!("封面格式不支持：{e}")))?;
@@ -88,7 +91,10 @@ fn fit(img: DynamicImage, max_edge: u32) -> DynamicImage {
         return img;
     }
     let scale = max_edge as f64 / long as f64;
-    let (tw, th) = ((w as f64 * scale).round() as u32, (h as f64 * scale).round() as u32);
+    let (tw, th) = (
+        (w as f64 * scale).round() as u32,
+        (h as f64 * scale).round() as u32,
+    );
     img.resize_exact(tw, th, image::imageops::FilterType::Lanczos3)
 }
 

@@ -1,6 +1,8 @@
 pub mod characters;
 pub mod commands;
 pub mod db;
+#[cfg(debug_assertions)]
+pub mod devhttp;
 pub mod error;
 pub mod fsinfo;
 pub mod games;
@@ -9,8 +11,6 @@ pub mod metadata;
 pub mod thumbs;
 pub mod types;
 pub mod vndb;
-#[cfg(debug_assertions)]
-pub mod devhttp;
 
 #[cfg(not(debug_assertions))]
 use tauri::Manager;
