@@ -120,6 +120,40 @@ POST JSON body，`Content-Type: application/json`。响应恒为 JSON，`Accept`
 全字段版本已越过下面的 3 秒中断线。批量大小与耗时无单调关系（实测 10 条 5.3 s、50 条 1.15 s），
 客户端无法据此预判，只能靠裁字段压执行时间。
 
+### `/character` 端点
+
+取一部作品的角色走 `/character`。`/vn` 没有返回完整角色列表的字段——它的 `va` 只是配音关系，
+只列已配音的角色。作品元数据与角色集因此是两次请求；把元数据塞进角色的 `vns.*` 能凑成一次，
+但每个角色都会重复带一份，且 `vns` 是该角色出现过的所有 VN，还得自己按 id 去重。
+
+`vn` 过滤器只接受嵌套查询，写平了是 400 `Invalid 'filters' member: Invalid query`：
+
+```json
+{ "filters": ["vn", "=", ["id", "=", "v11"]], "results": 100 }
+```
+
+`traits` 的 `name` 与 `group_name` 继承自 `/trait`，`fields` 里不显式写出来只回 trait 的 id：
+
+```
+traits{id,name,group_name,spoiler,lie}
+```
+
+声优不在 `/character` 上，只存在于 `/vn` 的 `va`，按 `character.id` 挂回角色：
+
+```
+va{character{id},staff{id,name,original},note}
+```
+
+`note` 是版本标记（如 Realta Nua），同一角色在不同版本下会有多条。出场定位直接由
+`vns.role` 给（`main` / `primary` / `side` / `appears`），不必反查角色属于哪部作品。
+
+`gender` 按 release 逐条返回，同一角色多个 release 会让数组出现重复值，取用前去重。
+`image` 没有 `thumbnail`，角色图固定限 256×300，缩图要走 `url` 自己派生。
+
+`birthday` 是 `[月, 日]` 两元素整数数组（如 `[12, 15]`），没有值时为 `null`。
+`/kana/schema` 对它不给类型声明，与 `released` 同性质，只能靠实测确认。
+500 条样本的分布是 265 个 `null`、235 个两元素整数数组，未见标量或字符串。
+
 ### 嵌套与数组的元素结构
 
 ```jsonc
