@@ -169,6 +169,9 @@ snake_case，裸 HTTP 没有这层转换。
 两份清单都不收。`image` crate 关掉 default-features、只开这四种 —— 默认档会把 avif（libdav1d）
 与 exr/rayon/rav1e 那套拖进来。改一边就同步改另一边——没有构建检查兜底。
 
+封面从 `t.vndb.org` 拉取，落盘到 `covers/vndb/<cv 编号>.jpg`；该文件已存在即跳过下载。
+网络读体中断时按 3 次退避重试（300ms 递增），仍失败才放弃该封面；HTTP 非 2xx 直接放弃、不重试。
+
 ### 本地封面授权
 
 渲染本地封面走 asset 协议，scope 之外的路径不放行就拿到 403 空响应。dialog 插件只放行

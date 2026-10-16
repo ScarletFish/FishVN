@@ -30,6 +30,10 @@ const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(5 * 60);
 
 const IMAGE_CONCURRENCY: usize = 8;
 
+const IMAGE_RETRIES: usize = 3;
+
+const IMAGE_BACKOFF_MS: u64 = 300;
+
 pub fn http() -> &'static reqwest::Client {
     static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
     CLIENT.get_or_init(|| {
@@ -491,6 +495,11 @@ fn spawn_next_image(
     });
 }
 
+enum ImageError {
+    Status(u16),
+    Transport(String),
+}
+
 async fn fetch_image(
     http: &reqwest::Client,
     url: Option<&str>,
@@ -513,29 +522,44 @@ async fn fetch_image(
         return None;
     }
 
+    let mut last_err = String::new();
+    for attempt in 1..=IMAGE_RETRIES {
+        match download_image(http, url).await {
+            Ok(bytes) => {
+                if std::fs::write(&dst, &bytes).is_err() {
+                    return None;
+                }
+                return Some(dst.to_string_lossy().into_owned());
+            }
+            Err(ImageError::Status(code)) => {
+                eprintln!("图片下载失败 {url}：HTTP {code}");
+                return None;
+            }
+            Err(ImageError::Transport(e)) => {
+                last_err = e;
+                if attempt < IMAGE_RETRIES {
+                    tokio::time::sleep(Duration::from_millis(IMAGE_BACKOFF_MS * attempt as u64)).await;
+                }
+            }
+        }
+    }
+    eprintln!("图片下载失败 {url}（重试 {IMAGE_RETRIES} 次）：{last_err}");
+    None
+}
+
+async fn download_image(http: &reqwest::Client, url: &str) -> std::result::Result<Vec<u8>, ImageError> {
     let resp = match http.get(url).send().await {
         Ok(r) => r,
-        Err(e) => {
-            eprintln!("图片下载失败 {url}：{e}");
-            return None;
-        }
+        Err(e) => return Err(ImageError::Transport(format!("{e}"))),
     };
     if !resp.status().is_success() {
-        eprintln!("图片下载失败 {url}：HTTP {}", resp.status());
-        return None;
+        return Err(ImageError::Status(resp.status().as_u16()));
     }
     let bytes = match resp.bytes().await {
         Ok(b) => b,
-        Err(e) => {
-            eprintln!("图片读取失败 {url}：{e}");
-            return None;
-        }
+        Err(e) => return Err(ImageError::Transport(format!("{e}"))),
     };
-    if let Err(e) = std::fs::write(&dst, &bytes) {
-        eprintln!("图片落盘失败 {}：{e}", dst.display());
-        return None;
-    }
-    Some(dst.to_string_lossy().into_owned())
+    Ok(bytes.to_vec())
 }
 
 async fn post<T: for<'de> Deserialize<'de>>(
