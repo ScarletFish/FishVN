@@ -55,7 +55,7 @@ Svelte 5 SPA + Rust 后端的 Tauri v2 桌面应用
 
 **代码里不写注释。** 信息要么在代码里读得出来，要么写进文档；注释不是它的第三个去处。
 
-- 不靠自觉：`npm run check:comments` 强制白名单（已串在 `check:rust` 与 `check:frontend` 上），例外只有测试用例的意图、`tokens.css` 的 token 用途、两条不可测的残渣、工具指令——清单与理由见 [docs/dev/comments.md](docs/dev/comments.md)
+- 不靠自觉：`npm run check:comments` 强制白名单（已串在 `check:rust` 与 `check:frontend` 上），例外只有测试用例的意图、`tokens.css` 的 token 用途、工具指令——清单与理由见 [docs/dev/comments.md](docs/dev/comments.md)
 - 产品与设计决策进 `docs/fdd-game-library.md`；栈特有事实、惯例与踩过的坑进 `docs/dev/*`
 - 改哪块先读哪份：`docs/dev/backend.md` 与 `docs/dev/frontend.md` 各有一张路由表
 - 文档与注释用中文

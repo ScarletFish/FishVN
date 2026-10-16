@@ -6,12 +6,11 @@
 
 ## 例外：白名单
 
-白名单在 `scripts/check-comments.mjs` 里，一共四类：
+白名单在 `scripts/check-comments.mjs` 里，一共三类：
 
 1. **测试文件的意图注释** —— 用例在复现或锁定什么行为，是测试规格本身。整个 `src-tauri/tests/**` 与 `frontend/src/**/*.test.js` 放开
 2. **`tokens.css` 的 token 用途注释** —— 设计系统的一部分
-3. **两条不可测的残渣** —— 跨语言无法互测（`fsinfo.rs` 的扩展名判定与 js 的 `path.extname` 对齐）、组件测试接不住（`GameForm.svelte` 的保存按钮在 tab 外，报错跨 tab 可见）
-4. **工具指令** —— `svelte-ignore` / `@vitest-environment` / `eslint-disable` / `prettier-ignore` / `@ts-*`，它们是被工具读的开关，不是注释
+3. **工具指令** —— `svelte-ignore` / `@vitest-environment` / `eslint-disable` / `prettier-ignore` / `@ts-*`，它们是被工具读的开关，不是注释
 
 加例外就是改白名单，并在上面写清理由。
 

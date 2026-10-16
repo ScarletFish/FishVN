@@ -15,13 +15,6 @@ const DIRECTIVE = [
   /^\/\/\s*@ts-(check|nocheck|ignore|expect-error)/,
   /^\/\/\s*(eslint|prettier)-(disable|ignore)/,
 ];
-const RESIDUE = [
-  ['src-tauri/src/fsinfo.rs', '// 与 path.extname 一致：`.exe` 和 `foo.` 都取不到扩展名'],
-  [
-    'frontend/src/components/GameForm.svelte',
-    '// 保存按钮在 tab 面板之外，从基本信息页提交也要能看见资料数据那两处的报错',
-  ],
-];
 
 function walk(dir, files) {
   for (const name of readdirSync(dir)) {
@@ -68,8 +61,7 @@ for (const rel of DIRS) {
         const ok =
           WHOLE_FILE.has(path) ||
           isTest ||
-          DIRECTIVE.some((re) => re.test(t)) ||
-          RESIDUE.some(([file, text]) => file === path && t === text);
+          DIRECTIVE.some((re) => re.test(t));
         if (ok) {
           allowed += 1;
           return;

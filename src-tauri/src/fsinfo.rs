@@ -78,7 +78,6 @@ fn is_executable(name: &str) -> bool {
     let Some(dot) = name.rfind('.') else {
         return false;
     };
-    // 与 path.extname 一致：`.exe` 和 `foo.` 都取不到扩展名
     if dot == 0 || dot + 1 == name.len() {
         return false;
     }
