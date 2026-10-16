@@ -9,7 +9,6 @@
 
   let { onopen, scroll = 0, onscroll } = $props();
 
-  /** 分区与筛选栏的展示顺序：游玩中的排在最前 */
   const STATUS_ORDER = ['playing', 'wishlist', 'finished', 'dropped'];
 
   let games = $state([]);

@@ -1,8 +1,3 @@
-//! 角色与声优：一部作品一套角色，按作品整包替换。
-//!
-//! 与 metadata 那张表的差别是这里是集合：同一部作品有多行，一次保存要能
-//! 同时处理新增、修改与删除，所以写路径不做逐字段 patch。
-
 use std::collections::{HashMap, HashSet};
 
 use rusqlite::types::Value;
@@ -52,10 +47,6 @@ pub fn list(conn: &Connection, game_id: &str) -> Result<Vec<GameCharacter>> {
     rows.iter().map(|row| to_api(conn, game_id, row)).collect()
 }
 
-/// 整包替换：**先删该作品的全部角色行与配音关系，再按数组顺序写回。**
-///
-/// 排序不看入参里的 sort_order，取数组下标：客户端重排时逐个重编号既容易撞值，
-/// 也让顺序有两个真相来源。
 pub fn replace_all(
     conn: &Connection,
     game_id: &str,

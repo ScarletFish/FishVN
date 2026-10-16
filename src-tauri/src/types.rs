@@ -125,7 +125,6 @@ pub struct GameMetadata {
     pub developers: Option<Vec<String>>,
 }
 
-/// 一部作品可能一条中文标题都没有，靠 lang 挑不出想要的那条，只能看 official / main
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LocalizedTitle {
     pub lang: String,
@@ -135,7 +134,6 @@ pub struct LocalizedTitle {
     pub main: Option<bool>,
 }
 
-/// 用户手打的标签没有排序键与剧透等级，同一列里两种都可能有
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MetadataTag {
     pub id: Option<String>,
@@ -160,8 +158,6 @@ pub struct MetadataPatch {
     pub developers: Option<Option<Vec<String>>>,
 }
 
-/// characters 表行：角色属于作品。VNDB 上同一角色在不同作品里是不同条目
-/// （数据详略与立绘各不相同），所以 c 编号按作品各存一行，不建共享本体
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GameCharacter {

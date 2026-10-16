@@ -1,6 +1,5 @@
 /** VNDB 元数据与表单字段的比对。面板的文案在组件侧按 key 查词条。 */
 
-/** 前端不解析 BBCode；[spoiler] / [raw] 整块是被刻意隐藏的内容，剥掉不等于丢数据 */
 export function stripBbcode(text) {
   if (!text) return '';
   return text

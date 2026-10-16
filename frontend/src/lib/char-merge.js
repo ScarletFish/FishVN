@@ -47,7 +47,6 @@ const FIELDS = [
   { key: 'hips', same: sameNumber },
 ];
 
-/** 配对键优先取原名：罗马字名重名会让两个不同角色被判成同一个 */
 export function charKey(c) {
   return asText(c?.original || c?.name);
 }

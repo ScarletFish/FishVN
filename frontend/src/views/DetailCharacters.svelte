@@ -7,7 +7,6 @@
   import { displayName } from '../lib/characters.js';
   import { stripBbcode } from '../lib/vn-merge.js';
 
-  // VNDB 的 trait 分组无序号字段，固定一个展示顺序；不在这张表里的新分组排到末尾
   const TRAIT_GROUP_ORDER = [
     'Hair',
     'Eyes',
@@ -96,7 +95,6 @@
   const traitGroups = $derived(
     (() => {
       const map = new Map();
-      // spoiler ≥ 1 的不展示；成人向分组不进正文
       for (const tr of expanded?.traits ?? []) {
         if (tr.spoiler || tr.group_name.includes('Sexual')) continue;
         if (!map.has(tr.group_name)) map.set(tr.group_name, []);

@@ -35,8 +35,6 @@
   let userRating = $state(null);
   let userRatingDraft = $state('');
   let notes = $state('');
-  // 只承载字段级校验：操作失败（拉取、存盘）走 toast，那时用户可能停在角色 tab
-  // 或搜索侧栏，这一条不在他视野里
   let error = $state('');
   let saving = $state(false);
   let loading = $state(false);
@@ -304,7 +302,6 @@
     openCharacterMerge();
   }
 
-  // 与作品级同口径：没有取舍项就不开面板，直接把新增角色填进来
   function openCharacterMerge() {
     const local = characters.map(toPayload);
     const plan = planCharacters(local, incomingCharacters);
@@ -330,7 +327,6 @@
     open = false;
   }
 
-  // 文案渲染在各字段旁边而不是共用的 error，那一处只在基本信息 tab 里
   function validateRanges() {
     ratingError = ratingRejected(rating) ? t('gameForm.error.ratingRange') : '';
     votecountError = votecountRejected(votecount) ? t('gameForm.error.votecountRange') : '';

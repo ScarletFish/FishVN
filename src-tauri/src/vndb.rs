@@ -256,8 +256,6 @@ pub struct CharVn {
     pub role: Option<String>,
 }
 
-/// side/appears 里混着无立绘的配角，收进来只是在卡条里
-/// 多一排占位块，还要为它们多下一批图
 const SYNCED_ROLES: [&str; 2] = ["main", "primary"];
 
 pub fn role_of(vns: Option<&[CharVn]>) -> Option<&str> {
@@ -295,8 +293,6 @@ pub async fn search(http: &reqwest::Client, keyword: &str) -> Result<Vec<VnSearc
     Ok(env.results)
 }
 
-/// 作品元数据与角色集任一失败整体报错：只填上一半会让调用方
-/// 以为同步已经完成，用户看到的却是空角色列表
 pub async fn fetch_sync(
     http: &reqwest::Client,
     vndb_id: &str,
@@ -472,7 +468,6 @@ fn spawn_next_image(
     });
 }
 
-/// 下载失败只记日志不返回错误 —— 图挂了不该让整次元数据同步失败
 async fn fetch_image(
     http: &reqwest::Client,
     url: Option<&str>,

@@ -24,8 +24,6 @@
 
   let alias = $derived(meta?.alias ?? '');
 
-  // VNDB 的 rating 是百分制，界面按十分制展示。91 要显示 9.1 而不是 9.10：
-  // 固定两位会补出一个没有信息量的 0
   function trimScore(value) {
     return String(Number(value.toFixed(2)));
   }
@@ -34,8 +32,6 @@
   let releaseYear = $derived(meta?.released?.slice(0, 4) ?? '');
   let developer = $derived(meta?.developers?.[0] ?? '');
 
-  // spoiler ≥ 1 的不展示；rating 集中在一个值上，同值再按 vn_count 排。
-  // 用户手打的标签没有这两项，当 0 排，自然落到 VNDB 标签后面
   let tags = $derived(
     (meta?.tags ?? [])
       .filter((tag) => !tag.spoiler)
@@ -53,7 +49,6 @@
     menuOpen = false;
 
     let live = true;
-    // 元数据行可能不存在（没绑过 VNDB），那不是失败，页面按空值渲染
     Promise.all([api.getGame(gameId), api.getGameMetadata(gameId)])
       .then(([g, m]) => {
         if (!live) return;
@@ -121,7 +116,6 @@
             </div>
           {/if}
         </div>
-        <!-- 两个按钮只占位不接动作：启动需要后端有 launch command，删除同理 -->
         <div class="detail-actions">
           <button type="button" class="btn btn-primary">{t('detail.actionPlay')}</button>
           <button type="button" class="btn btn-danger">{t('detail.actionDelete')}</button>

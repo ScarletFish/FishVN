@@ -112,23 +112,26 @@
 
 | 状态 | 来源 | 条目 |
 |---|---|---|
-| [ ] | `characters.rs:1-4` / `56` | 整包替换 vs patch；顺序取数组下标（两个真相来源合一） |
-| [ ] | `vndb.rs:280` | 不收无立绘配角（占位块 + 多下一批图） |
-| [ ] | `vndb.rs:325` | 元数据与角色任一失败整体报错（只填一半像同步完成） |
-| [ ] | `vndb.rs:512` | 图下载失败只记日志，不拖垮整次同步 |
+| [x] | `characters.rs:1-4` / `56` | 整包替换 vs patch；顺序取数组下标 —— 已由 FDD 1.2（子实体集合）与 1.4（数组下标即顺序）覆盖 |
+| [x] | `vndb.rs:280` | 不收无立绘配角（占位块 + 多下一批图）—— 已收进 FDD 活动集五同步备注 |
+| [x] | `vndb.rs:325` | 元数据与角色任一失败整体报错（只填一半像同步完成）—— 已收进 FDD 活动集二同步备注 |
+| [x] | `vndb.rs:512` | 图下载失败只记日志，不拖垮整次同步 —— 同上 |
 | [x] | `metadata.rs:1` / `30` | 无行 = 没填过 ≠ 填了空 —— 已由 backend.md「数据模型」收回，注释在 backend 批次删掉 |
-| [ ] | `types.rs:127` / `154` / `183` | 正式名单源 games.name；两种标签来源混列；c 编号按作品各存一行不建共享本体 |
-| [ ] | `DetailCharacters.svelte:8` | trait 分组无序号字段，固定展示序，新分组排末尾 |
-| [ ] | `DetailCharacters.svelte:105` | spoiler ≥ 1 不展示；成人向分组不进正文 |
-| [ ] | `GameForm.svelte:31` | 字段级校验 vs toast 分工（操作失败走 toast） |
-| [ ] | `GameForm.svelte:314` | 与作品级同口径：无取舍项不开面板，直接填新增角色 |
-| [ ] | `GameForm.svelte:342` | 报错文案渲染在各字段旁，不共用 error |
-| [ ] | `Detail.svelte:124` | 占位按钮对应「launch command 未实现」，功能列表状态 |
-| [ ] | `characters.js:1-6` | 草稿留 `source` 原行：本地编辑不露出的 traits / 三围 / 生日要靠它原样带回，改一次名字就把 VNDB 考据数据抹了 |
-| [ ] | `char-merge.js:27` / `50` | 比对字段表只收内容字段（位置与身份除外）；配对键取原名，罗马字重名会把两个角色判成一个 |
-| [ ] | `vn-merge.js:3` | `[spoiler]` / `[raw]` 整块丢弃：前端不解析 BBCode，剥掉不等于丢数据 |
-| [ ] | `Detail.svelte:27` / `37` | 评分按十分制展示（91 → 9.1，不补无信息量的 0）；标签按 rating 排、用户手打标签当 0 排在其后 |
-| [ ] | `MyList.svelte:12` | 分区与筛选栏的展示顺序：游玩中的排最前 |
+| [x] | `types.rs:127` / `154` / `183` | 中文标题可能一条都没有、标签两种来源混列 —— 已收进 FDD 活动集二备注；c 编号按作品各存一行 —— 已收进 FDD 1.1 角色行 |
+| [x] | `DetailCharacters.svelte:8` | trait 分组无序号字段，固定展示序，新分组排末尾 —— 已收进 FDD 活动集五「查看」备注 |
+| [x] | `DetailCharacters.svelte:105` | spoiler ≥ 1 不展示；成人向分组不进正文 —— 同上 |
+| [x] | `GameForm.svelte:31` | 字段级校验 vs toast 分工 —— 已收进 FDD 活动集一「编辑字段」备注 |
+| [x] | `GameForm.svelte:314` | 无取舍项不开面板，直接填新增角色 —— 已收进 FDD 活动集五同步备注 |
+| [x] | `GameForm.svelte:342` | 报错文案渲染在各字段旁 —— 已收进 FDD 活动集一「编辑字段」备注 |
+| [x] | `Detail.svelte:124` | 占位按钮对应「launch command 未实现」—— 已收进 FDD 活动集四「打开详情」备注 |
+| [x] | `characters.js:1-6` | 设计面（未露出字段保持原值）已由 FDD 1.5 覆盖；实现面（草稿留 `source` 原行）转 `→ frontend.md` 的 lib 惯例行，注释未删 |
+| [x] | `char-merge.js:27` | 比对字段表只收内容字段（位置与身份除外）—— 机制条转 `→ frontend.md` 的 lib 惯例行，注释未删 |
+| [x] | `char-merge.js:50` | 配对键取原名，罗马字重名会把两个角色判成一个 —— 已收进 FDD 活动集五同步备注 |
+| [x] | `vn-merge.js:3` | `[spoiler]` / `[raw]` 整块丢弃 —— FDD 活动集二备注原有，补上「前端不渲染 BBCode」的理由 |
+| [x] | `Detail.svelte:27` / `37` | 评分按十分制展示、标签排序与剧透过滤 —— 已收进 FDD 活动集四「打开详情」备注 |
+| [x] | `MyList.svelte:12` | 分区与筛选栏的展示顺序 —— 已收进 FDD 活动集四「列出摘要」备注 |
+
+本批已提交：`docs: 把产品与展示决策搬进 FDD，删掉对应注释`（10 文件）。FDD 补进 1.1 角色为何按作品各存一行、活动集一的校验与报错分工、活动集二的同步整体成败 / 标题 lang / 标签两种来源、活动集四的分区顺序与详情页展示规则、活动集五的 trait 分组与剧透过滤 / 同步只取两档 / 配对键取原名。
 
 ## → frontend.md（前端惯例与样式坑集）
 
@@ -151,7 +154,7 @@
 | [ ] | CSS 样式坑 ~25 条 | `toggle.css:1/19`、`detail.css:1/79/104/114/168/231/255/334/340`、`cover-grid.css:21/26` + `menus.css:1`、`dropdowns.css:1`、`forms.css:81/125`、`buttons.css:22/85`、`sidebar.css:67/82`、`tags.css:1/118` |
 | [ ] | CSS 未列出的坑 | `detail.css` 10 条、`scrollbars.css` 8 条、`modal.css` 4 条、`vn-merge.css` 2 条、`menus.css:12/20`、`shell.css:1`、`forms.css:36`、`tags.css:31`、`toast.css:48`、`sidebar.css:129`、`tooltip.css:31` —— 与上一行合并成一份「样式坑集」 |
 | [ ] | `frontend/scripts/check-css-tokens.js` / `check-dead-css.js` | 两个检查脚本的规则自述：三层架构与 L2 禁裸色值、只警告不报错的理由、复合选择器与 class 指令的判定 |
-| [ ] | `char-merge.js:7/10/16/65` + `vn-merge.js:15/21/30` + `characters.js:40/90/95/104` | lib 的比对契约：空值两边归一、空值只与空值判等（0 是真实取值）、集合语义顺序无关、卡片名优先级、无名角色占掉一个名字 —— 归一份「前端 lib 惯例」 |
+| [ ] | `char-merge.js:7/10/16/27/65` + `vn-merge.js:15/21/30` + `characters.js:1-6/40/90/95/104` | lib 的比对契约：空值两边归一、空值只与空值判等（0 是真实取值）、集合语义顺序无关、卡片名优先级、无名角色占掉一个名字 —— 归一份「前端 lib 惯例」 |
 | [ ] | `Modal.svelte:26` + `GameForm.svelte:392` + `DetailCharacters.svelte:51` + `CharacterMergeDialog.svelte:16` + `CharacterEditor.svelte:39` + `Detail.svelte:56` | 零散惯例：onclose 可否决；后端与网络错误不走 i18n；立绘走 coverSrc 管线；untrack 只依赖角色列表 |
 
 ## → 删（复述类残留，未执行）
