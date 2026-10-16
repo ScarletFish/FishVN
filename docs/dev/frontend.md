@@ -94,6 +94,14 @@ chrome 尺寸固定，不随视口缩放：侧栏 `3.75rem`（60px），标题�
 
 作品的聚合划分、消费方的字段归属判据、写权限分类、加载策略与数据流见 [view-contracts.md](./view-contracts.md)。
 
+## 构建与开发服务器
+
+`vite.config.js` 里几处不能动的配置：
+
+- 测试态把 `resolve.conditions` 设为 `['browser']`：svelte 要解析到浏览器构建，SSR 构建里 `mount()` 直接抛错。非测试态**完全不写 `resolve` 键** —— 写成 `conditions: []` 同样会顶掉 vite 的默认条件，产物里会混进 svelte 的服务端模块（构建不报错，只有运行才炸）
+- dev server 的 `host` / `port` 必须与 `tauri.conf.json` 的 `devUrl` 同协议族、同端口：写 `localhost` 会让 vite 只绑 `::1`，devUrl 的 IPv4 字面量就够不着；`strictPort: true` 让端口占用直接失败，不自动往上换 —— 换了端口 devUrl 就指空
+- `/dev-http` 是唯一的跨源转发入口，指向开发期 HTTP 通道；生产构建里没有它
+
 ## 弹窗
 
 弹窗节点由 `portal.js` 搬到 body 级的 `#modal-root`，与 `#app` 平级。背景层靠 `inert` 屏蔽交互；两者做成父子关系会把弹窗自己一起屏蔽掉。用 `inert` 而不是 `pointer-events` 是因为后者挡不住 Tab，键盘仍会走进背景。`#globalTooltip` 也挂在 body 上且靠 `opacity` 显隐，不能跟背景一起模糊。
@@ -226,7 +234,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `3.75rem`（60px），标题�
 
 ## 注释
 
-规则见 [comments.md](./comments.md)。判据一句话：**删掉这条注释，会不会有人因此走错路**。
+代码里不写注释，前端惯例写进本文。规则与例外见 [comments.md](./comments.md)。
 
 ## 新增 UI 组件检查清单
 
@@ -235,7 +243,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `3.75rem`（60px），标题�
 - [ ] 样式归属正确文件（scoped / components / views）
 - [ ] 复用优先：先查过已有组件类
 - [ ] 面向用户的文案走 `t()`，无硬编码
-- [ ] 注释过了 comments.md 的判据
+- [ ] 新增与改动的行里没有注释（例外见 comments.md）
 - [ ] `npm run check:dead-css` 没有输出死类
 - [ ] 新增小节是规则或语义，不是代码里读得到的实现描述
 - [ ] 跑过 `npm run check:frontend`

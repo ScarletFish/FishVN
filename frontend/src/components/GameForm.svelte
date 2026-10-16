@@ -342,6 +342,7 @@
 
     const rangeError = validateRanges();
     if (rangeError) {
+      // 保存按钮在 tab 面板之外，从基本信息页提交也要能看见资料数据那两处的报错
       tab = 'profile';
       return;
     }
