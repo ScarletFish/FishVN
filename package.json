@@ -12,7 +12,7 @@
     "build": "npm run build --prefix frontend",
     "check:frontend": "npm run check:frontend --prefix frontend",
     "check:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets",
-    "test": "cargo test --manifest-path src-tauri/Cargo.toml"
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml --quiet"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.9.0"

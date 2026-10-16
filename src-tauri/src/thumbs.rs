@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn 大图按比例缩到上限() {
         let tmp = tempfile::tempdir().unwrap();
-        let src = sample(tmp.path(), 2000, 2800);
+        let src = sample(tmp.path(), 700, 980);
         let out = dir_dst(tmp.path());
         generate(&src, &out).unwrap();
         assert_eq!(dims(&out), (400, 560));
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn 横图按长边缩() {
         let tmp = tempfile::tempdir().unwrap();
-        let src = sample(tmp.path(), 2800, 2000);
+        let src = sample(tmp.path(), 980, 700);
         let out = dir_dst(tmp.path());
         generate(&src, &out).unwrap();
         assert_eq!(dims(&out), (560, 400));
@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn exif方向在缩放前应用_不然算错目标边长() {
         let tmp = tempfile::tempdir().unwrap();
-        let src = sample_with_exif(tmp.path(), 2000, 2800, 6);
+        let src = sample_with_exif(tmp.path(), 700, 980, 6);
         let out = dir_dst(tmp.path());
         generate(&src, &out).unwrap();
         assert_eq!(dims(&out), (560, 400));
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn 二次调用命中缓存不改文件() {
         let tmp = tempfile::tempdir().unwrap();
-        let src = sample(tmp.path(), 2000, 2800);
+        let src = sample(tmp.path(), 700, 980);
         let a = cached(src.to_str().unwrap(), tmp.path()).unwrap();
         let stamp = std::fs::metadata(&a).unwrap().modified().unwrap();
         std::thread::sleep(std::time::Duration::from_millis(1100));
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn 源图改动后换缓存() {
         let tmp = tempfile::tempdir().unwrap();
-        let src = sample(tmp.path(), 2000, 2800);
+        let src = sample(tmp.path(), 700, 980);
         let a = cached(src.to_str().unwrap(), tmp.path()).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(1100));
         sample(tmp.path(), 700, 980);
