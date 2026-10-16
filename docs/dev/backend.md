@@ -5,11 +5,12 @@
 - 后端是 Rust crate `src-tauri`，与前端同在 Tauri 进程里
 - 前端通过 `invoke` 调 `#[tauri::command]`，命令层只转发，业务逻辑在 `games.rs` / `metadata.rs` / `characters.rs` / `installations.rs` 这些领域模块
 - 数据类型只定义一次：`types.rs` 的 serde struct 同时喂给 rusqlite 的行映射与 IPC 序列化
-- 改完必跑 `cargo clippy --all-targets` + `cargo test`
+- 改完必跑 `npm run check:rust` + `npm test`
 
 ```
 src-tauri/
 ├── main.rs          # 窗口 + 状态 + invoke_handler
+├── lib.rs           # data_dir 解析与 id、时间戳生成
 ├── commands.rs      # #[tauri::command] 转发层，不写业务
 ├── db.rs            # 连接与 ensure_schema()
 ├── error.rs         # AppError，过 IPC 时序列化成一句中文
@@ -58,6 +59,7 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 - `Connection` 是 `Send` 不是 `Sync`，用 `Mutex<Connection>` 交给 `app.manage`
 - 命令里必须走 `lock()` 取连接，锁毒化要转成错误上报，不能 `unwrap`
 - 跨网络 I/O（同步、下封面）不持 `Connection` 锁：那是全局单锁，持着会卡住所有库操作
+- reqwest 是 Tauri 的传递依赖，不带 TLS 后端：`native-tls` 要显式开在 `Cargo.toml`，去掉编译照过、运行期所有请求失败
 - 一次同步取元数据与角色是两次请求，额度按请求数各扣一次
 - `State` 是注入的，前端不传；其余参数由 serde 从 JSON 反序列化
 - 参数类型本身就是校验：非法枚举值、错的字段类型在反序列化就进不来，不需要手写 typeof 检查
@@ -91,23 +93,22 @@ snake_case，裸 HTTP 没有这层转换。
 
 ### 数据模型
 
-作品身份、本地安装、VNDB 元数据、用户状态、库根配置**各是一张表**。
+作品身份、本地安装、VNDB 元数据、用户状态**各是一张表**；角色、声优与配音关系另成一组，见下文。
 **一张表一个自动写者**；用户显式编辑优先，自动流程只在用户逐字段确认后写入。
 
 | 表 | 内容 | 写者 |
 |---|---|---|
 | `games` | 作品身份 | 用户创建与编辑 |
-| `user_game_state` | 状态、用户评分、笔记、默认安装、游玩时间与次数 | 用户；启动行为更新游玩时间与次数 |
+| `user_game_state` | 状态、用户评分、笔记、默认安装、游玩时间与次数 | 用户；游玩时间与次数暂无写入方 |
 | `installations` | 本地目录、入口 exe、候选入口、目录大小 | 用户建与认领 |
 | `game_metadata` | 别名与本地化标题、封面、发行日期、评分与人数、简介、标签、开发商 | 用户直接编辑；同步时逐字段比对后由用户选覆盖或跳过 |
-| `library_roots` | 库根路径 | 用户；扫描记录时间 |
 
 几条从表结构看不出来的语义与配套惯例：
 
 - `vndb_id` 可空且 `UNIQUE`：NULL 之间不算重复，一部 VN 只对应一条作品；重复绑定报冲突
 - `installations.game_id` 为 NULL 表示待认领。删作品走 `SET NULL` 而不是 CASCADE —— 目录还在盘上，下次扫描还会遇到它
-- 状态取值与 VNDB 一致，定义在 `types.rs` 的 `Status` 枚举。表上不加 `CHECK`，SQLite 改约束要重建整张表
-- `dir_path` 由文件管理器给出规范写法，不做大小写归一 —— `COLLATE NOCASE` 会在 macOS 与 Linux 上把不同目录判成同一个
+- 状态取值定义在 `types.rs` 的 `Status` 枚举（wishlist / playing / finished / dropped）。表上不加 `CHECK`，SQLite 改约束要重建整张表
+- `dir_path` 存 `resolve_path` 绝对化后的原样路径，不做大小写归一 —— `COLLATE NOCASE` 会在 macOS 与 Linux 上把不同目录判成同一个
 - `game_metadata` 除 `game_id` 外每列都可空：一部不绑 VNDB 的作品同样要有资料行，没有数据就是空而不是占位值
 - 资料行可有可无，且行不存在与行存在但字段为空是两种状态（「没填过」与「填了空的」），调用方要分得清
 - 作品正式名在 `games.name`，`game_metadata` 不重复存。VNDB 那份 `titles` 里已带 `official` / `main` 标记的正式标题，别名另存 `alias`
@@ -116,7 +117,7 @@ snake_case，裸 HTTP 没有这层转换。
 - JSON 文本列（`titles` / `tags` / `developers` / `aliases` / `traits` / `gender` / `exes`）：库里是文本，对外一律给数组或结构；要按其中某个键筛，只能整列取出后在 Rust 侧解
 - `characters.id` 平时是 VNDB 的 c 编号，用户手建的行是 `local-<uuid>`，两种混排
 - `characters.traits` 是 trait 全量数组，本地录入不给入口，只有 VNDB 同步会写
-- `staffs` 是唯一跨作品共享的实体：同一个人换一部作品还是同一行。本地手填用 `local-<uuid>` 占位，无人引用时由触发器回收；三条删除来源（删作品、删角色、整包替换）共用这一条回收路径，触发器按 `staff_id` 反查，所以有 `character_va_staff` 索引
+- `staffs` 是唯一跨作品共享的实体：同一个人换一部作品还是同一行。本地手填用 `local-<uuid>` 占位，无人引用时由触发器回收；两条删除来源（删作品、整包替换）共用这一条回收路径，触发器按 `staff_id` 反查，所以有 `character_va_staff` 索引
 - `character_va.note` 空值一律存 `''`：SQLite 主键允许 NULL，同一条关系会被 NULL 与 `''` 写成两行
 - 写角色是整包替换，删与插在同一个事务里，中途失败退回调用前的整套角色；建作品与它的初始状态行同理，同一事务
 - 列表投影把 `game_metadata` 一并放进 `GROUP BY`：选了它的列却不在分组键里，SQLite 会取任意一行的值（它是主键，一行一作品，不改变行数）
@@ -144,23 +145,25 @@ snake_case，裸 HTTP 没有这层转换。
 
 文件选择器的白名单在 `frontend/src/lib/pick-path.js` 的 `IMAGE_EXT`，后端能解哪些格式由
 `src-tauri/Cargo.toml` 里 image crate 的 feature 决定，两边必须一致：前端放行而后端解不开，
-用户会在选完文件之后才撞上「封面格式不支持」。avif 要 libdav1d（C 库），gif 只会取首帧，
-两份清单都不收。改一边就同步改另一边——没有构建检查兜底。
+用户会在选完文件之后才撞上「封面格式不支持」。avif 要 libdav1d（C 库），gif 没开 feature、解不开，
+两份清单都不收。`image` crate 关掉 default-features、只开这四种 —— 默认档会把 avif（libdav1d）
+与 exr/rayon/rav1e 那套拖进来。改一边就同步改另一边——没有构建检查兜底。
 
 ### 本地封面授权
 
-渲染本地封面走 asset 协议，白名单默认为空，不放行就拿到 403 空响应。dialog 插件只放行
+渲染本地封面走 asset 协议，scope 之外的路径不放行就拿到 403 空响应。dialog 插件只放行
 `fs_scope`，不碰 asset 协议，所以渲染之前必须补一次授权。
 
-授权只活在本次进程，重启后靠 `tauri.conf.json` 的 `assetProtocol.scope` 兜底。`$USERPROFILE`
-落在 `$HOME/**/*` 覆盖内，数据目录下的派生图不必另行授权。
+授权只活在本次进程，重启后靠 `tauri.conf.json` 的 `assetProtocol.scope` 兜底 —— 但它只覆盖
+`$HOME/**/*`：打包后数据目录在 `app_data_dir()`、落在覆盖内；开发期数据目录在仓库 `data/`，
+scope 够不着，必须走 `allow_local_file`。
 
 ### 封面派生图
 
 长边 560 = `--card-w`（277px）的 2 倍，覆盖 200% 缩放屏；再大只是白 decode。
 
-缓存内容寻址：路径、size、mtime 变了就是新 key，旧缓存自然失效，不必显式删。mtime 精度到秒，
-所以 size 也参与哈希 —— 同秒内换成同尺寸的图仍会命中旧缓存（已知接受）。
+缓存内容寻址：路径、size、mtime 变了就是新 key，旧缓存自然失效，不必显式删。mtime 哈希到
+纳秒；size 一并参与哈希，兜底 mtime 精度粗的文件系统。
 
 ### 注释
 

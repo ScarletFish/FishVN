@@ -16,12 +16,10 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
-# tauri 传递依赖里的 reqwest 不带任何 TLS 后端，native-tls 必须显式开
 reqwest = { version = "0.13", default-features = false, features = ["json", "native-tls"] }
 tokio = { version = "1", features = ["net", "rt", "rt-multi-thread", "time"] }
 axum = "0.8.9"
 tauri-plugin-dialog = "2.8.2"
-# default-features 关掉是为了不拖 avif(exr/rayon/rav1e) 那套进来，只要 jpeg/png/webp/bmp
 image = { version = "0.25", default-features = false, features = [
     "jpeg",
     "png",
@@ -32,7 +30,6 @@ tauri-plugin-opener = "2"
 
 [dev-dependencies]
 tempfile = "3"
-# #[tokio::test] 需要 rt 与 macros
 tokio = { version = "1", features = ["rt", "macros"] }
 
 [profile.release]
