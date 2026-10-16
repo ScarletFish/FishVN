@@ -30,6 +30,18 @@ POST JSON body，`Content-Type: application/json`。响应恒为 JSON，`Accept`
 
 `more` 表示还有下一页，翻页只需要它。`count` 仅在请求里带了 `count:true` 时出现。
 
+### 客户端只取两档
+
+`vndb.rs` 里只有两套 `fields`：
+
+| 档 | 用途 | 特点 |
+|---|---|---|
+| `SEARCH_FIELDS` | 搜索结果，判断是哪部作品 | 不取 `description` 与 `tags`；`image` 只要 `id,thumbnail,thumbnail_dims`，所以 `url` 与 `dims` 恒为 `None` |
+| `VN_FIELDS` | 详情页真正渲染的字段 | `image{id,url,dims}`，封面用 `url` |
+
+除 `id` 与 `title` 外一律按 `Option` 反序列化：null 率高（`rating` 238/400、`alttitle` 140/400，
+`image` 罕见但确有 null），详见下表。
+
 ### `/vn` 字段清单
 
 `GET /kana/schema` 的 `api_fields["/vn"]` 递归展开共 55 项，本项目用得到的部分：
@@ -154,6 +166,26 @@ va{character{id},staff{id,name,original},note}
 `/kana/schema` 对它不给类型声明，与 `released` 同性质，只能靠实测确认。
 500 条样本的分布是 265 个 `null`、235 个两元素整数数组，未见标量或字符串。
 
+`results` 同样有上限（100），角色多的作品要翻页。
+
+`va` 里出现而 `/character` 里没有的角色，在本作品里按没有立绘与资料处理；`va` 里缺 `staff`
+的条目直接跳过。
+
+`birthday` 的 `[月, 日]` 落库拍平成 `月-日`：只公布一个分量时存已知的那个，两边都没有则该字段
+留空。
+
+### 封面与图片
+
+封面一律下 `url` 不下 `thumbnail`：thumbnail 宽度不足以覆盖 2× 屏（要 554 宽）。
+
+图片在 `t.vndb.org` 这个 CDN 上，与 `api.vndb.org` 的限流额度是两套，客户端另开一个连接
+（`IMAGE_TIMEOUT` 8 秒，不受 3 秒中断线约束），并发数只受本机带宽与 CDN 礼貌限速约束。
+
+图编号（VN 封面 `cv…` / 角色 `ch…`）是 VNDB 给每张图的永久身份，换图才换号，可以直接当文件名
+判断要不要重下。
+
+`image` 上的 `sexual` / `violence` 内容标记不取：默认全下载，过滤留给设置项，别当成漏做过滤补上。
+
 ### 嵌套与数组的元素结构
 
 ```jsonc
@@ -231,7 +263,7 @@ sort 可选：`id` / `title` / `released` / `rating` / `votecount` / `searchrank
 
 200 请求 / 5 分钟，且每分钟 1 秒执行时间；单请求超过 3 秒被服务端中断。
 官方文档说这些额度「足够大多数应用」，且余量不通过响应头暴露（见上节），所以客户端节流
-要取比这更保守的值。
+要取比这更保守的值：实际按一半取（100 请求 / 5 分钟），图片另算。
 
 ### 使用条款
 

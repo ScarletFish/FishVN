@@ -73,32 +73,40 @@
 
 另有几处纯复述或已被本文覆盖的 doc，随本批一并删：`db.rs:8/11/19/143/153`、`types.rs:93/114/152-153`、`installations.rs:12`、`characters.rs:83/95`、`games.rs:12/68`、`metadata.rs:72`、`commands.rs:149`（两次请求各扣一次额度，另行成条）。
 
-本批已提交：`docs: 把后端栈特有知识搬进 backend.md，删掉对应注释`。`backend.md` 新增「进程与状态 / 开发期 HTTP 通道 / 错误与 IPC / 本地封面授权 / 封面派生图」五节、架构树的模块补全、「模块 → 文档」路由表、数据模型 12 条语义。
+本批已提交：`docs: 把后端栈特有知识搬进 backend.md，删掉对应注释`。`backend.md` 新增五节（进程与状态 / 开发期 HTTP 通道 / 错误与 IPC / 本地封面授权 / 封面派生图）、架构树的模块补全、「改哪块先读哪份」路由表、数据模型一节的一批语义条。
 
 ## → vndb-api.md（外部系统事实）
 
 | 状态 | 来源 | 条目 |
 |---|---|---|
-| [ ] | `vndb.rs:17` / `20` | 搜索 / 元数据两档字段 |
-| [ ] | `vndb.rs:21` | sexual / violence 刻意不取（过滤留设置项，别当漏做过滤补上） |
-| [ ] | `vndb.rs:23` / `381` | CV 只能从 va 取；va 有而 character 无的角色按无立绘处理 |
-| [ ] | `vndb.rs:26` | traits 要写进 fields 才带回名字 |
-| [ ] | `vndb.rs:30` | /character results 有上限，超了要翻页 |
-| [ ] | `vndb.rs:35` / `39` | 3 秒中断线对齐；图片另开客户端不受此限 |
-| [ ] | `vndb.rs:43` | 额度 200 次 / 5 分钟，按一半取留裕量 |
-| [ ] | `vndb.rs:47` | 立绘走 t.vndb.org CDN，与 api 限流是两套 |
-| [ ] | `vndb.rs:186` | null 率高，除 id/title 外一律 Option（计数句删） |
-| [ ] | `vndb.rs:207` | va note 是版本标记，按原样保留 |
-| [ ] | `vndb.rs:231` | 元数据与角色两次请求合并，无一次请求能给全 |
-| [ ] | `vndb.rs:251` / `452` | released 是 `[月, 日]` 形状，只有实测能确认；拍平存月-日 |
-| [ ] | `vndb.rs:464` | gender 按 release 逐条返回，多版本重复 |
-| [ ] | `vndb.rs:313` | sort 必带；search 过滤器传数组不报错而是静默失效 |
-| [ ] | `vndb.rs:370` | vn 过滤器只吃嵌套形状，写平是 400 |
-| [ ] | `vndb.rs:522` | 图编号（cv/ch）是永久身份，当文件名判断重下 |
-| [ ] | `vndb.rs:583` | 400 是我们请求写错，body 带 VNDB 指出的字段名 |
-| [ ] | `types.rs:144` / `204` / `226` | 中文标题可能一条都没有；出场定位取值；va note 多条 |
-| [ ] | `vndb.rs:515` | 下 url 不下 thumbnail：thumbnail 宽度不足以覆盖 2× 屏（要 554 宽） |
-| [ ] | `vndb.rs:140` | 搜索档只回 thumbnail，url / dims 恒为 None |
+| [x] | `vndb.rs:17` / `20` | 搜索 / 元数据两档字段 |
+| [x] | `vndb.rs:21` | sexual / violence 刻意不取（过滤留设置项，别当漏做过滤补上） |
+| [x] | `vndb.rs:23` / `381` | CV 只能从 va 取；va 有而 character 无的角色按无立绘处理 |
+| [x] | `vndb.rs:26` | traits 要写进 fields 才带回名字 |
+| [x] | `vndb.rs:30` | /character results 有上限，超了要翻页 |
+| [x] | `vndb.rs:35` / `39` | 3 秒中断线对齐；图片另开客户端不受此限 |
+| [x] | `vndb.rs:43` | 额度 200 次 / 5 分钟，按一半取留裕量 |
+| [x] | `vndb.rs:47` | 立绘走 t.vndb.org CDN，与 api 限流是两套 |
+| [x] | `vndb.rs:186` | null 率高，除 id/title 外一律 Option（计数句删） |
+| [x] | `vndb.rs:207` | va note 是版本标记，按原样保留 |
+| [x] | `vndb.rs:231` | 元数据与角色两次请求合并，无一次请求能给全 |
+| [x] | `vndb.rs:251` / `452` | released 是 `[月, 日]` 形状，只有实测能确认；拍平存月-日 |
+| [x] | `vndb.rs:464` | gender 按 release 逐条返回，多版本重复 |
+| [x] | `vndb.rs:313` | sort 必带；search 过滤器传数组不报错而是静默失效 |
+| [x] | `vndb.rs:370` | vn 过滤器只吃嵌套形状，写平是 400 |
+| [x] | `vndb.rs:522` | 图编号（cv/ch）是永久身份，当文件名判断重下 |
+| [x] | `vndb.rs:583` | 400 是我们请求写错，body 带 VNDB 指出的字段名 |
+| [x] | `types.rs:144` / `204` / `226` | 出场定位取值、va note 多条已收进 vndb-api.md；「中文标题可能一条都没有」那半归 FDD 表 |
+| [x] | `vndb.rs:515` | 下 url 不下 thumbnail：thumbnail 宽度不足以覆盖 2× 屏（要 554 宽） |
+| [x] | `vndb.rs:140` | 搜索档只回 thumbnail，url / dims 恒为 None |
+
+本批另外收进的：`vndb.rs:106`（take_slot 的 doc，纯复述）、`vndb.rs:308`（v 编号形态，`/vn` 字段表已给例）、`vndb.rs:418`（va 缺 staff 跳过）、`vndb.rs:458`（birthday 拍平成 `月-日`）、`vndb.rs:1-3`（文件头，本文开头已声明用途）、`vndb.rs:387-388`（va 有而 character 无）。
+
+留在 `vndb.rs` 未动的三条属 FDD 表：`vndb.rs:259-260`（不收无立绘配角）、`298-299`（任一失败整体报错）、`475`（图下载失败只记日志）。
+
+`vndb-api.md` 新增「客户端只取两档」「封面与图片」两节，并在 `/character`、限流两处补细节。
+
+本批已提交：`docs: 把 VNDB 上游实测事实搬进 vndb-api.md，删掉对应注释`。
 
 ## → FDD（产品 / 设计决策）
 

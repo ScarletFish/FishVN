@@ -180,7 +180,6 @@ pub struct GameCharacter {
     pub waist: Option<i64>,
     pub hips: Option<i64>,
     pub cup: Option<String>,
-    /// VNDB 的出场定位：main / primary / side / appears
     pub role: Option<String>,
     pub image_id: Option<String>,
     pub image_path: Option<String>,
@@ -199,8 +198,6 @@ pub struct CharacterTrait {
     pub lie: Option<bool>,
 }
 
-/// 角色 × 声优。写入时只用 staff_id / name / original 建 staffs 行，
-/// note 是版本标记（如 Realta Nua），同一对角色与声优可带多条不同 note
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CharacterVa {

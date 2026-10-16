@@ -1,7 +1,3 @@
-//! VNDB Kana API v2 客户端，只做网络 I/O，不碰数据库。
-//!
-//! 响应形状的实测依据见 `docs/dev/vndb-api.md`。
-
 use std::collections::VecDeque;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -14,38 +10,23 @@ use crate::types::{CharacterTrait, CharacterVa, GameCharacter};
 
 const API_BASE: &str = "https://api.vndb.org/kana";
 
-/// 搜索阶段：只够判断是哪部作品，不取 description 与 tags
 const SEARCH_FIELDS: &str = "id,title,alttitle,released,olang,image{id,thumbnail,thumbnail_dims}";
 
-/// 元数据阶段：详情页真正渲染的字段。
-/// 分级标记 sexual / violence 刻意不取：默认全下载，过滤留给设置项，
-/// 别当成漏做过滤补上
-/// va 只列已配音的角色，且 /character 上没有声优 —— CV 只能从这里取
 const META_FIELDS: &str = "id,title,alttitle,olang,released,devstatus,rating,votecount,description,titles{lang,title,latin,official,main},image{id,url,dims},tags{id,name,category,rating,spoiler,lie,vn_count},developers{id,name,original,type},va{character{id},staff{id,name,original},note}";
 
-/// traits 的 name / group_name 继承自 /trait：fields 里写出 traits{id,name,group_name}
-/// 才带回名字
 const CHAR_FIELDS: &str = "id,name,original,aliases,description,gender,age,birthday,blood_type,height,weight,bust,waist,hips,cup,image{id,url,dims},traits{id,name,group_name,spoiler,lie},vns{role,spoiler}";
 
-/// /character 的 results 有上限，超过要另翻页
 const CHAR_RESULTS: usize = 100;
 
 const SEARCH_RESULTS: usize = 25;
 
-/// 刻意与 VNDB「单请求超 3 秒被服务端中断」对齐：主动放弃的错误可判断，
-/// 被服务端掐断只剩一个语义不明的连接错误
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// 图片走另一个客户端。图片响应体比 API 的 JSON 大得多，
-/// 3 秒那条中断线是按 API 定的
 const IMAGE_TIMEOUT: Duration = Duration::from_secs(8);
 
-/// 服务端额度是 200 次 / 5 分钟，余量无从查询，客户端按一半取留出裕量
 const RATE_LIMIT_MAX: usize = 100;
 const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(5 * 60);
 
-/// 立绘走 t.vndb.org 这个 CDN，与 api.vndb.org 的限流额度是两套，
-/// 并发数只受本机带宽与 CDN 礼貌限速约束
 const IMAGE_CONCURRENCY: usize = 8;
 
 pub fn http() -> &'static reqwest::Client {
@@ -103,7 +84,6 @@ impl RateLimiter {
 
 const MIN_WAIT: Duration = Duration::from_millis(1);
 
-/// 名额到手给 Ok；满了给 Err(还要等多久)
 pub fn take_slot(
     history: &mut VecDeque<Instant>,
     max: usize,
@@ -137,7 +117,6 @@ pub struct VnEnvelope<T> {
     pub count: Option<i64>,
 }
 
-/// 搜索档只回 thumbnail，url / dims 恒为 None
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct VnImage {
@@ -193,8 +172,6 @@ pub struct VnDeveloper {
     pub kind: Option<String>,
 }
 
-/// VNDB 的 null 率很高（rating 238/400 为 null、alttitle 140/400 为 null、
-/// image 罕见但确有 null），所以除 id 与 title 外一律 Option
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct VnMetadata {
@@ -214,8 +191,6 @@ pub struct VnMetadata {
     pub va: Option<Vec<VnVa>>,
 }
 
-/// /vn 的 va 元素。note 是版本标记（如 Realta Nua），同一角色不同版本各有条，
-/// 按原样保留，合并会丢掉「哪个版本换了声优」的信息
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct VnVa {
@@ -238,8 +213,6 @@ pub struct VnVaCharacter {
     pub id: String,
 }
 
-/// VNDB 没有一次请求能给全两者，所以这是两次请求的合并结果；
-/// 角色集由前端逐个确认后走 save_game_characters 落库
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 pub struct VnSync {
     #[serde(flatten)]
@@ -257,9 +230,6 @@ struct CharRow {
     description: Option<String>,
     gender: Option<Vec<String>>,
     age: Option<i64>,
-    /// `[月, 日]`。这个形状只有实测能确认：`/kana/schema` 对它不给类型声明，
-    /// 与 `released` 同性质。照直觉写成标量会让整个 `/character` 响应反序列化失败，
-    /// 整次同步报「响应不是预期 JSON」
     birthday: Option<Vec<Option<i64>>>,
     blood_type: Option<String>,
     height: Option<i64>,
@@ -305,7 +275,6 @@ pub fn validate_keyword(raw: &str) -> Result<String> {
     Ok(trimmed.to_owned())
 }
 
-/// VNDB 编号形如 v14：v 前缀 + 数字
 pub fn validate_vn_id(raw: &str) -> Result<String> {
     let trimmed = raw.trim();
     let digits = trimmed.strip_prefix('v').unwrap_or_default();
@@ -316,8 +285,6 @@ pub fn validate_vn_id(raw: &str) -> Result<String> {
 }
 
 pub async fn search(http: &reqwest::Client, keyword: &str) -> Result<Vec<VnSearchHit>> {
-    // sort 必带：不带就按 id 返回，最相关的排不到前面。
-    // search 过滤器只能写字符串 —— 传数组不报错，而是静默失效成无条件结果
     let body = json!({
         "filters": ["search", "=", keyword],
         "fields": SEARCH_FIELDS,
@@ -373,7 +340,6 @@ async fn fetch_vn(
     Ok(vn)
 }
 
-/// vn 过滤器只吃这个嵌套形状，写平成 ["id","=",v] 是 400
 async fn fetch_character_rows(http: &reqwest::Client, vndb_id: &str) -> Result<Vec<CharRow>> {
     let body = json!({
         "filters": ["vn", "=", ["id", "=", vndb_id]],
@@ -384,8 +350,6 @@ async fn fetch_character_rows(http: &reqwest::Client, vndb_id: &str) -> Result<V
     Ok(env.results)
 }
 
-/// /vn 的 va 只列已配音的角色，角色行统一由 /character 产出：在 va 里出现、
-/// 却没进 /character 的角色，在本作品里就按没有立绘与资料处理
 async fn map_characters(
     rows: Vec<CharRow>,
     va: &[VnVa],
@@ -415,7 +379,6 @@ fn index_va(va: &[VnVa]) -> VaIndex {
         let Some(c) = v.character.as_ref().filter(|c| !c.id.is_empty()) else {
             continue;
         };
-        // 缺声优的条目直接跳过：落库只会多出一位无名声优
         let Some(staff) = v.staff.as_ref().filter(|s| !s.id.is_empty()) else {
             continue;
         };
@@ -455,8 +418,6 @@ fn to_game_character(row: CharRow, role: String, va: Option<&[CharacterVa]>) -> 
     }
 }
 
-/// `[月, 日]` 拍平成 `月-日`；只公布到月或只公布到日时存已知的那个分量，
-/// 两边都没有则该字段留空
 fn format_birthday(parts: Option<Vec<Option<i64>>>) -> Option<String> {
     let joined: Vec<String> = parts
         .unwrap_or_default()
@@ -467,7 +428,6 @@ fn format_birthday(parts: Option<Vec<Option<i64>>>) -> Option<String> {
     (!joined.is_empty()).then(|| joined.join("-"))
 }
 
-/// gender 按 release 逐条返回，同一角色多版本会出重复值
 fn dedupe(values: Vec<String>) -> Option<Vec<String>> {
     let mut seen = std::collections::HashSet::new();
     let out: Vec<String> = values
@@ -512,8 +472,6 @@ fn spawn_next_image(
     });
 }
 
-/// 下 url 不下 thumbnail：thumbnail 宽度不足以覆盖 2× 屏，2× 屏要 554 宽
-///
 /// 下载失败只记日志不返回错误 —— 图挂了不该让整次元数据同步失败
 async fn fetch_image(
     http: &reqwest::Client,
@@ -524,8 +482,6 @@ async fn fetch_image(
     let (Some(url), Some(id)) = (url, id) else {
         return None;
     };
-    // 图编号（VN 封面 cv / 角色 ch）是 VNDB 给每张图的永久身份，换图才换号，
-    // 拿它当文件名即可判断重下
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric()) {
         return None;
     }
@@ -585,7 +541,6 @@ async fn post<T: for<'de> Deserialize<'de>>(
     match status.as_u16() {
         200 => serde_json::from_str(&text)
             .map_err(|e| AppError::Upstream(format!("VNDB 响应不是预期 JSON：{e}"))),
-        // 400 是我们请求写错了，body 里是 VNDB 指出的字段名，要带上报错现场
         400 => Err(AppError::BadRequest(format!(
             "VNDB 拒绝请求（400）：{text}"
         ))),
