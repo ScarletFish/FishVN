@@ -164,7 +164,7 @@ snake_case，裸 HTTP 没有这层转换。
 
 ### 注释
 
-规则见 [comments.md](./comments.md)。判据一句话：**删掉这条注释，会不会有人因此走错路**。
+代码里不写注释，知识写进本文与 [vndb-api.md](./vndb-api.md)。规则与例外见 [comments.md](./comments.md)。
 
 ## 新增命令检查清单
 

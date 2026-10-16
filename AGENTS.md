@@ -39,31 +39,26 @@ Svelte 5 SPA + Rust 后端的 Tauri v2 桌面应用
 |------|------|
 | `npm run dev` | `tauri dev`：起 Vite 4545 并拉起桌面窗口 |
 | `npm run dev:frontend` | 只起 Vite 4545；`tauri dev` 通过 `beforeDevCommand` 调它，浏览器里单独跑没有 IPC |
-| `npm run check:rust` | 后端 `cargo clippy --all-targets` |
+| `npm run check:rust` | 后端 `cargo clippy --all-targets`（前面串上注释检查） |
 | `npm test` | 后端 `cargo test` 全量套件（`--quiet`：每套件一行结果，失败才展开） |
 | `cargo test --manifest-path src-tauri/Cargo.toml --test <套件>` | 后端只跑一个集成套件（编译面最小） |
 | `cargo test --manifest-path src-tauri/Cargo.toml --lib <模块路径>` | 后端只跑 lib 内单测，可用模块或用例名前缀收窄 |
 | `npm test -w frontend -- <测试文件>` | 前端只跑一个测试文件；再加 `-t <用例名>` 收窄到一条 |
 | `npm run test:watch -w frontend` | 前端测试监听模式 |
-| `npm run check:frontend` | 前端全量：CSS token 检查 + 无用 CSS 检查 + 测试 + 构建 `frontend/dist` |
+| `npm run check:comments` | 注释白名单检查：命中白名单外的注释就失败（已串在 `check:rust` 与 `check:frontend` 最前面） |
+| `npm run check:frontend` | 前端全量：注释检查 + CSS token 检查 + 无用 CSS 检查 + 测试 + 构建 `frontend/dist` |
 | `npm run build` | 前端生产构建 → `frontend/dist` |
 
 限定目标要直接调 cargo：`npm test -- --test <套件>` 会被 npm 当成自己的未知 flag 拦掉。
 
 ## 注释与文档
 
-1. **写文件时不写注释，提交前回头补**
-2. **不写历史改动**：不留「何时/谁/改了什么」，历史归 git
-3. **只写代码无法表达的东西**：踩过的坑、必须满足的约束、会被改坏的写法。代码本身就是事实，不替它解释为什么这么写
-4. **先问「信息在代码里读不出来吗」，读得出来就不写**：参数名、函数名、字段名、常量值、下一行的校验、类型签名、`#[cfg]` —— 这些看代码就知道，注释是复述
-5. **踩过坑 ≠ 该写注释**。写的是坑的**后果**，不是坑的现象：「只判本地会抹掉用户封面」要写，「加了个空值检查」不写
-6. **不写复述实现的注释**：「这段代码在做什么」读代码就知道
-7. **不写未验证的断言**：注释里说的事实要在代码里核对过。过时的断言比没有注释更糟
-8. **不写计数型断言**：「有 N 个」「恒为 N」「实测 N KB」——代码不承诺任何数量，改一处就过时，而读者要的是约束不是快照
-9. **不为未实现的功能留注释**：YAGNI 同一条
-10. **中文注释**：注释与文档用中文
+**代码里不写注释。** 信息要么在代码里读得出来，要么写进文档；注释不是它的第三个去处。
 
-判据、实例与逐条核对清单见 [docs/dev/comments.md](docs/dev/comments.md)。
+- 不靠自觉：`npm run check:comments` 强制白名单（已串在 `check:rust` 与 `check:frontend` 上），例外只有测试用例的意图、`tokens.css` 的 token 用途、两条不可测的残渣、工具指令——清单与理由见 [docs/dev/comments.md](docs/dev/comments.md)
+- 产品与设计决策进 `docs/fdd-game-library.md`；栈特有事实、惯例与踩过的坑进 `docs/dev/*`
+- 改哪块先读哪份：`docs/dev/backend.md` 与 `docs/dev/frontend.md` 各有一张路由表
+- 文档与注释用中文
 
 ## Git 提交
 

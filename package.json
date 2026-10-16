@@ -10,8 +10,9 @@
     "dev": "set FISHVN_DEV_HTTP=1&& tauri dev",
     "dev:frontend": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
-    "check:frontend": "npm run check:frontend --prefix frontend",
-    "check:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets",
+    "check:comments": "node scripts/check-comments.mjs",
+    "check:frontend": "npm run check:comments && npm run check:frontend --prefix frontend",
+    "check:rust": "npm run check:comments && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets",
     "test": "cargo test --manifest-path src-tauri/Cargo.toml --quiet"
   },
   "devDependencies": {
