@@ -29,12 +29,14 @@
   let headerEl = $state(null);
   let panelEl = $state(null);
   let expandedId = $state(null);
+  let showSpoilers = $state(false);
   let characters = $state([]);
   let artUrls = $state({});
 
   $effect(() => {
     characters = [];
     expandedId = null;
+    showSpoilers = false;
     let live = true;
     api
       .listGameCharacters(gameId)
@@ -90,20 +92,26 @@
     return v === key ? fallback : v;
   };
 
-  const traitGroups = $derived(
+  const traitData = $derived(
     (() => {
       const map = new Map();
+      let spoilerCount = 0;
       for (const tr of expanded?.traits ?? []) {
-        if (tr.spoiler || tr.group_name.includes('Sexual')) continue;
+        if (tr.group_name.includes('Sexual')) continue;
+        if (tr.spoiler) {
+          spoilerCount += 1;
+          if (!showSpoilers) continue;
+        }
         if (!map.has(tr.group_name)) map.set(tr.group_name, []);
         map.get(tr.group_name).push(tr.name);
       }
-      return [...map.entries()]
+      const groups = [...map.entries()]
         .sort((a, b) => groupRank(a[0]) - groupRank(b[0]))
         .map(([group, names]) => ({
           label: localized(`detail.traitGroups.${group}`, group),
           names,
         }));
+      return { groups, spoilerCount };
     })()
   );
 
@@ -122,6 +130,14 @@
           .join(' / '),
       },
       expanded?.age && { label: t('detail.charAge'), value: String(expanded.age) },
+      expanded?.blood_type?.length && {
+        label: t('detail.charBloodType'),
+        value: localized(`detail.bloodType.${expanded.blood_type}`, expanded.blood_type.toUpperCase()),
+      },
+      expanded?.bust && expanded?.waist && expanded?.hips && {
+        label: t('detail.charBwh'),
+        value: `${expanded.bust} / ${expanded.waist} / ${expanded.hips}`,
+      },
       expanded?.va?.length && {
         label: t('detail.charVoice'),
         value: expanded.va.map(vaName).filter(Boolean).join(' / '),
@@ -131,6 +147,7 @@
 
   async function toggle(id) {
     expandedId = expandedId === id ? null : id;
+    showSpoilers = false;
     if (!expandedId) return;
     await tick();
     panelEl?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -184,31 +201,67 @@
     {#if expanded}
       <div class="detail-char-panel" bind:this={panelEl}>
         <div class="detail-char-panel-body">
-          <h4>{displayName(expanded)}</h4>
-          {#if altName(expanded)}
-            <p class="detail-char-original">{altName(expanded)}</p>
-          {/if}
+          <div class="detail-char-title">
+            <h4>{displayName(expanded)}</h4>
+            {#if altName(expanded)}
+              <span class="detail-char-original">{altName(expanded)}</span>
+            {/if}
+          </div>
 
           {#if facts.length}
-            <dl class="detail-char-facts">
-              {#each facts as f (f.label)}
-                <dt>{f.label}</dt>
-                <dd>{f.value}</dd>
-              {/each}
-            </dl>
+            <div class="detail-char-section">
+              <p class="detail-char-section-label">{t('detail.charSectionFacts')}</p>
+              <dl class="detail-char-facts">
+                {#each facts as f (f.label)}
+                  <div class="detail-char-fact">
+                    <dt>{f.label}</dt>
+                    <dd>{f.value}</dd>
+                  </div>
+                {/each}
+              </dl>
+            </div>
           {/if}
 
           {#if stripBbcode(expanded.description)}
-            <p class="detail-char-desc">{stripBbcode(expanded.description)}</p>
+            <div class="detail-char-section">
+              <p class="detail-char-section-label">{t('detail.charSectionDesc')}</p>
+              <p class="detail-char-desc scroll-thin">{stripBbcode(expanded.description)}</p>
+            </div>
           {/if}
 
-          {#if traitGroups.length}
-            <dl class="detail-char-traits">
-              {#each traitGroups as g (g.label)}
-                <dt>{g.label}</dt>
-                <dd>{g.names.join(', ')}</dd>
-              {/each}
-            </dl>
+          {#if traitData.groups.length || traitData.spoilerCount}
+            <div class="detail-char-section">
+              <p class="detail-char-section-label">{t('detail.charSectionTraits')}</p>
+              {#if traitData.groups.length}
+                <dl class="detail-char-traits">
+                  {#each traitData.groups as g (g.label)}
+                    <dt>{g.label}</dt>
+                    <dd>
+                      {#each g.names as name (name)}
+                        <span class="pill pill--tag">{name}</span>
+                      {/each}
+                    </dd>
+                  {/each}
+                </dl>
+              {/if}
+              {#if traitData.spoilerCount}
+                <div class="detail-char-spoilers">
+                  <span>
+                    {showSpoilers
+                      ? t('detail.charSpoilersShown')
+                      : t('detail.charSpoilersHidden', { count: traitData.spoilerCount })}
+                  </span>
+                  <label class="toggle-switch">
+                    <input
+                      type="checkbox"
+                      bind:checked={showSpoilers}
+                      aria-label={t('detail.charSpoilersShown')}
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              {/if}
+            </div>
           {/if}
         </div>
       </div>
