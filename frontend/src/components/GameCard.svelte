@@ -1,5 +1,4 @@
 <script>
-  /** 列表卡片：封面缺失时用游戏名首字符占位 */
   import { t } from '../lib/i18n.js';
   import Menu from './Menu.svelte';
   import { coverSrc } from '../lib/cover-src.js';
@@ -55,7 +54,6 @@
     </div>
   </div>
 
-  <!-- 可点区域独立成真按钮，与菜单互为兄弟：键盘原生可用，也不必拦截冒泡 -->
   <button
     type="button"
     class="cover-card__hit"

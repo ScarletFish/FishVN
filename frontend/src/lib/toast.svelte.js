@@ -1,10 +1,7 @@
-// 渲染在 components/Toaster.svelte，挂在 App.svelte 里。
-// 用 .svelte.js 后缀：要 $state，.js 里编译不了 rune。
 
 export const items = $state([]);
 let counter = 0;
 
-// 计时器簿记不要放 $state，否则每次读写都触发更新
 const timers = new Map();
 
 const DURATIONS = {
@@ -17,13 +14,6 @@ const DURATIONS = {
 
 const MAX = 5;
 
-/**
- * 弹一条通知。
- * @param {string|{title: string, desc?: string}} msg 标题，或标题+说明两行
- * @param {'success'|'error'|'warning'|'info'|'silent'} [type]
- * @param {{duration?: number}} [opts] 覆盖按类型取的停留时长
- * @returns {number} 这条通知的 id，可传给 dismiss
- */
 export function toast(msg, type = 'info', opts = {}) {
   const title = typeof msg === 'string' ? msg : (msg?.title ?? '');
   const desc = typeof msg === 'object' && msg?.desc ? msg.desc : '';
@@ -57,8 +47,6 @@ function start(item) {
   timers.set(item.id, { timer, at: Date.now() });
 }
 
-// 暂停要手动记剩余时长：进度条的暂停靠 CSS animation-play-state，
-// 计时器在 JS 里，两者不通
 export function pause(item) {
   const rec = timers.get(item.id);
   if (!rec) return;

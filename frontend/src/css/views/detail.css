@@ -1,4 +1,3 @@
-/* 上内边距归零：氛围底 absolute 在 .detail 的 padding box 上，padding-top 会把它推下去 */
 .detail {
   position: relative;
   padding: 0 var(--space-12) var(--space-8);
@@ -21,7 +20,6 @@
   font-size: var(--text-sm);
 }
 
-/* 与列表卡封面（.cover-card / .cover-card__frame）的尺寸、圆角、占位要一起改 */
 .detail-cover {
   width: var(--card-w);
   max-width: 100%;
@@ -62,9 +60,6 @@
   color: var(--fg-muted);
 }
 
-/* padding-top 决定内容从哪起。氛围底的高度与 mask 停点只决定它画到哪，
-   两者独立：上移内容不会改变氛围底的覆盖范围，但栏体可能因此落进氛围底的
-   实色区而不是淡出段——改了这里要同时看 .detail-info-line 的落位。 */
 .detail-banner {
   position: relative;
   z-index: 1;
@@ -76,11 +71,6 @@
   padding-bottom: var(--space-4);
 }
 
-/* 绝对定位且是 .detail 的直接子元素，才不吃左右 padding 而满幅——挪进
-   .detail-banner 会左右各留一条空白边。
-   mask 必须分段：压回两站时收口线附近仍接近不透明，底图会被切出硬边。
-   实色边界 = 高度 × 停点%，现为 335px × 31.3% ≈ 105px。改高度若要保住
-   实色边界不变，停点需同步调整（105/高度）。 */
 .detail-ambience {
   position: absolute;
   top: 0;
@@ -101,7 +91,6 @@
   );
 }
 
-/* scale 1.3 盖住 blur 向外溢出的透明边，否则四边露出未模糊的原图边缘。 */
 .detail-ambience img {
   width: 100%;
   height: 100%;
@@ -111,7 +100,6 @@
   filter: blur(24px);
 }
 
-/* 中间停点与 mask 的 72% 同高，改一处另一处要同步 */
 .detail-ambience::after {
   content: '';
   position: absolute;
@@ -157,7 +145,6 @@
   color: var(--fg-default);
 }
 
-/* 负边距把别名往标题方向收紧，与标题算作一组（副标题用法）。 */
 .detail-alias {
   margin: calc(-1 * var(--space-250)) 0 0;
   font-size: var(--text-md);
@@ -165,8 +152,6 @@
   color: var(--fg-secondary);
 }
 
-/* 边框是承重结构：底色 55% 不透明度且浮在氛围底的淡出段上，去掉边框栏体就塌。
-   背后必须有 .detail-ambience，删掉它这层几乎不可见。 */
 .detail-info-line {
   display: flex;
   justify-content: space-between;
@@ -205,8 +190,6 @@
   justify-content: flex-end;
 }
 
-/* 胶囊几何共用，配色按角色分开。tag 走中性色是刻意的：一屏几十个 tag 全用
-   accent 会把强调色稀释，也压过标题；accent 留给 info-bar 里的评分与信息项。 */
 .pill {
   display: inline-flex;
   align-items: center;
@@ -228,7 +211,6 @@
   color: var(--fg-secondary);
 }
 
-/* .pill--more 落在 <button> 上：按钮的边框和字体不继承，去掉这两行会露出系统默认样式 */
 .pill--more {
   margin: 0;
   border: 0;
@@ -252,8 +234,6 @@
   gap: var(--space-1);
 }
 
-/* 夹 4 行依赖 -webkit-box 三件套，-webkit-box-orient 缺了 ellipsis 不出现。
-   元数据源（VNDB）无中文简介，正文以英文为主，同样行数装下的信息量多于中文。 */
 .detail-summary {
   display: -webkit-box;
   width: 100%;
@@ -303,8 +283,6 @@
   color: var(--fg-muted);
 }
 
-/* 基准卡宽是档位门槛：1920 窗口下算 7 列，960 下算 3 列。改这里要同步
-   lib/scroll-dots.svelte.js 的列数计算口径。 */
 .detail-chars-scroll {
   --card-w: 220px;
 }
@@ -313,7 +291,6 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  /* 比所在 section 的 --bg-surface 高一档，否则卡片与容器底色同档、边界糊掉 */
   background: var(--bg-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -330,13 +307,11 @@
   background: var(--bg-raised);
 }
 
-/* 展开态只改配色：动尺寸会触发分页重算，卡宽与 --cols 一帧塌缩 */
 .detail-char-card.expanded {
   border-color: var(--accent);
   background: var(--accent-bg);
 }
 
-/* 卡片的 overflow: hidden 不能去掉：浮层的两个底角靠它圆回来 */
 .detail-char-portrait {
   aspect-ratio: 208 / 300;
   background: var(--bg-page);
@@ -347,7 +322,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* 用户自选的图未必是 208/300，裁的时候保头不保脚 */
   object-position: top;
 }
 
@@ -380,8 +354,6 @@
   overflow-wrap: anywhere;
 }
 
-/* 借用封面墙那套：浮层定位与 scrim 已经在那边配过，文字色用 --fg-on-accent
-   保证压在任何底图上都读得清 */
 .detail-char-foot {
   position: absolute;
   inset-inline: 0;
@@ -392,8 +364,6 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-050);
-  /* 上内边距大于下内边距：--cover-scrim 的深色段在浮层下方，上留厚一点才
-     能把两行文字推进深色区，均分会让名字顶部落在近乎透明的一段 */
   padding: var(--space-6) var(--space-3) var(--space-3);
   background: var(--cover-scrim);
 }
@@ -454,7 +424,6 @@
   color: var(--fg-muted);
 }
 
-/* 属性与 trait 分组共用表格式布局：标题列定宽，长值列吃剩余宽度 */
 .detail-char-facts,
 .detail-char-traits {
   display: grid;
@@ -481,7 +450,6 @@
   user-select: text;
 }
 
-/* 简介是连续散文，铺满整宽时一行长到读不回行首 */
 .detail-char-desc {
   max-width: 65ch;
   font-size: var(--text-sm);

@@ -36,8 +36,6 @@
   const selected = $derived(characters.find((c) => c.id === selectedId) ?? null);
   const selectedIndex = $derived(characters.findIndex((c) => c.id === selectedId));
 
-  // 只在「角色列表变化」时回选——加载/增删/保存回填都算——用 untrack 让它只依赖
-  // characters、不追踪 selectedId，这样用户手动点开/收起选中状态不会被这里抢回。
   $effect(() => {
     const ids = characters.map((c) => c.id);
     untrack(() => {
@@ -52,9 +50,6 @@
     });
   });
 
-  // 卡片条是一屏整数张的分页布局，改这个卡宽要看 lib/scroll-dots.svelte.js 的列数口径：
-  // 渲染宽是 hscroll 弹性均分的结果，不恒等于这里的基准值。
-  // 圆点数要算上末尾那张添加卡：它是滚动条里最后一个元素，不计的话最后一屏跳不过去
   $effect(() => {
     if (!scrollEl || !dotsHostEl) return;
     return initScrollDots({
@@ -64,7 +59,6 @@
     });
   });
 
-  // 立绘走封面那条 coverSrc 管线：缩图与 asset 协议授权都在那边做过了
   $effect(() => {
     let live = true;
     for (const character of characters) {
@@ -493,8 +487,6 @@
 </section>
 
 <style>
-  /* 这里的 180px 只是决定每屏几张的门槛，渲染宽由 hscroll 均分、不恒等于它。
-     表单封面预览取同一均分式，改一边要跟着改另一边，否则两边不等大 */
   .char-strip {
     --card-w: 180px;
     padding-bottom: var(--space-2);
@@ -543,13 +535,11 @@
     border-color: var(--border-strong);
   }
 
-  /* 展开态只换配色：改尺寸会触发分页重算，一屏张数会跟着变 */
   .char-card.expanded {
     border-color: var(--border-strong);
     background: var(--bg-raised);
   }
 
-  /* 末尾的添加卡：混在滚动条里，与角色卡同宽同高（复用 208/300 比例） */
   .char-card--add {
     align-items: center;
     justify-content: center;
@@ -581,8 +571,6 @@
     font-weight: var(--fw-medium);
   }
 
-  /* 立绘保留原始比例不裁，名字压在图底的 scrim 上——叠字不占额外的高度条。
-     卡片自身 overflow: hidden 会把浮层的两个底角圆回来 */
   .char-card-art {
     aspect-ratio: 208 / 300;
     background: var(--bg-page);
@@ -593,11 +581,9 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* 用户自选的图未必是 208/300，裁的时候保头不保脚 */
     object-position: top;
   }
 
-  /* 无立绘时空图位用角色名占位，省下的高度留给图本身 */
   .char-card-ph {
     display: flex;
     align-items: center;
@@ -612,8 +598,6 @@
     word-break: break-word;
   }
 
-  /* 借用封面墙那套：浮层定位与 scrim 已经在那边配过，文字色用 --fg-on-accent
-     保证压在任何底图上都读得清 */
   .char-card-foot {
     position: absolute;
     inset-inline: 0;
@@ -636,7 +620,6 @@
     color: var(--fg-on-accent);
   }
 
-  /* 立绘只在卡片上显示，面板里只放操作条 + 全宽表单 */
   .char-panel {
     display: flex;
     flex-direction: column;

@@ -12,8 +12,6 @@
     children,
   } = $props();
 
-  // pointer-events 挡不住 Tab，键盘仍会走到背景里，所以用 inert。
-  // 弹窗挂 #modal-root 与 #app 平级，只屏蔽背景不影响弹窗内交互。
   $effect(() => {
     const app = document.getElementById('app');
     if (!app) return;
@@ -23,7 +21,6 @@
     };
   });
 
-  // onclose 返回 false 可否决关闭，用于「保存中不许关」这类拦截
   function close() {
     if (onclose?.() === false) return;
     open = false;

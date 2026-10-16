@@ -1,5 +1,4 @@
 <script>
-  /** 状态分区容器：组头 + 网格 */
   let { label, count, items, children } = $props();
 </script>
 

@@ -1,5 +1,4 @@
 <script>
-  /** items 为 { label, onclick } 列表；variant: btn = .btn.btn-ghost，plain = 浮在内容上的裸图标 */
   let { items = [], label, variant = 'btn', open = $bindable(false) } = $props();
 </script>
 
@@ -12,7 +11,6 @@
     aria-label={label}
     onclick={() => (open = !open)}
     onblur={(e) => {
-      // 焦点整个移出菜单才关，点菜单项时 blur 先于 click 触发
       if (!e.currentTarget.parentElement.contains(e.relatedTarget)) open = false;
     }}
   >

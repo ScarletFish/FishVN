@@ -1,6 +1,3 @@
-// 全局提示气泡。替代原生 title。
-// 用法：任意元素加 data-tooltip="文本"，hover 显示。
-// 副作用模块：import 一次即生效。
 
 const SHOW_DELAY = 500;
 const HIDE_DELAY = 80;

@@ -1,11 +1,5 @@
-/* 水平滚动分页基建 · 布局契约
-   .hscroll-section 是分页滚动容器，.hscroll-card 是容器内卡片。两者的卡宽公式
-   与 lib/scroll-dots.svelte.js 的列数计算同源：JS 按 --card-w + 容器宽算整数
-   列数写回 --cols，CSS 据此把容器宽均分成 --cols 份，每屏恰好整数张完整卡片。
-   两者不同源会导致「圆点数对不上实际能放几张」，改任一侧都要同步另一侧。 */
 
 .hscroll-section {
-  /* 基准卡宽（档位门槛，不是实际渲染宽）；各分区按需覆盖 */
   --card-w: 320px;
   --cols: 4;
   display: flex;

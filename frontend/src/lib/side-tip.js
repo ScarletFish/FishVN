@@ -1,5 +1,3 @@
-// 用法：<button data-tip="库" use:sideTip>
-// 与 lib/tooltip.js 的全局气泡并存：定位与外观不同，互不干扰。
 
 const SHOW_DELAY = 400;
 const HIDE_DELAY = 120;

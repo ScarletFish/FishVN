@@ -1,9 +1,3 @@
-/** 角色的表单草稿与后端 payload 互转。
- *
- * 草稿里留着 `source`（原样取回的那一行），保存时铺在最前面、只覆盖表单里
- * 露出的那些字段 —— 本地编辑不露出来的 traits / 三围 / 生日等要靠它原样带回去，
- * 否则用户改一次名字就把 VNDB 同步来的考据数据抹了。
- */
 
 import { toInteger } from './form-metadata.js';
 
@@ -37,7 +31,6 @@ export function blankCharacter() {
   };
 }
 
-/** 性别在 VNDB 是按 release 逐条给的数组，这里只暴露一个值给用户选 */
 export function toDraft(row = {}) {
   return {
     id: row.id ?? newLocalId(),
@@ -87,12 +80,10 @@ export function blankVa() {
   return { key: newLocalId(), staffId: newLocalId(), name: '', note: '' };
 }
 
-/** 卡片名优先级与详情页一致：原名在前 */
 export function displayName(draft) {
   return (draft.original ?? '').trim() || (draft.name ?? '').trim();
 }
 
-/** 无名角色存进去会占掉一个名字，撞上按角色名比对同名的 VNDB 同步 */
 function isUnnamed(draft) {
   return !displayName(draft);
 }
@@ -101,7 +92,6 @@ export function namedOnly(list) {
   return list.filter((draft) => !isUnnamed(draft));
 }
 
-/** 顺序是角色的唯一真相，不另存序号 */
 export function moveCharacters(list, index, delta) {
   const target = index + delta;
   if (target < 0 || target >= list.length) return list;

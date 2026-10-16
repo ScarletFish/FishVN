@@ -1,7 +1,3 @@
-// 死 CSS 检查：类在 .svelte 的 class 属性、JS 字符串、或与其他类组成复合选择器里出现，都算有引用。
-// 库注入的类名（如 overlayscrollbars 的 os-*）在 markup 里找不到字面量，只能靠复合选择器那条路兜住。
-//
-// 只警告不报错：先写样式后写 markup 是常见顺序，开发中途红会让人养成无视输出的习惯。
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +16,6 @@ function walk(dir, out = []) {
   return out;
 }
 
-/** 注释里的类名不是声明、@import 里的文件名也不是，照原样抽会把它们算成死 CSS */
 function stripNonSelectors(css) {
   return css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@import[^;]+;/g, '');
 }
@@ -39,7 +34,6 @@ for (const file of cssFiles) {
     if (!defined.has(m[1])) defined.set(m[1], file);
   }
 
-  // 复合选择器里每个类都算彼此的引用，:has() 的参数也一样
   for (const m of css.matchAll(/([^{}]+)\{/g)) {
     const inSel = [...m[1].matchAll(CLASS_RE)].map((x) => x[1]);
     for (let i = 0; i < inSel.length; i++) {
@@ -55,15 +49,12 @@ for (const file of codeFiles) {
   for (const m of code.matchAll(/class[:=]\s*"([^"]*)"/g)) {
     for (const w of m[1].split(/\s+/)) if (w) referenced.add(w);
   }
-  // class:is-open={open} 的指令名本身就是类名
   for (const m of code.matchAll(/class:([\w-]+)/g)) referenced.add(m[1]);
-  // class={cond ? 'a' : 'b'} 从表达式里取引号字面量
   for (const m of code.matchAll(/class=\{([^}]*)\}/g)) {
     for (const q of m[1].matchAll(/['"]([^'"]+)['"]/g)) {
       for (const w of q[1].split(/\s+/)) if (w) referenced.add(w);
     }
   }
-  // 组件从别的属性收类名，如 <Modal variant="modal--merge">
   for (const m of code.matchAll(/\bvariant="([^"]+)"/g)) referenced.add(m[1]);
   for (const m of code.matchAll(/'([^'\n]+)'/g)) referenced.add(m[1]);
   for (const m of code.matchAll(/`([^`\n]+)`/g)) {

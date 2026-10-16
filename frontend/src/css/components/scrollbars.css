@@ -1,19 +1,11 @@
-/* overlayscrollbars 的外观：尺寸与色值全部走我们的 token。
-   theme 参数只能选库内置的 dark/light/none，它们只负责提供结构属性，
-   这里把结构与颜色一起覆盖掉，不依赖内置主题的具体取值。
-
-   竖带宽度即 --scrollbar-size-hover，手柄常态 --scrollbar-size，
-   指针进入竖带时加粗到竖带宽度。侧向与轴向 padding 归零让手柄贴住窗口四边。 */
 .os-scrollbar {
   --os-padding-perpendicular: 0;
   --os-padding-axis: 0;
   --os-size: var(--scrollbar-size-hover);
   --os-track-border-radius: var(--radius-pill);
   --os-handle-border-radius: var(--radius-pill);
-  /* 手柄贴右缘、比竖带窄，offset 补上差值后抓取区正好等于整条竖带 */
   --os-handle-interactive-area-offset: calc(var(--scrollbar-size-hover) - var(--scrollbar-size));
 
-  /* transition 不是叠加而是整体替换，位置项要一并列出，否则手柄跟随滚动会瞬移 */
   transition:
     opacity var(--duration-normal) var(--ease-out),
     visibility var(--duration-normal) var(--ease-out),
@@ -22,7 +14,6 @@
     bottom var(--duration-fast) var(--ease-out),
     left var(--duration-fast) var(--ease-out);
 
-  /* autoHide: 'never'，显隐由 lib/scrollbars.js 的 is-visible 控制 */
   opacity: 0;
 }
 
@@ -30,7 +21,6 @@
   opacity: 1;
 }
 
-/* 库给纵向滚动条底部内缩一个 --os-size 给横向滚动条让位；纵向只有一条，铺满到底 */
 .os-scrollbar.os-scrollbar-vertical {
   bottom: 0;
 }
@@ -42,8 +32,6 @@
   --os-track-border: transparent;
 }
 
-/* 三个宽度都要写：库的 :hover 与 :active 默认会改宽度，
-   不钉死的话加粗就不只由 is-edge 一个来源触发 */
 .os-scrollbar .os-scrollbar-handle {
   --os-handle-perpendicular-size: var(--scrollbar-size);
   --os-handle-perpendicular-size-hover: var(--scrollbar-size);
@@ -53,22 +41,16 @@
   --os-handle-bg-active: var(--scrollbar-thumb);
   --os-handle-border: transparent;
 
-  /* 加粗比淡入跟手，用快时长 */
   transition:
     width var(--duration-fast) var(--ease-out),
     opacity var(--duration-normal) var(--ease-out);
 }
 
-/* 手柄已占满竖带，offset 归零，抓取区保持整条竖带 */
 .os-scrollbar.is-edge .os-scrollbar-handle {
   width: var(--scrollbar-size-hover);
   --os-handle-interactive-area-offset: 0;
 }
 
-/* 原生细滚动条：弹窗内嵌的小滚动区（标签框、简介 textarea 等）用它。
-   只走标准属性 scrollbar-width / scrollbar-color：Chromium 设了标准属性就禁用
-   ::-webkit-scrollbar-*，两套混用会静默失效。平时全透明，移入元素才显色。
-   要挂在真正 overflow-y: auto 的元素上，套一层外壳就断高度约束 */
 .scroll-thin {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
@@ -78,15 +60,7 @@
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-/* 三类滚动条分工：
-   - 主视图 / 详情页（useScrollbars）：「贴右缘加粗」的边缘悬停反馈，
-     显隐由 lib/scrollbars.js 的 watchRightEdge 加 .is-visible 控制。
-   - 弹窗表单（attachScrollbars + .scroll-form）：整块 hover 的「移入才显示」，
-     overlay 浮层不占布局位置。不挂 watchRightEdge——那套 edge/inside 判定
-     在弹窗里会把滚动条卡在加粗态回不去，加粗反馈只保留在主视图。
-   - 内嵌小滚动区（.scroll-thin）：原生细条，见上。 */
 
-/* 移入表单才显示，移出即隐藏 */
 .scroll-form:hover .os-scrollbar {
   opacity: 1;
 }

@@ -64,7 +64,6 @@
 }
 
 .nav-btn svg {
-  /* stroke-width 与尺寸绑定：图标放大后线条会相对变细 */
   width: 1.375rem;
   height: 1.375rem;
   stroke: currentColor;
@@ -79,7 +78,6 @@
   color: var(--accent);
 }
 
-/* .active:hover 必须一起清，否则悬停时半透明底色会回来 */
 .nav-btn.active,
 .nav-btn.active:hover {
   color: var(--accent);
@@ -126,7 +124,6 @@
   box-shadow: var(--shadow-raised);
 }
 
-/* 箭头：旋转 45° 的小方块，与气泡同底同描边 */
 .sidebar-tooltip-arrow {
   position: absolute;
   left: -5px;

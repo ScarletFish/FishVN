@@ -47,7 +47,6 @@
     };
   });
 
-  // 立绘走封面那条 coverSrc 管线：缩图与 asset 协议授权都在那边做过了
   $effect(() => {
     let live = true;
     for (const character of characters) {
@@ -86,7 +85,6 @@
     });
   });
 
-  // 缺失词条回落 key 会显示成 detail.xxx，靠它区分并保留原文
   const localized = (key, fallback) => {
     const v = t(key);
     return v === key ? fallback : v;

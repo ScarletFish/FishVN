@@ -13,7 +13,6 @@
     if (open) picked = new Set(rows.map((row) => row.key));
   });
 
-  // 立绘走封面那条 coverSrc 管线，两侧一起预取；面板关掉时结果作废
   $effect(() => {
     const paths = rows.map((row) => [row.current?.image_path, row.incoming?.image_path]);
     let live = true;

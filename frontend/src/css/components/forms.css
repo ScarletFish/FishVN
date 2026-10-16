@@ -33,8 +33,6 @@
   border-color: var(--border-strong);
 }
 
-/* 左缘竖条：常态中性灰，行内开关勾选后转 accent。
-   左侧 padding 必须比右侧窄，竖条才贴得住边 */
 .form-row::before {
   content: '';
   position: absolute;
@@ -78,7 +76,6 @@
     box-shadow var(--duration-fast) var(--ease-out);
 }
 
-/* :focus-visible 要清 outline，否则键盘 Tab 时会套上全局那圈重环 */
 .form-group input:hover,
 .form-group select:hover,
 .form-group textarea:hover,
@@ -122,7 +119,6 @@
   color: var(--accent);
 }
 
-/* 中间用文本输入框而非 number：number 的原生微调与页面滚动、方向键冲突 */
 .num-stepper {
   display: flex;
   align-items: center;

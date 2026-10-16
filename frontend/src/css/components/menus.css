@@ -1,4 +1,3 @@
-/* 菜单留在触发器的层叠上下文里，不移出 DOM */
 
 .menu {
   position: relative;
@@ -9,7 +8,6 @@
   padding-inline: var(--space-2);
 }
 
-/* .btn svg 是按描边线性图标定的（15px、fill:none），这组实心点要自己定尺 */
 .menu .menu__trigger svg {
   width: 18px;
   height: 18px;
@@ -17,7 +15,6 @@
   stroke: none;
 }
 
-/* 裸图标变体浮在内容图上，必须自带底色才读得出图标 */
 .menu[data-variant='plain'] .menu__trigger {
   display: inline-flex;
   align-items: center;

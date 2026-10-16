@@ -1,5 +1,3 @@
-/* 开合用 is-open 类切换，不做 portal —— 菜单与触发器同处一个层叠上下文，
-   走 portal 会与弹窗遮罩的 z-index 打架 */
 
 .select-dd {
   position: relative;

@@ -137,25 +137,29 @@
 
 | 状态 | 来源 | 条目 |
 |---|---|---|
-| [ ] | `Modal.svelte:15` + `portal.js:1` + `modal.css:8` / `83` / `92` | 弹窗基建：inert 挡 Tab；#modal-root 与 #app 平级；#globalTooltip 一起屏蔽；面板常驻 DOM 切 display；tab 栏不进滚动容器 |
-| [ ] | `GameForm.svelte:74` / `118` | 弹窗关闭不卸载：字段要重置；实例随 open 挂与销毁 |
-| [ ] | `GameForm.svelte:117` + `scrollbars.js:3/6/21/34/155/190` + `scrollbars.css:16/33/45` | 滚动条方案全套：覆盖式不占布局宽；插件注册；autoHide never；只记主视图；弹窗不挂 watchRightEdge；离窗清状态；transition 整体替换要列全位置项 |
-| [ ] | `scroll-dots.svelte.js:1-5` + `hscroll.css:1` + `CharacterEditor.svelte:55` + `detail.css:307` | 布局契约一处写全：--card-w / --cols 纯函数计算；基准卡宽是档位门槛 |
-| [ ] | `confirm.svelte.js:4` | 用 .svelte.js 后缀：要 $state，.js 里编译不了 rune |
-| [ ] | `toast.svelte.js:1` / `7` / `64` | 渲染在 Toaster.svelte；计时器簿记不进 $state；暂停手动记剩余时长 |
-| [ ] | `vndb-search.svelte.js:24` / `32` / `46` | 换词先清空；错误不走 i18n；返回 getter 不返回 $state 本体 |
-| [ ] | `Menu.svelte:15` | blur 先于 click：焦点整个移出才关 |
-| [ ] | `GameCard.svelte:52` | 可点区域独立真按钮，与菜单互为兄弟 |
-| [ ] | `tooltip.js:1` + `side-tip.js:1` | 全局气泡替代 title；sideTip 与之并存 |
-| [ ] | `i18n.js:1` + `DetailCharacters.svelte:96` | 缺失词条回落 key 保留原文 |
-| [ ] | `theme.js:1` | 内联脚本与 JS 两侧判断必须一致 |
-| [ ] | `Detail.svelte:92` | 鼠标侧键 3 = 后退，4 不接 |
-| [ ] | `MyList.svelte:22` | 先落 gameId 再 open 的同帧时序 |
-| [ ] | CSS 样式坑 ~25 条 | `toggle.css:1/19`、`detail.css:1/79/104/114/168/231/255/334/340`、`cover-grid.css:21/26` + `menus.css:1`、`dropdowns.css:1`、`forms.css:81/125`、`buttons.css:22/85`、`sidebar.css:67/82`、`tags.css:1/118` |
-| [ ] | CSS 未列出的坑 | `detail.css` 10 条、`scrollbars.css` 8 条、`modal.css` 4 条、`vn-merge.css` 2 条、`menus.css:12/20`、`shell.css:1`、`forms.css:36`、`tags.css:31`、`toast.css:48`、`sidebar.css:129`、`tooltip.css:31` —— 与上一行合并成一份「样式坑集」 |
-| [ ] | `frontend/scripts/check-css-tokens.js` / `check-dead-css.js` | 两个检查脚本的规则自述：三层架构与 L2 禁裸色值、只警告不报错的理由、复合选择器与 class 指令的判定 |
-| [ ] | `char-merge.js:7/10/16/27/65` + `vn-merge.js:15/21/30` + `characters.js:1-6/40/90/95/104` | lib 的比对契约：空值两边归一、空值只与空值判等（0 是真实取值）、集合语义顺序无关、卡片名优先级、无名角色占掉一个名字 —— 归一份「前端 lib 惯例」 |
-| [ ] | `Modal.svelte:26` + `GameForm.svelte:392` + `DetailCharacters.svelte:51` + `CharacterMergeDialog.svelte:16` + `CharacterEditor.svelte:39` + `Detail.svelte:56` | 零散惯例：onclose 可否决；后端与网络错误不走 i18n；立绘走 coverSrc 管线；untrack 只依赖角色列表 |
+| [x] | `Modal.svelte:15` + `portal.js:1` + `modal.css:8` / `83` / `92` | 弹窗基建：inert 挡 Tab；#modal-root 与 #app 平级；#globalTooltip 一起屏蔽；面板常驻 DOM 切 display；tab 栏不进滚动容器 |
+| [x] | `GameForm.svelte:74` / `118` | 弹窗关闭不卸载：字段要重置；实例随 open 挂与销毁 |
+| [x] | `GameForm.svelte:117` + `scrollbars.js:3/6/21/34/155/190` + `scrollbars.css:16/33/45` | 滚动条方案全套：覆盖式不占布局宽；插件注册；autoHide never；只记主视图；弹窗不挂 watchRightEdge；离窗清状态；transition 整体替换要列全位置项 |
+| [x] | `scroll-dots.svelte.js:1-5` + `hscroll.css:1` + `CharacterEditor.svelte:55` + `detail.css:307` | 布局契约一处写全：--card-w / --cols 纯函数计算；基准卡宽是档位门槛 |
+| [x] | `confirm.svelte.js:4` | 用 .svelte.js 后缀：要 $state，.js 里编译不了 rune |
+| [x] | `toast.svelte.js:1` / `7` / `64` | 渲染在 Toaster.svelte；计时器簿记不进 $state；暂停手动记剩余时长 |
+| [x] | `vndb-search.svelte.js:24` / `32` / `46` | 换词先清空；错误不走 i18n；返回 getter 不返回 $state 本体 |
+| [x] | `Menu.svelte:15` | blur 先于 click：焦点整个移出才关 |
+| [x] | `GameCard.svelte:52` | 可点区域独立真按钮，与菜单互为兄弟 |
+| [x] | `tooltip.js:1` + `side-tip.js:1` | 全局气泡替代 title；sideTip 与之并存 |
+| [x] | `i18n.js:1` + `DetailCharacters.svelte:96` | 缺失词条回落 key 保留原文 |
+| [x] | `theme.js:1` | 内联脚本与 JS 两侧判断必须一致 |
+| [x] | `Detail.svelte:92` | 鼠标侧键 3 = 后退，4 不接 |
+| [x] | `MyList.svelte:22` | 先落 gameId 再 open 的同帧时序 |
+| [x] | CSS 样式坑 ~25 条 | `toggle.css:1/19`、`detail.css:1/79/104/114/168/231/255/334/340`、`cover-grid.css:21/26` + `menus.css:1`、`dropdowns.css:1`、`forms.css:81/125`、`buttons.css:22/85`、`sidebar.css:67/82`、`tags.css:1/118` |
+| [x] | CSS 未列出的坑 | `detail.css` 10 条、`scrollbars.css` 8 条、`modal.css` 4 条、`vn-merge.css` 2 条、`menus.css:12/20`、`shell.css:1`、`forms.css:36`、`tags.css:31`、`toast.css:48`、`sidebar.css:129`、`tooltip.css:31` —— 与上一行合并成一份「样式坑集」 |
+| [x] | `frontend/scripts/check-css-tokens.js` / `check-dead-css.js` | 两个检查脚本的规则自述：三层架构与 L2 禁裸色值、只警告不报错的理由、复合选择器与 class 指令的判定 |
+| [x] | `char-merge.js:7/10/16/27/65` + `vn-merge.js:15/21/30` + `characters.js:1-6/40/90/95/104` | lib 的比对契约：空值两边归一、空值只与空值判等（0 是真实取值）、集合语义顺序无关、卡片名优先级、无名角色占掉一个名字 —— 归一份「前端 lib 惯例」 |
+| [x] | `Modal.svelte:26` + `GameForm.svelte:392` + `DetailCharacters.svelte:51` + `CharacterMergeDialog.svelte:16` + `CharacterEditor.svelte:39` + `Detail.svelte:56` | 零散惯例：onclose 可否决；后端与网络错误不走 i18n；立绘走 coverSrc 管线；untrack 只依赖角色列表 |
+
+本批已提交：`docs: 把前端惯例与样式坑集搬进 frontend.md，删掉对应注释`。frontend.md 新增「检查器的判定范围」「弹窗」「滚动条」「水平分页」「组件与交互惯例」「前端 lib 的比对契约」「样式坑集」七节。
+
+只删不搬的几条（已有文档兜底或纯复述）：`pick-path.js:4`（avif / gif 的理由已在 backend.md「收图格式两份清单要手动对齐」）、`cover-grid.css:1`（规格在 grid-layout.md）、`scroll-dots.css:1`、`tooltip.css:1/31`、`GameCard.svelte:2`、`StatusSection.svelte:2`、`sidebar.css:129`、`detail.css:160`（部分）、`check-*.js` 的函数级注释。
 
 ## → 删（复述类残留，未执行）
 
@@ -163,9 +167,11 @@
 
 | 状态 | 范围 | 说明 |
 |---|---|---|
-| [ ] | 组件 props 一行说明 | `Menu.svelte:2`、`StatusSection.svelte:2`、`GameCard.svelte:2` —— 与类型签名重复 |
-| [ ] | JSDoc 的参数表与返回值 | `scroll-dots.svelte.js:7-12/27-35`、`toast.svelte.js:20-26`、`confirm.svelte.js:16-23` —— 签名自明，其中「为什么」的部分归 frontend.md |
-| [ ] | 复述实现的一行 doc | `scroll-dots.svelte.js:22`、`vn-merge.js:76/86/97` 等 |
+| [x] | 组件 props 一行说明 | `Menu.svelte:2`、`StatusSection.svelte:2`、`GameCard.svelte:2` —— 与类型签名重复 |
+| [x] | JSDoc 的参数表与返回值 | `scroll-dots.svelte.js:7-12/27-35`、`toast.svelte.js:20-26`、`confirm.svelte.js:16-23` —— 签名自明，其中「为什么」的部分归 frontend.md |
+| [x] | 复述实现的一行 doc | `scroll-dots.svelte.js:22`、`vn-merge.js:76/86/97` 等 |
+
+本批一并删掉，无需文档承接。
 
 ## → 删（复述、标准知识、重复、工具指令）— 已执行
 

@@ -1,4 +1,3 @@
-/** 表单字段的字符串处理：输入清洗、提交前校验、→ 后端 payload 的映射。 */
 
 export function toNumber(raw) {
   const text = raw.trim();

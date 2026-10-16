@@ -45,7 +45,6 @@
   bottom: var(--space-6);
   right: var(--space-6);
   display: flex;
-  /* column-reverse：新通知插在最底部，不推开已有的 */
   flex-direction: column-reverse;
   gap: var(--space-2);
   z-index: var(--z-toast);

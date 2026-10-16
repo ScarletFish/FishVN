@@ -1,5 +1,3 @@
-/* 水平滚动分页基建 · 圆点指示器
-   供任意水平滚动 section 复用（角色区等）。列数与卡宽的均分契约见 .hscroll-section。 */
 
 .scroll-dots {
   display: flex;

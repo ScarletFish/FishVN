@@ -1,4 +1,3 @@
-/* 输入框必须在容器内、跟在芯片后面：放到容器外 placeholder 会把容器撑宽 */
 .tag-input {
   display: flex;
   flex-wrap: wrap;
@@ -28,7 +27,6 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* 输入框吃掉剩余宽度，最小宽度保证空标签时也能点进去打字 */
 .tag-input__new {
   margin-top: var(--space-2);
 }
@@ -115,8 +113,6 @@
 
 .cover-field__preview {
   flex-shrink: 0;
-  /* 取与 hscroll 卡同一均分式，改一边要跟着改另一边：
-     写成固定宽度就会随旁窗开合与角色卡不同宽 */
   width: calc((100% - var(--space-4) * 3) / 4);
   aspect-ratio: 208 / 300;
   overflow: hidden;

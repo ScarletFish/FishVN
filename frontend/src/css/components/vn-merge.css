@@ -1,4 +1,3 @@
-/* VNDB 同步的逐字段取舍：左列现值、右列新值，各自带一个圆点切采用哪边 */
 
 .vn-merge__head {
   display: grid;
@@ -60,7 +59,6 @@
   color: var(--fg-default);
 }
 
-/* 角色行的标签列装的是名字，比字段名长；栅格与作品级一致，靠折行消化宽度 */
 .vn-merge__row--char .vn-merge__label {
   overflow-wrap: anywhere;
 }

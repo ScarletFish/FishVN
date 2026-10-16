@@ -1,12 +1,3 @@
-// FishVN CSS token 检查 —— 强制 tokens.css 三层架构的纪律
-//
-//   1. var(--x) 必须已在 tokens.css 定义
-//   2. 组件只能引用 L2 语义槽 / L3 尺度；引用 L1 原始值即报错
-//      （组件直连原始色值 = 换主题时该组件不会跟着变，三层架构当场失效）
-//   3. L2 块内禁止裸色值（hex / rgb() / hsl()），只能引用 L1 或用 color-mix() 合成
-//   4. 组件 CSS 与 Svelte <style> 内禁止裸色值
-//
-// 已知缺口（待有组件后补）：间距/字号的写死值尚未检查，因为还没有可校准的组件样本。
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,8 +10,6 @@ const SECTION_MARKER = /===\s*L([123])\b/;
 const DEF_RE = /(--[a-zA-Z0-9_-]+)\s*:/g;
 const USE_RE = /var\(\s*(--[a-zA-Z0-9_-]+)/g;
 const RAW_COLOR_RE = /#[0-9a-fA-F]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\(/;
-// mask 渐变只读 alpha，颜色分量按规范无意义（black / transparent / rgb(0 0 0 / 50%)），
-// 不存在「该连哪个语义槽」的问题，不算裸色值。整条声明剥掉后再查，保留换行以免行号错位。
 const MASK_DECL_RE = /(^|[\s;])(-webkit-)?mask(-image)?\s*:[^;{}]*;?/g;
 const stripMaskDecls = (code) => code.replace(MASK_DECL_RE, (m) => m.replace(/[^\n]/g, ' '));
 
@@ -51,7 +40,6 @@ function parseTokens() {
   return { lines, defs, l2Ranges };
 }
 
-/** 逐行校验一段 CSS：var 引用必须已定义且不得指向 L1；禁止裸色值。 */
 function checkSnippet(file, baseLine, code, defs) {
   const stripped = stripMaskDecls(code).split(/\r?\n/);
   code.split(/\r?\n/).forEach((raw, i) => {
@@ -81,7 +69,6 @@ function walk(dir, ext, out = []) {
 
 const { lines, defs, l2Ranges } = parseTokens();
 
-// 规则 3：L2 块内的裸色值
 for (const [start, end] of l2Ranges) {
   for (let n = start; n <= end; n++) {
     const raw = lines[n - 1];

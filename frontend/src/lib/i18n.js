@@ -1,5 +1,3 @@
-// i18n — 词条按命名空间组织，缺失时回落key（便于一眼看出漏译）。
-// locale 跟随系统语言，只在已登记语言中匹配，否则用 fallback。
 
 import { DICT_ZH } from './i18n-zh.js';
 

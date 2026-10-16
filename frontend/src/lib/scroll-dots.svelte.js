@@ -1,15 +1,4 @@
-// 水平滚动分页圆点指示器
-// 布局模型：容器上写 --card-w（基准卡宽）与 --cols（整数列数，本模块按
-// 基准 + 容器宽 纯函数计算并写回），卡片用 calc 弹性均分，每屏恰好整数张、
-// 铺满无空隙。不量测任何渲染尺寸、无时序耦合：隐藏/显示的先后顺序不影响结果，
-// 窗口尺寸一变（ResizeObserver）即重算。
 
-/**
- * 纯函数：按基准卡宽 + 容器宽算整数列数。与容器上 --cols 的 calc 均分契约同源。
- * @param {HTMLElement} el - 横向滚动容器
- * @param {{baselineW?: number, gap?: number}} [opts] - baselineW 取容器 --card-w，gap 为卡间距
- * @returns {number} 整数列数
- */
 export function computeColsFor(el, { baselineW = 320, gap } = {}) {
   const cs = getComputedStyle(el);
   const g = gap ?? (parseFloat(cs.gap) || parseFloat(cs.columnGap) || 12);
@@ -19,20 +8,10 @@ export function computeColsFor(el, { baselineW = 320, gap } = {}) {
   return Math.max(1, Math.floor((contentW + g) / (baselineW + g)));
 }
 
-/** 每张卡的渲染宽按列数均分容器，滚动步长再加一个卡间距 */
 export function cardStep(contentW, cols, gap) {
   return (contentW - gap * (cols - 1)) / cols + gap;
 }
 
-/**
- * 为水平滚动容器初始化分页圆点。
- * @param {object} opts
- * @param {HTMLElement} opts.scroll - 水平滚动容器
- * @param {number} opts.total - 卡片总数
- * @param {HTMLElement} opts.dotsParent - 放圆点的父元素（section 头部）
- * @param {number} [opts.initialIndex] - 初始滚动到的索引
- * @returns {() => void} 解绑函数（移除 scroll/resize 监听与圆点节点）
- */
 export function initScrollDots({ scroll, total, dotsParent, initialIndex }) {
   if (!scroll || !dotsParent || total === 0) return () => {};
 

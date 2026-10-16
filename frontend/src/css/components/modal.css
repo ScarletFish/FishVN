@@ -1,7 +1,6 @@
 body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip) {
   filter: blur(16px) saturate(150%);
 }
-/* #globalTooltip 也挂在 body 上，且靠 opacity 显隐，不能一起模糊 */
 
 .modal-overlay {
   position: fixed;
@@ -62,7 +61,6 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   background: var(--accent);
 }
 
-/* form 只做提交，视觉布局交给 .modal 的 flex 列，这层把面板与操作区接起来 */
 .form-panel {
   display: flex;
   flex-direction: column;
@@ -70,13 +68,11 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   min-height: 0;
 }
 
-/* 外壳固定件不参与收缩，视口不足时只有 modal-panels 滚动 */
 .modal-header {
   padding: var(--space-6) var(--space-6) 0;
   flex-shrink: 0;
 }
 
-/* 面板常驻 DOM 只切 display，条件渲染会让切 tab 时已填内容丢失 */
 .modal-panels {
   position: relative;
   flex: 1 1 auto;
@@ -85,7 +81,6 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   overflow-y: auto;
 }
 
-/* tab 栏不能放进 .modal-panels（它是滚动容器，会连标签一起滚走） */
 .modal-tabs {
   display: flex;
   flex-shrink: 0;
@@ -171,7 +166,6 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   border-top: none;
 }
 
-/* 确认框文案长度固定，不会溢出 */
 .modal-panels--static {
   overflow-y: hidden;
 }
@@ -209,8 +203,6 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   max-height: calc(100vh - var(--space-6) * 2);
 }
 
-/* 并排双窗：一个遮罩里放两个 .modal，旁窗加出来、主窗不让位。
-   不设 min-width（会先撑破遮罩），不能加 flex-wrap（换行就不再并排） */
 .modal-overlay--split {
   gap: var(--space-5);
   padding: var(--space-6);

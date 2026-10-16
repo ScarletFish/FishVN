@@ -18,7 +18,6 @@
   let formOpen = $state(false);
   let formGameId = $state(null);
 
-  // 打开前先落 gameId，GameForm 的 $effect 与 open 同一帧读到的是最终值
   function openForm(id) {
     formGameId = id;
     formOpen = true;

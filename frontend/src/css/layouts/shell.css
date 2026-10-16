@@ -1,4 +1,3 @@
-/* 高度链：body 定高 100vh → .shell 吃掉剩余 → .shell__main 内滚动 */
 
 .shell {
   display: flex;

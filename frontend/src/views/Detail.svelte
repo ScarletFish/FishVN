@@ -84,7 +84,6 @@
   });
 
   function handleSideMouse(e) {
-    // 3 = 鼠标后退侧键；4 是前进，不接
     if (e.button === 3) onclose?.();
   }
 </script>

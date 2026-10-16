@@ -75,7 +75,6 @@
   let panelsEl = $state(null);
   let panelsSb = null;
 
-  // 关闭时组件不卸载，字段要在这里重置
   $effect(() => {
     if (!open) return;
     name = '';
@@ -118,8 +117,6 @@
     tick().then(() => input?.focus());
   });
 
-  // 覆盖式滚动条浮在内容上、不占布局宽：占宽的话竖条一出现整排卡片就变窄。
-  // 弹窗关闭时组件不卸载，实例只能跟着 open 挂与销毁。
   $effect(() => {
     if (open && panelsEl && !panelsSb) {
       panelsSb = attachScrollbars(panelsEl);
@@ -345,7 +342,6 @@
 
     const rangeError = validateRanges();
     if (rangeError) {
-      // 保存按钮在 tab 面板之外，从基本信息页提交也要能看见资料数据那两处的报错
       tab = 'profile';
       return;
     }
@@ -385,7 +381,6 @@
       open = false;
       onsaved?.();
     } catch (err) {
-      // 后端与网络错误不走 i18n，原样显示
       toast(err.message, 'error');
     } finally {
       saving = false;
@@ -401,7 +396,6 @@
   asideTitle={t('gameForm.search.title')}
   onclose={close}
 >
-  <!-- form 只负责回车隐式提交，dialog 角色必须挂在非交互元素上 -->
   <form class="form-panel" onsubmit={submit}>
     <div class="modal-tabs" role="tablist">
       {#each TABS as key (key)}
@@ -862,7 +856,6 @@
     transition: opacity var(--duration-fast) var(--ease-out);
   }
 
-  /* 等待拉取时列表仍可读：请求回来直接进冲突面板，得留住用户点了哪一条 */
   .vndb-hits.is-pulling {
     opacity: 0.45;
   }
