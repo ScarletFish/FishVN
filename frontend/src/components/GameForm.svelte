@@ -64,6 +64,7 @@
   let pulling = $state(false);
   let syncProgress = $state(null);
   let syncCancelled = $state(false);
+  let syncNotice = $state('');
   let incoming = $state(null);
   let coverBroken = $state(false);
   let coverUrl = $state(null);
@@ -116,6 +117,7 @@
     pulling = false;
     syncProgress = null;
     syncCancelled = false;
+    syncNotice = '';
     search.reset();
     loading = Boolean(gameId);
     if (gameId) loadExisting(gameId);
@@ -273,6 +275,7 @@
     meta: 'gameForm.search.phaseMeta',
     characters: 'gameForm.search.phaseCharacters',
     images: 'gameForm.search.phaseImages',
+    cover: 'gameForm.search.phaseCover',
   };
 
   const pullText = $derived.by(() => {
@@ -292,11 +295,16 @@
     pulling = true;
     syncProgress = null;
     syncCancelled = false;
+    syncNotice = '';
     error = '';
     let off = null;
     try {
       off = await subscribe('vndb-sync', (event) => {
-        syncProgress = event;
+        if (event.error) {
+          syncNotice = event.error;
+        } else {
+          syncProgress = event;
+        }
       });
       incoming = await api.fetchVnMetadata(id);
       if (syncCancelled) {
@@ -798,6 +806,9 @@
                 style={pullRatio == null ? undefined : `width: ${pullRatio * 100}%`}
               ></span>
             </div>
+            {#if syncNotice}
+              <p class="vndb-note vndb-note--error">{syncNotice}</p>
+            {/if}
             <button type="button" class="btn vndb-pull-cancel" onclick={cancelSync} disabled={syncCancelled}>
               {t('common.cancel')}
             </button>

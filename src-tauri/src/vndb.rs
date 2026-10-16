@@ -309,11 +309,27 @@ pub async fn fetch_sync(
     }
     progress.report("meta", None, None);
     let (vn, rows) = tokio::join!(
-        fetch_vn(http, vndb_id, data_dir),
+        fetch_vn(http, vndb_id),
         fetch_character_rows(http, vndb_id)
     );
-    let vn = vn?;
+    let mut vn = vn?;
     let rows = rows?;
+    if progress.cancelled() {
+        return Err(AppError::Cancelled);
+    }
+    if let Some(img) = vn.image.as_mut() {
+        if img.url.is_some() && img.id.is_some() {
+            progress.report("cover", None, None);
+            if progress.cancelled() {
+                return Err(AppError::Cancelled);
+            }
+            img.local_path =
+                fetch_image(image_http(), img.url.as_deref(), img.id.as_deref(), data_dir).await;
+            if img.local_path.is_none() {
+                progress.report_error("cover", "封面下载失败，可稍后在详情页重新获取");
+            }
+        }
+    }
     if progress.cancelled() {
         return Err(AppError::Cancelled);
     }
@@ -325,7 +341,6 @@ pub async fn fetch_sync(
 async fn fetch_vn(
     http: &reqwest::Client,
     vndb_id: &str,
-    data_dir: &std::path::Path,
 ) -> Result<VnMetadata> {
     let body = json!({
         "filters": ["id", "=", vndb_id],
@@ -333,20 +348,11 @@ async fn fetch_vn(
         "results": 1,
     });
     let env: VnEnvelope<VnMetadata> = post(http, "vn", body).await?;
-    let mut vn = env
+    let vn = env
         .results
         .into_iter()
         .next()
         .ok_or_else(|| AppError::NotFound(format!("VNDB 没有这条记录：{vndb_id}")))?;
-    if let Some(img) = vn.image.as_mut() {
-        img.local_path = fetch_image(
-            image_http(),
-            img.url.as_deref(),
-            img.id.as_deref(),
-            data_dir,
-        )
-        .await;
-    }
     Ok(vn)
 }
 
@@ -457,6 +463,7 @@ async fn download_character_images(
     let data_dir = data_dir.to_path_buf();
     let total = jobs.len() as i64;
     let mut done = 0_i64;
+    let mut failed = 0_i64;
     let mut pending = jobs.into_iter();
     let mut set = tokio::task::JoinSet::new();
     if total > 0 {
@@ -466,8 +473,15 @@ async fn download_character_images(
         spawn_next_image(&mut set, &mut pending, &data_dir);
     }
     while let Some(finished) = set.join_next().await {
-        if let Ok((idx, path)) = finished {
-            chars[idx].image_path = path;
+        match finished {
+            Ok((idx, path)) => {
+                let missing = path.is_none();
+                chars[idx].image_path = path;
+                if missing {
+                    failed += 1;
+                }
+            }
+            Err(_) => failed += 1,
         }
         done += 1;
         progress.report("images", Some(done), Some(total));
@@ -476,6 +490,9 @@ async fn download_character_images(
             return Err(AppError::Cancelled);
         }
         spawn_next_image(&mut set, &mut pending, &data_dir);
+    }
+    if failed > 0 {
+        progress.report_error("images", &format!("{failed} 张角色立绘下载失败，已跳过"));
     }
     Ok(chars)
 }

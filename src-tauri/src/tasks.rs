@@ -48,6 +48,7 @@ impl EventLog {
 
 pub trait Progress: Sync {
     fn report(&self, phase: &str, done: Option<i64>, total: Option<i64>);
+    fn report_error(&self, phase: &str, message: &str);
     fn cancelled(&self) -> bool;
 }
 
@@ -83,6 +84,23 @@ impl Progress for Task {
                     phase: phase.to_owned(),
                     done,
                     total,
+                    error: None,
+                },
+            ),
+            Err(_) => return,
+        };
+        let _ = self.app.emit(&self.name, logged.event);
+    }
+
+    fn report_error(&self, phase: &str, message: &str) {
+        let logged = match self.log.lock() {
+            Ok(mut log) => log.push(
+                &self.name,
+                TaskEvent {
+                    phase: phase.to_owned(),
+                    done: None,
+                    total: None,
+                    error: Some(message.to_owned()),
                 },
             ),
             Err(_) => return,
@@ -136,6 +154,7 @@ mod tests {
             phase: phase.to_owned(),
             done: None,
             total: None,
+            error: None,
         }
     }
 

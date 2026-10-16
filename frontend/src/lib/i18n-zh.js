@@ -163,6 +163,7 @@ export const DICT_ZH = {
       phaseMeta: '拉取作品信息',
       phaseCharacters: '拉取角色列表',
       phaseImages: '下载角色立绘',
+      phaseCover: '下载封面',
     },
     merge: {
       title: '同步 VNDB 元数据',

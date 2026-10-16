@@ -18,6 +18,7 @@ fn push(log: &Mutex<EventLog>, phase: &str, done: Option<i64>, total: Option<i64
             phase: phase.to_owned(),
             done,
             total,
+            error: None,
         },
     );
 }

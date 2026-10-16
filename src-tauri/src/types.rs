@@ -221,4 +221,6 @@ pub struct TaskEvent {
     pub phase: String,
     pub done: Option<i64>,
     pub total: Option<i64>,
+    #[serde(default)]
+    pub error: Option<String>,
 }
