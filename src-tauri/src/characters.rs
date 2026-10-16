@@ -72,7 +72,7 @@ pub fn replace_all(
 
     let tx = conn.unchecked_transaction()?;
     let kept_staff = staff_snapshot(&tx, game_id)?;
-    conn.execute("DELETE FROM characters WHERE game_id = ?", params![game_id])?;
+    tx.execute("DELETE FROM characters WHERE game_id = ?", params![game_id])?;
     for (index, entry) in characters.iter().enumerate() {
         insert_character(&tx, game_id, entry, index as i64, &kept_staff)?;
     }
