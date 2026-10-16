@@ -44,6 +44,7 @@ export const DICT_ZH = {
     charSectionTraits: '角色特征',
     charSpoilersHidden: '已折叠剧透标签 {count} 条',
     charSpoilersShown: '收起剧透标签',
+    charVndbLink: '在 VNDB 查看完整资料',
     unitCm: 'cm',
     unitKg: 'kg',
     bloodType: {

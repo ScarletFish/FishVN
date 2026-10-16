@@ -32,6 +32,7 @@ fn spawn_dev_channel(
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let conn = Arc::new(Mutex::new(db::open(&fishvn::data_dir(app.handle())?)?));
             let rate = Arc::new(RateLimiter::new());

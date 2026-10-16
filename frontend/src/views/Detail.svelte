@@ -2,6 +2,8 @@
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { coverSrc } from '../lib/cover-src.js';
+  import { bbcodeParagraphs } from '../lib/vn-merge.js';
+  import { openExternal } from '../lib/open-external.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
@@ -20,7 +22,7 @@
   const TAGS_PREVIEW = 8;
   let tagsExpanded = $state(false);
 
-  let summaryParas = $derived((meta?.description ?? '').split('\n\n').filter(Boolean));
+  let summaryParas = $derived(bbcodeParagraphs(meta?.description));
 
   let alias = $derived(meta?.alias ?? '');
 
@@ -169,7 +171,13 @@
         </div>
         <div class="detail-summary">
           {#each summaryParas as para, i (i)}
-            <p>{para}</p>
+            <p>{#each para as seg, j (j)}{#if seg.type === 'link'}<a
+                href={seg.href}
+                onclick={(e) => {
+                  e.preventDefault();
+                  openExternal(seg.href);
+                }}>{seg.text}</a
+              >{:else}{seg.text}{/if}{/each}</p>
           {/each}
         </div>
       </div>

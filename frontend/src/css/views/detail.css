@@ -511,3 +511,27 @@
   color: var(--fg-secondary);
   user-select: text;
 }
+
+.detail-summary a,
+.detail-char-desc a {
+  color: var(--accent-soft);
+  text-decoration: none;
+}
+
+.detail-summary a:hover,
+.detail-char-desc a:hover {
+  text-decoration: underline;
+}
+
+.detail-char-vndb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--accent-soft);
+  text-decoration: none;
+}
+
+.detail-char-vndb:hover {
+  text-decoration: underline;
+}

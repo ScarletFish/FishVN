@@ -1,5 +1,12 @@
 import { expect, test } from 'vitest';
-import { applyIncoming, asText, conflictRows, stripBbcode } from './vn-merge.js';
+import {
+  applyIncoming,
+  asText,
+  bbcodeParagraphs,
+  bbcodeSegments,
+  conflictRows,
+  stripBbcode,
+} from './vn-merge.js';
 
 const VN = {
   id: 'v11',
@@ -35,6 +42,43 @@ test('BBCode 被剥掉，spoiler 与 raw 整块丢弃', () => {
   expect(stripBbcode('[url=https://a.b]链接文字[/url]')).toBe('链接文字');
   expect(stripBbcode('尾巴[hr]')).toBe('尾巴');
   expect(stripBbcode(null)).toBe('');
+});
+
+test('url 带标签与网址时拆成文本与链接段', () => {
+  expect(bbcodeSegments('前文[url=https://a.b]链接[/url]后文')).toEqual([
+    { type: 'text', text: '前文' },
+    { type: 'link', text: '链接', href: 'https://a.b' },
+    { type: 'text', text: '后文' },
+  ]);
+});
+
+test('裸 url 标签以网址为文字', () => {
+  expect(bbcodeSegments('[url]https://a.b[/url]')).toEqual([
+    { type: 'link', text: 'https://a.b', href: 'https://a.b' },
+  ]);
+});
+
+test('非 http(s) 的 url 段退回纯文本', () => {
+  expect(bbcodeSegments('[url=javascript:alert(1)]点我[/url]')).toEqual([
+    { type: 'text', text: '点我' },
+  ]);
+});
+
+test('链接文字里的其余 BBCode 一并剥掉', () => {
+  expect(bbcodeSegments('[url=https://a.b][b]粗体[/b]链接[/url]')).toEqual([
+    { type: 'link', text: '粗体链接', href: 'https://a.b' },
+  ]);
+});
+
+test('段落按空行拆分，空段与纯 BBCode 段丢弃', () => {
+  expect(bbcodeParagraphs('第一段\n\n[spoiler]剧透[/spoiler]\n\n第二段[url=https://a.b]链[/url]')).toEqual([
+    [{ type: 'text', text: '第一段' }],
+    [
+      { type: 'text', text: '第二段' },
+      { type: 'link', text: '链', href: 'https://a.b' },
+    ],
+  ]);
+  expect(bbcodeParagraphs(null)).toEqual([]);
 });
 
 test('简介里的 BBCode 在读入时就已剥掉', () => {

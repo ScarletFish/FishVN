@@ -8,6 +8,36 @@ export function stripBbcode(text) {
     .trim();
 }
 
+export function bbcodeSegments(text) {
+  if (!text) return [];
+  const segments = [];
+  const re = /\[url=([^\]]*)\]([\s\S]*?)\[\/url\]|\[url\]([\s\S]*?)\[\/url\]/gi;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    const plain = stripBbcode(text.slice(last, m.index));
+    if (plain) segments.push({ type: 'text', text: plain });
+    const href = (m[1] || m[3] || m[2]).trim();
+    const label = stripBbcode(m[2] || m[3]) || href;
+    if (/^https?:\/\//i.test(href)) {
+      segments.push({ type: 'link', text: label, href });
+    } else if (label) {
+      segments.push({ type: 'text', text: label });
+    }
+    last = m.index + m[0].length;
+  }
+  const tail = stripBbcode(text.slice(last));
+  if (tail) segments.push({ type: 'text', text: tail });
+  return segments;
+}
+
+export function bbcodeParagraphs(raw) {
+  return (raw ?? '')
+    .split('\n\n')
+    .map((para) => bbcodeSegments(para))
+    .filter((segments) => segments.length);
+}
+
 const devName = (d) => d.name || d.original || '';
 
 function devList(value) {

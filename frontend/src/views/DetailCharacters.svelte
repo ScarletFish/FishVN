@@ -5,7 +5,8 @@
   import { api } from '../lib/api.js';
   import { coverSrc } from '../lib/cover-src.js';
   import { displayName } from '../lib/characters.js';
-  import { stripBbcode } from '../lib/vn-merge.js';
+  import { stripBbcode, bbcodeSegments } from '../lib/vn-merge.js';
+  import { openExternal } from '../lib/open-external.js';
 
   const TRAIT_GROUP_ORDER = [
     'Hair',
@@ -225,7 +226,15 @@
           {#if stripBbcode(expanded.description)}
             <div class="detail-char-section">
               <p class="detail-char-section-label">{t('detail.charSectionDesc')}</p>
-              <p class="detail-char-desc scroll-thin">{stripBbcode(expanded.description)}</p>
+              <p class="detail-char-desc scroll-thin">
+                {#each bbcodeSegments(expanded.description) as seg, i (i)}{#if seg.type === 'link'}<a
+                    href={seg.href}
+                    onclick={(e) => {
+                      e.preventDefault();
+                      openExternal(seg.href);
+                    }}>{seg.text}</a
+                  >{:else}{seg.text}{/if}{/each}
+              </p>
             </div>
           {/if}
 
@@ -262,6 +271,28 @@
                 </div>
               {/if}
             </div>
+          {/if}
+
+          {#if /^c\d+$/.test(expanded.id)}
+            <a
+              class="detail-char-vndb"
+              href={`https://vndb.org/${expanded.id}`}
+              onclick={(e) => {
+                e.preventDefault();
+                openExternal(`https://vndb.org/${expanded.id}`);
+              }}
+            >
+              {t('detail.charVndbLink')}
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path
+                  d="M3 9L9 3M9 3H4.5M9 3V7.5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </a>
           {/if}
         </div>
       </div>

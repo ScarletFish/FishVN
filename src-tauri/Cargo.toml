@@ -28,6 +28,7 @@ image = { version = "0.25", default-features = false, features = [
     "webp",
     "bmp",
 ] }
+tauri-plugin-opener = "2"
 
 [dev-dependencies]
 tempfile = "3"
