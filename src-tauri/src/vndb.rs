@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::error::{AppError, Result};
+use crate::tasks::Progress;
 use crate::types::{CharacterTrait, CharacterVa, GameCharacter};
 
 const API_BASE: &str = "https://api.vndb.org/kana";
@@ -297,14 +298,23 @@ pub async fn fetch_sync(
     http: &reqwest::Client,
     vndb_id: &str,
     data_dir: &std::path::Path,
+    progress: &dyn Progress,
 ) -> Result<VnSync> {
+    if progress.cancelled() {
+        return Err(AppError::Cancelled);
+    }
+    progress.report("meta", None, None);
     let (vn, rows) = tokio::join!(
         fetch_vn(http, vndb_id, data_dir),
         fetch_character_rows(http, vndb_id)
     );
     let vn = vn?;
     let rows = rows?;
-    let characters = map_characters(rows, vn.va.as_deref().unwrap_or_default(), data_dir).await;
+    if progress.cancelled() {
+        return Err(AppError::Cancelled);
+    }
+    progress.report("characters", None, None);
+    let characters = map_characters(rows, vn.va.as_deref().unwrap_or_default(), data_dir, progress).await?;
     Ok(VnSync { vn, characters })
 }
 
@@ -350,7 +360,8 @@ async fn map_characters(
     rows: Vec<CharRow>,
     va: &[VnVa],
     data_dir: &std::path::Path,
-) -> Vec<GameCharacter> {
+    progress: &dyn Progress,
+) -> Result<Vec<GameCharacter>> {
     let va_by_character = index_va(va);
     let mut out = Vec::with_capacity(rows.len());
     let mut jobs = Vec::new();
@@ -364,7 +375,7 @@ async fn map_characters(
         let entry = va_by_character.get(&row.id).map(Vec::as_slice);
         out.push(to_game_character(row, role, entry));
     }
-    download_character_images(out, jobs, data_dir).await
+    download_character_images(out, jobs, data_dir, progress).await
 }
 
 type VaIndex = std::collections::HashMap<String, Vec<CharacterVa>>;
@@ -437,20 +448,32 @@ async fn download_character_images(
     mut chars: Vec<GameCharacter>,
     jobs: Vec<(usize, String, String)>,
     data_dir: &std::path::Path,
-) -> Vec<GameCharacter> {
+    progress: &dyn Progress,
+) -> Result<Vec<GameCharacter>> {
     let data_dir = data_dir.to_path_buf();
+    let total = jobs.len() as i64;
+    let mut done = 0_i64;
     let mut pending = jobs.into_iter();
     let mut set = tokio::task::JoinSet::new();
+    if total > 0 {
+        progress.report("images", Some(0), Some(total));
+    }
     for _ in 0..IMAGE_CONCURRENCY {
         spawn_next_image(&mut set, &mut pending, &data_dir);
     }
-    while let Some(done) = set.join_next().await {
-        if let Ok((idx, path)) = done {
+    while let Some(finished) = set.join_next().await {
+        if let Ok((idx, path)) = finished {
             chars[idx].image_path = path;
+        }
+        done += 1;
+        progress.report("images", Some(done), Some(total));
+        if progress.cancelled() {
+            set.abort_all();
+            return Err(AppError::Cancelled);
         }
         spawn_next_image(&mut set, &mut pending, &data_dir);
     }
-    chars
+    Ok(chars)
 }
 
 fn spawn_next_image(

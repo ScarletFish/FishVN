@@ -3,6 +3,7 @@
   import Modal from './Modal.svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
+  import { subscribe } from '../lib/events.js';
   import { createVndbSearch } from '../lib/vndb-search.svelte.js';
   import {
     buildMetadataPatch,
@@ -61,6 +62,8 @@
   let charMergeRows = $state([]);
   let incomingCharacters = $state([]);
   let pulling = $state(false);
+  let syncProgress = $state(null);
+  let syncCancelled = $state(false);
   let incoming = $state(null);
   let coverBroken = $state(false);
   let coverUrl = $state(null);
@@ -111,6 +114,8 @@
     incomingCharacters = [];
     incoming = null;
     pulling = false;
+    syncProgress = null;
+    syncCancelled = false;
     search.reset();
     loading = Boolean(gameId);
     if (gameId) loadExisting(gameId);
@@ -264,23 +269,58 @@
     };
   }
 
+  const PHASE_KEYS = {
+    meta: 'gameForm.search.phaseMeta',
+    characters: 'gameForm.search.phaseCharacters',
+    images: 'gameForm.search.phaseImages',
+  };
+
+  const pullText = $derived.by(() => {
+    if (!syncProgress) return t('gameForm.search.pulling');
+    const label = t(PHASE_KEYS[syncProgress.phase] ?? 'gameForm.search.pulling');
+    if (syncProgress.total == null) return label;
+    return `${label} ${syncProgress.done ?? 0}/${syncProgress.total}`;
+  });
+
+  const pullRatio = $derived(
+    syncProgress?.total ? Math.min(1, (syncProgress.done ?? 0) / syncProgress.total) : null
+  );
+
   async function pickHit(id) {
     vndbId = id;
     if (pulling) return;
     pulling = true;
+    syncProgress = null;
+    syncCancelled = false;
     error = '';
+    let off = null;
     try {
+      off = await subscribe('vndb-sync', (event) => {
+        syncProgress = event;
+      });
       incoming = await api.fetchVnMetadata(id);
+      if (syncCancelled) {
+        incoming = null;
+        incomingCharacters = [];
+        return;
+      }
       incomingCharacters = incoming?.characters ?? [];
       mergeRows = conflictRows(formFields(), incoming);
       mergeOpen = true;
     } catch (err) {
       incoming = null;
       incomingCharacters = [];
-      toast(err.message, 'error');
+      if (!syncCancelled) toast(err.message, 'error');
     } finally {
+      off?.();
       pulling = false;
+      syncProgress = null;
     }
+  }
+
+  async function cancelSync() {
+    syncCancelled = true;
+    await api.cancelTask('vndb-sync');
   }
 
   function acceptMerge(picked) {
@@ -745,10 +785,22 @@
           <p class="vndb-note">{t('gameForm.search.empty')}</p>
         {:else}
           {#if pulling}
-            <p class="vndb-note">{t('gameForm.search.pulling')}</p>
-            <div class="vndb-progress" role="progressbar" aria-label={t('gameForm.search.pulling')}>
-              <span class="vndb-progress__bar"></span>
+            <p class="vndb-note">{pullText}</p>
+            <div
+              class="vndb-progress"
+              class:vndb-progress--determinate={pullRatio != null}
+              role="progressbar"
+              aria-label={pullText}
+              aria-valuenow={pullRatio == null ? undefined : Math.round(pullRatio * 100)}
+            >
+              <span
+                class="vndb-progress__bar"
+                style={pullRatio == null ? undefined : `width: ${pullRatio * 100}%`}
+              ></span>
             </div>
+            <button type="button" class="btn vndb-pull-cancel" onclick={cancelSync} disabled={syncCancelled}>
+              {t('common.cancel')}
+            </button>
           {/if}
           <ul class="vndb-hits" class:is-pulling={pulling}>
             {#each search.hits as hit (hit.id)}
@@ -837,6 +889,15 @@
     background: var(--accent-gradient);
     border-radius: var(--radius-pill);
     animation: vndb-sweep 1.1s var(--ease-out) infinite;
+  }
+
+  .vndb-progress--determinate .vndb-progress__bar {
+    animation: none;
+    transition: width var(--duration-fast) var(--ease-out);
+  }
+
+  .vndb-pull-cancel {
+    margin-top: var(--space-2);
   }
 
   @keyframes vndb-sweep {

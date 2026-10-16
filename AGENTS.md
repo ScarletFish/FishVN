@@ -58,6 +58,7 @@ Svelte 5 SPA + Rust 后端的 Tauri v2 桌面应用
 - 不靠自觉：`npm run check:comments` 强制白名单（已串在 `check:rust` 与 `check:frontend` 上），例外只有测试用例的意图、`tokens.css` 的 token 用途、工具指令——清单与理由见 [docs/dev/comments.md](docs/dev/comments.md)
 - 产品与设计决策进 `docs/fdd-game-library.md`；栈特有事实、惯例与踩过的坑进 `docs/dev/*`
 - 文档只值三样：决策与规格、不写会有人改坏的约束与坑、路由指针。自检：**这条打开源码 30 秒能看出来吗？能，就不写**
+- 规格写在设计契约层级：写用途、契约、新增功能要遵守的规则、传输与取消这类约定；结构体的字段、函数逐行做什么这类打开源码即知的内容不进文档（非测试代码本就零注释，没有第二处去处）。文档是规范，不是代码注释的搬运
 - **往 `docs/` 增行前，先把条目列出来过目**，点头才落盘 —— 代码侧有检查器兜底，文档侧的膨胀只能靠这道闸门
 - 改哪块先读哪份：`docs/dev/backend.md` 与 `docs/dev/frontend.md` 各有一张路由表
 - 文档与注释用中文

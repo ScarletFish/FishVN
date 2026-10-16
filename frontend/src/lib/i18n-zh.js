@@ -160,6 +160,9 @@ export const DICT_ZH = {
       empty: '没有匹配的结果',
       pulling: '正在拉取元数据与角色立绘',
       close: '关闭',
+      phaseMeta: '拉取作品信息',
+      phaseCharacters: '拉取角色列表',
+      phaseImages: '下载角色立绘',
     },
     merge: {
       title: '同步 VNDB 元数据',

@@ -4,6 +4,80 @@
 #![cfg(debug_assertions)]
 
 use std::collections::BTreeSet;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use fishvn::tasks::EventLog;
+use fishvn::types::TaskEvent;
+use futures_util::StreamExt;
+
+fn push(log: &Mutex<EventLog>, phase: &str, done: Option<i64>, total: Option<i64>) {
+    log.lock().unwrap().push(
+        "vndb-sync",
+        TaskEvent {
+            phase: phase.to_owned(),
+            done,
+            total,
+        },
+    );
+}
+
+/// SSE 流不结束，读首帧即可，两秒等不到就是路由或尾随坏了
+async fn first_chunk(resp: axum::response::Response) -> String {
+    let mut stream = resp.into_body().into_data_stream();
+    let chunk = tokio::time::timeout(Duration::from_secs(2), stream.next())
+        .await
+        .expect("SSE 首帧超时")
+        .expect("流提前结束")
+        .expect("帧读不出");
+    String::from_utf8_lossy(&chunk).into_owned()
+}
+
+#[tokio::test]
+async fn sse补读缓冲里的历史事件() {
+    let log = Arc::new(Mutex::new(EventLog::default()));
+    push(&log, "meta", None, None);
+    push(&log, "images", Some(3), Some(20));
+
+    let resp = fishvn::devhttp::events_response(&log, 0);
+    assert_eq!(
+        resp.headers().get("content-type").unwrap(),
+        "text/event-stream"
+    );
+    let text = first_chunk(resp).await;
+    assert!(text.contains("id: 1"), "首帧缺 id：{text}");
+    assert!(text.contains("event: vndb-sync"), "首帧缺事件名：{text}");
+    assert!(text.contains("\"phase\":\"meta\""), "首帧缺数据：{text}");
+}
+
+#[tokio::test]
+async fn sse游标只补读之后的事件() {
+    let log = Arc::new(Mutex::new(EventLog::default()));
+    push(&log, "meta", None, None);
+    push(&log, "images", Some(1), Some(20));
+
+    let text = first_chunk(fishvn::devhttp::events_response(&log, 1)).await;
+    assert!(text.contains("id: 2"), "游标没生效：{text}");
+    assert!(!text.contains("id: 1"), "补读了游标前的事件：{text}");
+    assert!(text.contains("\"phase\":\"images\""), "补读的不是当次事件：{text}");
+}
+
+#[tokio::test]
+async fn sse尾随连接后到达的事件() {
+    let log = Arc::new(Mutex::new(EventLog::default()));
+    let fed = log.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        push(&fed, "images", Some(7), Some(20));
+    });
+
+    let text = first_chunk(fishvn::devhttp::events_response(&log, 0)).await;
+    assert!(text.contains("id: 1"), "尾随首帧缺 id：{text}");
+    assert!(
+        text.contains("\"phase\":\"images\""),
+        "没接到连接后才推送的事件：{text}"
+    );
+}
 
 /// 从 commands.rs 里抠出 #[tauri::command] 标注的函数名
 fn declared_commands() -> BTreeSet<String> {

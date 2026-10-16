@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use fishvn::commands;
 use fishvn::db;
+use fishvn::tasks::{EventLog, Tasks};
 use fishvn::vndb::RateLimiter;
 use tauri::Manager;
 
@@ -11,6 +12,8 @@ use tauri::Manager;
 fn spawn_dev_channel(
     conn: Arc<Mutex<rusqlite::Connection>>,
     rate: Arc<RateLimiter>,
+    events: Arc<Mutex<EventLog>>,
+    tasks: Arc<Tasks>,
     app: tauri::AppHandle,
 ) {
     use fishvn::devhttp::{router, Dev, PORT};
@@ -25,7 +28,17 @@ fn spawn_dev_channel(
             }
         };
         println!("开发通道已开： http://{addr}");
-        let _ = axum::serve(listener, router(Dev { conn, rate, app })).await;
+        let _ = axum::serve(
+            listener,
+            router(Dev {
+                conn,
+                rate,
+                events,
+                tasks,
+                app,
+            }),
+        )
+        .await;
     });
 }
 
@@ -36,11 +49,15 @@ fn main() {
         .setup(|app| {
             let conn = Arc::new(Mutex::new(db::open(&fishvn::data_dir(app.handle())?)?));
             let rate = Arc::new(RateLimiter::new());
+            let events = Arc::new(Mutex::new(EventLog::default()));
+            let tasks = Arc::new(Tasks::default());
             app.manage(conn.clone());
             app.manage(rate.clone());
+            app.manage(events.clone());
+            app.manage(tasks.clone());
             #[cfg(debug_assertions)]
             if std::env::var_os("FISHVN_DEV_HTTP").is_some() {
-                spawn_dev_channel(conn, rate, app.handle().clone());
+                spawn_dev_channel(conn, rate, events, tasks, app.handle().clone());
             }
             Ok(())
         })
@@ -63,6 +80,7 @@ fn main() {
             commands::save_game_characters,
             commands::search_vndb,
             commands::fetch_vn_metadata,
+            commands::cancel_task,
             commands::allow_local_file,
             commands::thumbnail,
         ])

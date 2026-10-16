@@ -1,20 +1,30 @@
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use axum::extract::State as AxumState;
-use axum::http::StatusCode;
-use axum::routing::post;
+use axum::extract::{Query, State as AxumState};
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
 use axum::{Json, Router};
+use futures_util::Stream;
 use rusqlite::Connection;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::error::{AppError, Result};
+use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
 use crate::types::GameCharacter;
 use crate::vndb::RateLimiter;
 use crate::{characters, commands, games, installations, metadata, vndb};
 
 pub const PORT: u16 = 4546;
+
+const TAIL_TICK: Duration = Duration::from_millis(100);
+
+const KEEP_ALIVE: Duration = Duration::from_secs(15);
 
 struct Fail(StatusCode, String);
 
@@ -37,6 +47,8 @@ pub struct Dev {
     pub conn: Arc<Mutex<Connection>>,
     pub rate: Arc<RateLimiter>,
     pub app: tauri::AppHandle,
+    pub events: Arc<Mutex<EventLog>>,
+    pub tasks: Arc<Tasks>,
 }
 
 #[derive(Default, serde::Deserialize)]
@@ -57,6 +69,8 @@ pub struct Args {
     pub path: Option<String>,
     #[serde(default)]
     pub characters: Option<Value>,
+    #[serde(default)]
+    pub task: Option<String>,
 }
 
 impl Args {
@@ -84,6 +98,10 @@ impl Args {
 
     pub fn path(&self) -> Result<&str> {
         self.need(self.path.as_ref(), "path")
+    }
+
+    pub fn task(&self) -> Result<&str> {
+        self.need(self.task.as_ref(), "task")
     }
 }
 
@@ -164,9 +182,82 @@ async fn fetch_vn_metadata(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) 
     };
     dev.rate.acquire().await;
     dev.rate.acquire().await;
-    let dir = crate::data_dir(&dev.app)
-        .map_err(|e| Fail(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    finish(vndb::fetch_sync(vndb::http(), &vndb_id, &dir).await)
+    let dir = match crate::data_dir(&dev.app) {
+        Ok(d) => d,
+        Err(e) => return Err(Fail(StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    };
+    let task = Task::new(
+        commands::VNDB_SYNC,
+        dev.app.clone(),
+        dev.events.clone(),
+        dev.tasks.register(commands::VNDB_SYNC),
+    );
+    finish(vndb::fetch_sync(vndb::http(), &vndb_id, &dir, &task).await)
+}
+
+async fn cancel_task(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    finish(a.task().map(|name| dev.tasks.cancel(name)))
+}
+
+#[derive(Deserialize)]
+struct SinceQuery {
+    since: Option<u64>,
+}
+
+async fn events(
+    AxumState(dev): AxumState<Dev>,
+    headers: HeaderMap,
+    Query(q): Query<SinceQuery>,
+) -> Response {
+    let after = last_event_id(&headers).or(q.since).unwrap_or(0);
+    events_response(&dev.events, after)
+}
+
+fn last_event_id(headers: &HeaderMap) -> Option<u64> {
+    headers
+        .get(axum::http::header::HeaderName::from_static("last-event-id"))
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse().ok())
+}
+
+pub fn events_response(log: &Arc<Mutex<EventLog>>, after: u64) -> Response {
+    Sse::new(tail(log.clone(), after))
+        .keep_alive(KeepAlive::new().interval(KEEP_ALIVE))
+        .into_response()
+}
+
+fn tail(
+    log: Arc<Mutex<EventLog>>,
+    after: u64,
+) -> impl Stream<Item = std::result::Result<Event, axum::Error>> {
+    futures_util::stream::unfold(
+        (log, after, VecDeque::<LoggedEvent>::new()),
+        |(log, mut after, mut pending)| async move {
+            loop {
+                if pending.is_empty() {
+                    let fresh = log
+                        .lock()
+                        .unwrap_or_else(|poison| poison.into_inner())
+                        .since(after);
+                    if let Some(last) = fresh.last() {
+                        after = last.seq;
+                    }
+                    pending.extend(fresh);
+                }
+                if let Some(entry) = pending.pop_front() {
+                    return Some((frame(&entry), (log, after, pending)));
+                }
+                tokio::time::sleep(TAIL_TICK).await;
+            }
+        },
+    )
+}
+
+fn frame(entry: &LoggedEvent) -> std::result::Result<Event, axum::Error> {
+    Event::default()
+        .id(entry.seq.to_string())
+        .event(&entry.name)
+        .json_data(&entry.event)
 }
 
 async fn allow_local_file(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
@@ -203,8 +294,10 @@ pub fn router(dev: Dev) -> Router {
         .route("/save_game_characters", post(save_game_characters))
         .route("/search_vndb", post(search_vndb))
         .route("/fetch_vn_metadata", post(fetch_vn_metadata))
+        .route("/cancel_task", post(cancel_task))
         .route("/allow_local_file", post(allow_local_file))
         .route("/thumbnail", post(thumbnail))
+        .route("/events", get(events))
         .with_state(dev)
 }
 
@@ -227,6 +320,7 @@ pub const COMMANDS: &[&str] = &[
     "save_game_characters",
     "search_vndb",
     "fetch_vn_metadata",
+    "cancel_task",
     "allow_local_file",
     "thumbnail",
 ];

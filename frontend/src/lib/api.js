@@ -44,6 +44,7 @@ export const api = {
   deleteInstallation: (id) => call('delete_installation', { id }),
   searchVndb: (keyword) => call('search_vndb', { keyword }),
   fetchVnMetadata: (vndbId) => call('fetch_vn_metadata', { vndbId }),
+  cancelTask: (task) => call('cancel_task', { task }),
   getGameMetadata: (id) => call('get_game_metadata', { id }),
   updateGameMetadata: (id, patch) => call('update_game_metadata', { id, patch }),
   listGameCharacters: (id) => call('list_game_characters', { id }),

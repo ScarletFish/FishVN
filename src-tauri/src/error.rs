@@ -9,6 +9,7 @@ pub enum AppError {
     Conflict(String),
     RateLimited,
     Upstream(String),
+    Cancelled,
     Db(rusqlite::Error),
     Json(serde_json::Error),
     Io(std::io::Error),
@@ -23,6 +24,7 @@ impl fmt::Display for AppError {
             Self::Io(e) => write!(f, "{e}"),
             Self::RateLimited => f.write_str("VNDB 请求太频繁，已触发限流，请稍后再试"),
             Self::Upstream(m) => write!(f, "VNDB 服务异常：{m}"),
+            Self::Cancelled => f.write_str("任务已取消"),
         }
     }
 }

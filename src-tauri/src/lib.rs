@@ -8,6 +8,7 @@ pub mod fsinfo;
 pub mod games;
 pub mod installations;
 pub mod metadata;
+pub mod tasks;
 pub mod thumbs;
 pub mod types;
 pub mod vndb;

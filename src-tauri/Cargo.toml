@@ -19,6 +19,7 @@ uuid = { version = "1", features = ["v4"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "native-tls"] }
 tokio = { version = "1", features = ["net", "rt", "rt-multi-thread", "time"] }
 axum = "0.8.9"
+futures-util = "0.3"
 tauri-plugin-dialog = "2.8.2"
 image = { version = "0.25", default-features = false, features = [
     "jpeg",

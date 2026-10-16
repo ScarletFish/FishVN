@@ -215,3 +215,10 @@ pub struct NewInstallation {
     pub game_id: String,
     pub dir_path: String,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TaskEvent {
+    pub phase: String,
+    pub done: Option<i64>,
+    pub total: Option<i64>,
+}

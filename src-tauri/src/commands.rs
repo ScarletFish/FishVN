@@ -9,6 +9,7 @@ use crate::error::{AppError, Result};
 use crate::games;
 use crate::installations;
 use crate::metadata;
+use crate::tasks::{EventLog, Task, Tasks};
 use crate::thumbs;
 use crate::types::{
     Game, GameCharacter, GameListItem, GameMetadata, GamePatch, Installation, InstallationPatch,
@@ -133,10 +134,14 @@ pub async fn search_vndb(
     vndb::search(vndb::http(), &keyword).await
 }
 
+pub const VNDB_SYNC: &str = "vndb-sync";
+
 #[tauri::command]
 pub async fn fetch_vn_metadata(
     app: tauri::AppHandle,
     rate: State<'_, Arc<RateLimiter>>,
+    tasks: State<'_, Arc<Tasks>>,
+    log: State<'_, Arc<Mutex<EventLog>>>,
     vndb_id: String,
 ) -> Result<VnSync> {
     let vndb_id = vndb::validate_vn_id(&vndb_id)?;
@@ -144,7 +149,18 @@ pub async fn fetch_vn_metadata(
     rate.acquire().await;
     let dir =
         crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
-    vndb::fetch_sync(vndb::http(), &vndb_id, &dir).await
+    let task = Task::new(
+        VNDB_SYNC,
+        app,
+        log.inner().clone(),
+        tasks.register(VNDB_SYNC),
+    );
+    vndb::fetch_sync(vndb::http(), &vndb_id, &dir, &task).await
+}
+
+#[tauri::command]
+pub fn cancel_task(tasks: State<'_, Arc<Tasks>>, task: String) -> bool {
+    tasks.cancel(&task)
 }
 
 #[tauri::command]

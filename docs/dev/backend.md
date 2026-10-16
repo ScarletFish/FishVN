@@ -19,6 +19,7 @@ src-tauri/
 ├── metadata.rs      # 作品资料
 ├── characters.rs    # 角色与声优（集合，整包替换）
 ├── installations.rs # 本地目录
+├── tasks.rs        # 长任务进度事件与取消
 ├── thumbs.rs        # 封面派生图与缓存
 ├── vndb.rs          # VNDB 上游客户端
 ├── devhttp.rs       # 开发期 HTTP 通道（commands 的镜像，仅 debug 构建）
@@ -32,6 +33,7 @@ src-tauri/
 | `vndb.rs` | [vndb-api.md](./vndb-api.md)：上游字段形状、过滤与限流、图片编号 |
 | `db.rs` / `types.rs` | 本文「数据模型」 |
 | `thumbs.rs` / 前端 `cover-src.js` | 本文「封面派生图」与「本地封面授权」 |
+| `tasks.rs` / 长任务 | 本文「任务事件」 |
 | 前端组件与样式 | [frontend.md](./frontend.md) |
 
 ### 调用链
@@ -67,6 +69,24 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 ### 进程与状态
 
 - 注册时传的是 `Arc<T>`，命令侧就必须是 `State<'_, Arc<T>>`；泛型按类型精确匹配，写错编译期不报，只在调用该命令时报 `state not managed`
+
+### 任务事件
+
+长任务（VNDB 同步，之后的库扫描、启动计时）的耗时超出单条命令响应，进度经事件通道持续上报，前端据此显示「下载立绘 7/20」式的中途反馈。事件只报进度；失败与最终结果经命令的返回路径送达。
+
+载荷为 `TaskEvent { phase, done, total }`（`types.rs`）：`phase` 是步骤标识，`done` 与 `total` 同为空时前端以持续动画的进度条呈现。事件携带绝对值，重连补发由消费者以最新值覆盖。
+
+新增长任务时：
+
+- 任务名是跨边界字面量，前后端各定义一份（与命令名同样的约定），当前仅 `commands::VNDB_SYNC`（`"vndb-sync"`）
+- worker 在单元间隙检查 `cancelled()`，命中即中断并以 `AppError::Cancelled` 收尾，下载类一并 abort 在途任务
+- 发射点覆盖每个可计阶段，让用户每阶段都看得到推进
+
+通道有两层：应用内走 IPC（`app.emit` + 前端 `listen`），开发期镜像走 devhttp 的 SSE。前端 `lib/events.js` 的 `subscribe(name, handler)` 把两条通道包成同一个形状、返回退订函数，新增任务只在任务侧 `report()`，前端接线零新增。事件在发送时入缓冲，任务开始后才订阅的消费者先补读缓冲再收实时流；缓冲有界，订阅越晚能补读的历史越短。
+
+前端取消：置位取消标志后调 `cancel_task`，`await` 返回后复查标志 —— 取消与成功擦身而过时按取消处理，结果丢弃、以取消态静默收尾。
+
+worker 经 `Progress` trait 跨 await 持引用，该 trait 须标 `Sync` 使命令 handler 的 future 满足 `Send`；否则编译错误只在 axum 的 `Handler` 边界报出。
 
 ### 开发期 HTTP 通道
 
@@ -177,6 +197,7 @@ scope 够不着，必须走 `allow_local_file`。
 - [ ] 新增列有写入方
 - [ ] 可空字段的 PATCH 用双层 `Option`，语义在 types.rs 上看得见
 - [ ] 外键列判了空串
+- [ ] 长任务经 `Progress` 播进度、经 `Tasks` 注册表收取消，事件只报进度
 - [ ] 新增测试指向临时库，文件系统用例有真目录树
 - [ ] 注释过了 comments.md 的判据
 - [ ] 跑过 `npm run check:rust` + `npm test`
