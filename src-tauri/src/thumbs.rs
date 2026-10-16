@@ -1,7 +1,3 @@
-//! 封面派生图：把原图缩到长边 560 的 JPEG，缓存到 data_dir/covers/。
-//!
-//! 560 = --card-w(277px) 的 2 倍，覆盖到 200% 缩放屏，再大就是白 decode
-
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
@@ -33,8 +29,6 @@ pub fn cached(src: &str, data_dir: &Path) -> Result<PathBuf> {
     Ok(dst)
 }
 
-/// 内容寻址：路径、size、mtime 变了就是新key，旧缓存自然失效，不必显式删。
-/// mtime 精度到秒，所以 size 也参与哈希 —— 同秒内换成同尺寸的图仍会命中旧缓存
 fn cache_key(src: &Path, meta: &std::fs::Metadata) -> u64 {
     let mut h = DefaultHasher::new();
     src.to_string_lossy().hash(&mut h);

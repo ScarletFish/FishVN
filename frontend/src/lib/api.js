@@ -1,7 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { DEV_HTTP, DEV_HTTP_BASE } from './env.js';
 
-// invoke 会把 gameId 这类驼峰参数转成 snake_case，裸 HTTP 没有这层转换
 function toSnake(args) {
   return Object.fromEntries(
     Object.entries(args ?? {}).map(([k, v]) => [
@@ -21,7 +20,6 @@ async function overHttp(command, args) {
   return res.json();
 }
 
-// invoke 会用原值 reject，这里包成 Error 让调用方统一读 .message
 async function call(command, args) {
   try {
     if (DEV_HTTP) return await overHttp(command, args);

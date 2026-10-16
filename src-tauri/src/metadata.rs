@@ -1,6 +1,3 @@
-//! 作品资料：games 之外的第三张表。一部作品可有可无一行，
-//! 没有这一行只说明用户还没填过，不影响 games.name 与用户状态。
-
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Row};
 use serde::de::DeserializeOwned;
@@ -26,8 +23,6 @@ struct MetaRow {
     developers: Option<String>,
 }
 
-/// 没有元数据行时给 Ok(None)：行不存在与行存在但字段为空是两种状态，
-/// 调用方要分得清「没填过」和「填了空的」
 pub fn get(conn: &Connection, game_id: &str) -> Result<Option<GameMetadata>> {
     if !game_exists(conn, game_id)? {
         return Err(AppError::NotFound("作品不存在".into()));
@@ -69,7 +64,6 @@ pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result
         ),
     )?;
 
-    // SQLite 的 changes 记的是命中行数而非真正变了的行数，所以 0 就是没这条行
     if changed == 0 {
         values.insert(0, Value::Text(game_id.to_owned()));
         let placeholders = vec!["?"; columns.len() + 1].join(", ");

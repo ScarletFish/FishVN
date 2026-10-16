@@ -16,7 +16,6 @@ use crate::types::{CharacterTrait, CharacterVa, GameCharacter};
 const CHARACTER_COLUMNS: &str = "id, name, original, aliases, description, gender, age, birthday, \
      blood_type, height, weight, bust, waist, hips, cup, role, image_id, image_path, sort_order, traits";
 
-/// 库里 gender / aliases / traits 是 JSON 文本，对外给数组
 struct CharacterRow {
     id: String,
     name: Option<String>,
@@ -80,7 +79,6 @@ pub fn replace_all(
         }
     }
 
-    // 删与插在一个事务里：中途失败会退回调用前的整套角色，不会留下删一半的状态
     let tx = conn.unchecked_transaction()?;
     let kept_staff = staff_snapshot(&tx, game_id)?;
     conn.execute("DELETE FROM characters WHERE game_id = ?", params![game_id])?;
@@ -92,7 +90,6 @@ pub fn replace_all(
     list(conn, game_id)
 }
 
-/// 该作品在用的声优行，按声优编号索引
 fn staff_snapshot(conn: &Connection, game_id: &str) -> Result<HashMap<String, StaffName>> {
     let mut stmt = conn.prepare(
         "SELECT DISTINCT s.id, s.name, s.original

@@ -1,7 +1,6 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { api } from './api.js';
 
-// 授权不能省：asset 协议白名单默认为空，不放行则 <img> 拿到 403 空响应
 const cache = new Map();
 const inFlight = new Map();
 

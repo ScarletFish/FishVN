@@ -7,7 +7,6 @@ use fishvn::db;
 use fishvn::vndb::RateLimiter;
 use tauri::Manager;
 
-/// 只绑回环地址：本机任何进程都能读写用户的库
 #[cfg(debug_assertions)]
 fn spawn_dev_channel(
     conn: Arc<Mutex<rusqlite::Connection>>,
@@ -36,8 +35,6 @@ fn main() {
         .setup(|app| {
             let conn = Arc::new(Mutex::new(db::open(&fishvn::data_dir(app.handle())?)?));
             let rate = Arc::new(RateLimiter::new());
-            // 这里是 Arc，命令侧就必须是 State<'_, Arc<...>>。注册值类型与 State 泛型参数
-            // 按类型精确匹配，写错编译期不报，只在调用该命令时报 state not managed
             app.manage(conn.clone());
             app.manage(rate.clone());
             #[cfg(debug_assertions)]

@@ -9,9 +9,6 @@ use crate::{new_id, now};
 const DEFAULT_STATUS: Status = Status::Wishlist;
 
 pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
-    // 列表投影一次带出状态与安装概况，卡片不再逐条追问。
-    // game_metadata 必须一并进 GROUP BY：选了 m.image_path 却不在分组键里，
-    // SQLite 会取任意一行的值。它是主键，一作品一行，不改变行数
     let mut stmt = conn.prepare(
         "SELECT g.id, g.name, g.vndb_id, g.created_at,
                 s.status, s.user_rating, s.last_played_at, s.play_count,
@@ -65,7 +62,6 @@ pub fn get_game(conn: &Connection, id: &str) -> Result<Game> {
     .ok_or_else(|| AppError::NotFound("条目不存在".into()))
 }
 
-/// 建作品与它的初始状态，同一事务
 pub fn create_game(conn: &Connection, input: &NewGame) -> Result<Game> {
     let name = validate_name(&input.name)?;
     let vndb_id = match &input.vndb_id {

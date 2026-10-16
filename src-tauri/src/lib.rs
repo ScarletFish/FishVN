@@ -15,7 +15,6 @@ pub mod vndb;
 #[cfg(not(debug_assertions))]
 use tauri::Manager;
 
-/// 主键形态：带连字符的小写 uuid v4。已有行是这个形状，换生成方式要一并迁移
 pub fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
@@ -27,13 +26,6 @@ pub fn now() -> i64 {
         .unwrap_or(0)
 }
 
-/// 数据目录解析放在 lib，commands 模块也要调用它。
-///
-/// 开发期指向仓库根的 data/。打包后仓库根不在用户机器上，改用系统应用数据目录 ——
-/// 两者不共用，免得开发数据混进安装版。
-///
-/// 落在 %USERPROFILE% 下（Windows 上 %APPDATA%\com.fishvn.app），所以在
-/// tauri.conf.json 的 assetProtocol.scope "$HOME/**/*" 覆盖内，派生图不必另行授权。
 pub fn data_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
     #[cfg(debug_assertions)]
     {

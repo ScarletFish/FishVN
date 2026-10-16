@@ -4,13 +4,19 @@
 
 图例：`[ ]` 待处理 / `[x]` 已处理
 
+判定基准（已定）：
+
+- 测试文件的意图注释保留 —— 测试规格本身
+- `tokens.css` 的 token 用途注释保留 —— 设计系统的一部分
+- 普通代码默认零注释：需求与设计决策进 `docs/fdd-game-library.md`，栈特有事实与惯例进 `docs/dev/*`，复述与标准知识直接删
+
 ## 待保留（3 类，不删）
 
 - [ ] 测试文件内意图注释（`tests/*.rs` ~40 条，如 `tests/characters.rs:58`「复现新增角色报 500」）——测试规格本身
 - [ ] tokens.css 的 token 用途注释（~30 条）——规则文档，非代码旁注
 - [ ] 真残渣 2 条，一行以内保留：
-  - `fsinfo.rs:95` —— Rust 扩展名判定与 js `path.extname` 对齐，跨语言无法互测
-  - `GameForm.svelte:369` —— 保存按钮在 tab 外，报错跨 tab 可见性，组件测试接不住
+  - `fsinfo.rs:81` —— Rust 扩展名判定与 js `path.extname` 对齐，跨语言无法互测
+  - `GameForm.svelte:352` —— 保存按钮在 tab 外，报错跨 tab 可见性，组件测试接不住
 
 ## → 测试（行为锁进断言，注释删）
 
@@ -47,20 +53,27 @@
 
 | 状态 | 来源 | 条目 |
 |---|---|---|
-| [ ] | `commands.rs:3-4` / `131` | Connection 单锁；不持锁跨网络 I/O；毒化转错误上报 |
-| [ ] | `commands.rs:165` + `lib.rs:35` + `cover-src.js:6` | asset 协议授权管线：默认白名单空 → 403；`$USERPROFILE` 在 scope 内不必另行授权；进程内授权 + 静态 scope 兜底 |
-| [ ] | `main.rs:42` | Tauri `Arc`/`State` 泛型精确匹配，写错编译不报 |
-| [ ] | `main.rs:11` + `devhttp.rs:5` | 只绑回环 + env 开关（本机进程可读写库） |
-| [ ] | `devhttp.rs:23` / `50` + `api.js:4` | dev 端口与 vite 4545 分开；camel→snake 转换只有 Tauri 侧有 |
-| [ ] | `error.rs:37` / `64` + `api.js:25` | IPC 只传一句中文；UNIQUE 扩展码单独报；invoke reject 包成 Error |
-| [ ] | `db.rs:21` | 外键那行「看着多余」不能删（级联依赖编译选项） |
-| [ ] | `db.rs:153` | table 拼 SQL，只能传字面量（注入面） |
-| [ ] | `metadata.rs:75` | SQLite changes 记命中行数而非变更行数 |
-| [ ] | `games.rs:13` | GROUP BY 必须含 metadata 主键，否则取任意行 |
-| [ ] | `thumbs.rs:1` / `510` | 封面派生管线：560 = 2× `--card-w`；下 url 不下 thumbnail（2× 屏 554） |
-| [ ] | `thumbs.rs:37` | 缓存残洞：同秒同尺寸仍中旧缓存（已知接受） |
-| [ ] | `characters.rs:19` 等 | 惯例条：库内 JSON 列对外数组、时间戳 unix 秒、主键 uuid v4 形态（`lib.rs:18`） |
-| [ ] | `types.rs:106` / `167` | PATCH 双层 Option 契约：外层没给 / 内层置空，空串 ≠ null |
+| [x] | `commands.rs:3-4` / `131` | Connection 单锁；不持锁跨网络 I/O；毒化转错误上报 |
+| [x] | `commands.rs:165` + `lib.rs:35` + `cover-src.js:6` | asset 协议授权管线：默认白名单空 → 403；`$USERPROFILE` 在 scope 内不必另行授权；进程内授权 + 静态 scope 兜底 |
+| [x] | `main.rs:42` | Tauri `Arc`/`State` 泛型精确匹配，写错编译不报 |
+| [x] | `main.rs:11` + `devhttp.rs:5` | 只绑回环 + env 开关（本机进程可读写库） |
+| [x] | `devhttp.rs:23` / `50` + `api.js:4` | dev 端口与 vite 4545 分开；camel→snake 转换只有 Tauri 侧有 |
+| [x] | `error.rs:37` / `64` + `api.js:25` | IPC 只传一句中文；UNIQUE 扩展码单独报；invoke reject 包成 Error |
+| [x] | `db.rs:21` | 外键那行「看着多余」不能删（级联依赖编译选项） |
+| [x] | `db.rs:153` | table 拼 SQL，只能传字面量（注入面）——本文原有 `has_column` 一条已覆盖 |
+| [x] | `metadata.rs:75` | SQLite changes 记命中行数而非变更行数 |
+| [x] | `games.rs:13` | GROUP BY 必须含 metadata 主键，否则取任意行 |
+| [x] | `thumbs.rs:1` | 封面派生管线：560 = 2× `--card-w`（`510` 那条实际在 `vndb.rs:515`，已移到 vndb-api 表） |
+| [x] | `thumbs.rs:37` | 缓存残洞：同秒同尺寸仍中旧缓存（已知接受） |
+| [x] | `characters.rs:19` 等 | 惯例条：库内 JSON 列对外数组、时间戳 unix 秒、主键 uuid v4 形态（`lib.rs:18`） |
+| [x] | `types.rs:106` / `167` | PATCH 双层 Option 契约：外层没给 / 内层置空，空串 ≠ null —— 本文「PATCH 的三态」已覆盖 |
+| [x] | `db.rs` 建表处 SQL `--` 25 行 | 表与字段语义：`vndb_id` 可空且 UNIQUE（NULL 之间不算重复）、状态行随作品删除、路径唯一由文件管理器给出规范写法 —— 归「数据模型」一节 |
+| [x] | `installations.rs:68` | 先查重复再遍历目录：拖同一个目录两次不该付出读整个目录的代价；UNIQUE 仍是最终保证 |
+| [x] | `metadata.rs:1` / `29` | 资料行可有可无；行不存在与字段为空是两种状态（同 FDD 条）——已收进本文「数据模型」，FDD 那条不再需要 |
+
+另有几处纯复述或已被本文覆盖的 doc，随本批一并删：`db.rs:8/11/19/143/153`、`types.rs:93/114/152-153`、`installations.rs:12`、`characters.rs:83/95`、`games.rs:12/68`、`metadata.rs:72`、`commands.rs:149`（两次请求各扣一次额度，另行成条）。
+
+本批已提交：`docs: 把后端栈特有知识搬进 backend.md，删掉对应注释`。`backend.md` 新增「进程与状态 / 开发期 HTTP 通道 / 错误与 IPC / 本地封面授权 / 封面派生图」五节、架构树的模块补全、「模块 → 文档」路由表、数据模型 12 条语义。
 
 ## → vndb-api.md（外部系统事实）
 
@@ -84,6 +97,8 @@
 | [ ] | `vndb.rs:522` | 图编号（cv/ch）是永久身份，当文件名判断重下 |
 | [ ] | `vndb.rs:583` | 400 是我们请求写错，body 带 VNDB 指出的字段名 |
 | [ ] | `types.rs:144` / `204` / `226` | 中文标题可能一条都没有；出场定位取值；va note 多条 |
+| [ ] | `vndb.rs:515` | 下 url 不下 thumbnail：thumbnail 宽度不足以覆盖 2× 屏（要 554 宽） |
+| [ ] | `vndb.rs:140` | 搜索档只回 thumbnail，url / dims 恒为 None |
 
 ## → FDD（产品 / 设计决策）
 
@@ -93,7 +108,7 @@
 | [ ] | `vndb.rs:280` | 不收无立绘配角（占位块 + 多下一批图） |
 | [ ] | `vndb.rs:325` | 元数据与角色任一失败整体报错（只填一半像同步完成） |
 | [ ] | `vndb.rs:512` | 图下载失败只记日志，不拖垮整次同步 |
-| [ ] | `metadata.rs:1` / `30` | 无行 = 没填过 ≠ 填了空 |
+| [x] | `metadata.rs:1` / `30` | 无行 = 没填过 ≠ 填了空 —— 已由 backend.md「数据模型」收回，注释在 backend 批次删掉 |
 | [ ] | `types.rs:127` / `154` / `183` | 正式名单源 games.name；两种标签来源混列；c 编号按作品各存一行不建共享本体 |
 | [ ] | `DetailCharacters.svelte:8` | trait 分组无序号字段，固定展示序，新分组排末尾 |
 | [ ] | `DetailCharacters.svelte:105` | spoiler ≥ 1 不展示；成人向分组不进正文 |
@@ -101,6 +116,11 @@
 | [ ] | `GameForm.svelte:314` | 与作品级同口径：无取舍项不开面板，直接填新增角色 |
 | [ ] | `GameForm.svelte:342` | 报错文案渲染在各字段旁，不共用 error |
 | [ ] | `Detail.svelte:124` | 占位按钮对应「launch command 未实现」，功能列表状态 |
+| [ ] | `characters.js:1-6` | 草稿留 `source` 原行：本地编辑不露出的 traits / 三围 / 生日要靠它原样带回，改一次名字就把 VNDB 考据数据抹了 |
+| [ ] | `char-merge.js:27` / `50` | 比对字段表只收内容字段（位置与身份除外）；配对键取原名，罗马字重名会把两个角色判成一个 |
+| [ ] | `vn-merge.js:3` | `[spoiler]` / `[raw]` 整块丢弃：前端不解析 BBCode，剥掉不等于丢数据 |
+| [ ] | `Detail.svelte:27` / `37` | 评分按十分制展示（91 → 9.1，不补无信息量的 0）；标签按 rating 排、用户手打标签当 0 排在其后 |
+| [ ] | `MyList.svelte:12` | 分区与筛选栏的展示顺序：游玩中的排最前 |
 
 ## → frontend.md（前端惯例与样式坑集）
 
@@ -121,6 +141,20 @@
 | [ ] | `Detail.svelte:92` | 鼠标侧键 3 = 后退，4 不接 |
 | [ ] | `MyList.svelte:22` | 先落 gameId 再 open 的同帧时序 |
 | [ ] | CSS 样式坑 ~25 条 | `toggle.css:1/19`、`detail.css:1/79/104/114/168/231/255/334/340`、`cover-grid.css:21/26` + `menus.css:1`、`dropdowns.css:1`、`forms.css:81/125`、`buttons.css:22/85`、`sidebar.css:67/82`、`tags.css:1/118` |
+| [ ] | CSS 未列出的坑 | `detail.css` 10 条、`scrollbars.css` 8 条、`modal.css` 4 条、`vn-merge.css` 2 条、`menus.css:12/20`、`shell.css:1`、`forms.css:36`、`tags.css:31`、`toast.css:48`、`sidebar.css:129`、`tooltip.css:31` —— 与上一行合并成一份「样式坑集」 |
+| [ ] | `frontend/scripts/check-css-tokens.js` / `check-dead-css.js` | 两个检查脚本的规则自述：三层架构与 L2 禁裸色值、只警告不报错的理由、复合选择器与 class 指令的判定 |
+| [ ] | `char-merge.js:7/10/16/65` + `vn-merge.js:15/21/30` + `characters.js:40/90/95/104` | lib 的比对契约：空值两边归一、空值只与空值判等（0 是真实取值）、集合语义顺序无关、卡片名优先级、无名角色占掉一个名字 —— 归一份「前端 lib 惯例」 |
+| [ ] | `Modal.svelte:26` + `GameForm.svelte:392` + `DetailCharacters.svelte:51` + `CharacterMergeDialog.svelte:16` + `CharacterEditor.svelte:39` + `Detail.svelte:56` | 零散惯例：onclose 可否决；后端与网络错误不走 i18n；立绘走 coverSrc 管线；untrack 只依赖角色列表 |
+
+## → 删（复述类残留，未执行）
+
+第二遍扫描补出的、没有任何知识含量的那些。与搬文档同批处理。
+
+| 状态 | 范围 | 说明 |
+|---|---|---|
+| [ ] | 组件 props 一行说明 | `Menu.svelte:2`、`StatusSection.svelte:2`、`GameCard.svelte:2` —— 与类型签名重复 |
+| [ ] | JSDoc 的参数表与返回值 | `scroll-dots.svelte.js:7-12/27-35`、`toast.svelte.js:20-26`、`confirm.svelte.js:16-23` —— 签名自明，其中「为什么」的部分归 frontend.md |
+| [ ] | 复述实现的一行 doc | `scroll-dots.svelte.js:22`、`vn-merge.js:76/86/97` 等 |
 
 ## → 删（复述、标准知识、重复、工具指令）— 已执行
 
@@ -146,7 +180,7 @@
 
 ### 原清单外
 
-- `db.rs` 的 SQL `--` 注释（约 30 处，建表处的表/字段语义）——统计只匹配 `//` 时漏掉，待议归类
+- `db.rs` 的 SQL `--` 注释（25 行，建表处的表/字段语义）——已归到 `→ backend.md` 的「数据模型」一行
 - 内联约束说明，已改由代码自证消解（不留注释）：
   - `cover-grid.css` 圆角补偿 → 表面与裁切收拢进 `.cover-card__frame`，浏览器按「内圆角 = 外圆角 − 边框宽」自动裁子元素
   - `cover-grid.css` 标题让位按钮 → `--menu-plain-size`（tokens.css）与遮罩 `padding-right` 共用一份值

@@ -90,7 +90,6 @@ pub struct GameListItem {
     pub cover_path: Option<String>,
 }
 
-/// PATCH 的可空字段用双层 Option：外层 None = 没给，内层 None = 显式置空
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
 pub struct GamePatch {
     pub name: Option<String>,
@@ -111,7 +110,6 @@ pub struct InstallationPatch {
     pub entry_path: Option<Option<String>>,
 }
 
-/// 作品正式名在 games.name，这里不重复存
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GameMetadata {
     pub game_id: String,
@@ -149,8 +147,6 @@ pub struct MetadataTag {
     pub lie: Option<bool>,
 }
 
-/// PATCH 的可空字段用双层 Option：外层 None = 没给，内层 None = 显式置空。
-/// 字段留空表示「不动」，写空字符串与置 null 是两回事。
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
 pub struct MetadataPatch {
     pub alias: Option<Option<String>>,

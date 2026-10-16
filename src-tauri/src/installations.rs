@@ -9,7 +9,6 @@ use crate::types::{Installation, InstallationPatch, NewInstallation};
 
 const COLUMNS: &str = "id, game_id, dir_path, entry_path, exes, size_bytes";
 
-/// 库里 exes 是 JSON 文本，对外给数组
 struct InstallRow {
     id: String,
     game_id: Option<String>,
@@ -65,8 +64,6 @@ pub fn create_installation(conn: &Connection, input: &NewInstallation) -> Result
     let dir = resolve_path(requested);
     let dir_path = dir.to_string_lossy().into_owned();
 
-    // 先查重复再遍历目录：拖同一个目录两次不该付出读整个目录的代价。
-    // UNIQUE 约束仍是最终保证，这里只是提前失败。
     let dup = conn
         .query_row(
             "SELECT id FROM installations WHERE dir_path = ?",

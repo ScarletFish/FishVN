@@ -1,8 +1,3 @@
-//! Tauri 命令层：只做转发，业务逻辑全在 games / installations 里。
-//!
-//! Connection 是 Send 但不是 Sync，所以用 Mutex 包起来交给 State 管。
-//! 锁毒化之后每次调用都会失败，转成错误上报而不是 unwrap。
-
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -128,7 +123,6 @@ pub fn list_game_characters(shared: Shared<'_>, id: String) -> Result<Vec<GameCh
     characters::list(&*lock(&shared)?, &id)
 }
 
-/// 不取 Connection 锁：那是全局单锁，跨网络 I/O 持着会卡住所有库操作
 #[tauri::command]
 pub async fn search_vndb(
     rate: State<'_, Arc<RateLimiter>>,
@@ -146,7 +140,6 @@ pub async fn fetch_vn_metadata(
     vndb_id: String,
 ) -> Result<VnSync> {
     let vndb_id = vndb::validate_vn_id(&vndb_id)?;
-    // 元数据与角色是两次请求，额度按请求数各扣一次
     rate.acquire().await;
     rate.acquire().await;
     let dir =
@@ -162,8 +155,6 @@ pub fn thumbnail(app: tauri::AppHandle, src: String) -> Result<String> {
     Ok(path.to_string_lossy().into_owned())
 }
 
-/// dialog 插件只放行 fs_scope，不碰 asset 协议，所以本地封面渲染前要补一次授权。
-/// 授权只活在本次进程，重启后靠 tauri.conf.json 的静态 scope 兜底。
 #[tauri::command]
 pub fn allow_local_file(app: tauri::AppHandle, path: String) -> Result<()> {
     let path = PathBuf::from(path.trim());

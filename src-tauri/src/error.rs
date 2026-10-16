@@ -29,7 +29,6 @@ impl fmt::Display for AppError {
 
 impl std::error::Error for AppError {}
 
-/// 过 IPC 时前端只需要一句中文说明，错误种类留在 Rust 侧自己判断
 impl Serialize for AppError {
     fn serialize<S: Serializer>(&self, s: S) -> std::result::Result<S::Ok, S::Error> {
         s.serialize_str(&self.to_string())
@@ -56,10 +55,8 @@ impl From<std::io::Error> for AppError {
 
 pub type Result<T> = std::result::Result<T, AppError>;
 
-/// SQLITE_CONSTRAINT_UNIQUE 的扩展码，唯一约束与其它约束要分开报
 const SQLITE_CONSTRAINT_UNIQUE: i32 = 2067;
 
-/// 写入撞唯一约束时转 Conflict，其余错误原样上抛
 pub fn write_conflict(err: rusqlite::Error, message: &str) -> AppError {
     if let rusqlite::Error::SqliteFailure(inner, _) = &err {
         if inner.extended_code == SQLITE_CONSTRAINT_UNIQUE {

@@ -1,9 +1,3 @@
-//! 调试期的本地 HTTP 通道，让浏览器调真实后端。
-//!
-//! 路由是 commands.rs 的镜像，加命令时这里要同步改。
-//!
-//! 只绑 127.0.0.1，且要设 FISHVN_DEV_HTTP 才开：本机任何进程都能读写用户的库
-
 use std::sync::{Arc, Mutex};
 
 use axum::extract::State as AxumState;
@@ -20,7 +14,6 @@ use crate::types::GameCharacter;
 use crate::vndb::RateLimiter;
 use crate::{characters, commands, games, installations, metadata, vndb};
 
-/// 与 vite 的 4545 分开：撞上会自己请求自己
 pub const PORT: u16 = 4546;
 
 struct Fail(StatusCode, String);
@@ -46,7 +39,6 @@ pub struct Dev {
     pub app: tauri::AppHandle,
 }
 
-/// 字段用命令原样的 snake_case：camelCase 到 snake 的转换只有 Tauri 侧有
 #[derive(Default, serde::Deserialize)]
 pub struct Args {
     #[serde(default)]
