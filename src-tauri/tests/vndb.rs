@@ -3,9 +3,51 @@
 
 mod common;
 
+use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
-use fishvn::vndb::{validate_keyword, validate_vn_id, RateLimiter, VnEnvelope, VnMetadata};
+use fishvn::vndb::{
+    take_slot, validate_keyword, validate_vn_id, RateLimiter, VnEnvelope, VnMetadata,
+};
+
+#[test]
+fn 满员时给出等到最早一次出窗的时间() {
+    let base = Instant::now();
+    let window = Duration::from_secs(10);
+    let mut history = VecDeque::from([base]);
+
+    let wait = take_slot(&mut history, 1, window, base + Duration::from_secs(4));
+
+    assert_eq!(wait.unwrap_err(), Duration::from_secs(6));
+}
+
+#[test]
+fn 出窗边界上的等待被抬到最少_1ms() {
+    let base = Instant::now();
+    let window = Duration::from_millis(100);
+    let mut history = VecDeque::from([base + Duration::from_nanos(1)]);
+
+    let wait = take_slot(&mut history, 1, window, base + window);
+
+    assert_eq!(wait.unwrap_err(), Duration::from_millis(1));
+}
+
+#[test]
+fn 没满员时立刻放行并记账() {
+    let mut history = VecDeque::new();
+
+    assert!(take_slot(&mut history, 2, Duration::from_secs(60), Instant::now()).is_ok());
+    assert_eq!(history.len(), 1);
+}
+
+#[test]
+fn 正好出窗的记录被清掉() {
+    let base = Instant::now();
+    let window = Duration::from_secs(1);
+    let mut history = VecDeque::from([base]);
+
+    assert!(take_slot(&mut history, 1, window, base + window).is_ok());
+}
 
 #[tokio::test]
 async fn 限流器满员后要等到窗口出位() {

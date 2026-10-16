@@ -65,7 +65,6 @@ const FIELDS = [
     empty: (v) => !v?.trim(),
     same: (a, b) => sameNames(a, b, devList),
   },
-  // 两边都是本地路径了，可以直接比
   {
     key: 'coverPath',
     read: (vn) => vn.image?.local_path ?? '',

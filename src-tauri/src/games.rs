@@ -239,7 +239,6 @@ fn validate_name(raw: &str) -> Result<String> {
     Ok(trimmed.to_owned())
 }
 
-/// VNDB 编号形如 v14：v 前缀 + 数字
 fn validate_vndb_id(raw: &str) -> Result<String> {
     let trimmed = raw.trim();
     let digits = trimmed.strip_prefix('v').unwrap_or_default();

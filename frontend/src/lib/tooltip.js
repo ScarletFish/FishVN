@@ -21,7 +21,6 @@ document.addEventListener('mouseover', (e) => {
   clearTimeout(hideTimer);
   current = target;
 
-  // 记录进入时的光标位置，不跟随移动
   const entryX = e.clientX;
   const entryY = e.clientY;
 

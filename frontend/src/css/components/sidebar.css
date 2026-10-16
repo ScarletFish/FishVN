@@ -89,7 +89,6 @@
 .nav-btn.active::before {
   content: '';
   position: absolute;
-  /* 图标居中在 11px 处；left 越小离图标越远 */
   left: 2px;
   top: 50%;
   transform: translateY(-50%);
@@ -98,8 +97,6 @@
   background: var(--accent);
   border-radius: var(--radius-pill);
 }
-
-/* ─── 提示气泡：锚定按钮右缘，带指向箭头 ─── */
 
 .sidebar-tooltip {
   position: fixed;

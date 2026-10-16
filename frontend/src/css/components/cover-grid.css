@@ -7,23 +7,15 @@
   gap: var(--space-4);
 }
 
-/* overflow: hidden 不能留在卡片上：绝对定位的菜单会被裁掉。裁切改由
-   .cover-card__media 承担，但标题遮罩在 media 之外，得自己圆底边 */
 .cover-card {
   position: relative;
   aspect-ratio: 3 / 4;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: transform var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 
 .cover-card:hover {
   transform: translateY(calc(var(--space-050) * -1));
-  box-shadow: var(--shadow-md);
 }
 
 /* :hover 的 transform 生成了层叠上下文，菜单展开时整卡抬到相邻卡之上 */
@@ -31,13 +23,27 @@
   z-index: var(--z-dropdown);
 }
 
+/* 可见表面与裁切都归它。菜单是它的兄弟而非子元素，才逃得出裁切 */
+.cover-card__frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.cover-card:hover .cover-card__frame {
+  box-shadow: var(--shadow-md);
+}
+
 .cover-card__media {
   width: 100%;
   height: 100%;
   display: grid;
   place-items: center;
-  overflow: hidden;
-  border-radius: inherit;
 }
 
 .cover-card__hit {
@@ -52,8 +58,9 @@
 
 .cover-card__menu {
   position: absolute;
-  bottom: var(--space-1);
-  right: var(--space-1);
+  bottom: var(--space-2);
+  right: var(--space-2);
+  display: flex;
   z-index: 3;
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-out);
@@ -72,7 +79,6 @@
   display: block;
 }
 
-/* 无封面时的占位：游戏名首字符 */
 .cover-ph {
   display: grid;
   place-items: center;
@@ -88,13 +94,10 @@
 .cover-card__overlay {
   position: absolute;
   inset: auto 0 0 0;
-  z-index: 2;
   pointer-events: none;
   padding: var(--space-4);
+  padding-right: calc(var(--space-2) + var(--menu-plain-size));
   background: var(--cover-scrim);
-  /* 它在 .cover-card__media 之外，吃不到那边的裁切，底边两个角要自己圆回来。
-     定位参照的是 padding box，所以圆角要减掉边框宽度 */
-  border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
   opacity: 0;
   transform: translateY(var(--space-2));
   transition: opacity var(--duration-normal) var(--ease-out),
@@ -109,9 +112,6 @@
 
 .cover-card__title {
   margin: 0;
-  /* 按钮在右下角，压住的是标题的两行截断区。遮罩自身的右内边距已在让位，
-     这里补足按钮从卡片右缘往里占的宽度（24 按钮 + 4 偏移），两行标题不会压到字 */
-  padding-right: var(--space-5);
   font-size: var(--text-base);
   font-weight: var(--fw-semibold);
   line-height: 1.35;

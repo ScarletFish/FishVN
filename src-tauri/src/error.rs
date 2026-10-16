@@ -4,15 +4,10 @@ use serde::{Serialize, Serializer};
 
 #[derive(Debug)]
 pub enum AppError {
-    /// 输入不合法
     BadRequest(String),
-    /// 目标不存在
     NotFound(String),
-    /// 唯一约束撞了
     Conflict(String),
-    /// 触发 VNDB 限流
     RateLimited,
-    /// 上游故障：5xx、连接失败、响应不是 JSON
     Upstream(String),
     Db(rusqlite::Error),
     Json(serde_json::Error),

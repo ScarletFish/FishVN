@@ -21,7 +21,6 @@ async function overHttp(command, args) {
   return res.json();
 }
 
-// 与 Rust 侧通信。命令层只转发，错误是 AppError 序列化来的字符串。
 // invoke 会用原值 reject，这里包成 Error 让调用方统一读 .message
 async function call(command, args) {
   try {

@@ -1,5 +1,4 @@
 <script>
-  // 鱼身与鱼尾用 --bg-page、眼珠用 --accent，靠底色互相挖空
   let { label = 'FishVN' } = $props();
 </script>
 

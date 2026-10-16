@@ -12,7 +12,6 @@ use crate::types::{GameMetadata, MetadataPatch, MetadataTag};
 const COLUMNS: &str =
     "game_id, alias, titles, rating, votecount, released, description, image_id, image_path, tags, developers";
 
-/// 库里 titles / tags / developers 是 JSON 文本，对外给数组
 struct MetaRow {
     game_id: String,
     alias: Option<String>,

@@ -1,5 +1,3 @@
-/* 视图标题栏：标题居左，操作区居右。跨视图复用。 */
-
 .view-header {
   display: flex;
   align-items: center;

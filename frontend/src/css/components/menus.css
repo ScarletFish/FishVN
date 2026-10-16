@@ -9,9 +9,22 @@
   padding-inline: var(--space-2);
 }
 
+/* .btn svg 是按描边线性图标定的（15px、fill:none），这组实心点要自己定尺 */
+.menu .menu__trigger svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  stroke: none;
+}
+
 /* 裸图标变体浮在内容图上，必须自带底色才读得出图标 */
 .menu[data-variant='plain'] .menu__trigger {
-  padding: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--menu-plain-size);
+  height: var(--menu-plain-size);
+  padding: 0;
   color: var(--fg-default);
   background: color-mix(in srgb, var(--bg-floating) 78%, transparent);
   border: 0;

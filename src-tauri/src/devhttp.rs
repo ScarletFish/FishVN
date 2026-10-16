@@ -39,7 +39,6 @@ impl From<AppError> for Fail {
 
 type Reply = std::result::Result<Json<Value>, Fail>;
 
-/// axum 的 State 要求 Clone
 #[derive(Clone)]
 pub struct Dev {
     pub conn: Arc<Mutex<Connection>>,
@@ -64,7 +63,6 @@ pub struct Args {
     pub vndb_id: Option<String>,
     #[serde(default)]
     pub path: Option<String>,
-    /// characters 是整包替换的角色数组，不是 patch，所以用 Value 透传给 serde
     #[serde(default)]
     pub characters: Option<Value>,
 }
@@ -172,7 +170,6 @@ async fn fetch_vn_metadata(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) 
         Ok(v) => v,
         Err(e) => return Err(Fail(StatusCode::BAD_REQUEST, e.to_string())),
     };
-    // 与命令层同源：元数据与角色两次请求，额度各扣一次
     dev.rate.acquire().await;
     dev.rate.acquire().await;
     let dir = crate::data_dir(&dev.app)
@@ -219,7 +216,6 @@ pub fn router(dev: Dev) -> Router {
         .with_state(dev)
 }
 
-/// 路由清单，tests/devhttp.rs 拿它跟 commands.rs 比对
 pub const COMMANDS: &[&str] = &[
     "list_games",
     "get_game",

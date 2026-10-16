@@ -86,7 +86,6 @@
     return artUrls[path.trim()] ?? null;
   }
 
-  // 新卡总是追加在末尾，多半落在当前屏外，建完要跟过去不然像是没反应
   async function addCharacter() {
     const created = blankCharacter();
     characters = [...characters, created];
@@ -151,7 +150,6 @@
   <div class="char-editor-head">
     <h4>{t('gameForm.tab.characters')}</h4>
     <span class="char-editor-count">{characters.length}</span>
-    <!-- 圆点由 initScrollDots 生成并 append 进这里；margin-left:auto 把它顶到右边缘 -->
     <span class="char-editor-dots" bind:this={dotsHostEl}></span>
   </div>
 

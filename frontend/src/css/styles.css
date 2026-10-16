@@ -1,4 +1,3 @@
-/* FishVN 样式入口 — 只做 import，禁止写样式（结构见 docs/dev/frontend.md） */
 @import "./tokens.css";
 @import "overlayscrollbars/overlayscrollbars.css";
 @import "./layouts/shell.css";

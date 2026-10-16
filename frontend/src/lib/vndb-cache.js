@@ -17,7 +17,6 @@ export function readCache(keyword) {
 
 export function writeCache(keyword, data) {
   store.set(keyword, { data, at: Date.now() });
-  // Map 保持插入序，删第一个即最久未用
   while (store.size > MAX_ENTRIES) {
     store.delete(store.keys().next().value);
   }

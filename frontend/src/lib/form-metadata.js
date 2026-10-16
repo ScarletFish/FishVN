@@ -7,7 +7,6 @@ export function toNumber(raw) {
   return Number.isFinite(value) ? value : null;
 }
 
-// 评分人数在库里是 i64，带小数送过去 serde 整个包都反序列化失败
 export function toInteger(raw) {
   const value = toNumber(raw);
   return value === null ? null : Math.trunc(value);

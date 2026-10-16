@@ -13,7 +13,6 @@
   overflow-anchor: none;
 }
 
-/* 视图容器：统一 padding */
 .view {
   padding: var(--space-8);
 }

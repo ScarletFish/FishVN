@@ -81,7 +81,6 @@ pub fn create_installation(conn: &Connection, input: &NewInstallation) -> Result
     ensure_dir(&dir)?;
     let info = read_dir_info(&dir);
 
-    // 候选唯一时没有选择余地，直接填上
     let entry_path = match info.exes.as_slice() {
         [only] => Some(only.clone()),
         _ => None,
@@ -116,8 +115,6 @@ pub fn update_installation(
     id: &str,
     patch: &InstallationPatch,
 ) -> Result<Installation> {
-    // entry_path 的合法性先判：归属查不到是「不存在」，入口不合法是「输入有问题」，
-    // 两个同时非法时要报后者
     if let Some(Some(entry)) = &patch.entry_path {
         if entry.is_empty() {
             return Err(AppError::BadRequest(

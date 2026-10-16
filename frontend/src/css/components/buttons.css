@@ -56,7 +56,6 @@
   font-weight: var(--fw-semibold);
 }
 
-/* 次要操作：去掉填充与阴影，只留描边 */
 .btn-ghost {
   background: transparent;
   border-color: var(--border-default);
@@ -68,7 +67,6 @@
   border-color: var(--border-strong);
 }
 
-/* 破坏性操作：描边与文字用 error 色 */
 .btn-danger {
   color: var(--error);
   background: transparent;

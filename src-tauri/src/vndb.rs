@@ -68,7 +68,6 @@ pub fn image_http() -> &'static reqwest::Client {
     })
 }
 
-/// 窗口内的历史请求时刻满员时睡到最早那次出窗，不忙等
 pub struct RateLimiter {
     max: usize,
     window: Duration,
@@ -92,26 +91,37 @@ impl RateLimiter {
         loop {
             let wait = {
                 let mut history = self.history.lock().await;
-                let now = Instant::now();
-                while history
-                    .front()
-                    .is_some_and(|t| now.duration_since(*t) >= self.window)
-                {
-                    history.pop_front();
+                match take_slot(&mut history, self.max, self.window, Instant::now()) {
+                    Ok(()) => return,
+                    Err(wait) => wait,
                 }
-                if history.len() < self.max {
-                    history.push_back(now);
-                    return;
-                }
-                let since_oldest = history.front().map_or(Duration::ZERO, Instant::elapsed);
-                // 睡 0 会立刻重入本轮循环变成忙等，出窗边界上要保证至少睡 1ms
-                self.window
-                    .saturating_sub(since_oldest)
-                    .max(Duration::from_millis(1))
             };
             tokio::time::sleep(wait).await;
         }
     }
+}
+
+const MIN_WAIT: Duration = Duration::from_millis(1);
+
+/// 名额到手给 Ok；满了给 Err(还要等多久)
+pub fn take_slot(
+    history: &mut VecDeque<Instant>,
+    max: usize,
+    window: Duration,
+    now: Instant,
+) -> std::result::Result<(), Duration> {
+    while history
+        .front()
+        .is_some_and(|t| now.duration_since(*t) >= window)
+    {
+        history.pop_front();
+    }
+    if history.len() < max {
+        history.push_back(now);
+        return Ok(());
+    }
+    let since_oldest = history.front().map_or(Duration::ZERO, |t| now.duration_since(*t));
+    Err(window.saturating_sub(since_oldest).max(MIN_WAIT))
 }
 
 impl Default for RateLimiter {
@@ -136,7 +146,7 @@ pub struct VnImage {
     pub thumbnail: Option<String>,
     pub dims: Option<Vec<i64>>,
     pub thumbnail_dims: Option<Vec<i64>>,
-    /// VNDB 响应里没有这个键，由 fetch_vn 落盘后回填
+    #[serde(skip_deserializing)]
     pub local_path: Option<String>,
 }
 
@@ -237,7 +247,6 @@ pub struct VnSync {
     pub characters: Vec<GameCharacter>,
 }
 
-/// /character 的行，只取要映射进 GameCharacter 的字段
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 struct CharRow {
@@ -491,7 +500,6 @@ async fn download_character_images(
     chars
 }
 
-/// 在飞的下载数要留在 IMAGE_CONCURRENCY 以内，所以每收一个才补一个
 fn spawn_next_image(
     set: &mut tokio::task::JoinSet<(usize, Option<String>)>,
     pending: &mut std::vec::IntoIter<(usize, String, String)>,

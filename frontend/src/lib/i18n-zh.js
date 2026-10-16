@@ -59,7 +59,6 @@ export const DICT_ZH = {
       'Subject of': '遭遇',
     },
   },
-  // 每个操作一组 title/message/confirm，调用处只传 action 名
   confirm: {
     deleteGame: {
       title: '删除作品',
@@ -165,7 +164,6 @@ export const DICT_ZH = {
       charEmpty: '没有需要取舍的角色',
       accept: '接受 {count} 项',
     },
-    // VNDB 的 vns.role 取值
     charRole: {
       main: '主角',
       primary: '主要角色',

@@ -3,28 +3,21 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{AppError, Result};
 
-/// 双击即可运行的扩展名
 const EXECUTABLE_EXT: [&str; 3] = ["exe", "bat", "cmd"];
 
-/// 顶层记第 0 层，候选入口最深收到第 2 层，即两层子目录
 const MAX_EXE_DEPTH: usize = 3;
 
-/// 候选入口最多留几个，超出部分丢弃
 const MAX_EXES: usize = 30;
 
 pub struct DirInfo {
     pub size_bytes: i64,
-    /// 候选入口，相对目录，层数浅的在前
     pub exes: Vec<String>,
 }
 
-/// 相对路径接上工作目录，`.` 与 `..` 一并归一化成规范写法。
-/// 不 stat 目标：路径是否真的存在留给 ensure_dir 判，好让调用方先查重再读盘。
 pub fn resolve_path(input: &str) -> PathBuf {
     std::path::absolute(input).unwrap_or_else(|_| PathBuf::from(input))
 }
 
-/// 目录必须存在且是目录
 pub fn ensure_dir(path: &Path) -> Result<()> {
     let meta = fs::metadata(path).map_err(|_| AppError::BadRequest("目录不存在".into()))?;
     if !meta.is_dir() {
@@ -33,13 +26,6 @@ pub fn ensure_dir(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// 一次遍历同时算出目录大小与候选入口。
-/// 大小累加全部深度；候选入口只收 MAX_EXE_DEPTH 层以内。
-/// 符号链接既不递归也不计大小：lstat 看来它既不是目录也不是普通文件。
-///
-/// 候选上限在遍历途中生效，即按遍历顺序截断，之后才排序。
-///
-/// 大小是全深度遍历，单个目录（几个 GB）可接受。批量遍历要另走异步并带进度。
 pub fn read_dir_info(dir: &Path) -> DirInfo {
     let mut size_bytes = 0i64;
     let mut found: Vec<(usize, String)> = Vec::new();

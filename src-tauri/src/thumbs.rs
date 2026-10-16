@@ -13,7 +13,6 @@ use crate::error::{AppError, Result};
 
 const MAX_EDGE: u32 = 560;
 
-/// 封面是插画，q85 够用
 const QUALITY: u8 = 85;
 
 pub fn cached(src: &str, data_dir: &Path) -> Result<PathBuf> {
@@ -73,7 +72,6 @@ fn decode(src: &Path) -> Result<DynamicImage> {
     let mut decoder = reader
         .into_decoder()
         .map_err(|e| AppError::BadRequest(format!("封面格式不支持：{e}")))?;
-    // Orientation 没实现 Default，缺 EXIF 段时手动兜 NoTransforms
     let orientation = decoder
         .orientation()
         .unwrap_or(image::metadata::Orientation::NoTransforms);
@@ -83,7 +81,6 @@ fn decode(src: &Path) -> Result<DynamicImage> {
     Ok(img)
 }
 
-/// 长边已不超过上限时原样返回，只换编码不丢像素 —— 放大只会徒增体积和模糊
 fn fit(img: DynamicImage, max_edge: u32) -> DynamicImage {
     let (w, h) = (img.width(), img.height());
     let long = w.max(h);

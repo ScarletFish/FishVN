@@ -55,8 +55,6 @@ export function toDraft(row = {}) {
       key: newLocalId(),
       staffId: entry.staff_id ?? '',
       name: entry.name ?? '',
-      // 原名只在展示时露出（表单里没有这一栏），往返要原样带回：丢了它，
-      // 每次保存都会把同步来的原名抹成空
       original: entry.original ?? '',
       note: entry.note ?? '',
     })),

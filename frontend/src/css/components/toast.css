@@ -9,7 +9,6 @@
   }
 }
 
-/* 退场分两段：先淡出并右移，再收高度与内边距让下方条目上移 */
 @keyframes toast-out {
   0% {
     opacity: 1;
@@ -83,7 +82,6 @@
   animation-play-state: paused;
 }
 
-/* 左缘竖条，与 .form-row 同一套语言 */
 .toast::before {
   content: '';
   position: absolute;
@@ -114,7 +112,6 @@
   color: var(--fg-default);
 }
 
-/* silent 是最弱的一档，标题跟着降级 */
 .toast[data-type='silent'] .toast-title {
   color: var(--fg-secondary);
   font-weight: var(--fw-medium);

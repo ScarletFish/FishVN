@@ -35,18 +35,24 @@
 </script>
 
 <div class="cover-card">
-  <div class="cover-card__media">
-    {#if coverUrl && !coverBroken}
-      <img
-        src={coverUrl}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        onerror={() => (coverBroken = true)}
-      />
-    {:else}
-      <div class="cover-ph">{initial}</div>
-    {/if}
+  <div class="cover-card__frame">
+    <div class="cover-card__media">
+      {#if coverUrl && !coverBroken}
+        <img
+          src={coverUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onerror={() => (coverBroken = true)}
+        />
+      {:else}
+        <div class="cover-ph">{initial}</div>
+      {/if}
+    </div>
+
+    <div class="cover-card__overlay">
+      <h3 class="cover-card__title">{item.name}</h3>
+    </div>
   </div>
 
   <!-- 可点区域独立成真按钮，与菜单互为兄弟：键盘原生可用，也不必拦截冒泡 -->
@@ -56,10 +62,6 @@
     aria-label={item.name}
     onclick={() => onopen?.(item.id)}
   ></button>
-
-  <div class="cover-card__overlay">
-    <h3 class="cover-card__title">{item.name}</h3>
-  </div>
 
   <div class="cover-card__menu">
     <Menu items={menuItems} label={t('common.actionMore')} variant="plain" />

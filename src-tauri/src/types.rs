@@ -1,14 +1,11 @@
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
 use serde::{Deserialize, Serialize};
 
-/// games 表行：作品身份
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Game {
     pub id: String,
     pub name: String,
-    /// VNDB 编号 'v14'；None = 未匹配
     pub vndb_id: Option<String>,
-    /// unix 秒
     pub created_at: i64,
 }
 
@@ -57,35 +54,27 @@ impl ToSql for Status {
     }
 }
 
-/// user_game_state 表行
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserGameState {
     pub game_id: String,
     pub status: Status,
     pub user_rating: Option<f64>,
     pub notes: Option<String>,
-    /// 启动这份作品时的默认安装
     pub default_installation_id: Option<String>,
-    /// unix 秒
     pub last_played_at: Option<i64>,
     pub play_count: i64,
 }
 
-/// installations 表行：一个本地目录
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Installation {
     pub id: String,
-    /// 所属作品；None = 待认领
     pub game_id: Option<String>,
     pub dir_path: String,
-    /// 入口 exe，相对 dir_path
     pub entry_path: Option<String>,
-    /// 候选入口清单
     pub exes: Option<Vec<String>>,
     pub size_bytes: Option<i64>,
 }
 
-/// 列表投影：作品 + 状态 + 本地安装概况，卡片一次渲染所需
 #[derive(Debug, Clone, Serialize)]
 pub struct GameListItem {
     pub id: String,
@@ -96,9 +85,7 @@ pub struct GameListItem {
     pub user_rating: Option<f64>,
     pub last_played_at: Option<i64>,
     pub play_count: i64,
-    /// 已登记的本地目录数
     pub installation_count: i64,
-    /// 至少有一个目录已指定入口
     pub can_launch: bool,
     pub cover_path: Option<String>,
 }
@@ -134,7 +121,6 @@ pub struct GameMetadata {
     pub votecount: Option<i64>,
     pub released: Option<String>,
     pub description: Option<String>,
-    /// VNDB 侧的 cv 编号，只用来判断封面要不要重下
     pub image_id: Option<String>,
     pub image_path: Option<String>,
     pub tags: Option<Vec<MetadataTag>>,
@@ -154,7 +140,6 @@ pub struct LocalizedTitle {
 /// 用户手打的标签没有排序键与剧透等级，同一列里两种都可能有
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MetadataTag {
-    /// VNDB 标签编号；用户手打或本地自建的标签没有
     pub id: Option<String>,
     pub name: String,
     pub category: Option<String>,
@@ -175,7 +160,6 @@ pub struct MetadataPatch {
     pub released: Option<Option<String>>,
     pub description: Option<Option<String>>,
     pub image_path: Option<Option<String>>,
-    /// 整列替换，不按标签逐个合并
     pub tags: Option<Option<Vec<MetadataTag>>>,
     pub developers: Option<Option<Vec<String>>>,
 }
@@ -185,7 +169,6 @@ pub struct MetadataPatch {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GameCharacter {
-    /// VNDB c 编号，或本地自建的 `local-<uuid>`
     pub id: String,
     pub name: Option<String>,
     pub original: Option<String>,
@@ -205,7 +188,6 @@ pub struct GameCharacter {
     pub role: Option<String>,
     pub image_id: Option<String>,
     pub image_path: Option<String>,
-    /// 由写入位置决定（见 characters::replace_all），读取端据此还原顺序
     pub sort_order: i64,
     pub traits: Option<Vec<CharacterTrait>>,
     pub va: Option<Vec<CharacterVa>>,
@@ -214,7 +196,6 @@ pub struct GameCharacter {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CharacterTrait {
-    /// VNDB trait 编号（i 前缀的一组数字）
     pub id: Option<String>,
     pub name: String,
     pub group_name: Option<String>,
@@ -237,7 +218,6 @@ pub struct CharacterVa {
 pub struct NewGame {
     pub name: String,
     pub vndb_id: Option<String>,
-    /// 给 Some 但一个字段都没填时，upsert 报「没有可更新的字段」而不是当没给
     pub metadata: Option<MetadataPatch>,
 }
 

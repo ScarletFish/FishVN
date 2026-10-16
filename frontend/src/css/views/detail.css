@@ -21,7 +21,7 @@
   font-size: var(--text-sm);
 }
 
-/* 与列表卡 .cover-card 的尺寸、圆角、占位要一起改 */
+/* 与列表卡封面（.cover-card / .cover-card__frame）的尺寸、圆角、占位要一起改 */
 .detail-cover {
   width: var(--card-w);
   max-width: 100%;
@@ -275,7 +275,6 @@
   color: var(--fg-muted);
 }
 
-/* ─── 角色 ─── */
 .detail-chars {
   position: relative;
   z-index: 1;

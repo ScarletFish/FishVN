@@ -25,7 +25,6 @@
     formOpen = true;
   }
 
-  // 写操作后调用它重拉
 async function load() {
     try {
       games = await api.listGames();

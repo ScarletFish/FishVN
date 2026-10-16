@@ -1,4 +1,3 @@
-// 打包后不再弹控制台窗口
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::{Arc, Mutex};
@@ -31,8 +30,6 @@ fn spawn_dev_channel(
     });
 }
 
-/// 开发期指向仓库根的 data/。打包后仓库根不在用户机器上，改用系统应用数据目录 ——
-/// 两者不共用，免得开发数据混进安装版。
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
