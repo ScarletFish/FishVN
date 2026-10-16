@@ -199,39 +199,6 @@
   justify-content: flex-end;
 }
 
-.pill {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-pill);
-  font-family: inherit;
-  font-size: var(--text-xs);
-  font-weight: var(--fw-medium);
-  white-space: nowrap;
-}
-
-.pill--info {
-  background: var(--accent-bg);
-  color: var(--accent-soft);
-}
-
-.pill--tag {
-  background: var(--bg-hover);
-  color: var(--fg-secondary);
-}
-
-.pill--more {
-  margin: 0;
-  border: 0;
-  background: var(--bg-hover);
-  color: var(--fg-muted);
-  cursor: pointer;
-}
-
-.pill--more:hover {
-  background: var(--bg-selected);
-  color: var(--accent-soft);
-}
 
 .detail-tags {
   margin-bottom: var(--space-2);
@@ -534,4 +501,57 @@
 
 .detail-char-vndb:hover {
   text-decoration: underline;
+}
+
+.detail-install {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.detail-install-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.detail-install-header h3 {
+  font-size: var(--text-body);
+  font-weight: var(--fw-semibold);
+  color: var(--fg-default);
+}
+
+.detail-install-count {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  color: var(--fg-muted);
+}
+
+.detail-install-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-install-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.detail-install-path {
+  flex: 1;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-compact-lg);
+  color: var(--fg-default);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

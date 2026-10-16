@@ -19,14 +19,23 @@
   import VnMergeDialog from './VnMergeDialog.svelte';
   import CharacterMergeDialog from './CharacterMergeDialog.svelte';
   import CharacterEditor from './CharacterEditor.svelte';
+  import InstallationList from './InstallationList.svelte';
+  import PathField from './PathField.svelte';
   import { namedOnly, toDraft, toPayload } from '../lib/characters.js';
+  import {
+    defaultKeyOf,
+    installPathInvalid,
+    resolveDefaultId,
+    toInstallationDraft,
+    toInstallationPayload,
+  } from '../lib/installations.js';
   import { applyCharacters, planCharacters } from '../lib/char-merge.js';
   import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
 
   let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
 
-  const TABS = ['basic', 'profile', 'tags', 'characters'];
+  const TABS = ['basic', 'profile', 'tags', 'installations', 'characters'];
 
   const STATUS_KEYS = ['playing', 'wishlist', 'finished', 'dropped'];
 
@@ -55,6 +64,8 @@
   let tagDraft = $state('');
   let tagInputOpen = $state(false);
   let characters = $state([]);
+  let installations = $state([]);
+  let defaultInstallKey = $state(null);
   
   let mergeOpen = $state(false);
   let mergeRows = $state([]);
@@ -68,7 +79,6 @@
   let incoming = $state(null);
   let coverBroken = $state(false);
   let coverUrl = $state(null);
-  let coverError = $state('');
 
   let tab = $state('basic');
   let statusOpen = $state(false);
@@ -99,10 +109,11 @@
     tags = [];
     coverPath = '';
     coverUrl = null;
-    coverError = '';
     tagDraft = '';
     tagInputOpen = false;
     characters = [];
+    installations = [];
+    defaultInstallKey = null;
     
     coverBroken = false;
     tab = 'basic';
@@ -139,11 +150,12 @@
 
   async function loadExisting(id) {
     try {
-      const [game, state, meta, roles] = await Promise.all([
+      const [game, state, meta, roles, dirs] = await Promise.all([
         api.getGame(id),
         api.getGameState(id),
         api.getGameMetadata(id),
         api.listGameCharacters(id).catch(() => []),
+        api.listInstallations(id),
       ]);
       if (gameId !== id) return;
       name = game.name;
@@ -161,6 +173,8 @@
       tags = (meta?.tags ?? []).map((tag) => ({ ...tag }));
       coverPath = meta?.image_path ?? '';
       characters = roles.map(toDraft);
+      installations = dirs.map(toInstallationDraft);
+      defaultInstallKey = defaultKeyOf(installations, state.default_installation_id);
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -183,16 +197,6 @@
       live = false;
     };
   });
-
-  async function browseCover() {
-    coverError = '';
-    try {
-      const picked = await pickImage(t('gameForm.field.cover'));
-      if (picked) coverPath = picked;
-    } catch (err) {
-      coverError = err.message;
-    }
-  }
 
   function stepRating(delta) {
     const current = userRating ?? 0;
@@ -394,6 +398,11 @@
       return;
     }
 
+    if (installations.some(installPathInvalid)) {
+      tab = 'installations';
+      return;
+    }
+
     saving = true;
     error = '';
     const patch = buildMetadataPatch({
@@ -407,14 +416,19 @@
       developers,
     });
     try {
-      const state = {
+      const base = {
         status,
         user_rating: userRating,
         notes: notes.trim() || null,
       };
+      const entries = installations.map(toInstallationPayload);
       if (gameId) {
         await api.updateGame(gameId, { name: value, vndb_id: vndbId });
-        await api.updateGameState(gameId, state);
+        const dirs = await api.saveInstallations(gameId, entries);
+        await api.updateGameState(gameId, {
+          ...base,
+          default_installation_id: resolveDefaultId(dirs, installations, defaultInstallKey),
+        });
         await api.updateGameMetadata(gameId, patch);
         await api.saveGameCharacters(gameId, namedOnly(characters).map(toPayload));
       } else {
@@ -423,7 +437,11 @@
           vndb_id: vndbId,
           metadata: patch,
         });
-        await api.updateGameState(created.id, state);
+        const dirs = await api.saveInstallations(created.id, entries);
+        await api.updateGameState(created.id, {
+          ...base,
+          default_installation_id: resolveDefaultId(dirs, installations, defaultInstallKey),
+        });
           await api.saveGameCharacters(created.id, namedOnly(characters).map(toPayload));
       }
       open = false;
@@ -728,30 +746,25 @@
                 <div class="cover-field__ph">{t('gameForm.placeholder.empty')}</div>
               {/if}
             </div>
-            <div class="cover-field__main">
-              <div class="cover-field__row">
-                <input
-                  id="game-form-cover"
-                  type="text"
-                  bind:value={coverPath}
-                  placeholder={t('gameForm.placeholder.cover')}
-                  disabled={saving}
-                />
-                <button
-                  type="button"
-                  class="btn cover-field__browse"
-                  onclick={browseCover}
-                  disabled={saving}
-                >
-                  {t('gameForm.action.browseCover')}
-                </button>
-              </div>
-              {#if coverError}
-                <p class="form-hint form-hint--error">{coverError}</p>
-              {/if}
-            </div>
+            <PathField
+              id="game-form-cover"
+              bind:value={coverPath}
+              picker={pickImage}
+              pickerTitle={t('gameForm.field.cover')}
+              placeholder={t('gameForm.placeholder.cover')}
+              ariaLabel={t('gameForm.field.cover')}
+              disabled={saving}
+            />
           </div>
         </div>
+      </div>
+
+      <div class="modal-panel" class:active={tab === 'installations'}>
+        <InstallationList
+          bind:items={installations}
+          bind:defaultKey={defaultInstallKey}
+          disabled={saving}
+        />
       </div>
 
       <div class="modal-panel" class:active={tab === 'characters'}>

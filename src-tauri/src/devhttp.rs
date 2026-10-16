@@ -16,7 +16,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, Result};
 use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
-use crate::types::GameCharacter;
+use crate::types::{GameCharacter, InstallationInput};
 use crate::vndb::RateLimiter;
 use crate::{characters, commands, games, installations, metadata, vndb};
 
@@ -69,6 +69,8 @@ pub struct Args {
     pub path: Option<String>,
     #[serde(default)]
     pub characters: Option<Value>,
+    #[serde(default)]
+    pub entries: Option<Value>,
     #[serde(default)]
     pub task: Option<String>,
 }
@@ -155,6 +157,10 @@ handler!(update_installation, |c, a| {
 });
 handler!(delete_installation, |c, a| {
     installations::delete_installation(c, a.id()?)
+});
+handler!(save_installations, |c, a| {
+    let entries: Vec<InstallationInput> = a.parse(a.entries.as_ref(), "entries")?;
+    installations::save_installations(c, a.need(a.game_id.as_ref(), "game_id")?, &entries)
 });
 handler!(get_game_metadata, |c, a| metadata::get(c, a.id()?));
 handler!(update_game_metadata, |c, a| {
@@ -288,6 +294,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/create_installation", post(create_installation))
         .route("/update_installation", post(update_installation))
         .route("/delete_installation", post(delete_installation))
+        .route("/save_installations", post(save_installations))
         .route("/get_game_metadata", post(get_game_metadata))
         .route("/update_game_metadata", post(update_game_metadata))
         .route("/list_game_characters", post(list_game_characters))
@@ -314,6 +321,7 @@ pub const COMMANDS: &[&str] = &[
     "create_installation",
     "update_installation",
     "delete_installation",
+    "save_installations",
     "get_game_metadata",
     "update_game_metadata",
     "list_game_characters",

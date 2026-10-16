@@ -74,6 +74,7 @@ fn main() {
             commands::create_installation,
             commands::update_installation,
             commands::delete_installation,
+            commands::save_installations,
             commands::get_game_metadata,
             commands::update_game_metadata,
             commands::list_game_characters,

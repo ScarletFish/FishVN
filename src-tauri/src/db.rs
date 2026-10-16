@@ -25,22 +25,27 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           created_at INTEGER NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS user_game_state (
-          game_id        TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
-          status         TEXT NOT NULL DEFAULT 'wishlist',
-          user_rating    REAL,
-          notes          TEXT,
-          last_played_at INTEGER,
-          play_count     INTEGER NOT NULL DEFAULT 0
-        );
-
         CREATE TABLE IF NOT EXISTS installations (
           id         TEXT PRIMARY KEY,
           game_id    TEXT REFERENCES games(id) ON DELETE SET NULL,
-          dir_path   TEXT NOT NULL UNIQUE,
+          dir_path   TEXT NOT NULL,
           entry_path TEXT,
           exes       TEXT,
-          size_bytes INTEGER
+          size_bytes INTEGER,
+          sort_order INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS installations_path_key
+          ON installations(dir_path, IFNULL(entry_path, ''));
+
+        CREATE TABLE IF NOT EXISTS user_game_state (
+          game_id                 TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+          status                  TEXT NOT NULL DEFAULT 'wishlist',
+          user_rating             REAL,
+          notes                   TEXT,
+          last_played_at          INTEGER,
+          play_count              INTEGER NOT NULL DEFAULT 0,
+          default_installation_id TEXT REFERENCES installations(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS game_metadata (
@@ -110,23 +115,5 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
         ",
     )?;
 
-    if !has_column(conn, "user_game_state", "default_installation_id")? {
-        conn.execute_batch(
-            "ALTER TABLE user_game_state ADD COLUMN default_installation_id TEXT
-             REFERENCES installations(id) ON DELETE SET NULL",
-        )?;
-    }
     Ok(())
-}
-
-fn has_column(conn: &Connection, table: &str, column: &str) -> Result<bool> {
-    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
-    let mut rows = stmt.query([])?;
-    while let Some(row) = rows.next()? {
-        let name: String = row.get(1)?;
-        if name == column {
-            return Ok(true);
-        }
-    }
-    Ok(false)
 }

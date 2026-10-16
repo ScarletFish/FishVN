@@ -29,7 +29,7 @@ Svelte 5 SPA + Rust 后端的 Tauri v2 桌面应用
 
 - **前端**: Svelte 5+ Vite；样式为纯 CSS——手写 token（`tokens.css`）+ Svelte scoped style + 普通 CSS 类
 - **后端**: Rust crate `src-tauri`，`#[tauri::command]` 转发到领域函数
-- **数据库**: rusqlite（单文件，建表与迁移走 `ensure_schema()`）
+- **数据库**: rusqlite（单文件，建表走 `ensure_schema()`）
 - **桌面壳**: Tauri v2；前后端同一进程
 - **元数据源**: VNDB API（唯一）
 

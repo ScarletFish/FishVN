@@ -42,6 +42,7 @@ export const api = {
   createInstallation: (input) => call('create_installation', { input }),
   updateInstallation: (id, patch) => call('update_installation', { id, patch }),
   deleteInstallation: (id) => call('delete_installation', { id }),
+  saveInstallations: (gameId, entries) => call('save_installations', { gameId, entries }),
   searchVndb: (keyword) => call('search_vndb', { keyword }),
   fetchVnMetadata: (vndbId) => call('fetch_vn_metadata', { vndbId }),
   cancelTask: (task) => call('cancel_task', { task }),

@@ -3,12 +3,13 @@
 mod common;
 
 use common::{message, path_str, variant, Db, Tree};
+use fishvn::fsinfo::resolve_path;
 use fishvn::games::{create_game, delete_game, get_game_state, update_game_state};
 use fishvn::installations::{
     create_installation, delete_installation, get_installation, list_installations,
-    update_installation,
+    save_installations, update_installation,
 };
-use fishvn::types::{InstallationPatch, NewGame, NewInstallation, StatePatch};
+use fishvn::types::{Installation, InstallationInput, InstallationPatch, NewGame, NewInstallation, StatePatch};
 
 fn new_game(db: &Db, name: &str) -> String {
     create_game(
@@ -32,6 +33,42 @@ fn add(db: &Db, game_id: &str, dir: &std::path::Path) -> fishvn::error::Result<S
         },
     )
     .map(|i| i.id)
+}
+
+fn fresh(dir: &std::path::Path) -> InstallationInput {
+    InstallationInput {
+        id: None,
+        dir_path: path_str(dir),
+        entry_path: None,
+    }
+}
+
+fn kept(inst: &Installation) -> InstallationInput {
+    InstallationInput {
+        id: Some(inst.id.clone()),
+        dir_path: inst.dir_path.clone(),
+        entry_path: inst.entry_path.clone(),
+    }
+}
+
+fn ids(list: &[Installation]) -> Vec<String> {
+    list.iter().map(|i| i.id.clone()).collect()
+}
+
+fn entry(dir: &std::path::Path, name: &str) -> InstallationInput {
+    InstallationInput {
+        id: None,
+        dir_path: path_str(dir),
+        entry_path: Some(name.to_owned()),
+    }
+}
+
+fn with_entry(inst: &Installation, dir: &std::path::Path, name: &str) -> InstallationInput {
+    InstallationInput {
+        id: Some(inst.id.clone()),
+        dir_path: path_str(dir),
+        entry_path: Some(name.to_owned()),
+    }
 }
 
 #[test]
@@ -512,4 +549,638 @@ fn 删作品时它的安装退回待认领而非消失() {
 
     let row = get_installation(&db, &id).expect("安装记录应仍在");
     assert_eq!(row.game_id, None, "应退回待认领");
+}
+
+fn norm(p: &std::path::Path) -> String {
+    resolve_path(&path_str(p)).to_string_lossy().into_owned()
+}
+
+#[test]
+fn 整包保存按数组顺序写回并读出同序() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "整包排序");
+    let first = tree.make_dir(&[("a.exe", "a")]);
+    let second = tree.make_dir(&[("b.exe", "b")]);
+    let third = tree.make_dir(&[("c.exe", "c")]);
+
+    let saved = save_installations(
+        &db,
+        &game_id,
+        &[fresh(&third), fresh(&first), fresh(&second)],
+    )
+    .expect("整包保存失败");
+
+    let dirs: Vec<String> = saved.iter().map(|i| i.dir_path.clone()).collect();
+    assert_eq!(
+        dirs,
+        [norm(&third), norm(&first), norm(&second)],
+        "读取顺序跟草稿数组一致"
+    );
+    assert_eq!(
+        ids(&list_installations(&db, Some(&game_id)).unwrap()),
+        ids(&saved)
+    );
+}
+
+#[test]
+fn 整包保存删掉草稿里没有的安装() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "整包删减");
+    let keep_dir = tree.make_dir(&[("a.exe", "a")]);
+    let drop_dir = tree.make_dir(&[("b.exe", "b")]);
+
+    let saved = save_installations(&db, &game_id, &[fresh(&keep_dir), fresh(&drop_dir)])
+        .expect("整包保存失败");
+    let kept_one = saved.iter().find(|i| i.dir_path == norm(&keep_dir)).unwrap();
+
+    let after = save_installations(&db, &game_id, &[kept(kept_one)]).expect("整包保存失败");
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].id, kept_one.id);
+    assert!(
+        drop_dir.exists(),
+        "移除安装项不该动磁盘"
+    );
+}
+
+#[test]
+fn 整包保存保住已有安装的_id() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "整包保号");
+    let one = tree.make_dir(&[("a.exe", "a")]);
+    let two = tree.make_dir(&[("b.exe", "b")]);
+
+    let first = save_installations(&db, &game_id, &[fresh(&one), fresh(&two)]).expect("首次失败");
+    let before = ids(&first);
+
+    let again = save_installations(
+        &db,
+        &game_id,
+        &[kept(&first[1]), kept(&first[0])],
+    )
+    .expect("重排失败");
+
+    assert_eq!(ids(&again), [before[1].clone(), before[0].clone()], "重排只换顺序");
+    assert_eq!(again[0].dir_path, norm(&two));
+}
+
+#[test]
+fn 整包保存认领未认领目录() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let owner = new_game(&db, "原作品");
+    let newcomer = new_game(&db, "认领者");
+    let dir = tree.make_dir(&[("a.exe", "a")]);
+    let id = add(&db, &owner, &dir).expect("登记失败");
+    delete_game(&db, &owner).expect("删作品失败");
+    assert_eq!(get_installation(&db, &id).unwrap().game_id, None);
+
+    let saved = save_installations(&db, &newcomer, &[fresh(&dir)]).expect("认领失败");
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].id, id, "认领要沿用原来那行");
+    assert_eq!(saved[0].game_id.as_deref(), Some(newcomer.as_str()));
+}
+
+#[test]
+fn 整包保存撞别作品的目录返回_conflict() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let mine = new_game(&db, "我的作品");
+    let theirs = new_game(&db, "别人作品");
+    let shared = tree.make_dir(&[("a.exe", "a")]);
+    add(&db, &theirs, &shared).expect("别人先登记");
+
+    let err = save_installations(&db, &mine, &[fresh(&shared)]).unwrap_err();
+    assert_eq!(variant(&err), "Conflict");
+    assert!(message(&err).contains("已有安装记录"));
+}
+
+#[test]
+fn 整包保存同批重复目录返回_conflict() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "重复目录");
+    let dir = tree.make_dir(&[("a.exe", "a")]);
+
+    let err = save_installations(&db, &game_id, &[fresh(&dir), fresh(&dir)]).unwrap_err();
+    assert_eq!(variant(&err), "Conflict");
+    assert!(message(&err).contains("重复添加"));
+}
+
+#[test]
+fn 整包保存重复出现同一安装项返回_bad_request() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "重复项");
+    let one = tree.make_dir(&[("a.exe", "a")]);
+    let two = tree.make_dir(&[("b.exe", "b")]);
+    let saved = save_installations(&db, &game_id, &[fresh(&one), fresh(&two)]).expect("首次失败");
+
+    let err = save_installations(
+        &db,
+        &game_id,
+        &[
+            kept(&saved[0]),
+            InstallationInput {
+                id: Some(saved[0].id.clone()),
+                dir_path: path_str(&two),
+                entry_path: None,
+            },
+        ],
+    )
+    .unwrap_err();
+    assert_eq!(variant(&err), "BadRequest");
+    assert!(message(&err).contains("重复出现"));
+}
+
+#[test]
+fn 整包保存带别作品的安装_id返回_conflict() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let mine = new_game(&db, "我的");
+    let theirs = new_game(&db, "别人的");
+    let dir = tree.make_dir(&[("a.exe", "a")]);
+    let foreign = add(&db, &theirs, &dir).expect("登记失败");
+
+    let err = save_installations(
+        &db,
+        &mine,
+        &[InstallationInput {
+            id: Some(foreign),
+            dir_path: path_str(&dir),
+            entry_path: None,
+        }],
+    )
+    .unwrap_err();
+    assert_eq!(variant(&err), "Conflict");
+    assert!(message(&err).contains("不属于这部作品"));
+}
+
+#[test]
+fn 整包保存带不存在的安装_id返回_not_found() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "幽灵安装");
+    let dir = tree.make_dir(&[("a.exe", "a")]);
+
+    let err = save_installations(
+        &db,
+        &game_id,
+        &[InstallationInput {
+            id: Some(common::ghost().to_owned()),
+            dir_path: path_str(&dir),
+            entry_path: None,
+        }],
+    )
+    .unwrap_err();
+    assert_eq!(variant(&err), "NotFound");
+}
+
+#[test]
+fn 整包保存缺目录或空_id返回_bad_request() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "参数缺失");
+    let dir = tree.make_dir(&[("a.exe", "a")]);
+
+    let blank_dir = save_installations(
+        &db,
+        &game_id,
+        &[InstallationInput {
+            id: None,
+            dir_path: "   ".into(),
+            entry_path: None,
+        }],
+    )
+    .unwrap_err();
+    assert_eq!(variant(&blank_dir), "BadRequest");
+    assert_eq!(message(&blank_dir), "dir_path 必填");
+
+    let blank_id = save_installations(
+        &db,
+        &game_id,
+        &[InstallationInput {
+            id: Some("  ".into()),
+            dir_path: path_str(&dir),
+            entry_path: None,
+        }],
+    )
+    .unwrap_err();
+    assert_eq!(variant(&blank_id), "BadRequest");
+    assert!(message(&blank_id).contains("空串"));
+}
+
+#[test]
+fn 整包保存作品不存在返回_not_found() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let dir = tree.make_dir(&[("a.exe", "a")]);
+
+    let err = save_installations(&db, common::ghost(), &[fresh(&dir)]).unwrap_err();
+    assert_eq!(variant(&err), "NotFound");
+}
+
+#[test]
+fn 整包保存新目录不存在返回_bad_request() {
+    let db = Db::new();
+    let tree = Tree::new();
+    let game_id = new_game(&db, "目录不在");
+    let missing = tree.missing();
+
+    let err = save_installations(&db, &game_id, &[fresh(&missing)]).unwrap_err();
+    assert_eq!(variant(&err), "BadRequest");
+    assert!(message(&err).contains("不存在"));
+}
+
+#[test]
+fn 整包保存入口越出目录返回_bad_request() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "越级入口");
+    let dir = tree.make_dir(&[("a.exe", "a")]);
+
+    for bad in ["", "../outside.exe", "sub/../../up.exe"] {
+        let err = save_installations(
+            &db,
+            &game_id,
+            &[InstallationInput {
+                id: None,
+                dir_path: path_str(&dir),
+                entry_path: Some(bad.into()),
+            }],
+        )
+        .unwrap_err();
+        assert_eq!(variant(&err), "BadRequest", "入口 {bad:?} 应被拒");
+    }
+}
+
+#[test]
+fn 整包保存接受候选之外的手输入口() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "手输入口");
+    let dir = tree.make_dir(&[("launcher.bat", "a")]);
+
+    let saved = save_installations(
+        &db,
+        &game_id,
+        &[InstallationInput {
+            id: None,
+            dir_path: path_str(&dir),
+            entry_path: Some("bin/start.exe".into()),
+        }],
+    )
+    .expect("整包保存失败");
+    assert_eq!(saved[0].entry_path.as_deref(), Some("bin/start.exe"));
+}
+
+#[test]
+fn 整包保存新行不写目录大小与候选同步() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "大小留空");
+    let dir = tree.make_dir(&[("game.exe", "a"), ("data/nested.exe", "b")]);
+
+    let saved = save_installations(&db, &game_id, &[fresh(&dir)]).expect("整包保存失败");
+    assert_eq!(
+        saved[0].exes,
+        Some(vec!["game.exe".to_owned(), "data/nested.exe".to_owned()]),
+        "候选入口由后端重算"
+    );
+    assert_eq!(saved[0].size_bytes, None, "本轮不写目录大小");
+}
+
+#[test]
+fn 整包保存换目录时重算候选并清掉旧的目录大小() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "换目录");
+    let old = tree.make_dir(&[("old.exe", "a")]);
+    let new = tree.make_dir(&[("new.exe", "b"), ("app/newer.exe", "c")]);
+
+    let before = create_installation(
+        &db,
+        &NewInstallation {
+            game_id: game_id.clone(),
+            dir_path: path_str(&old),
+        },
+    )
+    .expect("首次登记失败");
+    assert!(before.size_bytes.is_some(), "旧路径留下了大小");
+
+    let after = save_installations(
+        &db,
+        &game_id,
+        &[InstallationInput {
+            id: Some(before.id.clone()),
+            dir_path: path_str(&new),
+            entry_path: None,
+        }],
+    )
+    .expect("换目录失败");
+
+    assert_eq!(after[0].id, before.id, "换目录不换行");
+    assert_eq!(after[0].dir_path, norm(&new));
+    assert_eq!(
+        after[0].exes,
+        Some(vec!["new.exe".to_owned(), "app/newer.exe".to_owned()])
+    );
+    assert_eq!(after[0].size_bytes, None, "旧目录的大小已失效");
+}
+
+#[test]
+fn 整包保存不重新读已登记的旧目录() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "目录已搬走");
+    let dir = tree.make_dir(&[("gone.exe", "a")]);
+    let id = add(&db, &game_id, &dir).expect("登记失败");
+    let before = get_installation(&db, &id).expect("查安装失败");
+
+    std::fs::remove_dir_all(&dir).expect("删目录失败");
+
+    let after = save_installations(&db, &game_id, &[kept(&before)]).expect("整包保存失败");
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].id, id);
+    assert_eq!(after[0].exes, before.exes, "目录未变就不重读");
+    assert_eq!(after[0].size_bytes, before.size_bytes);
+}
+
+#[test]
+fn 整包保存空数组清空该作品的安装() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "清空安装");
+    let dir = tree.make_dir(&[("a.exe", "a")]);
+    save_installations(&db, &game_id, &[fresh(&dir)]).expect("首次失败");
+
+    let after = save_installations(&db, &game_id, &[]).expect("清空失败");
+    assert!(after.is_empty());
+    assert!(list_installations(&db, Some(&game_id)).unwrap().is_empty());
+    assert!(dir.exists(), "清空安装项不该动磁盘");
+}
+
+#[test]
+fn 整包保存不动别作品的安装() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let mine = new_game(&db, "只动自己的");
+    let theirs = new_game(&db, "别碰我");
+    let my_dir = tree.make_dir(&[("a.exe", "a")]);
+    let their_dir = tree.make_dir(&[("b.exe", "b")]);
+    let foreign = add(&db, &theirs, &their_dir).expect("登记失败");
+
+    save_installations(&db, &mine, &[fresh(&my_dir)]).expect("整包保存失败");
+    assert_eq!(
+        get_installation(&db, &foreign).unwrap().game_id.as_deref(),
+        Some(theirs.as_str())
+    );
+}
+
+#[test]
+fn 同一目录下的两个入口各占一条安装() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "原版与汉化");
+    let dir = tree.make_dir(&[("game.exe", "a"), ("game_zh.exe", "b")]);
+
+    let saved = save_installations(
+        &db,
+        &game_id,
+        &[entry(&dir, "game.exe"), entry(&dir, "game_zh.exe")],
+    )
+    .expect("同目录两条失败");
+
+    assert_eq!(saved.len(), 2);
+    assert_eq!(saved[0].dir_path, norm(&dir));
+    assert_eq!(saved[1].dir_path, norm(&dir));
+    assert_ne!(saved[0].id, saved[1].id, "两条各是独立记录");
+    assert_eq!(saved[0].entry_path.as_deref(), Some("game.exe"));
+    assert_eq!(saved[1].entry_path.as_deref(), Some("game_zh.exe"));
+    assert_eq!(
+        ids(&list_installations(&db, Some(&game_id)).unwrap()),
+        ids(&saved),
+        "两条都要读得回来"
+    );
+}
+
+#[test]
+fn 同一目录的同一入口重复保存不新增行() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "重复入口");
+    let dir = tree.make_dir(&[("game.exe", "a"), ("game_zh.exe", "b")]);
+
+    let first = save_installations(&db, &game_id, &[entry(&dir, "game.exe")]).expect("首次失败");
+    let again = save_installations(&db, &game_id, &[entry(&dir, "game.exe")]).expect("再次失败");
+
+    assert_eq!(again.len(), 1, "同一目录的同一入口只留一条");
+    assert_eq!(again[0].id, first[0].id, "再存一次还是原来那行");
+
+    let same_batch = save_installations(
+        &db,
+        &game_id,
+        &[entry(&dir, "game_zh.exe"), entry(&dir, "game_zh.exe")],
+    )
+    .unwrap_err();
+    assert_eq!(variant(&same_batch), "Conflict");
+    assert!(message(&same_batch).contains("重复添加"));
+}
+
+#[test]
+fn 同目录换入口也认得出是同一条安装() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "换入口");
+    let dir = tree.make_dir(&[("game.exe", "a"), ("game_zh.exe", "b")]);
+
+    let saved = save_installations(&db, &game_id, &[entry(&dir, "game.exe")]).expect("首次失败");
+    let switched =
+        save_installations(&db, &game_id, &[with_entry(&saved[0], &dir, "game_zh.exe")])
+            .expect("换入口失败");
+
+    assert_eq!(switched.len(), 1);
+    assert_eq!(switched[0].id, saved[0].id, "换入口不换行");
+    assert_eq!(switched[0].entry_path.as_deref(), Some("game_zh.exe"));
+    assert_eq!(
+        switched[0].exes.as_deref(),
+        Some(
+            [
+                "game.exe".to_owned(),
+                "game_zh.exe".to_owned()
+            ]
+            .as_slice()
+        ),
+        "同一目录不重读，候选保持原样"
+    );
+}
+
+#[test]
+fn 目录归了别的作品时换入口也返回_conflict() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let mine = new_game(&db, "我的");
+    let theirs = new_game(&db, "别人的");
+    let dir = tree.make_dir(&[("game.exe", "a"), ("game_zh.exe", "b")]);
+    add(&db, &theirs, &dir).expect("别人先登记");
+
+    let err = save_installations(&db, &mine, &[entry(&dir, "game_zh.exe")]).unwrap_err();
+    assert_eq!(variant(&err), "Conflict");
+    assert!(message(&err).contains("已有安装记录"));
+}
+
+#[test]
+fn 认领未认领目录时同目录的两个入口各认一条() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let owner = new_game(&db, "原作品");
+    let newcomer = new_game(&db, "认领者");
+    let dir = tree.make_dir(&[("game.exe", "a"), ("game_zh.exe", "b")]);
+
+    let before = save_installations(
+        &db,
+        &owner,
+        &[entry(&dir, "game.exe"), entry(&dir, "game_zh.exe")],
+    )
+    .expect("原作品登记失败");
+    delete_game(&db, &owner).expect("删作品失败");
+    assert_eq!(get_installation(&db, &before[0].id).unwrap().game_id, None);
+
+    let after = save_installations(
+        &db,
+        &newcomer,
+        &[entry(&dir, "game.exe"), entry(&dir, "game_zh.exe")],
+    )
+    .expect("认领失败");
+
+    assert_eq!(ids(&after), ids(&before), "两条都沿用原来那两行");
+    assert!(after
+        .iter()
+        .all(|i| i.game_id.as_deref() == Some(newcomer.as_str())));
+}
+
+#[test]
+fn 认领时清掉该目录多余的未认领行() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let owner = new_game(&db, "原作品");
+    let newcomer = new_game(&db, "认领者");
+    let dir = tree.make_dir(&[("game.exe", "a"), ("game_zh.exe", "b")]);
+
+    let before = save_installations(
+        &db,
+        &owner,
+        &[entry(&dir, "game.exe"), entry(&dir, "game_zh.exe")],
+    )
+    .expect("原作品登记失败");
+    delete_game(&db, &owner).expect("删作品失败");
+
+    let after =
+        save_installations(&db, &newcomer, &[entry(&dir, "game.exe")]).expect("认领失败");
+
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].id, before[0].id);
+    assert_eq!(
+        get_installation(&db, &before[1].id).unwrap_err().to_string(),
+        "安装记录不存在",
+        "该目录没被认领的那条随本次保存清掉"
+    );
+}
+
+#[test]
+fn 未认领行在没被碰的目录里照旧留着() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let owner = new_game(&db, "原作品");
+    let newcomer = new_game(&db, "认领者");
+    let kept_dir = tree.make_dir(&[("a.exe", "a")]);
+    let other_dir = tree.make_dir(&[("b.exe", "b")]);
+
+    let before =
+        save_installations(&db, &owner, &[fresh(&kept_dir), fresh(&other_dir)]).expect("登记失败");
+    delete_game(&db, &owner).expect("删作品失败");
+
+    save_installations(&db, &newcomer, &[fresh(&kept_dir)]).expect("认领失败");
+
+    assert_eq!(
+        get_installation(&db, &before[1].id).unwrap().game_id,
+        None,
+        "没被碰的目录仍待认领"
+    );
+}
+
+#[test]
+fn 同目录多入口时读取顺序跟草稿一致() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "顺序");
+    let one = tree.make_dir(&[("a.exe", "a"), ("b.exe", "b")]);
+    let two = tree.make_dir(&[("c.exe", "c"), ("d.exe", "d")]);
+
+    let saved = save_installations(
+        &db,
+        &game_id,
+        &[
+            entry(&two, "d.exe"),
+            entry(&one, "a.exe"),
+            entry(&two, "c.exe"),
+            entry(&one, "b.exe"),
+        ],
+    )
+    .expect("保存失败");
+
+    let pairs: Vec<(String, Option<String>)> = saved
+        .iter()
+        .map(|i| (i.dir_path.clone(), i.entry_path.clone()))
+        .collect();
+    assert_eq!(
+        pairs,
+        [
+            (norm(&two), Some("d.exe".to_owned())),
+            (norm(&one), Some("a.exe".to_owned())),
+            (norm(&two), Some("c.exe".to_owned())),
+            (norm(&one), Some("b.exe".to_owned())),
+        ],
+        "同目录的多条各按自己的下标排"
+    );
+}
+
+#[test]
+fn patch把入口改成同目录已有的那条返回_conflict() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "撞入口");
+    let dir = tree.make_dir(&[("game.exe", "a"), ("game_zh.exe", "b")]);
+
+    let saved = save_installations(
+        &db,
+        &game_id,
+        &[entry(&dir, "game.exe"), entry(&dir, "game_zh.exe")],
+    )
+    .expect("保存失败");
+
+    let err = update_installation(
+        &db,
+        &saved[1].id,
+        &InstallationPatch {
+            game_id: None,
+            entry_path: Some(Some("game.exe".into())),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(variant(&err), "Conflict");
+    assert!(message(&err).contains("已有安装记录"));
+
+    let same = update_installation(
+        &db,
+        &saved[1].id,
+        &InstallationPatch {
+            game_id: None,
+            entry_path: Some(Some("game_zh.exe".into())),
+        },
+    )
+    .expect("改成自己原来的值该放行");
+    assert_eq!(same.entry_path.as_deref(), Some("game_zh.exe"));
 }

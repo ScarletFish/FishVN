@@ -29,24 +29,35 @@ pub fn ensure_dir(path: &Path) -> Result<()> {
 pub fn read_dir_info(dir: &Path) -> DirInfo {
     let mut size_bytes = 0i64;
     let mut found: Vec<(usize, String)> = Vec::new();
-    walk(dir, "", 0, &mut size_bytes, &mut found);
-    found.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    walk(dir, "", 0, Some(&mut size_bytes), &mut found);
     DirInfo {
         size_bytes,
-        exes: found.into_iter().map(|(_, rel)| rel).collect(),
+        exes: sorted(found),
     }
+}
+
+pub fn read_exes(dir: &Path) -> Vec<String> {
+    let mut found: Vec<(usize, String)> = Vec::new();
+    walk(dir, "", 0, None, &mut found);
+    sorted(found)
+}
+
+fn sorted(mut found: Vec<(usize, String)>) -> Vec<String> {
+    found.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    found.into_iter().map(|(_, rel)| rel).collect()
 }
 
 fn walk(
     current: &Path,
     rel: &str,
     depth: usize,
-    size_bytes: &mut i64,
+    mut size_bytes: Option<&mut i64>,
     found: &mut Vec<(usize, String)>,
 ) {
     let Ok(entries) = fs::read_dir(current) else {
         return;
     };
+    let descend = size_bytes.is_some() || depth < MAX_EXE_DEPTH;
     for entry in entries.flatten() {
         let Ok(name) = entry.file_name().into_string() else {
             continue;
@@ -61,13 +72,23 @@ fn walk(
         };
         let file_type = meta.file_type();
         if file_type.is_dir() {
-            walk(&entry.path(), &child_rel, depth + 1, size_bytes, found);
+            if descend {
+                walk(
+                    &entry.path(),
+                    &child_rel,
+                    depth + 1,
+                    size_bytes.as_deref_mut(),
+                    found,
+                );
+            }
             continue;
         }
         if !file_type.is_file() {
             continue;
         }
-        *size_bytes += i64::try_from(meta.len()).unwrap_or(i64::MAX);
+        if let Some(acc) = size_bytes.as_deref_mut() {
+            *acc += i64::try_from(meta.len()).unwrap_or(i64::MAX);
+        }
         if depth < MAX_EXE_DEPTH && is_executable(&name) && found.len() < MAX_EXES {
             found.push((depth, child_rel));
         }

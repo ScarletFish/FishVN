@@ -216,6 +216,13 @@ pub struct NewInstallation {
     pub dir_path: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct InstallationInput {
+    pub id: Option<String>,
+    pub dir_path: String,
+    pub entry_path: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct TaskEvent {
     pub phase: String,

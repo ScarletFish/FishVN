@@ -2,6 +2,7 @@
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { coverSrc } from '../lib/cover-src.js';
+  import { joinLaunchPath } from '../lib/installations.js';
   import { bbcodeParagraphs } from '../lib/vn-merge.js';
   import { openExternal } from '../lib/open-external.js';
   import DetailCharacters from './DetailCharacters.svelte';
@@ -12,12 +13,22 @@
 
   let game = $state(null);
   let meta = $state(null);
+  let dirs = $state([]);
+  let defaultDirId = $state(null);
   let loading = $state(true);
   let failed = $state(false);
   let formOpen = $state(false);
   let menuOpen = $state(false);
   let coverUrl = $state(null);
   let coverBroken = $state(false);
+
+  const installRows = $derived(
+    dirs.map((dir) => ({
+      id: dir.id,
+      launch: joinLaunchPath(dir.dir_path, dir.entry_path),
+      isDefault: dir.id === defaultDirId,
+    })),
+  );
 
   const TAGS_PREVIEW = 8;
   let tagsExpanded = $state(false);
@@ -47,15 +58,24 @@
     failed = false;
     game = null;
     meta = null;
+    dirs = [];
+    defaultDirId = null;
     tagsExpanded = false;
     menuOpen = false;
 
     let live = true;
-    Promise.all([api.getGame(gameId), api.getGameMetadata(gameId)])
-      .then(([g, m]) => {
+    Promise.all([
+      api.getGame(gameId),
+      api.getGameMetadata(gameId),
+      api.getGameState(gameId),
+      api.listInstallations(gameId),
+    ])
+      .then(([g, m, s, d]) => {
         if (!live) return;
         game = g;
         meta = m;
+        defaultDirId = s.default_installation_id;
+        dirs = d;
       })
       .catch(() => {
         if (live) failed = true;
@@ -182,6 +202,24 @@
         </div>
       </div>
     </div>
+    {#if installRows.length > 0}
+      <section class="detail-install section-card">
+        <div class="detail-install-header">
+          <h3>{t('detail.installs')}</h3>
+          <span class="detail-install-count">{installRows.length}</span>
+        </div>
+        <ul class="detail-install-list">
+          {#each installRows as row (row.id)}
+            <li class="detail-install-row">
+              <span class="detail-install-path" title={row.launch}>{row.launch}</span>
+              {#if row.isDefault}
+                <span class="pill pill--info">{t('gameForm.install.default')}</span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
     <DetailCharacters gameId={gameId} />
   {/if}
 </section>

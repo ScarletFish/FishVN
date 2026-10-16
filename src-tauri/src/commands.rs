@@ -12,8 +12,8 @@ use crate::metadata;
 use crate::tasks::{EventLog, Task, Tasks};
 use crate::thumbs;
 use crate::types::{
-    Game, GameCharacter, GameListItem, GameMetadata, GamePatch, Installation, InstallationPatch,
-    MetadataPatch, NewGame, NewInstallation, StatePatch, UserGameState,
+    Game, GameCharacter, GameListItem, GameMetadata, GamePatch, Installation, InstallationInput,
+    InstallationPatch, MetadataPatch, NewGame, NewInstallation, StatePatch, UserGameState,
 };
 use crate::vndb::{self, RateLimiter, VnSearchHit, VnSync};
 
@@ -94,6 +94,15 @@ pub fn update_installation(
 #[tauri::command]
 pub fn delete_installation(shared: Shared<'_>, id: String) -> Result<()> {
     installations::delete_installation(&*lock(&shared)?, &id)
+}
+
+#[tauri::command]
+pub fn save_installations(
+    shared: Shared<'_>,
+    game_id: String,
+    entries: Vec<InstallationInput>,
+) -> Result<Vec<Installation>> {
+    installations::save_installations(&*lock(&shared)?, &game_id, &entries)
 }
 
 #[tauri::command]
