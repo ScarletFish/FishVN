@@ -108,7 +108,6 @@ export function applyCharacters(local, incoming, adopted) {
     if (!localKeys.has(charKey(c))) merged.push({ ...c });
   }
 
-  // 稳定排序，同档内保持各自来源的原有顺序
   return merged
     .map((c, i) => ({ c, i }))
     .sort((a, b) => tier(a.c) - tier(b.c) || a.i - b.i)

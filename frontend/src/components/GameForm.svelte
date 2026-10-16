@@ -4,7 +4,14 @@
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { createVndbSearch } from '../lib/vndb-search.svelte.js';
-  import { buildMetadataPatch, toNumber } from '../lib/form-metadata.js';
+  import {
+    buildMetadataPatch,
+    clampRating,
+    cleanRating,
+    ratingRejected,
+    toNumber,
+    votecountRejected,
+  } from '../lib/form-metadata.js';
   import { applyIncoming, conflictRows } from '../lib/vn-merge.js';
   import { coverSrc } from '../lib/cover-src.js';
   import { pickImage } from '../lib/pick-path.js';
@@ -54,7 +61,6 @@
   let mergeRows = $state([]);
   let charMergeOpen = $state(false);
   let charMergeRows = $state([]);
-  // 角色单独走 incomingCharacters：混进 incoming 会被 applyIncoming 当成作品字段
   let incomingCharacters = $state([]);
   let pulling = $state(false);
   let incoming = $state(null);
@@ -135,10 +141,8 @@
         api.getGame(id),
         api.getGameState(id),
         api.getGameMetadata(id),
-        // 角色读不出来不该拖垮整张表单的回填：它在这张表里是附加信息
         api.listGameCharacters(id).catch(() => []),
       ]);
-      // 作品在回填期间被删掉时表单已不可见，不必再报错
       if (gameId !== id) return;
       name = game.name;
       vndbId = game.vndb_id;
@@ -199,30 +203,19 @@
     userRatingDraft = userRating === null ? '' : String(userRating);
   }
 
-  // 只留数字与第一个小数点、至多一位小数，否则输入 8..5 会存成 8
   function onUserRatingInput(e) {
-    let cleaned = e.target.value.replace(/[^\d.]/g, '');
-    const dot = cleaned.indexOf('.');
-    if (dot !== -1) {
-      cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
-    }
-    if (cleaned.includes('.')) {
-      const [int, dec] = cleaned.split('.');
-      cleaned = `${int}.${dec.slice(0, 1)}`;
-    }
+    const cleaned = cleanRating(e.target.value);
     e.target.value = cleaned;
     userRatingDraft = cleaned;
     userRating = cleaned === '' ? null : toNumber(cleaned);
   }
 
-  // 失焦才夹范围：边打边夹会让「10」这种东西没法输入
   function onUserRatingBlur(e) {
     if (userRating === null) {
       e.target.value = '';
       return;
     }
-    const clamped = Math.min(100, Math.max(0, userRating));
-    userRating = Math.round(clamped * 10) / 10;
+    userRating = clampRating(userRating);
     userRatingDraft = String(userRating);
     e.target.value = userRatingDraft;
   }
@@ -337,20 +330,10 @@
     open = false;
   }
 
-  // 评分与人数在库里是 VNDB 的原值：评分是百分制，详情页再除以 10 展示。
-  // 这里只挡越界与非数字，越界值存进去会让详情页显示成不可信的分数。
   // 文案渲染在各字段旁边而不是共用的 error，那一处只在基本信息 tab 里
   function validateRanges() {
-    ratingError = '';
-    votecountError = '';
-    const score = toNumber(rating);
-    if (rating.trim() && (score === null || score < 0 || score > 100)) {
-      ratingError = t('gameForm.error.ratingRange');
-    }
-    const votes = toNumber(votecount);
-    if (votecount.trim() && (votes === null || votes < 0)) {
-      votecountError = t('gameForm.error.votecountRange');
-    }
+    ratingError = ratingRejected(rating) ? t('gameForm.error.ratingRange') : '';
+    votecountError = votecountRejected(votecount) ? t('gameForm.error.votecountRange') : '';
     return ratingError || votecountError;
   }
 

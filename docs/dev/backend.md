@@ -88,6 +88,13 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 `game_id` / `default_installation_id` 给 `""` 会被 SQLite 当成真实 id 去查，撞外键后
 报成未处理的数据库错误。写入前先判空串，当成非法输入拒掉。
 
+### 收图格式两份清单要手动对齐
+
+文件选择器的白名单在 `frontend/src/lib/pick-path.js` 的 `IMAGE_EXT`，后端能解哪些格式由
+`src-tauri/Cargo.toml` 里 image crate 的 feature 决定，两边必须一致：前端放行而后端解不开，
+用户会在选完文件之后才撞上「封面格式不支持」。avif 要 libdav1d（C 库），gif 只会取首帧，
+两份清单都不收。改一边就同步改另一边——没有构建检查兜底。
+
 ### 注释
 
 规则见 [comments.md](./comments.md)。判据一句话：**删掉这条注释，会不会有人因此走错路**。

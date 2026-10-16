@@ -7,8 +7,27 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use fishvn::vndb::{
-    take_slot, validate_keyword, validate_vn_id, RateLimiter, VnEnvelope, VnMetadata,
+    role_of, take_slot, validate_keyword, validate_vn_id, CharVn, RateLimiter, VnEnvelope,
+    VnMetadata,
 };
+
+#[test]
+fn 一个角色多条release时按入库档位挑而不是取首条() {
+    let vns = vec![
+        CharVn {
+            role: Some("side".into()),
+        },
+        CharVn {
+            role: Some("main".into()),
+        },
+    ];
+    assert_eq!(role_of(Some(&vns)), Some("main"), "档位在后的那条也得被找到");
+
+    let only_side = vec![CharVn {
+        role: Some("side".into()),
+    }];
+    assert_eq!(role_of(Some(&only_side)), None, "全不在入库档位就当没有");
+}
 
 #[test]
 fn 满员时给出等到最早一次出窗的时间() {

@@ -89,7 +89,6 @@ pub fn create_game(conn: &Connection, input: &NewGame) -> Result<Game> {
         "INSERT INTO user_game_state (game_id, status) VALUES (?, ?)",
         params![&game.id, DEFAULT_STATUS],
     )?;
-    // 三张表要么都成要么都不成：作品建出来而资料没存上，等于用户填的东西被吞了
     if let Some(patch) = &input.metadata {
         metadata::upsert(&tx, &game.id, patch)?;
     }
@@ -105,7 +104,6 @@ pub fn update_game(conn: &Connection, id: &str, patch: &GamePatch) -> Result<Gam
         sets.push("name = ?");
         values.push(Value::Text(validate_name(raw)?));
     }
-    // vndb_id 显式给 null 是解绑，不给才是「不动」
     if let Some(raw) = &patch.vndb_id {
         sets.push("vndb_id = ?");
         values.push(match raw {
@@ -157,7 +155,6 @@ pub fn update_game_state(conn: &Connection, id: &str, patch: &StatePatch) -> Res
                 "default_installation_id 是非空字符串或 null".into(),
             ));
         }
-        // 默认安装必须属于这部作品，否则一键启动会指到别的游戏上
         let owner: Option<Option<String>> = conn
             .query_row(
                 "SELECT game_id FROM installations WHERE id = ?",

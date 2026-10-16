@@ -108,6 +108,9 @@ test('卡片名优先级与详情页一致', () => {
   expect(displayName({ original: '遠坂凛', name: 'Rin' })).toBe('遠坂凛');
   expect(displayName({ original: '  ', name: 'Rin' })).toBe('Rin');
   expect(displayName({ original: '', name: '' })).toBe('');
+  // 详情页拿到的是库里的行，这两列都可空
+  expect(displayName({ original: null, name: 'Rin' })).toBe('Rin');
+  expect(displayName({ original: null, name: null })).toBe('');
 });
 
 test('无名角色被滤掉，有名的按原顺序留下', () => {

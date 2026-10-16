@@ -22,7 +22,6 @@ function handleResult(result) {
  * @param {string} [name]  填进消息里的作品名
  */
 export function confirm(action, name = '') {
-  // 复用上一个 promise 会让两次不同操作的调用方拿到同一个答案
   if (settle) throw new Error('confirm: 已有确认框打开');
 
   const promise = new Promise((resolve) => {

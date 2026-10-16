@@ -68,9 +68,11 @@ test('本地有封面时进冲突列表，勾选才替换', () => {
 
 test('VNDB 没下到封面就不动本地', () => {
   const current = form({ coverPath: 'D:\\pics\\mine.jpg' });
-  const failed = { ...VN, image: { id: 'cv75598', local_path: null } };
-  expect(conflictRows(current, failed)).toEqual([]);
-  expect(applyIncoming(current, failed, new Set()).coverPath).toBe('D:\\pics\\mine.jpg');
+  for (const local_path of [null, '']) {
+    const failed = { ...VN, image: { id: 'cv75598', local_path } };
+    expect(conflictRows(current, failed)).toEqual([]);
+    expect(applyIncoming(current, failed, new Set()).coverPath).toBe('D:\\pics\\mine.jpg');
+  }
 });
 
 test('一样的值不算冲突', () => {
@@ -124,6 +126,12 @@ test('开发商取 name，为空回落 original', () => {
     developers: [{ name: null, original: 'タイプムーン' }, { name: null, original: null }],
   }, new Set());
   expect(next.developers).toBe('タイプムーン');
+});
+
+test('多出来的键（characters / id / titles）不会进表单', () => {
+  const incoming = { ...VN, characters: [{ id: 'c1', name: 'Saber' }] };
+  const next = applyIncoming(form(), incoming, new Set());
+  expect(Object.keys(next).sort()).toEqual(Object.keys(form()).sort());
 });
 
 test('面板显示：标签只取名字，其余转字符串', () => {

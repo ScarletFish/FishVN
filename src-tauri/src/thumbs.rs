@@ -64,8 +64,6 @@ fn generate(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-/// EXIF 方向要在缩放前应用：Rotate90 会把宽高对调，先缩放就算错目标边长。
-/// orientation() 需要 ImageDecoder 在作用域内，且 receiver 是 &mut
 fn decode(src: &Path) -> Result<DynamicImage> {
     let reader =
         ImageReader::open(src).map_err(|e| AppError::BadRequest(format!("封面读不出来：{e}")))?;
@@ -117,6 +115,39 @@ mod tests {
         image::open(p).map(|i| (i.width(), i.height())).unwrap()
     }
 
+    fn sample_with_exif(dir: &Path, w: u32, h: u32, orientation: u16) -> PathBuf {
+        let p = dir.join(format!("s{w}x{h}-o{orientation}.jpg"));
+        let img = image::RgbImage::from_fn(w, h, |x, y| {
+            image::Rgb([(x % 256) as u8, (y % 256) as u8, 128])
+        });
+        let mut jpeg = Vec::new();
+        JpegEncoder::new_with_quality(&mut jpeg, QUALITY)
+            .write_image(img.as_raw(), w, h, ExtendedColorType::Rgb8)
+            .unwrap();
+
+        let mut tiff = Vec::new();
+        tiff.extend(b"II");
+        tiff.extend([42u8, 0]);
+        tiff.extend(8u32.to_le_bytes());
+        tiff.extend(1u16.to_le_bytes());
+        tiff.extend(0x0112u16.to_le_bytes());
+        tiff.extend(3u16.to_le_bytes());
+        tiff.extend(1u32.to_le_bytes());
+        tiff.extend(orientation.to_le_bytes());
+        tiff.extend(0u16.to_le_bytes());
+        tiff.extend(0u32.to_le_bytes());
+
+        let mut out = Vec::with_capacity(jpeg.len() + tiff.len() + 10);
+        out.extend(&jpeg[..2]);
+        out.extend([0xFF, 0xE1]);
+        out.extend(((tiff.len() + 8) as u16).to_be_bytes());
+        out.extend(b"Exif\0\0");
+        out.extend(&tiff);
+        out.extend(&jpeg[2..]);
+        std::fs::File::create(&p).unwrap().write_all(&out).unwrap();
+        p
+    }
+
     #[test]
     fn 大图按比例缩到上限() {
         let tmp = tempfile::tempdir().unwrap();
@@ -145,6 +176,15 @@ mod tests {
     }
 
     #[test]
+    fn exif方向在缩放前应用_不然算错目标边长() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = sample_with_exif(tmp.path(), 2000, 2800, 6);
+        let out = dir_dst(tmp.path());
+        generate(&src, &out).unwrap();
+        assert_eq!(dims(&out), (560, 400));
+    }
+
+    #[test]
     fn 二次调用命中缓存不改文件() {
         let tmp = tempfile::tempdir().unwrap();
         let src = sample(tmp.path(), 2000, 2800);
@@ -162,7 +202,7 @@ mod tests {
         let src = sample(tmp.path(), 2000, 2800);
         let a = cached(src.to_str().unwrap(), tmp.path()).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(1100));
-        sample(tmp.path(), 2000, 2800);
+        sample(tmp.path(), 700, 980);
         let b = cached(src.to_str().unwrap(), tmp.path()).unwrap();
         assert_ne!(a, b);
     }

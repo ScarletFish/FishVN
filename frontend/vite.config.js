@@ -1,8 +1,13 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
+const isTest = process.env.VITEST === 'true';
+
 export default defineConfig({
   plugins: [svelte()],
+  // 测试时 svelte 要解析到浏览器构建：SSR 构建里 mount() 直接抛错。
+  // 不能写成 conditions: [] —— 空数组同样会顶掉 vite 的默认条件，产物里会混进 svelte 的服务端模块
+  ...(isTest ? { resolve: { conditions: ['browser'] } } : {}),
   build: {
     outDir: 'dist',
     emptyOutDir: true,

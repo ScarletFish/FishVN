@@ -282,18 +282,15 @@ struct CharImage {
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
-struct CharVn {
-    role: Option<String>,
+pub struct CharVn {
+    pub role: Option<String>,
 }
 
 /// side/appears 里混着无立绘的配角，收进来只是在卡条里
 /// 多一排占位块，还要为它们多下一批图
 const SYNCED_ROLES: [&str; 2] = ["main", "primary"];
 
-/// 同一角色多个 release 会让 vns 出多条，不同 release 的定位可能不同
-/// （重制版是主要角色、原版只是配角），所以按「属于入库档位」挑第一条：
-/// 直接取首条会把这类角色整个丢掉
-fn role_of(vns: Option<&[CharVn]>) -> Option<&str> {
+pub fn role_of(vns: Option<&[CharVn]>) -> Option<&str> {
     vns.and_then(|list| {
         list.iter()
             .find_map(|v| v.role.as_deref().filter(|role| SYNCED_ROLES.contains(role)))

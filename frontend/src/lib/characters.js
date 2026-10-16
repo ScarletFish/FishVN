@@ -89,7 +89,7 @@ export function blankVa() {
 
 /** 卡片名优先级与详情页一致：原名在前 */
 export function displayName(draft) {
-  return draft.original.trim() || draft.name.trim();
+  return (draft.original ?? '').trim() || (draft.name ?? '').trim();
 }
 
 /** 无名角色存进去会占掉一个名字，撞上按角色名比对同名的 VNDB 同步 */

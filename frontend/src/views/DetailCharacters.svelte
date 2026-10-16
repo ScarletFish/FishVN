@@ -4,6 +4,8 @@
   import { initScrollDots } from '../lib/scroll-dots.svelte.js';
   import { api } from '../lib/api.js';
   import { coverSrc } from '../lib/cover-src.js';
+  import { displayName } from '../lib/characters.js';
+  import { stripBbcode } from '../lib/vn-merge.js';
 
   // VNDB 的 trait 分组无序号字段，固定一个展示顺序；不在这张表里的新分组排到末尾
   const TRAIT_GROUP_ORDER = [
@@ -31,7 +33,6 @@
   let characters = $state([]);
   let artUrls = $state({});
 
-  // 读不到角色不是失败：后端在该作品没有角色时给空数组，所以异常可以吞掉
   $effect(() => {
     characters = [];
     expandedId = null;
@@ -69,10 +70,10 @@
     return artUrls[path.trim()] ?? null;
   }
 
-  // 名字优先级与 lib/characters.js 的 displayName 一致，两边不能各定一套
-  const charName = (c) => c.original || c.name || '';
-
-  const altName = (c) => (c.original && c.name && c.original !== c.name ? c.name : '');
+  const altName = (c) => {
+    const name = (c.name ?? '').trim();
+    return name === displayName(c) ? '' : name;
+  };
   const vaName = (v) => v?.original || v?.name || '';
 
   const expanded = $derived(characters.find((c) => c.id === expandedId) ?? null);
@@ -85,13 +86,6 @@
       dotsParent: headerEl,
     });
   });
-
-  // 描述里的 BBCode 只保留可见文字；[spoiler] 连内容一起丢弃，
-// 25 个角色的 description 里 15 个带 [spoiler]，只剥标签会让剧透内容原样露出
-  const plain = (s) =>
-    (s ?? '')
-      .replace(/\[spoiler\][\s\S]*?\[\/spoiler\]/gi, '')
-      .replace(/\[\/?[a-z]+(?:=[^\]]*)?\]/gi, '');
 
   // 缺失词条回落 key 会显示成 detail.xxx，靠它区分并保留原文
   const localized = (key, fallback) => {
@@ -169,10 +163,10 @@
         >
           <div class="detail-char-portrait">
             {#if art(c.image_path)}
-              <img src={art(c.image_path)} alt={charName(c)} />
+              <img src={art(c.image_path)} alt={displayName(c)} />
             {:else}
               <div class="detail-char-portrait-ph">
-                <span class="detail-char-ph-name">{charName(c)}</span>
+                <span class="detail-char-ph-name">{displayName(c)}</span>
                 {#if vaName(c.va?.[0])}
                   <span class="detail-char-ph-cv">{vaName(c.va[0])}</span>
                 {/if}
@@ -181,7 +175,7 @@
           </div>
           {#if art(c.image_path)}
             <div class="detail-char-foot">
-              <span class="detail-char-name">{charName(c)}</span>
+              <span class="detail-char-name">{displayName(c)}</span>
               {#if vaName(c.va?.[0])}
                 <span class="detail-char-cv">{vaName(c.va[0])}</span>
               {/if}
@@ -194,7 +188,7 @@
     {#if expanded}
       <div class="detail-char-panel" bind:this={panelEl}>
         <div class="detail-char-panel-body">
-          <h4>{charName(expanded)}</h4>
+          <h4>{displayName(expanded)}</h4>
           {#if altName(expanded)}
             <p class="detail-char-original">{altName(expanded)}</p>
           {/if}
@@ -208,8 +202,8 @@
             </dl>
           {/if}
 
-          {#if plain(expanded.description)}
-            <p class="detail-char-desc">{plain(expanded.description)}</p>
+          {#if stripBbcode(expanded.description)}
+            <p class="detail-char-desc">{stripBbcode(expanded.description)}</p>
           {/if}
 
           {#if traitGroups.length}

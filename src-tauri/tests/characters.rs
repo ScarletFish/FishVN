@@ -141,6 +141,14 @@ fn 空数组清空该作品的角色() {
 }
 
 #[test]
+fn 没有角色的作品读出来是空数组而不是报错() {
+    let db = Db::new();
+    let id = new_game(&db, "没同步过角色");
+
+    assert!(list(&db, &id).expect("读角色不该失败").is_empty());
+}
+
+#[test]
 fn 同一编号在不同作品各存一行() {
     let db = Db::new();
     let first = new_game(&db, "前作");
@@ -307,6 +315,57 @@ fn 已有的声优行不被本地名字盖掉() {
         })
         .expect("查声优失败");
     assert_eq!(kept, "全称 A");
+}
+
+#[test]
+fn 别家已有的声优名不被新写入的盖掉() {
+    let db = Db::new();
+    let a = new_game(&db, "甲作");
+    let b = new_game(&db, "乙作");
+    replace_all(&db, &a, &[with_va("c1", "甲", &[("s1", "全称 A", "")])]).expect("写甲失败");
+
+    // 乙作此前没有 s1，取不到 kept_staff，只能靠 ON CONFLICT 保住甲作的名字
+    replace_all(&db, &b, &[with_va("c1", "乙", &[("s1", "简称 B", "")])]).expect("写乙失败");
+
+    let kept: String = db
+        .query_row("SELECT name FROM staffs WHERE id = 's1'", [], |row| {
+            row.get(0)
+        })
+        .expect("查声优失败");
+    assert_eq!(kept, "全称 A");
+}
+
+#[test]
+fn 库里是空的声优名让传入的填进来() {
+    for blank in ["空串", "null"] {
+        let db = Db::new();
+        let a = new_game(&db, "甲作");
+        let b = new_game(&db, "乙作");
+        replace_all(&db, &a, &[with_va("c1", "甲", &[("s1", "旧名", "")])]).expect("写甲失败");
+        replace_all(&db, &b, &[with_va("c2", "乙", &[("s1", "旧名", "")])]).expect("写乙失败");
+        db.execute(
+            match blank {
+                "空串" => "UPDATE staffs SET name = '' WHERE id = 's1'",
+                _ => "UPDATE staffs SET name = NULL WHERE id = 's1'",
+            },
+            [],
+        )
+        .expect("置空失败");
+
+        replace_all(&db, &b, &[with_va("c2", "乙", &[("s1", "补上的名字", "")])])
+            .expect("写乙失败");
+
+        let name: Option<String> = db
+            .query_row("SELECT name FROM staffs WHERE id = 's1'", [], |row| {
+                row.get(0)
+            })
+            .expect("查声优失败");
+        assert_eq!(
+            name.as_deref(),
+            Some("补上的名字"),
+            "{blank} 的库里名字要能被传入的填上"
+        );
+    }
 }
 
 fn staff_count(db: &Db, staff_id: &str) -> i64 {

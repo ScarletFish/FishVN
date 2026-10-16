@@ -35,8 +35,6 @@ export function toast(msg, type = 'info', opts = {}) {
   items.unshift(item);
   start(item);
 
-  // 溢出走退场动画而不是直接移除，元素才有东西可播。
-  // 判定放在 push 之后，且不计 dismissing 的，否则上限会被退场中的条目绕过
   for (const old of items.filter((t) => !t.dismissing).slice(MAX)) dismiss(old.id);
 
   return id;
@@ -48,8 +46,6 @@ export function dismiss(id) {
   item.dismissing = true;
   stop(id);
   setTimeout(() => {
-    // 退场结束才移除，元素才有动画可播。
-    // 先判 indexOf —— 条目可能已被移除，splice(-1) 会误删最后一条
     const at = items.indexOf(item);
     if (at !== -1) items.splice(at, 1);
   }, 300);
@@ -72,7 +68,6 @@ export function pause(item) {
 }
 
 export function resume(item) {
-  // !timers.has 防重复启动；remaining > 0 是因为悬停期间可能已耗尽，移开就不该再等
   if (!timers.has(item.id) && item.remaining > 0) start(item);
 }
 

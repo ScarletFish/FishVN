@@ -77,7 +77,6 @@ const FIELDS = [
 export function conflictRows(current, incoming) {
   return FIELDS.filter((f) => {
     if (f.empty(current[f.key])) return false;
-    // 两边都要判空：只判本地的话，下载失败传空串会把用户已有的封面抹掉
     const value = f.read(incoming);
     if (f.empty(value)) return false;
     return !f.same(current[f.key], value);

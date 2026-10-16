@@ -1,4 +1,4 @@
-/** 表单字符串 → 后端 payload 的字段映射。后端加字段或改类型时只动这里。 */
+/** 表单字段的字符串处理：输入清洗、提交前校验、→ 后端 payload 的映射。 */
 
 export function toNumber(raw) {
   const text = raw.trim();
@@ -12,8 +12,33 @@ export function toInteger(raw) {
   return value === null ? null : Math.trunc(value);
 }
 
-// titles 与 image_id 不在 fields 里也不能补：双层 Option 缺外层是「不动」，
-// 写 null 反而会把同步来的本地化标题清掉。image_id 由封面下载管线自己写。
+export function cleanRating(raw) {
+  let cleaned = raw.replace(/[^\d.]/g, '');
+  const dot = cleaned.indexOf('.');
+  if (dot !== -1) {
+    cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
+  }
+  if (cleaned.includes('.')) {
+    const [int, dec] = cleaned.split('.');
+    cleaned = `${int}.${dec.slice(0, 1)}`;
+  }
+  return cleaned;
+}
+
+export function clampRating(value) {
+  return Math.round(Math.min(100, Math.max(0, value)) * 10) / 10;
+}
+
+export function ratingRejected(raw) {
+  const score = toNumber(raw);
+  return Boolean(raw.trim()) && (score === null || score < 0 || score > 100);
+}
+
+export function votecountRejected(raw) {
+  const votes = toNumber(raw);
+  return Boolean(raw.trim()) && (votes === null || votes < 0);
+}
+
 export function buildMetadataPatch(fields) {
   return {
     alias: fields.alias.trim() || null,

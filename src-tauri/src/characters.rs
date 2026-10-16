@@ -65,7 +65,6 @@ pub fn replace_all(
     if !game_exists(conn, game_id)? {
         return Err(AppError::NotFound("作品不存在".into()));
     }
-    // 空数组是「用户把角色删光了」，按整包替换的语义要落到清库，不当坏请求
     let mut seen = HashSet::with_capacity(characters.len());
     for entry in characters {
         if entry.id.trim().is_empty() {
@@ -83,9 +82,6 @@ pub fn replace_all(
 
     // 删与插在一个事务里：中途失败会退回调用前的整套角色，不会留下删一半的状态
     let tx = conn.unchecked_transaction()?;
-    // 删角色会级联删光配音关系，触发器随即回收无人引用的声优行——包括这次
-    // 马上要按同一批数据写回去的那些。所以删之前先留下它们已有的名字，
-    // 不然「已存在的声优行不被本地手填的名字盖掉」这条就没了
     let kept_staff = staff_snapshot(&tx, game_id)?;
     conn.execute("DELETE FROM characters WHERE game_id = ?", params![game_id])?;
     for (index, entry) in characters.iter().enumerate() {
@@ -117,7 +113,6 @@ fn staff_snapshot(conn: &Connection, game_id: &str) -> Result<HashMap<String, St
     Ok(rows)
 }
 
-/// 空串与 null 一样算没有，好让更全的那份填进来
 #[derive(Clone)]
 struct StaffName {
     name: Option<String>,
@@ -196,8 +191,6 @@ fn insert_va(
     entry: &CharacterVa,
     kept_staff: &HashMap<String, StaffName>,
 ) -> Result<()> {
-    // 本次删除带走的行已不在库里，名字由 kept_staff 兜；别的作品共用的行还在，
-    // 由 ON CONFLICT 分支兜住
     let (name, original) = kept_staff
         .get(&entry.staff_id)
         .map(|kept| kept.keep(&entry.name, &entry.original))
@@ -288,8 +281,6 @@ fn to_api(conn: &Connection, game_id: &str, row: &CharacterRow) -> Result<GameCh
     })
 }
 
-/// game_id 是查询条件的一部分：同一个 c 编号会在不同作品里各存一行，
-/// 只按 character_id 查会把别的作品的配音一起捞出来
 fn load_va(
     conn: &Connection,
     game_id: &str,

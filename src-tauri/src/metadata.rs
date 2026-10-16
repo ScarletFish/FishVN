@@ -45,8 +45,6 @@ pub fn get(conn: &Connection, game_id: &str) -> Result<Option<GameMetadata>> {
     }
 }
 
-/// 新建与更新共用。行不存在就建，存在就只写 patch 里给了的列，
-/// 所以同步一部已绑过 VNDB 的作品不会把没同步的字段清掉
 pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result<GameMetadata> {
     if !game_exists(conn, game_id)? {
         return Err(AppError::NotFound("作品不存在".into()));
@@ -122,7 +120,6 @@ fn build_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>
         });
     }
 
-    // JSON 列整列替换：tags / titles 按元素合并的话，用户删掉一个标签就存不回去
     if let Some(raw) = &patch.titles {
         columns.push("titles");
         values.push(match raw {

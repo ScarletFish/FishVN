@@ -37,7 +37,6 @@
     close();
   }
 
-  // 弹窗内部的点击会冒泡到遮罩，不能一律当成点遮罩
   function onOverlayClick(e) {
     if (e.target === e.currentTarget) dismiss();
   }

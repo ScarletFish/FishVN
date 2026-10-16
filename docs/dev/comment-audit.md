@@ -16,31 +16,32 @@
 
 | 状态 | 位置 | 内容 |
 |---|---|---|
-| [ ] | `characters.rs:68` | 空数组 = 清库，不当坏请求 |
-| [ ] | `characters.rs:86-88` / `199-200` | 删角色级联回收声优，删前要留名字（`tests/characters.rs:355` 已覆盖一半，补 kept_staff 用例） |
-| [ ] | `characters.rs:120` | 空串与 null 同义，让更全的填进来 |
-| [ ] | `characters.rs:291` | 只按 character_id 查会捞出别作品配音 |
-| [ ] | `vndb.rs:284` | 多 release 取首条会丢角色（按入库档位挑条） |
-| [ ] | `db.rs:143` | ADD COLUMN 不幂等（ensure_schema 跑两遍） |
-| [ ] | `metadata.rs:49` | 同步已绑作品不抹没同步的字段 |
-| [ ] | `metadata.rs:126` | 标签整列替换：删掉的标签要能存回去（round-trip） |
-| [ ] | `games.rs:92` | 三表事务：建作品失败资料不落地 |
-| [ ] | `games.rs:108` | vndb_id 显式 null = 解绑 |
-| [ ] | `games.rs:160` | 默认安装必须属于本作品 |
-| [ ] | `thumbs.rs:68` | EXIF Rotate90 先缩放会算错边长（带 EXIF fixture） |
-| [ ] | `GameForm.svelte:57` | 角色混进 incoming 会被当作品字段 |
-| [ ] | `GameForm.svelte:138` / `141` | 回填容错：角色读不出、作品被删不拖垮表单 |
-| [ ] | `GameForm.svelte:202` / `218` | 输入清洗纯函数；失焦才夹范围（8..5、10 两个用例） |
-| [ ] | `GameForm.svelte:340` | 评分越界与非数字挡住（百分制原值） |
-| [ ] | `DetailCharacters.svelte:34` / `72` / `89` | 空角色非失败；displayName 两边对拍；`[spoiler]` 连内容丢（补进 `vn-merge.test.js`） |
-| [ ] | `Modal.svelte:40` | 弹窗内部点击不等于点遮罩 |
-| [ ] | `confirm.svelte.js:25` | 两次 confirm 不能共用一个 promise |
-| [ ] | `cover-src.js:4` | 缓存必须键最终 asset URL，否则派生图白换 |
-| [ ] | `form-metadata.js:16` / `vn-merge.js:81` | patch 不带 titles 不抹标题；空串封面不覆盖已有 |
-| [ ] | `toast.svelte.js:38` / `51` / `75` | dismissing 不计上限；提前移除防 splice(-1)；防重复启动 |
-| [ ] | `char-merge.js:111` | 排序稳定性：同档保持来源顺序 |
-| [ ] | `scroll-dots.svelte.js:44` / `55` | 隐藏不重算（塌缩 9→5→3→2→1）；渲染宽公式断言 |
-| [ ] | `pick-path.js:5` | 新增构建检查：Cargo.toml features 与清单比对（现状无守卫） |
+| [x] | `characters.rs:68` | 空数组 = 清库，不当坏请求 —— 已由 `空数组清空该作品的角色` 锁 |
+| [x] | `characters.rs:86-88` / `199-200` | 删前留名字 —— 已由 `已有的声优行不被本地名字盖掉` 锁（触发器回收 + kept_staff）；跨作品共用行靠 ON CONFLICT 保名，新增 `别家已有的声优名不被新写入的盖掉` |
+| [x] | `characters.rs:120` | 空串与 null 同义，让更全的填进来 —— 新增 `库里是空的声优名让传入的填进来`（空串 / null 两例） |
+| [x] | `characters.rs:291` | 只按 character_id 查会捞出别作品配音 —— 已由 `同编号在两部作品的配音互不串台` 锁 |
+| [x] | `vndb.rs:284` | 多 release 取首条会丢角色 —— 新增 `一个角色多条release时按入库档位挑而不是取首条`（`role_of`/`CharVn` 转 pub） |
+| [x] | `db.rs:143` | ADD COLUMN 不幂等 —— 新建 `tests/db.rs`，`建表跑两遍不报错` |
+| [x] | `metadata.rs:49` | 同步已绑作品不抹没同步的字段 —— 已由 `外层不给就不动内层置空才清掉` 锁 |
+| [x] | `metadata.rs:126` | 标签整列替换 —— 已由 `标签整列替换` 锁（「删掉的标签不该因为 id 相同而复活」） |
+| [x] | `games.rs:92` | 三表事务 —— 已由 `资料写失败时作品与状态都不留行` 锁 |
+| [x] | `games.rs:108` | vndb_id 显式 null = 解绑 —— 已由 `patch_vndb_id给null是解绑之后另一条可以绑同一个号` + `patch只给vndb_id解绑不动name` 锁 |
+| [x] | `games.rs:160` | 默认安装必须属于本作品 —— 已由 `默认安装只接受属于该作品的安装` 锁 |
+| [x] | `thumbs.rs:68` | EXIF Rotate90 先缩放会算错边长 —— 新增 `exif方向在缩放前应用_不然算错目标边长`（`sample_with_exif` 手造方向 6 的 JPEG） |
+| [x] | `GameForm.svelte:57` | 新增 `applyIncoming` 用例「多出来的键（characters / id / titles）不会进表单」——只搬 FIELDS 里的字段 |
+| [x] | `GameForm.svelte:138` / `141` | 判为「坏了立刻可见」：少挡会 toast 报错且不回填，竞态会填错数据，不造测试，只删注释 |
+| [x] | `GameForm.svelte:202` / `218` | 抽出 `cleanRating`（8..5 → 8.5、10.99 → 10.9、输入阶段不夹范围）与 `clampRating`（失焦夹 0..100），新增 `form-metadata.test.js` 两组用例 |
+| [x] | `GameForm.svelte:340` | 抽出 `ratingRejected` / `votecountRejected`（没填不算错，越界与非数字算错），新增两组用例 |
+| [x] | `DetailCharacters.svelte:34` | 空角色非失败 —— 后端那一半已由 `没有角色的作品读出来是空数组而不是报错` 锁，前端注释已删 |
+| [x] | `DetailCharacters.svelte:72` / `89` | displayName 两边对拍 → 删组件本地 `charName`，改用 lib `displayName`（补 null 用例）；`[spoiler]` 连内容丢 → 删本地 `plain`，改用 lib `stripBbcode`（`vn-merge.test.js` 已锁） |
+| [x] | `Modal.svelte:40` | 判为「坏了立刻可见」，直接删注释不造测试 |
+| [x] | `confirm.svelte.js:25` | 新增 `confirm.test.js`，`已有确认框打开时再调会抛错，不共用上一个 promise` |
+| [x] | `cover-src.js:4` | 缓存必须键最终 asset URL —— 新增 `cover-src.test.js`（4 例，核心是交给 convertFileSrc 的必须是缩图路径） |
+| [x] | `form-metadata.js:16` / `vn-merge.js:81` | patch 不带 titles 不抹标题（已由 `不写 titles 与 image_id` 锁）；空串封面不覆盖已有（`VNDB 没下到封面就不动本地` 扩到 null + 空串两例） |
+| [x] | `toast.svelte.js:38` / `51` / `75` | 新增 `toast.test.js`：`退场中的条目不算进上限，可见的始终不超过 5 条`、`退场结束移除的是那一条，不是最后一条`；`75` 那两个守卫查证为防御性、公共 API 不可达，不造测试 |
+| [x] | `char-merge.js:111` | 排序稳定性：同档保持来源顺序 —— 已由 `同档内保持各自来源的原有顺序` 锁 |
+| [x] | `scroll-dots.svelte.js:44` / `55` | 抽 `cardStep` 纯函数；新增 `scroll-dots.test.js`：`列数按基准卡宽与容器宽的纯函数算`、`容器隐藏时沿用已有的列数，不退回 1`、`每张卡的渲染宽与滚动步长` |
+| [x] | `pick-path.js:5` | 判为「注释在说一条不存在的守卫」：知识搬进 `backend.md`「收图格式两份清单要手动对齐」，注释删掉（构建检查本身另立需求） |
 
 ## → backend.md（栈特有、罕见、难测）
 

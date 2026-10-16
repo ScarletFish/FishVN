@@ -19,6 +19,11 @@ export function computeColsFor(el, { baselineW = 320, gap } = {}) {
   return Math.max(1, Math.floor((contentW + g) / (baselineW + g)));
 }
 
+/** 每张卡的渲染宽按列数均分容器，滚动步长再加一个卡间距 */
+export function cardStep(contentW, cols, gap) {
+  return (contentW - gap * (cols - 1)) / cols + gap;
+}
+
 /**
  * 为水平滚动容器初始化分页圆点。
  * @param {object} opts
@@ -41,9 +46,6 @@ export function initScrollDots({ scroll, total, dotsParent, initialIndex }) {
     const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
     return Math.max(0, scroll.clientWidth - padX);
   };
-  // 容器隐藏（宽为 0）时不重算、不写回 —— 否则 --cols 被写成 1，恢复显示后
-  // 卡宽按满宽参与 scroll-snap / scrollLeft 换算，反复进出详情页会让滚动
-  // 位置逐次塌缩（详情页重进入 9→5→3→2→1）。
   const computeCols = () => {
     if (getContentW() <= 0) return parseInt(scroll.style.getPropertyValue('--cols'), 10) || 1;
     const cols = computeColsFor(scroll, { baselineW: getBaselineW(), gap: getGap() });
@@ -52,12 +54,7 @@ export function initScrollDots({ scroll, total, dotsParent, initialIndex }) {
     return cols;
   };
   let visible = computeCols();
-  // 每张卡的实际渲染宽 = (容器宽 − gap*(cols−1)) / cols；滚动步长 = 卡宽 + gap
-  const getCardStep = () => {
-    const gap = getGap();
-    const cardW = (getContentW() - gap * (visible - 1)) / visible;
-    return cardW + gap;
-  };
+  const getCardStep = () => cardStep(getContentW(), visible, getGap());
 
   let dotsEl = dotsParent.querySelector('.scroll-dots');
   if (!dotsEl) {

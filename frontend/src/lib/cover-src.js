@@ -1,8 +1,6 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { api } from './api.js';
 
-// 缓存的是最终的 asset URL 而非原图路径：键是原图路径，对它调 convertFileSrc
-// 拿到的会是原图的 URL，派生图就白换了。
 // 授权不能省：asset 协议白名单默认为空，不放行则 <img> 拿到 403 空响应
 const cache = new Map();
 const inFlight = new Map();
