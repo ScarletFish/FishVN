@@ -111,17 +111,19 @@
           {:else}
             <div class="detail-cover__ph">
               <span class="detail-cover__initial" aria-hidden="true">{(game.name || '?')[0]}</span>
-              <span class="detail-cover__label">{t('detail.coverEmpty')}</span>
             </div>
           {/if}
         </div>
         <div class="detail-actions">
           <button type="button" class="btn btn-primary">{t('detail.actionPlay')}</button>
-          <button type="button" class="btn btn-danger">{t('detail.actionDelete')}</button>
+          <span class="detail-stat">{t('detail.playtime')}</span>
           <Menu
             bind:open={menuOpen}
             label={t('common.actionMore')}
-            items={[{ label: t('common.actionEdit'), onclick: () => (formOpen = true) }]}
+            items={[
+              { label: t('common.actionEdit'), onclick: () => (formOpen = true) },
+              { label: t('detail.actionDelete'), onclick: () => {} },
+            ]}
           />
         </div>
       </div>
