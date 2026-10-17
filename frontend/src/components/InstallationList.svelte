@@ -52,13 +52,22 @@
 <div class="form-group">
   <span class="form-label">{t('gameForm.install.label')}</span>
 
-  {#if items.length === 0}
-    <p class="install-empty">{t('gameForm.install.empty')}</p>
-  {/if}
-
   <ul class="install-list">
     {#each items as item (item.key)}
       <li class="install-row">
+        <label class="install-pick" data-tooltip={t('gameForm.install.pickDefault')}>
+          <input
+            type="radio"
+            class="install-pick__input"
+            name="install-default"
+            checked={defaultKey === item.key}
+            aria-label={t('gameForm.install.pickDefault')}
+            {disabled}
+            onchange={() => (defaultKey = item.key)}
+          />
+          <span class="install-pick__ring"></span>
+        </label>
+
         <PathField
           bind:value={item.path}
           picker={pickExecutable}
@@ -70,33 +79,26 @@
           {disabled}
         />
 
-        <label class="install-default">
-          <input
-            type="radio"
-            class="install-default__input"
-            name="install-default"
-            checked={defaultKey === item.key}
-            {disabled}
-            onchange={() => (defaultKey = item.key)}
-          />
-          <span class="install-default__face">
-            {defaultKey === item.key
-              ? t('gameForm.install.default')
-              : t('gameForm.install.setDefault')}
-          </span>
-        </label>
-
         <button
           type="button"
-          class="btn btn-ghost install-row__remove"
+          class="install-remove"
+          aria-label={t('gameForm.install.remove')}
+          data-tooltip={t('gameForm.install.remove')}
           onclick={() => removeItem(item)}
           {disabled}
         >
-          {t('gameForm.install.remove')}
+          <svg viewBox="0 0 24 24">
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
         </button>
       </li>
     {/each}
   </ul>
+
+  {#if items.length > 1}
+    <p class="form-hint install-hint">{t('gameForm.install.hint')}</p>
+  {/if}
 
   <button
     type="button"
