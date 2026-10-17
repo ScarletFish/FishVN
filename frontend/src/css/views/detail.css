@@ -481,13 +481,14 @@
 
 .detail-summary a,
 .detail-char-desc a {
-  color: var(--accent-soft);
-  text-decoration: none;
+  color: var(--fg-default);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--fg-default) 35%, transparent);
 }
 
 .detail-summary a:hover,
 .detail-char-desc a:hover {
-  text-decoration: underline;
+  text-decoration-color: currentColor;
 }
 
 .detail-char-vndb {
@@ -495,11 +496,12 @@
   align-items: center;
   gap: var(--space-1);
   font-size: var(--text-xs);
-  color: var(--accent-soft);
+  color: var(--fg-muted);
   text-decoration: none;
 }
 
 .detail-char-vndb:hover {
+  color: var(--fg-default);
   text-decoration: underline;
 }
 
