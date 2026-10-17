@@ -5,24 +5,25 @@ use rusqlite::Connection;
 use tauri::{Manager, State};
 
 use crate::characters;
+use crate::db;
 use crate::error::{AppError, Result};
 use crate::games;
 use crate::installations;
 use crate::metadata;
+use crate::sessions;
 use crate::tasks::{EventLog, Task, Tasks};
 use crate::thumbs;
 use crate::types::{
     Game, GameCharacter, GameListItem, GameMetadata, GamePatch, Installation, InstallationInput,
-    InstallationPatch, MetadataPatch, NewGame, NewInstallation, StatePatch, UserGameState,
+    InstallationPatch, MetadataPatch, NewGame, NewInstallation, PlaySession, StatePatch,
+    UserGameState,
 };
 use crate::vndb::{self, RateLimiter, VnSearchHit, VnSync};
 
 type Shared<'a> = State<'a, Arc<Mutex<Connection>>>;
 
 fn lock<'a>(shared: &'a Shared<'_>) -> Result<MutexGuard<'a, Connection>> {
-    shared
-        .lock()
-        .map_err(|_| AppError::Io(std::io::Error::other("数据库锁已毒化，之前的命令 panic 了")))
+    db::lock(shared.inner())
 }
 
 #[tauri::command]
@@ -103,6 +104,16 @@ pub fn save_installations(
     entries: Vec<InstallationInput>,
 ) -> Result<Vec<Installation>> {
     installations::save_installations(&*lock(&shared)?, &game_id, &entries)
+}
+
+#[tauri::command]
+pub fn launch_game(shared: Shared<'_>, id: String) -> Result<PlaySession> {
+    sessions::launch(shared.inner().clone(), &id)
+}
+
+#[tauri::command]
+pub fn list_active_sessions(shared: Shared<'_>) -> Result<Vec<PlaySession>> {
+    sessions::list_active(&*lock(&shared)?)
 }
 
 #[tauri::command]

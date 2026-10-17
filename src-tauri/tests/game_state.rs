@@ -32,6 +32,8 @@ fn 建条目时自动带一条wishlist状态() {
     assert_eq!(state.default_installation_id, None);
     assert_eq!(state.last_played_at, None);
     assert_eq!(state.play_count, 0);
+    assert_eq!(state.foreground_seconds, 0);
+    assert_eq!(state.alive_seconds, 0);
 }
 
 #[test]

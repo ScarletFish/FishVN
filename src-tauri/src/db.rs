@@ -1,9 +1,11 @@
 use std::fs;
 use std::path::Path;
 
+use std::sync::{Arc, Mutex, MutexGuard};
+
 use rusqlite::Connection;
 
-use crate::error::Result;
+use crate::error::{AppError, Result};
 
 pub const DB_FILE: &str = "fishvn.db";
 
@@ -12,6 +14,12 @@ pub fn open(dir: &Path) -> Result<Connection> {
     let conn = Connection::open(dir.join(DB_FILE))?;
     ensure_schema(&conn)?;
     Ok(conn)
+}
+
+pub fn lock<'a>(shared: &'a Arc<Mutex<Connection>>) -> Result<MutexGuard<'a, Connection>> {
+    shared
+        .lock()
+        .map_err(|_| AppError::Io(std::io::Error::other("数据库锁已毒化，之前的命令 panic 了")))
 }
 
 pub fn ensure_schema(conn: &Connection) -> Result<()> {
@@ -43,10 +51,21 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           status                  TEXT NOT NULL DEFAULT 'wishlist',
           user_rating             REAL,
           notes                   TEXT,
-          last_played_at          INTEGER,
-          play_count              INTEGER NOT NULL DEFAULT 0,
-          default_installation_id TEXT REFERENCES installations(id) ON DELETE SET NULL
+          default_installation_id TEXT REFERENCES installations(id) ON DELETE SET NULL,
+          play_seconds            INTEGER NOT NULL DEFAULT 0
         );
+
+        CREATE TABLE IF NOT EXISTS play_sessions (
+          id                 TEXT PRIMARY KEY,
+          game_id            TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+          installation_id    TEXT REFERENCES installations(id) ON DELETE SET NULL,
+          started_at         INTEGER NOT NULL,
+          last_seen_at       INTEGER NOT NULL,
+          ended_at           INTEGER,
+          foreground_seconds INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE INDEX IF NOT EXISTS play_sessions_game ON play_sessions(game_id);
 
         CREATE TABLE IF NOT EXISTS game_metadata (
           game_id     TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,

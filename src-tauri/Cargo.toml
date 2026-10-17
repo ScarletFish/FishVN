@@ -28,6 +28,13 @@ image = { version = "0.25", default-features = false, features = [
     "bmp",
 ] }
 tauri-plugin-opener = "2"
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }
 
 [dev-dependencies]
 tempfile = "3"

@@ -18,7 +18,7 @@ use crate::error::{AppError, Result};
 use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
 use crate::types::{GameCharacter, InstallationInput};
 use crate::vndb::RateLimiter;
-use crate::{characters, commands, games, installations, metadata, vndb};
+use crate::{characters, commands, games, installations, metadata, sessions, vndb};
 
 pub const PORT: u16 = 4546;
 
@@ -171,6 +171,10 @@ handler!(save_game_characters, |c, a| {
     let list: Vec<GameCharacter> = a.parse(a.characters.as_ref(), "characters")?;
     characters::replace_all(c, a.id()?, &list)
 });
+handler!(list_active_sessions, |c, _a| sessions::list_active(c));
+async fn launch_game(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    finish(sessions::launch(dev.conn.clone(), a.id()?))
+}
 
 async fn search_vndb(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     let keyword = match a.keyword().and_then(vndb::validate_keyword) {
@@ -295,6 +299,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/update_installation", post(update_installation))
         .route("/delete_installation", post(delete_installation))
         .route("/save_installations", post(save_installations))
+        .route("/launch_game", post(launch_game))
+        .route("/list_active_sessions", post(list_active_sessions))
         .route("/get_game_metadata", post(get_game_metadata))
         .route("/update_game_metadata", post(update_game_metadata))
         .route("/list_game_characters", post(list_game_characters))
@@ -322,6 +328,8 @@ pub const COMMANDS: &[&str] = &[
     "update_installation",
     "delete_installation",
     "save_installations",
+    "launch_game",
+    "list_active_sessions",
     "get_game_metadata",
     "update_game_metadata",
     "list_game_characters",

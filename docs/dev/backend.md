@@ -19,6 +19,7 @@ src-tauri/
 ├── metadata.rs      # 作品资料
 ├── characters.rs    # 角色与声优（集合，整包替换）
 ├── installations.rs # 本地目录
+├── sessions.rs      # 启动与游玩记录（作业 + 计时回路）
 ├── tasks.rs        # 长任务进度事件与取消
 ├── thumbs.rs        # 封面派生图与缓存
 ├── vndb.rs          # VNDB 上游客户端
@@ -33,6 +34,7 @@ src-tauri/
 | `vndb.rs` | [vndb-api.md](./vndb-api.md)：上游字段形状、过滤与限流、图片编号 |
 | `db.rs` / `types.rs` | 本文「数据模型」 |
 | `thumbs.rs` / 前端 `cover-src.js` | 本文「封面派生图」与「本地封面授权」 |
+| `sessions.rs` / 启动与计时 | 本文「启动与游玩记录」 |
 | `tasks.rs` / 长任务 | 本文「任务事件」 |
 | 前端组件与样式 | [frontend.md](./frontend.md) |
 
@@ -70,13 +72,28 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 
 - 注册时传的是 `Arc<T>`，命令侧就必须是 `State<'_, Arc<T>>`；泛型按类型精确匹配，写错编译期不报，只在调用该命令时报 `state not managed`
 
+### 启动与游玩记录
+
+启动走 `sessions.rs`：解析入口 → `Command` 起进程 → 把进程放进 Job Object → 落一条进行中的 `play_sessions` → 后台线程按 1 秒节拍守着，进程退出后结算。
+
+- **结束判定读作业的活跃进程数**（`QueryInformationJobObject` 的 `ActiveProcesses`），不用「作业句柄变有信号」。归零后要连续 3 个节拍仍为零才收尾：启动器型入口会「启动器退出、本体被它拉起」，计数会短暂归零，立刻收尾会把一次游玩砍成几秒。
+- **不给 breakaway 许可**（不设 `JOB_OBJECT_LIMIT_BREAKAWAY_OK`），加上子进程默认继承作业成员身份，游戏拉起的子进程逃不出去。作业句柄得自己开：`std::process::Command` 只给 pid，要拿句柄得 `OpenProcess`。
+- **前景时间按节拍累加**（命中一次加 1 秒），不是记两个时间戳相减 —— 后者会把系统休眠的整段算进前景时间。判定 = `GetForegroundWindow` → pid → `IsProcessInJob`。
+- **落盘时机**：前台状态翻转时立刻写，另有 30 个节拍的心跳兜底。前景时间只在 FishVN 在场时才可能增长，所以断电最多丢最后一个心跳周期、不会虚高；存活时间由起止时间戳相减，FishVN 不在场的那段必然少算。两种偏差都朝「少算」。
+- **孤儿收尾只在开库时做**（`sweep`）：把 `ended_at IS NULL` 的记录按 `last_seen_at` 结算。不能挪进 `launch_game` —— 那会把别的作品的进行中记录一起结算掉。
+- **状态自动迁移只在越过静默窗后**做一次「想玩 → 游玩中」：spawn 成功不等于游戏真的跑起来了，点一条失效的路径不该改写状态。
+- **启动方式按扩展名分派**：`bat` / `cmd` 走 `cmd /C`，`lnk` 走 `cmd /C start`（`CreateProcess` 不认识 `.lnk`），其余直接起；工作目录显式设为安装项的 `dir_path`。
+- 依赖 `windows` crate（Job Objects / Threading / WindowsAndMessaging）：版本要与 tauri 的传递依赖对齐，错开会编两遍。
+
 ### 任务事件
 
-任何单条命令响应容纳不下的耗时操作（网络批量拉取、文件下载、后续库扫描、启动计时等）都走任务事件通道，不要阻塞命令等结果。任务对外只有三条结果，各走各的通道：
+任何单条命令响应容纳不下的耗时操作（网络批量拉取、文件下载、后续库扫描等）都走任务事件通道，不要阻塞命令等结果。任务对外只有三条结果，各走各的通道：
 
 - **进度**走事件通道：按阶段上报，可计数阶段给绝对 `done/total`（定长条），不可计数阶段只给阶段名（不定长动画条）。
 - **best-effort 的局部失败**走事件通道的非致命通知：任务整体仍可继续的步骤（如个别文件下载失败）经 `Progress::report_error` 上报，不 abort 整次任务；缺资源（数据源本就没有该文件）不算失败、不报。
 - **致命失败与最终结果**走命令返回路径：整条数据查询的失败照旧上抛，前端按普通命令错误弹提示；成功则命令正常返回。
+
+常驻状态不进这条通道：游玩记录这类「一次动作开一段、由查询读」的状态落库，前端按需重取 —— 它没有进度可言，结束也不是靠取消。
 
 新增任务时遵守：
 
@@ -118,7 +135,8 @@ snake_case，裸 HTTP 没有这层转换。
 | 表 | 内容 | 写者 |
 |---|---|---|
 | `games` | 作品身份 | 用户创建与编辑 |
-| `user_game_state` | 状态、用户评分、笔记、默认安装、游玩时间与次数 | 用户；游玩时间与次数暂无写入方 |
+| `user_game_state` | 状态、用户评分、笔记、默认安装、总时长 | 用户；总时长另有结算累加 |
+| `play_sessions` | 一次游玩的起点、结束与两个时长 | 启动动作 |
 | `installations` | 本地目录、入口 exe、候选入口、目录大小、顺序 | 用户在前端表单里整包写回 |
 | `game_metadata` | 别名与本地化标题、封面、发行日期、评分与人数、简介、标签、开发商 | 用户直接编辑；同步时逐字段比对后由用户选覆盖或跳过 |
 
@@ -149,6 +167,8 @@ snake_case，裸 HTTP 没有这层转换。
 - `patch` 改入口时先看同目录有没有别的行占着这一对，占了就报冲突而不是漏成唯一索引错误
 - 目录元信息分两档取：只要候选 exe 时下探三层（限深也截断了读取），连大小一起取时遍历整棵子树。整包写回走前者，`size_bytes` 留空；新建与换目录时重算候选，换目录顺带把失效的 `size_bytes` 置空；目录没变就不读盘，搬走的目录不挡保存
 - `entry_path` 存相对 `dir_path` 的路径：空串、绝对路径与含 `..` 的路径都判非法输入
+- `user_game_state.play_seconds` 是作品的总时长：用户可随时改写，结算在既有值上累加。次数、最近游玩、前景时间、存活时间这四个聚合值由 `play_sessions` 在查询里聚合出来
+- `play_sessions.ended_at` 为空即进行中；计时回路收尾与开库收尾都会把这次的前景时间累加进作品的总时长
 - 主键是带连字符的小写 uuid v4 形态
 
 元数据每列都可由用户手改。同步不按「哪些列空了」判断该不该写，而是逐字段比对库里现值与
@@ -202,7 +222,7 @@ scope 够不着，必须走 `allow_local_file`。
 
 - [ ] 领域函数在 `games.rs` / `installations.rs`，`commands.rs` 只转发
 - [ ] 挂进 `main.rs` 的 `generate_handler!`，前端 `api.js` 有对应方法
-- [ ] 新列挂对了表：路径进 `installations`，元数据进 `game_metadata`，状态进 `user_game_state`
+- [ ] 新列挂对了表：路径进 `installations`，元数据进 `game_metadata`，状态进 `user_game_state`，游玩记录进 `play_sessions`
 - [ ] 新增列有写入方
 - [ ] 可空字段的 PATCH 用双层 `Option`，语义在 types.rs 上看得见
 - [ ] 外键列判了空串

@@ -20,6 +20,7 @@
   import CharacterMergeDialog from './CharacterMergeDialog.svelte';
   import CharacterEditor from './CharacterEditor.svelte';
   import InstallationList from './InstallationList.svelte';
+  import PlaytimeField from './PlaytimeField.svelte';
   import PathField from './PathField.svelte';
   import { namedOnly, toDraft, toPayload } from '../lib/characters.js';
   import {
@@ -608,6 +609,12 @@
               disabled={saving}
             ></textarea>
           </div>
+
+          {#if gameId}
+            <div class="panel-grid__full">
+              <PlaytimeField {gameId} disabled={saving} />
+            </div>
+          {/if}
         </div>
       </div>
 

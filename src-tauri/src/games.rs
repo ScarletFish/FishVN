@@ -11,7 +11,7 @@ const DEFAULT_STATUS: Status = Status::Wishlist;
 pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
     let mut stmt = conn.prepare(
         "SELECT g.id, g.name, g.vndb_id, g.created_at,
-                s.status, s.user_rating, s.last_played_at, s.play_count,
+                s.status, s.user_rating,
                 COUNT(i.id) AS installation_count,
                 MAX(CASE WHEN i.entry_path IS NOT NULL THEN 1 ELSE 0 END) AS can_launch,
                 m.image_path AS cover_path
@@ -30,8 +30,6 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
             created_at: row.get("created_at")?,
             status: row.get("status")?,
             user_rating: row.get("user_rating")?,
-            last_played_at: row.get("last_played_at")?,
-            play_count: row.get("play_count")?,
             installation_count: row.get("installation_count")?,
             can_launch: row.get::<_, i64>("can_launch")? == 1,
             cover_path: row.get("cover_path")?,
@@ -134,9 +132,16 @@ pub fn delete_game(conn: &Connection, id: &str) -> Result<()> {
 
 pub fn get_game_state(conn: &Connection, id: &str) -> Result<UserGameState> {
     conn.query_row(
-        "SELECT game_id, status, user_rating, notes, default_installation_id,
-                last_played_at, play_count
-         FROM user_game_state WHERE game_id = ?",
+        "SELECT s.game_id, s.status, s.user_rating, s.notes, s.default_installation_id,
+                s.play_seconds,
+                COUNT(p.id) AS play_count,
+                MAX(p.started_at) AS last_played_at,
+                COALESCE(SUM(p.foreground_seconds), 0) AS foreground_seconds,
+                COALESCE(SUM(COALESCE(p.ended_at, p.last_seen_at) - p.started_at), 0) AS alive_seconds
+         FROM user_game_state s
+         LEFT JOIN play_sessions p ON p.game_id = s.game_id
+         WHERE s.game_id = ?
+         GROUP BY s.game_id",
         params![id],
         read_state_row,
     )
@@ -194,6 +199,13 @@ pub fn update_game_state(conn: &Connection, id: &str, patch: &StatePatch) -> Res
             None => Value::Null,
         });
     }
+    if let Some(seconds) = patch.play_seconds {
+        if seconds < 0 {
+            return Err(AppError::BadRequest("总时长不能是负数".into()));
+        }
+        sets.push("play_seconds = ?");
+        values.push(Value::Integer(seconds));
+    }
     if sets.is_empty() {
         return Err(AppError::BadRequest("没有可更新的字段".into()));
     }
@@ -219,8 +231,11 @@ fn read_state_row(row: &Row<'_>) -> rusqlite::Result<UserGameState> {
         user_rating: row.get("user_rating")?,
         notes: row.get("notes")?,
         default_installation_id: row.get("default_installation_id")?,
-        last_played_at: row.get("last_played_at")?,
+        play_seconds: row.get("play_seconds")?,
         play_count: row.get("play_count")?,
+        last_played_at: row.get("last_played_at")?,
+        foreground_seconds: row.get("foreground_seconds")?,
+        alive_seconds: row.get("alive_seconds")?,
     })
 }
 

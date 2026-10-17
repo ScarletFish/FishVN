@@ -5,6 +5,8 @@
   import { joinLaunchPath } from '../lib/installations.js';
   import { bbcodeParagraphs } from '../lib/vn-merge.js';
   import { openExternal } from '../lib/open-external.js';
+  import { toast } from '../lib/toast.svelte.js';
+  import { durationText } from '../lib/playtime.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
@@ -21,6 +23,9 @@
   let menuOpen = $state(false);
   let coverUrl = $state(null);
   let coverBroken = $state(false);
+  let gameState = $state(null);
+  let activeSession = $state(null);
+  let launching = $state(false);
 
   const installRows = $derived(
     dirs.map((dir) => ({
@@ -29,6 +34,40 @@
       isDefault: dir.id === defaultDirId,
     })),
   );
+
+  const POLL_MS = 5000;
+
+  const canLaunch = $derived(dirs.some((dir) => dir.entry_path));
+  const running = $derived(activeSession != null);
+  const playSeconds = $derived(gameState?.play_seconds ?? 0);
+
+  function applyState(state, active) {
+    gameState = state;
+    defaultDirId = state.default_installation_id;
+    activeSession = active.find((item) => item.game_id === gameId) ?? null;
+  }
+
+  async function refreshPlay() {
+    const [state, active] = await Promise.all([
+      api.getGameState(gameId),
+      api.listActiveSessions(),
+    ]);
+    applyState(state, active);
+  }
+
+  async function launch() {
+    if (!canLaunch || launching || running) return;
+    launching = true;
+    try {
+      await api.launchGame(gameId);
+      await refreshPlay();
+    } catch (err) {
+      toast(err.message, 'error');
+      refreshPlay().catch(() => {});
+    } finally {
+      launching = false;
+    }
+  }
 
   const TAGS_PREVIEW = 8;
   let tagsExpanded = $state(false);
@@ -69,13 +108,14 @@
       api.getGameMetadata(gameId),
       api.getGameState(gameId),
       api.listInstallations(gameId),
+      api.listActiveSessions(),
     ])
-      .then(([g, m, s, d]) => {
+      .then(([g, m, s, d, active]) => {
         if (!live) return;
         game = g;
         meta = m;
-        defaultDirId = s.default_installation_id;
         dirs = d;
+        applyState(s, active);
       })
       .catch(() => {
         if (live) failed = true;
@@ -103,6 +143,21 @@
     return () => {
       live = false;
     };
+  });
+
+  $effect(() => {
+    if (!running) return;
+    const timer = setInterval(() => {
+      refreshPlay().catch(() => {});
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  });
+
+  let formWasOpen = false;
+
+  $effect(() => {
+    if (formWasOpen && !formOpen) refreshPlay().catch(() => {});
+    formWasOpen = formOpen;
   });
 
   function handleSideMouse(e) {
@@ -137,8 +192,22 @@
           {/if}
         </div>
         <div class="detail-actions">
-          <button type="button" class="btn btn-primary">{t('detail.actionPlay')}</button>
-          <span class="detail-stat">{t('detail.playtime')}</span>
+          <span
+            class="detail-action"
+            data-tooltip={canLaunch ? null : t('detail.playNoInstall')}
+          >
+            <button
+              type="button"
+              class="btn btn-primary"
+              disabled={!canLaunch || launching || running}
+              onclick={launch}
+            >
+              {running ? t('status.playing') : t('detail.actionPlay')}
+            </button>
+          </span>
+          <span class="detail-stat" data-tooltip={t('detail.playtime')}
+            >{durationText(t, playSeconds)}</span
+          >
           <Menu
             bind:open={menuOpen}
             label={t('common.actionMore')}

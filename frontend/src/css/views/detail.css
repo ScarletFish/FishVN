@@ -21,6 +21,10 @@
   font-size: var(--text-sm);
 }
 
+.detail-action {
+  display: flex;
+}
+
 .detail-stat {
   flex: 1;
   min-width: 0;

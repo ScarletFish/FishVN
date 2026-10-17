@@ -61,8 +61,11 @@ pub struct UserGameState {
     pub user_rating: Option<f64>,
     pub notes: Option<String>,
     pub default_installation_id: Option<String>,
-    pub last_played_at: Option<i64>,
+    pub play_seconds: i64,
     pub play_count: i64,
+    pub last_played_at: Option<i64>,
+    pub foreground_seconds: i64,
+    pub alive_seconds: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,8 +86,6 @@ pub struct GameListItem {
     pub created_at: i64,
     pub status: Status,
     pub user_rating: Option<f64>,
-    pub last_played_at: Option<i64>,
-    pub play_count: i64,
     pub installation_count: i64,
     pub can_launch: bool,
     pub cover_path: Option<String>,
@@ -102,12 +103,25 @@ pub struct StatePatch {
     pub user_rating: Option<Option<f64>>,
     pub notes: Option<Option<String>>,
     pub default_installation_id: Option<Option<String>>,
+    pub play_seconds: Option<i64>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
 pub struct InstallationPatch {
     pub game_id: Option<Option<String>>,
     pub entry_path: Option<Option<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PlaySession {
+    pub id: String,
+    pub game_id: String,
+    pub installation_id: Option<String>,
+    pub started_at: i64,
+    pub last_seen_at: i64,
+    pub ended_at: Option<i64>,
+    pub foreground_seconds: i64,
+    pub alive_seconds: i64,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]

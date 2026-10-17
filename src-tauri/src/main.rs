@@ -47,7 +47,9 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let conn = Arc::new(Mutex::new(db::open(&fishvn::data_dir(app.handle())?)?));
+            let conn = db::open(&fishvn::data_dir(app.handle())?)?;
+            fishvn::sessions::sweep(&conn)?;
+            let conn = Arc::new(Mutex::new(conn));
             let rate = Arc::new(RateLimiter::new());
             let events = Arc::new(Mutex::new(EventLog::default()));
             let tasks = Arc::new(Tasks::default());
@@ -75,6 +77,8 @@ fn main() {
             commands::update_installation,
             commands::delete_installation,
             commands::save_installations,
+            commands::launch_game,
+            commands::list_active_sessions,
             commands::get_game_metadata,
             commands::update_game_metadata,
             commands::list_game_characters,

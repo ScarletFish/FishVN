@@ -23,6 +23,9 @@ export const DICT_ZH = {
     browse: '浏览',
     actionMore: '更多操作',
     actionEdit: '编辑游戏详情',
+    unitHour: '小时',
+    unitMinute: '分',
+    unitSecond: '秒',
   },
   detail: {
     notFound: '作品不存在',
@@ -30,6 +33,7 @@ export const DICT_ZH = {
     error: '读取作品失败',
     moreTags: '+{count}',
     actionPlay: '开始游戏',
+    playNoInstall: '还没有指定启动文件',
     actionDelete: '删除',
     fewerTags: '收起',
     playtime: '游戏时长',
@@ -168,6 +172,12 @@ export const DICT_ZH = {
       pickDefault: '指定为默认启动程序',
       remove: '移除',
       duplicate: '这个启动文件已经在列表里了',
+    },
+    playtime: {
+      label: '总时长',
+      hint: '写 12:30、12h30m 或 45000 都认，纯数字按秒算',
+      placeholder: '0:00',
+      live: '这次结束后，把前景时间加进总时长',
     },
     search: {
       title: 'VNDB 搜索结果',
