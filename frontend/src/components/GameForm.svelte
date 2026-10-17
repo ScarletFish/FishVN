@@ -34,7 +34,7 @@
   import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
 
-  let { open = $bindable(false), gameId = $bindable(null), onsaved } = $props();
+  let { open = $bindable(false), gameId = $bindable(null), onsaved, initialTab = 'basic' } = $props();
 
   const TABS = ['basic', 'profile', 'tags', 'installations', 'characters'];
 
@@ -117,7 +117,7 @@
     defaultInstallKey = null;
     
     coverBroken = false;
-    tab = 'basic';
+    tab = initialTab;
     statusOpen = false;
     searchOpen = false;
     mergeOpen = false;

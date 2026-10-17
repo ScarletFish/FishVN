@@ -5,13 +5,16 @@ const DRIVE_ONLY = /^[A-Za-z]:$/;
 const LAUNCH_EXT = ['exe', 'bat', 'cmd', 'com', 'lnk'];
 const SEPARATORS = /\//g;
 
+function pathSeparator(dirPath) {
+  return dirPath.includes('\\') && !dirPath.includes('/') ? '\\' : '/';
+}
+
 export function joinLaunchPath(dirPath, entryPath) {
   const dir = (dirPath ?? '').replace(TRAILING_SEP, '');
   const entry = (entryPath ?? '').trim();
   if (!dir) return entry;
   if (!entry) return dir;
-  const sep = dir.includes('\\') && !dir.includes('/') ? '\\' : '/';
-  return `${dir}${sep}${entry}`;
+  return `${dir}${pathSeparator(dir)}${entry}`;
 }
 
 export function splitLaunchPath(value) {

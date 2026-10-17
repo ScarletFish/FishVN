@@ -20,6 +20,7 @@
   let loading = $state(true);
   let failed = $state(false);
   let formOpen = $state(false);
+  let formTab = $state('basic');
   let menuOpen = $state(false);
   let coverUrl = $state(null);
   let coverBroken = $state(false);
@@ -27,12 +28,14 @@
   let activeSession = $state(null);
   let launching = $state(false);
 
-  const installRows = $derived(
-    dirs.map((dir) => ({
-      id: dir.id,
-      launch: joinLaunchPath(dir.dir_path, dir.entry_path),
-      isDefault: dir.id === defaultDirId,
-    })),
+  const launchTarget = $derived(
+    dirs.find((dir) => dir.id === defaultDirId && dir.entry_path) ??
+      dirs.find((dir) => dir.entry_path) ??
+      dirs[0] ??
+      null,
+  );
+  const launchPath = $derived(
+    launchTarget ? joinLaunchPath(launchTarget.dir_path, launchTarget.entry_path) : '',
   );
 
   const POLL_MS = 5000;
@@ -181,42 +184,14 @@
       {/if}
     </div>
     <div class="detail-banner">
-      <div class="detail-banner-left">
-        <div class="detail-cover">
-          {#if coverUrl && !coverBroken}
-            <img src={coverUrl} alt={game.name} onerror={() => (coverBroken = true)} />
-          {:else}
-            <div class="detail-cover__ph">
-              <span class="detail-cover__initial" aria-hidden="true">{(game.name || '?')[0]}</span>
-            </div>
-          {/if}
-        </div>
-        <div class="detail-actions">
-          <span
-            class="detail-action"
-            data-tooltip={canLaunch ? null : t('detail.playNoInstall')}
-          >
-            <button
-              type="button"
-              class="btn btn-primary"
-              disabled={!canLaunch || launching || running}
-              onclick={launch}
-            >
-              {running ? t('status.playing') : t('detail.actionPlay')}
-            </button>
-          </span>
-          <span class="detail-stat" data-tooltip={t('detail.playtime')}
-            >{durationText(t, playSeconds)}</span
-          >
-          <Menu
-            bind:open={menuOpen}
-            label={t('common.actionMore')}
-            items={[
-              { label: t('common.actionEdit'), onclick: () => (formOpen = true) },
-              { label: t('detail.actionDelete'), onclick: () => {} },
-            ]}
-          />
-        </div>
+      <div class="detail-cover">
+        {#if coverUrl && !coverBroken}
+          <img src={coverUrl} alt={game.name} onerror={() => (coverBroken = true)} />
+        {:else}
+          <div class="detail-cover__ph">
+            <span class="detail-cover__initial" aria-hidden="true">{(game.name || '?')[0]}</span>
+          </div>
+        {/if}
       </div>
       <div class="detail-info">
         <h1>{game.name}</h1>
@@ -270,27 +245,56 @@
           {/each}
         </div>
       </div>
-    </div>
-    {#if installRows.length > 0}
-      <section class="detail-install section-card">
-        <div class="detail-install-header">
-          <h3>{t('detail.installs')}</h3>
-          <span class="detail-install-count">{installRows.length}</span>
+      <div class="detail-actions">
+        <span
+          class="detail-action"
+          data-tooltip={canLaunch ? null : t('detail.playNoInstall')}
+        >
+          <button
+            type="button"
+            class="btn btn-primary"
+            disabled={!canLaunch || launching || running}
+            onclick={launch}
+          >
+            {running ? t('status.playing') : t('detail.actionPlay')}
+          </button>
+        </span>
+        <div class="detail-launch-meta">
+          <span class="detail-stat" data-tooltip={t('detail.playtime')}
+            >{playSeconds > 0 ? durationText(t, playSeconds) : '--'}</span
+          >
+          <Menu
+            bind:open={menuOpen}
+            label={t('common.actionMore')}
+            items={[
+              {
+                label: t('common.actionEdit'),
+                onclick: () => {
+                  formTab = 'basic';
+                  formOpen = true;
+                },
+              },
+              { label: t('detail.actionDelete'), onclick: () => {} },
+            ]}
+          />
         </div>
-        <ul class="detail-install-list">
-          {#each installRows as row (row.id)}
-            <li class="detail-install-row">
-              <span class="detail-install-path" title={row.launch}>{row.launch}</span>
-              {#if row.isDefault}
-                <span class="pill pill--info">{t('gameForm.install.default')}</span>
-              {/if}
-            </li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
+      </div>
+      {#if launchPath}
+        <button
+          type="button"
+          class="detail-install"
+          data-tooltip={launchPath}
+          onclick={() => {
+            formTab = 'installations';
+            formOpen = true;
+          }}
+        >
+          {launchPath}
+        </button>
+      {/if}
+    </div>
     <DetailCharacters gameId={gameId} />
   {/if}
 </section>
 
-<GameForm bind:open={formOpen} gameId={gameId} />
+<GameForm bind:open={formOpen} gameId={gameId} initialTab={formTab} />
