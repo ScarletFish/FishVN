@@ -18,7 +18,6 @@
   import { coverSrc } from '../lib/cover-src.js';
   import { pickImage } from '../lib/pick-path.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
-  import CharacterMergeDialog from './CharacterMergeDialog.svelte';
   import CharacterEditor from './CharacterEditor.svelte';
   import InstallationList from './InstallationList.svelte';
   import PlaytimeField from './PlaytimeField.svelte';
@@ -78,7 +77,6 @@
   
   let mergeOpen = $state(false);
   let mergeRows = $state([]);
-  let charMergeOpen = $state(false);
   let charMergeRows = $state([]);
   let incomingCharacters = $state([]);
   let pulling = $state(false);
@@ -135,7 +133,6 @@
     searchOpen = false;
     mergeOpen = false;
     mergeRows = [];
-    charMergeOpen = false;
     charMergeRows = [];
     incomingCharacters = [];
     incoming = null;
@@ -349,6 +346,7 @@
       vndbId = id;
       incomingCharacters = incoming?.characters ?? [];
       mergeRows = conflictRows(formFields(), incoming);
+      charMergeRows = planCharacters(characters.map(toPayload), incomingCharacters).conflicts;
       mergeOpen = true;
     } catch (err) {
       incoming = null;
@@ -366,7 +364,7 @@
     await api.cancelTask('vndb-sync');
   }
 
-  function acceptMerge(picked) {
+  function acceptMerge(picked, charPicked) {
     const next = applyIncoming(formFields(), incoming, picked);
     name = next.name;
     alias = next.alias;
@@ -379,28 +377,11 @@
     developers = next.developers;
     staff = next.staff;
     coverPath = next.coverPath;
-    mergeOpen = false;
-    incoming = null;
-    openCharacterMerge();
-  }
-
-  function openCharacterMerge() {
-    const local = characters.map(toPayload);
-    const plan = planCharacters(local, incomingCharacters);
-    if (plan.conflicts.length === 0) {
-      characters = applyCharacters(local, incomingCharacters, new Set()).map(toDraft);
-      incomingCharacters = [];
-      return;
-    }
-    charMergeRows = plan.conflicts;
-    charMergeOpen = true;
-  }
-
-  function acceptCharacterMerge(adopted) {
-    characters = applyCharacters(characters.map(toPayload), incomingCharacters, adopted).map(
+    characters = applyCharacters(characters.map(toPayload), incomingCharacters, charPicked).map(
       toDraft
     );
-    charMergeOpen = false;
+    mergeOpen = false;
+    incoming = null;
     incomingCharacters = [];
   }
 
@@ -948,15 +929,9 @@
 <VnMergeDialog
   bind:open={mergeOpen}
   rows={mergeRows}
+  charRows={charMergeRows}
   onaccept={acceptMerge}
   oncancel={() => (mergeOpen = false)}
-/>
-
-<CharacterMergeDialog
-  bind:open={charMergeOpen}
-  rows={charMergeRows}
-  onaccept={acceptCharacterMerge}
-  oncancel={() => (charMergeOpen = false)}
 />
 
 <style>

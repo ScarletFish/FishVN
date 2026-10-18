@@ -231,9 +231,9 @@ export const DICT_ZH = {
       adopt: '采用 VNDB',
       keep: '保留当前',
       empty: '没有需要取舍的字段',
+      emptyValue: '未填写',
+      charSection: '角色（{count}）',
       staffRest: '其余 {count} 项职能相同',
-      charTitle: '同步 VNDB 角色',
-      charEmpty: '没有需要取舍的角色',
       accept: '接受 {count} 项',
     },
     charRole: {

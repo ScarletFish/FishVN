@@ -3,16 +3,28 @@
   import { t } from '../lib/i18n.js';
   import { asText } from '../lib/vn-merge.js';
   import { staffDiff, staffGroupText, staffText } from '../lib/staff.js';
+  import { charKey } from '../lib/char-merge.js';
   import { compactDuration } from '../lib/playtime.js';
   import { coverSrc } from '../lib/cover-src.js';
 
-  let { open = $bindable(false), rows = [], onaccept, oncancel } = $props();
+  let {
+    open = $bindable(false),
+    rows = [],
+    charRows = [],
+    onaccept,
+    oncancel,
+  } = $props();
 
   let picked = $state(new Set());
+  let charPicked = $state(new Set());
   let thumbs = $state([]);
+  let charThumbs = $state([]);
 
   $effect(() => {
-    if (open) picked = new Set(rows.map((r) => r.key));
+    if (open) {
+      picked = new Set(rows.map((r) => r.key));
+      charPicked = new Set(charRows.map((r) => r.key));
+    }
   });
 
   $effect(() => {
@@ -42,11 +54,31 @@
     };
   });
 
+  $effect(() => {
+    const paths = charRows.map((r) => [r.current?.image_path, r.incoming?.image_path]);
+    let live = true;
+    Promise.all(
+      paths.map((pair) => Promise.all(pair.map((path) => coverSrc(path).catch(() => null))))
+    ).then((all) => {
+      if (live) charThumbs = all;
+    });
+    return () => {
+      live = false;
+    };
+  });
+
   function toggle(key) {
     const next = new Set(picked);
     if (next.has(key)) next.delete(key);
     else next.add(key);
     picked = next;
+  }
+
+  function toggleChar(key) {
+    const next = new Set(charPicked);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    charPicked = next;
   }
 
   function isCover(key) {
@@ -60,10 +92,18 @@
     if (key === 'staff') return staffText(value);
     return asText(key, value);
   }
+
+  function charNameOf(row) {
+    return row?.original || row?.name || '';
+  }
+
+  function charRoleLabel(role) {
+    return role ? t(`gameForm.charRole.${role}`) : '';
+  }
 </script>
 
 <Modal {open} title={t('gameForm.merge.title')} variant="modal--merge" onclose={oncancel}>
-  {#if rows.length === 0}
+  {#if rows.length === 0 && charRows.length === 0}
     <div class="vn-merge__empty">{t('gameForm.merge.empty')}</div>
   {:else}
     <div class="vn-merge__head" aria-hidden="true">
@@ -102,7 +142,9 @@
                   {/if}
                 </span>
               {:else}
-                <span class="vn-merge__text">{cellText(row.key, value)}</span>
+                <span class="vn-merge__text">
+                  {cellText(row.key, value) || t('gameForm.merge.emptyValue')}
+                </span>
               {/if}
               <button
                 type="button"
@@ -115,6 +157,47 @@
           {/each}
         </li>
       {/each}
+
+      {#if charRows.length}
+        <li class="vn-merge__section">
+          {t('gameForm.merge.charSection', { count: charRows.length })}
+        </li>
+        {#each charRows as row, index (row.key)}
+          {@const on = charPicked.has(row.key)}
+          <li class="vn-merge__row vn-merge__row--char">
+            <span class="vn-merge__label">{charKey(row.current) || charKey(row.incoming)}</span>
+            {#each [[row.current, !on], [row.incoming, on]] as [value, active], side}
+              <span class="vn-merge__cell" class:is-active={active}>
+                <span class="vn-merge__thumb">
+                  {#if charThumbs[index]?.[side]}
+                    <img
+                      src={charThumbs[index][side]}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  {:else}
+                    <span class="vn-merge__thumb-ph" aria-hidden="true">—</span>
+                  {/if}
+                </span>
+                <span class="vn-merge__text">
+                  {charNameOf(value) || t('gameForm.merge.emptyValue')}
+                  {#if value?.role}
+                    <span class="vn-merge__meta">{charRoleLabel(value.role)}</span>
+                  {/if}
+                </span>
+                <button
+                  type="button"
+                  class="vn-merge__dot"
+                  aria-pressed={active}
+                  aria-label={t(`gameForm.merge.${side === 0 ? 'keep' : 'adopt'}`)}
+                  onclick={() => toggleChar(row.key)}
+                ></button>
+              </span>
+            {/each}
+          </li>
+        {/each}
+      {/if}
     </ul>
   {/if}
 
@@ -122,8 +205,12 @@
     <button type="button" class="btn" onclick={oncancel}>
       {t('common.cancel')}
     </button>
-    <button type="button" class="btn btn-primary" onclick={() => onaccept?.(picked)}>
-      {t('gameForm.merge.accept', { count: picked.size })}
+    <button
+      type="button"
+      class="btn btn-primary"
+      onclick={() => onaccept?.(picked, charPicked)}
+    >
+      {t('gameForm.merge.accept', { count: picked.size + charPicked.size })}
     </button>
   </div>
 </Modal>

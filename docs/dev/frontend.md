@@ -119,7 +119,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - **`Detail`**：鼠标侧键 3 是后退，4 不接。
 - **`MyList`**：打开表单前先落 `gameId`，`GameForm` 的 `$effect` 与 `open` 在同一帧读到的是最终值。
 - **`DetailCharacters` / `CharacterEditor`**：立绘走封面那条 `coverSrc` 管线 —— 缩图与 asset 协议授权都在那边做过。
-- **`CharacterMergeDialog`**：两侧立绘一起预取，面板关掉时结果作废。
+- **`VnMergeDialog`**：单一取舍面板承载两层分区——元数据字段行与角色冲突行，角色区立绘随元数据区一起预取，面板关掉时结果作废；两侧任一为空的单元格显示「未填写」占位。
 - **`CharacterEditor`**：回选只在「角色列表变化」时发生（加载 / 增删 / 保存回填），用 `untrack` 让它只依赖 `characters`、不追踪 `selectedId`，用户手动点开或收起不会被抢回。
 - **`vndb-search.svelte.js`**：换词重搜先清空，表单每次打开也要清一遍；导出的是 getter 而不是 `$state` 本体（直接 `return` 只会把初始值交出去）。侧栏由 `Modal` 的 `aside` 渲染，关闭时那一段没有挂载，父组件的工具栏按钮因此调不到里面的东西。
 - **`confirm.svelte.js`**：`action` 必须在 `i18n-zh.js` 有 `confirm.<action>.{title,message,confirm}` 三条词条，缺了不做兜底（`t()` 会回落 key）。

@@ -133,10 +133,9 @@ const FIELDS = [
 
 export function conflictRows(current, incoming) {
   return FIELDS.filter((f) => {
-    if (f.empty(current[f.key])) return false;
     const value = f.read(incoming);
     if (f.empty(value)) return false;
-    return !f.same(current[f.key], value);
+    return f.empty(current[f.key]) || !f.same(current[f.key], value);
   }).map((f) => ({ key: f.key, current: current[f.key], incoming: f.read(incoming) }));
 }
 
@@ -145,7 +144,7 @@ export function applyIncoming(current, incoming, selected) {
   for (const f of FIELDS) {
     const value = f.read(incoming);
     if (f.empty(value)) continue;
-    if (f.empty(current[f.key]) || selected.has(f.key)) next[f.key] = value;
+    if (selected.has(f.key)) next[f.key] = value;
   }
   return next;
 }
