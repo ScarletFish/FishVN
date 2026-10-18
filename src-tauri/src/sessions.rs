@@ -20,6 +20,7 @@ use crate::db::lock;
 use crate::error::{AppError, Result};
 use crate::games;
 use crate::installations;
+use crate::settings::{self, TimeMetric};
 use crate::types::{Installation, PlaySession, Status};
 use crate::{new_id, now};
 
@@ -123,19 +124,26 @@ pub fn launch(shared: Arc<Mutex<Connection>>, game_id: &str) -> Result<PlaySessi
 }
 
 pub fn sweep(conn: &Connection) -> Result<()> {
-    let orphans: Vec<(String, i64)> = {
+    let orphans: Vec<(String, i64, i64, i64)> = {
         let mut stmt = conn.prepare(
-            "SELECT game_id, foreground_seconds FROM play_sessions WHERE ended_at IS NULL",
+            "SELECT game_id, started_at, last_seen_at, foreground_seconds
+             FROM play_sessions WHERE ended_at IS NULL",
         )?;
-        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?;
         rows.collect::<rusqlite::Result<_>>()?
     };
     conn.execute(
         "UPDATE play_sessions SET ended_at = last_seen_at WHERE ended_at IS NULL",
         [],
     )?;
-    for (game_id, foreground) in orphans {
-        add_play_time(conn, &game_id, foreground)?;
+    for (game_id, started_at, last_seen_at, foreground) in orphans {
+        let seconds = match settings::current().time_metric {
+            TimeMetric::Foreground => foreground,
+            TimeMetric::Alive => last_seen_at - started_at,
+        };
+        add_play_time(conn, &game_id, seconds)?;
     }
     Ok(())
 }
@@ -186,7 +194,11 @@ fn watch(
     }
     store(&shared, &session_id, alive_at, foreground, Some(alive_at));
     if let Ok(conn) = shared.lock() {
-        let _ = add_play_time(&conn, &game_id, foreground);
+        let seconds = match settings::current().time_metric {
+            TimeMetric::Foreground => foreground,
+            TimeMetric::Alive => alive_at - started_at,
+        };
+        let _ = add_play_time(&conn, &game_id, seconds);
     }
 }
 

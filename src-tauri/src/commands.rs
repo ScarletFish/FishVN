@@ -11,6 +11,7 @@ use crate::games;
 use crate::installations;
 use crate::metadata;
 use crate::sessions;
+use crate::settings::{self, AppConfig};
 use crate::tasks::{EventLog, Task, Tasks};
 use crate::thumbs;
 use crate::types::{
@@ -189,6 +190,21 @@ pub fn thumbnail(app: tauri::AppHandle, src: String) -> Result<String> {
         crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
     let path = thumbs::cached(&src, &dir)?;
     Ok(path.to_string_lossy().into_owned())
+}
+
+fn data_dir_or_err(app: &tauri::AppHandle) -> Result<PathBuf> {
+    crate::data_dir(app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))
+}
+
+#[tauri::command]
+pub fn get_config(_app: tauri::AppHandle) -> Result<AppConfig> {
+    Ok(settings::current())
+}
+
+#[tauri::command]
+pub fn update_config(app: tauri::AppHandle, config: AppConfig) -> Result<AppConfig> {
+    settings::update(&data_dir_or_err(&app)?, config)?;
+    Ok(settings::current())
 }
 
 #[tauri::command]

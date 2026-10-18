@@ -9,6 +9,7 @@ pub mod games;
 pub mod installations;
 pub mod metadata;
 pub mod sessions;
+pub mod settings;
 pub mod tasks;
 pub mod thumbs;
 pub mod types;

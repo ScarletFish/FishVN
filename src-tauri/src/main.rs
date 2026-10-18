@@ -47,7 +47,9 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let conn = db::open(&fishvn::data_dir(app.handle())?)?;
+            let dir = fishvn::data_dir(app.handle())?;
+            fishvn::settings::init(&dir);
+            let conn = db::open(&dir)?;
             fishvn::sessions::sweep(&conn)?;
             let conn = Arc::new(Mutex::new(conn));
             let rate = Arc::new(RateLimiter::new());
@@ -88,6 +90,8 @@ fn main() {
             commands::cancel_task,
             commands::allow_local_file,
             commands::thumbnail,
+            commands::get_config,
+            commands::update_config,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 启动失败");

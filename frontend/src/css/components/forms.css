@@ -178,3 +178,54 @@
   outline: none;
   font-variant-numeric: tabular-nums;
 }
+
+.seg-radio-group {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.seg-radio-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-150) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.seg-radio-item input[type='radio'] {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.seg-radio-item:hover {
+  background: color-mix(in srgb, var(--bg-page) 60%, transparent);
+}
+
+.seg-radio-item:has(input:checked) {
+  font-weight: var(--fw-semibold);
+  color: var(--fg-default);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.seg-radio-item:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}

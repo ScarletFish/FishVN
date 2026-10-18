@@ -96,8 +96,17 @@ export const DICT_ZH = {
   },
   settings: {
     title: '设置',
+    tab: {
+      appearance: '个性化',
+    },
     theme: '深色主题',
     themeHint: '切换浅色与深色两套配色',
+    timeMetric: '计时口径',
+    timeForeground: '前景时间',
+    timeAlive: '存活时间',
+    timeForegroundDesc: '游戏窗口处于前台的时长',
+    timeAliveDesc: '进程从启动到结束的时长',
+    timeMetricHint: '计算游戏时长的方式',
   },
   gameForm: {
     title: '添加作品',

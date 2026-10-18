@@ -18,7 +18,7 @@ use crate::error::{AppError, Result};
 use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
 use crate::types::{GameCharacter, InstallationInput};
 use crate::vndb::RateLimiter;
-use crate::{characters, commands, games, installations, metadata, sessions, vndb};
+use crate::{characters, commands, games, installations, metadata, sessions, settings, vndb};
 
 pub const PORT: u16 = 4546;
 
@@ -67,6 +67,8 @@ pub struct Args {
     pub vndb_id: Option<String>,
     #[serde(default)]
     pub path: Option<String>,
+    #[serde(default)]
+    pub config: Option<Value>,
     #[serde(default)]
     pub characters: Option<Value>,
     #[serde(default)]
@@ -277,6 +279,20 @@ async fn allow_local_file(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -
     )
 }
 
+async fn get_config(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
+    finish(Ok(settings::current()))
+}
+
+async fn update_config(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let config: settings::AppConfig = a.parse(a.config.as_ref(), "config")?;
+    let dir = crate::data_dir(&dev.app)
+        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    finish(
+        settings::update(&dir, config)
+            .map(|_| settings::current()),
+    )
+}
+
 async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     finish(
         a.path()
@@ -310,6 +326,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/cancel_task", post(cancel_task))
         .route("/allow_local_file", post(allow_local_file))
         .route("/thumbnail", post(thumbnail))
+        .route("/get_config", post(get_config))
+        .route("/update_config", post(update_config))
         .route("/events", get(events))
         .with_state(dev)
 }
@@ -339,4 +357,6 @@ pub const COMMANDS: &[&str] = &[
     "cancel_task",
     "allow_local_file",
     "thumbnail",
+    "get_config",
+    "update_config",
 ];

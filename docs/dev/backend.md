@@ -58,6 +58,10 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 
 开发期与打包期**两边不共用**，开发数据不会混进安装版。解析逻辑定义在 lib（bin 与 commands 都要用），由 `cfg(debug_assertions)` 选边。改这段先想清楚是哪一边在动。
 
+### 设置持久化
+
+设置存数据目录的 `config.json`，与库同目录、随数据备份一起走。读取容错：文件缺失或损坏回落默认值，启动不被阻塞。启动时加载进进程内缓存供读（游玩结算在独立线程上，从缓存取口径、不碰磁盘），写操作落盘并刷新缓存。新设置项加入 `AppConfig`，字段标 `serde(default)` 让旧配置文件缺字段仍可读；前端经 `get_config` / `update_config` 读写，选择即保存。
+
 ### 命令层规则
 
 - `Connection` 是 `Send` 不是 `Sync`，用 `Mutex<Connection>` 交给 `app.manage`

@@ -202,7 +202,8 @@ fn 标签只给名字能读出来() {
         CREATE TABLE games (id TEXT PRIMARY KEY, name TEXT NOT NULL);
         CREATE TABLE game_metadata (
           game_id TEXT PRIMARY KEY, alias TEXT, titles TEXT, rating REAL,
-          votecount INTEGER, released TEXT, description TEXT, image_id TEXT,
+          votecount INTEGER, length_minutes INTEGER, released TEXT,
+          description TEXT, image_id TEXT,
           image_path TEXT, tags TEXT, developers TEXT
         );
         INSERT INTO games VALUES ('g1', '作品');
