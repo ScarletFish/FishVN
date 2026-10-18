@@ -94,7 +94,7 @@
   let panelsSb = null;
 
   $effect(() => {
-    if (!open) return;
+    if (!open || saving) return;
     name = '';
     vndbId = null;
     status = 'wishlist';
@@ -450,7 +450,7 @@
         });
         await api.updateGameMetadata(gameId, patch);
         await api.saveGameCharacters(gameId, namedOnly(characters).map(toPayload));
-        await api.updateGame(gameId, { vndb_id: vndbId });
+        if (vndbId) await api.updateGame(gameId, { vndb_id: vndbId });
       } else {
         const created = await api.createGame({
           name: value,
@@ -464,7 +464,7 @@
           default_installation_id: resolveDefaultId(dirs, installations, defaultInstallKey),
         });
         await api.saveGameCharacters(created.id, namedOnly(characters).map(toPayload));
-        await api.updateGame(created.id, { vndb_id: vndbId });
+        if (vndbId) await api.updateGame(created.id, { vndb_id: vndbId });
       }
       open = false;
       onsaved?.();

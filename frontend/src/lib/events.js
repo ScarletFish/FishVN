@@ -1,13 +1,46 @@
 import { DEV_HTTP, DEV_HTTP_BASE } from './env.js';
 
 let source = null;
+let lastId = 0;
+const handlers = new Map();
+
+function connect() {
+  source = new EventSource(
+    `${DEV_HTTP_BASE}/events${lastId > 0 ? `?since=${lastId + 1}` : ''}`,
+  );
+  for (const [name, map] of handlers) {
+    for (const wrapped of map.values()) source.addEventListener(name, wrapped);
+  }
+  source.onerror = () => {
+    source.close();
+    source = null;
+    if (handlers.size > 0) setTimeout(connect, 1000);
+  };
+}
+
+function attach(name, handler) {
+  if (!handlers.has(name)) handlers.set(name, new Map());
+  const wrapped = (e) => {
+    lastId = Number(e.lastEventId) || lastId;
+    handler(JSON.parse(e.data));
+  };
+  handlers.get(name).set(handler, wrapped);
+  if (source) source.addEventListener(name, wrapped);
+}
+
+function detach(name, handler) {
+  const map = handlers.get(name);
+  const wrapped = map?.get(handler);
+  if (wrapped && source) source.removeEventListener(name, wrapped);
+  map?.delete(handler);
+  if (map && map.size === 0) handlers.delete(name);
+}
 
 export async function subscribe(name, handler) {
   if (DEV_HTTP) {
-    if (!source) source = new EventSource(`${DEV_HTTP_BASE}/events`);
-    const wrapped = (e) => handler(JSON.parse(e.data));
-    source.addEventListener(name, wrapped);
-    return () => source.removeEventListener(name, wrapped);
+    attach(name, handler);
+    if (!source) connect();
+    return () => detach(name, handler);
   }
   const { listen } = await import('@tauri-apps/api/event');
   const unlisten = await listen(name, (event) => handler(event.payload));
