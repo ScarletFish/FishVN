@@ -21,7 +21,7 @@ const CHAR_RESULTS: usize = 100;
 
 const SEARCH_RESULTS: usize = 25;
 
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 
 const IMAGE_TIMEOUT: Duration = Duration::from_secs(8);
 
@@ -590,13 +590,22 @@ async fn post<T: for<'de> Deserialize<'de>>(
         .json(&body)
         .send()
         .await
-        .map_err(|e| AppError::Upstream(format!("VNDB 请求失败：{e}")))?;
+        .map_err(|e| {
+            if e.is_timeout() {
+                AppError::Upstream(format!("VNDB 请求超时：{e}"))
+            } else {
+                AppError::Upstream(format!("VNDB 请求失败：{e}"))
+            }
+        })?;
 
     let status = resp.status();
-    let text = resp
-        .text()
-        .await
-        .map_err(|e| AppError::Upstream(format!("VNDB 响应读不出：{e}")))?;
+    let text = resp.text().await.map_err(|e| {
+        if e.is_timeout() {
+            AppError::Upstream(format!("VNDB 响应超时：{e}"))
+        } else {
+            AppError::Upstream(format!("VNDB 响应读不出：{e}"))
+        }
+    })?;
 
     match status.as_u16() {
         200 => serde_json::from_str(&text)

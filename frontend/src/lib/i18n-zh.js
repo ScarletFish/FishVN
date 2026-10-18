@@ -232,6 +232,7 @@ export const DICT_ZH = {
       ratingRange: '评分要在 0 到 100 之间（百分制）',
       votecountRange: '评分人数要是 0 或更大的整数',
       lengthMinutesRange: '平均时长要是 0 或更大的分钟数',
+      vndbTaken: '库内已有《{name}》，请在那条目上同步资料',
     },
   },
   toast: {

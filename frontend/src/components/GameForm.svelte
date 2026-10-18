@@ -302,7 +302,6 @@
   );
 
   async function pickHit(id) {
-    vndbId = id;
     if (pulling) return;
     pulling = true;
     syncProgress = null;
@@ -311,6 +310,12 @@
     error = '';
     let off = null;
     try {
+      const games = await api.listGames();
+      const owner = games.find((g) => g.vndb_id === id && g.id !== gameId);
+      if (owner) {
+        toast(t('gameForm.error.vndbTaken', { name: owner.name }), 'error');
+        return;
+      }
       off = await subscribe('vndb-sync', (event) => {
         if (event.error) {
           syncNotice = event.error;
@@ -324,6 +329,7 @@
         incomingCharacters = [];
         return;
       }
+      vndbId = id;
       incomingCharacters = incoming?.characters ?? [];
       mergeRows = conflictRows(formFields(), incoming);
       mergeOpen = true;
@@ -436,7 +442,7 @@
       };
       const entries = installations.map(toInstallationPayload);
       if (gameId) {
-        await api.updateGame(gameId, { name: value, vndb_id: vndbId });
+        await api.updateGame(gameId, { name: value });
         const dirs = await api.saveInstallations(gameId, entries);
         await api.updateGameState(gameId, {
           ...base,
@@ -444,18 +450,21 @@
         });
         await api.updateGameMetadata(gameId, patch);
         await api.saveGameCharacters(gameId, namedOnly(characters).map(toPayload));
+        await api.updateGame(gameId, { vndb_id: vndbId });
       } else {
         const created = await api.createGame({
           name: value,
-          vndb_id: vndbId,
+          vndb_id: null,
           metadata: patch,
         });
+        gameId = created.id;
         const dirs = await api.saveInstallations(created.id, entries);
         await api.updateGameState(created.id, {
           ...base,
           default_installation_id: resolveDefaultId(dirs, installations, defaultInstallKey),
         });
-          await api.saveGameCharacters(created.id, namedOnly(characters).map(toPayload));
+        await api.saveGameCharacters(created.id, namedOnly(characters).map(toPayload));
+        await api.updateGame(created.id, { vndb_id: vndbId });
       }
       open = false;
       onsaved?.();
