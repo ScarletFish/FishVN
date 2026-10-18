@@ -1,6 +1,8 @@
 <script>
   import './lib/tooltip.js';
   import { t } from './lib/i18n.js';
+  import { api } from './lib/api.js';
+  import { syncTheme } from './lib/theme.js';
   import Sidebar from './components/Sidebar.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import Titlebar from './components/chrome/Titlebar.svelte';
@@ -9,6 +11,13 @@
   import Detail from './views/Detail.svelte';
 
   let settingsOpen = $state(false);
+
+  $effect(() => {
+    api
+      .getConfig()
+      .then((config) => syncTheme(config.theme))
+      .catch(() => {});
+  });
 
   const NAV = [
     {

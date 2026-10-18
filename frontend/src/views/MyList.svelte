@@ -23,7 +23,7 @@
     formOpen = true;
   }
 
-async function load() {
+  async function load() {
     try {
       games = await api.listGames();
       error = null;
@@ -33,6 +33,8 @@ async function load() {
       loading = false;
     }
     await restoreScroll();
+    await tick();
+    window.dispatchEvent(new CustomEvent('app:ready'));
   }
 
   async function restoreScroll() {

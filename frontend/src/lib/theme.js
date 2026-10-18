@@ -24,3 +24,10 @@ export function toggleTheme() {
   setTheme(next);
   return next;
 }
+
+export function syncTheme(theme) {
+  const dark = theme === 'dark';
+  if (isDark() === dark && localStorage.getItem(KEY) === theme) return;
+  paint(dark);
+  localStorage.setItem(KEY, theme);
+}

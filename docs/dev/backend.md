@@ -62,6 +62,10 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 
 设置存数据目录的 `config.json`，与库同目录、随数据备份一起走。读取容错：文件缺失或损坏回落默认值，启动不被阻塞。启动时加载进进程内缓存供读（游玩结算在独立线程上，从缓存取口径、不碰磁盘），写操作落盘并刷新缓存。新设置项加入 `AppConfig`，字段标 `serde(default)` 让旧配置文件缺字段仍可读；前端经 `get_config` / `update_config` 读写，选择即保存。
 
+`update_config` 收 `ConfigPatch`（各字段 `Option`）并在 Rust 侧与现值合并后整体落盘：设置项会持续增多，前端每次只发自己改的那项，互不覆盖。
+
+主题（`theme`）在 `AppConfig` 里，setup 阶段读取后对主窗口调 `set_background_color`：深 `#121212`、浅 `#f1f0ec`，与前端 tokens 的 `--bg-page` 严格一致。setup 跑在 WebView 首帧之前，这是 WebView 外壳防露白的唯一一次机会；`tauri.conf.json` 里的静态 `backgroundColor` 是 config.json 读不出来时的兜底。
+
 ### 命令层规则
 
 - `Connection` 是 `Send` 不是 `Sync`，用 `Mutex<Connection>` 交给 `app.manage`

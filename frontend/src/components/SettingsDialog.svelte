@@ -24,6 +24,9 @@
 
   function onToggle() {
     dark = toggleTheme() === 'dark';
+    api
+      .updateConfig({ theme: dark ? 'dark' : 'light' })
+      .catch((err) => toast(err.message, 'error'));
   }
 
   function onMetricChange(e) {

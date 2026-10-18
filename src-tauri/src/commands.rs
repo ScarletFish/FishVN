@@ -11,7 +11,7 @@ use crate::games;
 use crate::installations;
 use crate::metadata;
 use crate::sessions;
-use crate::settings::{self, AppConfig};
+use crate::settings::{self, AppConfig, ConfigPatch};
 use crate::tasks::{EventLog, Task, Tasks};
 use crate::thumbs;
 use crate::types::{
@@ -202,9 +202,8 @@ pub fn get_config(_app: tauri::AppHandle) -> Result<AppConfig> {
 }
 
 #[tauri::command]
-pub fn update_config(app: tauri::AppHandle, config: AppConfig) -> Result<AppConfig> {
-    settings::update(&data_dir_or_err(&app)?, config)?;
-    Ok(settings::current())
+pub fn update_config(app: tauri::AppHandle, patch: ConfigPatch) -> Result<AppConfig> {
+    settings::patch(&data_dir_or_err(&app)?, patch)
 }
 
 #[tauri::command]

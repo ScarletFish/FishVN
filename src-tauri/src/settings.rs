@@ -15,10 +15,26 @@ pub enum TimeMetric {
     Alive,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    #[default]
+    Light,
+    Dark,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub time_metric: TimeMetric,
+    #[serde(default)]
+    pub theme: Theme,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+pub struct ConfigPatch {
+    pub time_metric: Option<TimeMetric>,
+    pub theme: Option<Theme>,
 }
 
 static CACHE: OnceLock<RwLock<Option<AppConfig>>> = OnceLock::new();
@@ -48,6 +64,18 @@ pub fn update(dir: &Path, config: AppConfig) -> Result<()> {
         *guard = Some(config);
     }
     Ok(())
+}
+
+pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
+    let mut config = current();
+    if let Some(value) = patch.time_metric {
+        config.time_metric = value;
+    }
+    if let Some(value) = patch.theme {
+        config.theme = value;
+    }
+    update(dir, config)?;
+    Ok(current())
 }
 
 fn read_file(dir: &Path) -> Option<AppConfig> {
@@ -81,15 +109,46 @@ mod tests {
             tmp.path(),
             AppConfig {
                 time_metric: TimeMetric::Alive,
+                theme: Theme::Dark,
             },
         )
         .unwrap();
         assert_eq!(current().time_metric, TimeMetric::Alive);
+        assert_eq!(current().theme, Theme::Dark);
 
         init(tmp.path());
         assert_eq!(current().time_metric, TimeMetric::Alive);
+        assert_eq!(current().theme, Theme::Dark);
         let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
         assert!(text.contains("\"alive\""));
+        assert!(text.contains("\"dark\""));
+    }
+
+    #[test]
+    fn 局部补丁只改给到的字段() {
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        update(
+            tmp.path(),
+            AppConfig {
+                time_metric: TimeMetric::Alive,
+                theme: Theme::Dark,
+            },
+        )
+        .unwrap();
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch {
+                time_metric: None,
+                theme: Some(Theme::Light),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(config.time_metric, TimeMetric::Alive);
+        assert_eq!(config.theme, Theme::Light);
+        assert_eq!(current().time_metric, TimeMetric::Alive);
     }
 
     #[test]

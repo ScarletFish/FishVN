@@ -49,6 +49,13 @@ fn main() {
         .setup(|app| {
             let dir = fishvn::data_dir(app.handle())?;
             fishvn::settings::init(&dir);
+            let window_color = match fishvn::settings::current().theme {
+                fishvn::settings::Theme::Dark => tauri::window::Color(0x12, 0x12, 0x12, 0xff),
+                fishvn::settings::Theme::Light => tauri::window::Color(0xf1, 0xf0, 0xec, 0xff),
+            };
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_background_color(Some(window_color));
+            }
             let conn = db::open(&dir)?;
             fishvn::sessions::sweep(&conn)?;
             let conn = Arc::new(Mutex::new(conn));

@@ -14,8 +14,60 @@
         }
       })();
     </script>
+    <style>
+      /* 启动页：JS 加载前可见的全屏覆盖层（品牌金鱼 + spinner），就绪后由 main.js 淡出移除。 */
+      /* tokens.css 随 JS 包才到，首帧靠 var 的字面量兜底，取值与 tokens 的 --bg-page / --accent 严格一致。 */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        background: var(--bg-page, #f1f0ec);
+        transition: opacity 300ms ease;
+      }
+      [data-theme='dark'] #splash {
+        background: var(--bg-page, #121212);
+      }
+      #splash .splash-mark {
+        width: 112px;
+        height: 112px;
+      }
+      #splash .splash-spinner {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 3px solid color-mix(in srgb, var(--accent, #c92a4a) 18%, transparent);
+        border-top-color: var(--accent, #c92a4a);
+        animation: splash-spin 0.9s linear infinite;
+      }
+      @keyframes splash-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      #splash.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
   </head>
   <body>
+    <div id="splash">
+      <svg class="splash-mark" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="16" height="16" rx="3" fill="#c92a4a" />
+        <path
+          d="M6.5 4.4c2.4 0 4.3 1.5 4.3 3.6s-1.9 3.6-4.3 3.6-4.3-1.5-4.3-3.6 1.9-3.6 4.3-3.6z"
+          fill="#f5f4f1"
+        />
+        <path d="M10.4 8l4.4-3.6-1.6 3.6 1.6 3.6-4.4-3.6z" fill="#f5f4f1" />
+        <circle cx="5" cy="7.2" r="0.85" fill="#c92a4a" />
+      </svg>
+      <div class="splash-spinner"></div>
+    </div>
     <div id="app"></div>
     <div id="modal-root"></div>
     <script type="module" src="/src/main.js"></script>
