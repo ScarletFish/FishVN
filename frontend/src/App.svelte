@@ -3,6 +3,7 @@
   import { t } from './lib/i18n.js';
   import Sidebar from './components/Sidebar.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
+  import Titlebar from './components/chrome/Titlebar.svelte';
   import Toaster from './components/Toaster.svelte';
   import MyList from './views/MyList.svelte';
   import Detail from './views/Detail.svelte';
@@ -38,34 +39,57 @@
 
   let current = $state('mylist');
   let detailId = $state(null);
+  let detailTitle = $state('');
   let listScroll = $state(0);
 
   $effect(() => {
     current;
     if (detailId !== null && current !== 'mylist') detailId = null;
   });
+
+  $effect(() => {
+    function onOpenGame(e) {
+      current = 'mylist';
+      detailId = e.detail;
+    }
+    document.addEventListener('search-open-game', onOpenGame);
+    return () => document.removeEventListener('search-open-game', onOpenGame);
+  });
 </script>
 
 <div class="shell">
-  <Sidebar items={NAV} bottom={BOTTOM} bind:current />
+  <Titlebar
+    mode={detailId !== null ? 'detail' : 'default'}
+    title={detailTitle}
+    onback={() => (detailId = null)}
+    onsettings={() => (settingsOpen = true)}
+  />
 
-  <main class="shell__main" data-overlayscrollbars-initialize>
-    {#if detailId !== null}
-      <Detail gameId={detailId} onclose={() => (detailId = null)} />
-    {:else if current === 'mylist'}
-      <MyList
-        onopen={(id) => (detailId = id)}
-        scroll={listScroll}
-        onscroll={(top) => (listScroll = top)}
-      />
-    {:else}
-      <section class="view">
-        <header class="view-header">
-          <h1>{NAV.find((n) => n.id === current)?.label}</h1>
-        </header>
-      </section>
-    {/if}
-  </main>
+  <div class="shell__body">
+    <Sidebar items={NAV} bottom={BOTTOM} bind:current />
+
+    <main class="shell__main" data-overlayscrollbars-initialize>
+      {#if detailId !== null}
+        <Detail
+          gameId={detailId}
+          onname={(name) => (detailTitle = name ?? '')}
+          onclose={() => (detailId = null)}
+        />
+      {:else if current === 'mylist'}
+        <MyList
+          onopen={(id) => (detailId = id)}
+          scroll={listScroll}
+          onscroll={(top) => (listScroll = top)}
+        />
+      {:else}
+        <section class="view">
+          <header class="view-header">
+            <h1>{NAV.find((n) => n.id === current)?.label}</h1>
+          </header>
+        </section>
+      {/if}
+    </main>
+  </div>
 </div>
 
 <SettingsDialog bind:open={settingsOpen} />

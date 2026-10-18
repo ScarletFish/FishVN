@@ -14,10 +14,11 @@
         "label": "main",
         "title": "FishVN",
         "width": 1920,
-        "height": 1080,
+        "height": 1114,
         "minWidth": 960,
-        "minHeight": 600,
-        "center": true
+        "minHeight": 634,
+        "center": true,
+        "decorations": false
       }
     ],
     "security": {

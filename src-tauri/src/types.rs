@@ -83,6 +83,7 @@ pub struct GameListItem {
     pub id: String,
     pub name: String,
     pub vndb_id: Option<String>,
+    pub alias: Option<String>,
     pub created_at: i64,
     pub status: Status,
     pub user_rating: Option<f64>,

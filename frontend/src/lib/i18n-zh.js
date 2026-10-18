@@ -1,4 +1,14 @@
 export const DICT_ZH = {
+  titlebar: {
+    back: '返回',
+    minimize: '最小化',
+    maximize: '最大化',
+    restore: '还原',
+    searchPlaceholder: '搜索作品或设置…',
+    searchEmpty: '没有匹配的结果',
+    searchGroupGames: '作品',
+    searchCount: '{count} 条',
+  },
   nav: {
     mylist: '我的列表',
     scan: '扫描',

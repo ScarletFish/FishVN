@@ -11,7 +11,7 @@
   import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
 
-  let { gameId, onclose } = $props();
+  let { gameId, onname, onclose } = $props();
 
   let game = $state(null);
   let meta = $state(null);
@@ -119,6 +119,7 @@
         game = g;
         meta = m;
         dirs = d;
+        onname?.(g?.name ?? '');
         applyState(s, active);
       })
       .catch(() => {

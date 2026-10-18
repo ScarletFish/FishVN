@@ -14,12 +14,12 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
                 s.status, s.user_rating,
                 COUNT(i.id) AS installation_count,
                 MAX(CASE WHEN i.entry_path IS NOT NULL THEN 1 ELSE 0 END) AS can_launch,
-                m.image_path AS cover_path
+                m.image_path AS cover_path, m.alias AS alias
          FROM games g
          JOIN user_game_state s ON s.game_id = g.id
          LEFT JOIN installations i ON i.game_id = g.id
          LEFT JOIN game_metadata m ON m.game_id = g.id
-         GROUP BY g.id, m.image_path
+         GROUP BY g.id, m.image_path, m.alias
          ORDER BY g.created_at DESC, g.id",
     )?;
     let rows = stmt.query_map([], |row| {
@@ -27,6 +27,7 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
             id: row.get("id")?,
             name: row.get("name")?,
             vndb_id: row.get("vndb_id")?,
+            alias: row.get("alias")?,
             created_at: row.get("created_at")?,
             status: row.get("status")?,
             user_rating: row.get("user_rating")?,
