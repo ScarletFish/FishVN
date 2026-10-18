@@ -21,6 +21,10 @@ const VN = {
   titles: [{ lang: 'ja', title: 'フェイト／ステイナイト' }],
   tags: [{ id: 'g1', name: 'Gore', rating: 3 }],
   developers: [{ id: 'd1', name: 'TYPE-MOON', original: 'タイプムーン' }],
+  staff: [
+    { role: 'scenario', name: 'Uchikoshi Koutarou', original: '打越 鋼太郎', note: 'Main scenario' },
+    { role: 'music', name: 'Amao', original: null, note: null },
+  ],
   image: { id: 'cv75598', local_path: 'D:\\data\\covers\\vndb\\cv75598.jpg' },
 };
 
@@ -35,6 +39,7 @@ function form(over = {}) {
     description: '',
     tags: [],
     developers: '',
+    staff: [],
     coverPath: '',
     ...over,
   };
@@ -219,6 +224,24 @@ test('多出来的键（characters / id / titles）不会进表单', () => {
   const incoming = { ...VN, characters: [{ id: 'c1', name: 'Saber' }] };
   const next = applyIncoming(form(), incoming, new Set());
   expect(Object.keys(next).sort()).toEqual(Object.keys(form()).sort());
+});
+
+test('staff 本地为空直接填，有差异进冲突，勾选才替换', () => {
+  const filled = applyIncoming(form(), VN, new Set());
+  expect(filled.staff).toEqual(VN.staff);
+  expect(conflictRows(filled, VN)).toEqual([]);
+
+  const current = form({ staff: [{ role: 'scenario', name: '某人', original: null, note: null }] });
+  const keys = conflictRows(current, VN).map((r) => r.key);
+  expect(keys).toEqual(['staff']);
+  expect(applyIncoming(current, VN, new Set()).staff).toEqual(current.staff);
+  expect(applyIncoming(current, VN, new Set(['staff'])).staff).toEqual(VN.staff);
+});
+
+test('staff 条目顺序不同不算冲突', () => {
+  const filled = applyIncoming(form(), VN, new Set());
+  const current = form({ staff: [...filled.staff].reverse() });
+  expect(conflictRows(current, VN)).toEqual([]);
 });
 
 test('面板显示：标签只取名字，其余转字符串', () => {

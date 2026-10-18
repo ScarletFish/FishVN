@@ -7,6 +7,7 @@
   import { displayName } from '../lib/characters.js';
   import { stripBbcode, bbcodeSegments } from '../lib/vn-merge.js';
   import { openExternal } from '../lib/open-external.js';
+  import DetailSection from '../components/DetailSection.svelte';
 
   const TRAIT_GROUP_ORDER = [
     'Hair',
@@ -156,12 +157,7 @@
 </script>
 
 {#if characters.length}
-  <section class="detail-chars section-card">
-    <div class="detail-chars-header" bind:this={headerEl}>
-      <h3>{t('detail.characters')}</h3>
-      <span class="detail-chars-count">{characters.length}</span>
-    </div>
-
+  <DetailSection title={t('detail.characters')} count={characters.length} bind:headerEl>
     <div class="hscroll-section detail-chars-scroll" bind:this={scrollEl}>
       {#each characters as c (c.id)}
         <div
@@ -297,5 +293,5 @@
         </div>
       </div>
     {/if}
-  </section>
+  </DetailSection>
 {/if}

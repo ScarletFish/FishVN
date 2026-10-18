@@ -22,6 +22,7 @@ function blank() {
     coverPath: '',
     tags: [],
     developers: '',
+    staff: [],
   };
 }
 
@@ -92,7 +93,23 @@ test('空白表单写出的全是 null', () => {
     image_path: null,
     tags: [],
     developers: [],
+    staff: [],
   });
+});
+
+test('没有名字的 staff 行在写补丁时丢弃', () => {
+  const fields = {
+    ...blank(),
+    staff: [
+      { role: 'scenario', name: '  ', original: '打越 鋼太郎', note: null },
+      { role: 'music', name: '', original: '', note: null },
+      { role: 'art', name: 'Kazuaki', original: null, note: 'x' },
+    ],
+  };
+  expect(buildMetadataPatch(fields).staff).toEqual([
+    { role: 'scenario', name: null, original: '打越 鋼太郎', note: null },
+    { role: 'art', name: 'Kazuaki', original: null, note: 'x' },
+  ]);
 });
 
 test('开发商按逗号切分并去空白', () => {

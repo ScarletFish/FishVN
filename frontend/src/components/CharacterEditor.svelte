@@ -10,6 +10,7 @@
     displayName,
     moveCharacters,
   } from '../lib/characters.js';
+  import SelectDd from './SelectDd.svelte';
 
   let { characters = $bindable([]), disabled = false } = $props();
 
@@ -22,6 +23,15 @@
   function roleLabel(value) {
     return value ? t(`gameForm.charRole.${value}`) : t('gameForm.placeholder.charRoleEmpty');
   }
+
+  const GENDER_OPTIONS = [
+    { value: '', label: genderLabel('') },
+    ...GENDERS.map((key) => ({ value: key, label: genderLabel(key) })),
+  ];
+  const ROLE_OPTIONS = [
+    { value: '', label: roleLabel('') },
+    ...ROLES.map((key) => ({ value: key, label: roleLabel(key) })),
+  ];
 
   let scrollEl = $state(null);
   let dotsHostEl = $state(null);
@@ -249,165 +259,27 @@
           </div>
           <div class="form-group">
             <label for="char-gender">{t('gameForm.field.charGender')}</label>
-            <div class="select-dd" class:is-open={genderOpen}>
-              <button
-                id="char-gender"
-                type="button"
-                class="select-dd-trigger"
-                aria-haspopup="listbox"
-                aria-expanded={genderOpen}
-                {disabled}
-                onclick={() => (genderOpen = !genderOpen)}
-                onblur={() => (genderOpen = false)}
-              >
-                <span class="select-dd-text">{genderLabel(selected.gender)}</span>
-                <svg
-                  class="select-dd-chevron"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              {#if genderOpen}
-                <div class="select-dd-menu" role="listbox">
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={!selected.gender}
-                    class="select-dd-opt"
-                    class:is-selected={!selected.gender}
-                    onmousedown={(e) => e.preventDefault()}
-                    onclick={() => {
-                      selected.gender = '';
-                      genderOpen = false;
-                    }}
-                  >
-                    <span>{genderLabel('')}</span>
-                    <svg
-                      class="select-dd-opt-check"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </button>
-                  {#each GENDERS as key (key)}
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={selected.gender === key}
-                      class="select-dd-opt"
-                      class:is-selected={selected.gender === key}
-                      onmousedown={(e) => e.preventDefault()}
-                      onclick={() => {
-                        selected.gender = key;
-                        genderOpen = false;
-                      }}
-                    >
-                      <span>{t(`detail.gender.${key}`)}</span>
-                      <svg
-                        class="select-dd-opt-check"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-            </div>
+            <SelectDd
+              id="char-gender"
+              options={GENDER_OPTIONS}
+              value={selected.gender}
+              open={genderOpen}
+              onopenchange={(v) => (genderOpen = v)}
+              onchange={(v) => (selected.gender = v)}
+              {disabled}
+            />
           </div>
           <div class="form-group">
             <label for="char-role">{t('gameForm.field.charRole')}</label>
-            <div class="select-dd" class:is-open={roleOpen}>
-              <button
-                id="char-role"
-                type="button"
-                class="select-dd-trigger"
-                aria-haspopup="listbox"
-                aria-expanded={roleOpen}
-                {disabled}
-                onclick={() => (roleOpen = !roleOpen)}
-                onblur={() => (roleOpen = false)}
-              >
-                <span class="select-dd-text">{roleLabel(selected.role)}</span>
-                <svg
-                  class="select-dd-chevron"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              {#if roleOpen}
-                <div class="select-dd-menu" role="listbox">
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={!selected.role}
-                    class="select-dd-opt"
-                    class:is-selected={!selected.role}
-                    onmousedown={(e) => e.preventDefault()}
-                    onclick={() => {
-                      selected.role = '';
-                      roleOpen = false;
-                    }}
-                  >
-                    <span>{roleLabel('')}</span>
-                    <svg
-                      class="select-dd-opt-check"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </button>
-                  {#each ROLES as key (key)}
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={selected.role === key}
-                      class="select-dd-opt"
-                      class:is-selected={selected.role === key}
-                      onmousedown={(e) => e.preventDefault()}
-                      onclick={() => {
-                        selected.role = key;
-                        roleOpen = false;
-                      }}
-                    >
-                      <span>{t(`gameForm.charRole.${key}`)}</span>
-                      <svg
-                        class="select-dd-opt-check"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-            </div>
+            <SelectDd
+              id="char-role"
+              options={ROLE_OPTIONS}
+              value={selected.role}
+              open={roleOpen}
+              onopenchange={(v) => (roleOpen = v)}
+              onchange={(v) => (selected.role = v)}
+              {disabled}
+            />
           </div>
           <div class="form-group">
             <label for="char-age">{t('gameForm.field.charAge')}</label>

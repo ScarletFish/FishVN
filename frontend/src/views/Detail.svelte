@@ -9,6 +9,7 @@
   import { confirm } from '../lib/confirm.svelte.js';
   import { compactDuration, durationText } from '../lib/playtime.js';
   import DetailCharacters from './DetailCharacters.svelte';
+  import DetailStaff from './DetailStaff.svelte';
   import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
 
@@ -317,6 +318,7 @@
       {/if}
     </div>
     <DetailCharacters gameId={gameId} />
+    <DetailStaff {gameId} />
   {/if}
 </section>
 

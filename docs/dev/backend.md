@@ -159,7 +159,7 @@ snake_case，裸 HTTP 没有这层转换。
 - 作品正式名在 `games.name`，`game_metadata` 不重复存。VNDB 那份 `titles` 里已带 `official` / `main` 标记的正式标题，别名另存 `alias`
 - 状态行、安装行都随作品删除而清除（`CASCADE`）
 - `game_metadata.image_id` 是 VNDB 的 cv 编号，本项目**不写它**：下载判重靠 `covers/vndb/<cv 编号>.jpg` 是否存在，同步冲突靠 `image_path` 是否为空。`image_path` 是本地文件的位置，两者不是一回事
-- JSON 文本列（`titles` / `tags` / `developers` / `aliases` / `traits` / `gender` / `exes`）：库里是文本，对外一律给数组或结构；要按其中某个键筛，只能整列取出后在 Rust 侧解
+- JSON 文本列（`titles` / `tags` / `developers` / `staff` / `aliases` / `traits` / `gender` / `exes`）：库里是文本，对外一律给数组或结构；要按其中某个键筛，只能整列取出后在 Rust 侧解
 - `characters.id` 平时是 VNDB 的 c 编号，用户手建的行是 `local-<uuid>`，两种混排
 - `characters.traits` 是 trait 全量数组，本地录入不给入口，只有 VNDB 同步会写
 - `staffs` 是唯一跨作品共享的实体：同一个人换一部作品还是同一行。本地手填用 `local-<uuid>` 占位，无人引用时由触发器回收；两条删除来源（删作品、整包替换）共用这一条回收路径，触发器按 `staff_id` 反查，所以有 `character_va_staff` 索引

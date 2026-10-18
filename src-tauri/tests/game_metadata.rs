@@ -4,7 +4,7 @@ use common::{variant, Db};
 use fishvn::games::{create_game, delete_game};
 use fishvn::metadata;
 use fishvn::types::{
-    LocalizedTitle, MetadataPatch, MetadataTag, NewGame, StatePatch, UserGameState,
+    LocalizedTitle, MetadataPatch, MetadataStaff, MetadataTag, NewGame, StatePatch, UserGameState,
 };
 
 fn new_game(db: &Db, name: &str) -> String {
@@ -204,7 +204,7 @@ fn 标签只给名字能读出来() {
           game_id TEXT PRIMARY KEY, alias TEXT, titles TEXT, rating REAL,
           votecount INTEGER, length_minutes INTEGER, released TEXT,
           description TEXT, image_id TEXT,
-          image_path TEXT, tags TEXT, developers TEXT
+          image_path TEXT, tags TEXT, developers TEXT, staff TEXT
         );
         INSERT INTO games VALUES ('g1', '作品');
         ",
@@ -312,6 +312,57 @@ fn 本地化标题原样往返() {
         metadata::get(&db, &id).unwrap().unwrap().titles.unwrap(),
         titles
     );
+}
+
+#[test]
+fn 制作人员整列替换且往返不断() {
+    let db = Db::new();
+    let id = new_game(&db, "带制作");
+
+    let staff = vec![
+        MetadataStaff {
+            role: "scenario".into(),
+            name: Some("Uchikoshi Koutarou".into()),
+            original: Some("打越 鋼太郎".into()),
+            note: Some("Main scenario".into()),
+        },
+        MetadataStaff {
+            role: "music".into(),
+            name: Some("Amao".into()),
+            original: None,
+            note: None,
+        },
+    ];
+
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            staff: Some(Some(staff.clone())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            staff: Some(Some(vec![MetadataStaff {
+                role: "art".into(),
+                name: None,
+                original: Some("甲田屋人".into()),
+                note: None,
+            }])),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let stored = metadata::get(&db, &id).unwrap().unwrap().staff.unwrap();
+    assert_eq!(stored.len(), 1, "staff 是整列替换，旧条目不残留");
+    assert_eq!(stored[0].role, "art");
+    assert_eq!(stored[0].original.as_deref(), Some("甲田屋人"));
 }
 
 #[test]

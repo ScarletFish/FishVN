@@ -79,7 +79,8 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           image_id    TEXT,
           image_path  TEXT,
           tags        TEXT,
-          developers  TEXT
+          developers  TEXT,
+          staff       TEXT
         );
 
         CREATE TABLE IF NOT EXISTS characters (

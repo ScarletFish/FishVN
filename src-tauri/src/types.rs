@@ -139,6 +139,7 @@ pub struct GameMetadata {
     pub image_path: Option<String>,
     pub tags: Option<Vec<MetadataTag>>,
     pub developers: Option<Vec<String>>,
+    pub staff: Option<Vec<MetadataStaff>>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -161,6 +162,14 @@ pub struct MetadataTag {
     pub lie: Option<bool>,
 }
 
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MetadataStaff {
+    pub role: String,
+    pub name: Option<String>,
+    pub original: Option<String>,
+    pub note: Option<String>,
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
 pub struct MetadataPatch {
     pub alias: Option<Option<String>>,
@@ -173,6 +182,7 @@ pub struct MetadataPatch {
     pub image_path: Option<Option<String>>,
     pub tags: Option<Option<Vec<MetadataTag>>>,
     pub developers: Option<Option<Vec<String>>>,
+    pub staff: Option<Option<Vec<MetadataStaff>>>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]

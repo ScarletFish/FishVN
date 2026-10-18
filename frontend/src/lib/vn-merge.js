@@ -63,6 +63,15 @@ function sameNames(a, b, toList) {
   return x.length === y.length && x.every((s, i) => s === y[i]);
 }
 
+const staffKey = (entry) =>
+  [entry.role, entry.original ?? '', entry.name ?? '', entry.note ?? ''].join('\u0000');
+
+function sameStaff(a, b) {
+  const x = (a ?? []).map(staffKey).sort();
+  const y = (b ?? []).map(staffKey).sort();
+  return x.length === y.length && x.every((s, i) => s === y[i]);
+}
+
 const asString = (v) => (v === null || v === undefined ? '' : String(v));
 
 const FIELDS = [
@@ -107,6 +116,12 @@ const FIELDS = [
       .join(', '),
     empty: (v) => !v?.trim(),
     same: (a, b) => sameNames(a, b, devList),
+  },
+  {
+    key: 'staff',
+    read: (vn) => vn.staff ?? [],
+    empty: (v) => !v?.length,
+    same: sameStaff,
   },
   {
     key: 'coverPath',

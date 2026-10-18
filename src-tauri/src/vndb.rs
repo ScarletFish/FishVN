@@ -13,7 +13,7 @@ const API_BASE: &str = "https://api.vndb.org/kana";
 
 const SEARCH_FIELDS: &str = "id,title,alttitle,released,olang,image{id,thumbnail,thumbnail_dims}";
 
-const META_FIELDS: &str = "id,title,alttitle,olang,released,devstatus,rating,votecount,length_minutes,description,titles{lang,title,latin,official,main},image{id,url,dims},tags{id,name,category,rating,spoiler,lie,vn_count},developers{id,name,original,type},va{character{id},staff{id,name,original},note}";
+const META_FIELDS: &str = "id,title,alttitle,olang,released,devstatus,rating,votecount,length_minutes,description,titles{lang,title,latin,official,main},image{id,url,dims},tags{id,name,category,rating,spoiler,lie,vn_count},developers{id,name,original,type},staff{role,name,original,note},va{character{id},staff{id,name,original},note}";
 
 const CHAR_FIELDS: &str = "id,name,original,aliases,description,gender,age,birthday,blood_type,height,weight,bust,waist,hips,cup,image{id,url,dims},traits{id,name,group_name,spoiler,lie},vns{role,spoiler}";
 
@@ -194,6 +194,7 @@ pub struct VnMetadata {
     pub image: Option<VnImage>,
     pub tags: Option<Vec<VnTag>>,
     pub developers: Option<Vec<VnDeveloper>>,
+    pub staff: Option<Vec<crate::types::MetadataStaff>>,
     pub va: Option<Vec<VnVa>>,
 }
 

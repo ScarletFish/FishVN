@@ -7,7 +7,7 @@ use crate::error::{AppError, Result};
 use crate::types::{GameMetadata, MetadataPatch, MetadataTag};
 
 const COLUMNS: &str =
-    "game_id, alias, titles, rating, votecount, length_minutes, released, description, image_id, image_path, tags, developers";
+    "game_id, alias, titles, rating, votecount, length_minutes, released, description, image_id, image_path, tags, developers, staff";
 
 struct MetaRow {
     game_id: String,
@@ -22,6 +22,7 @@ struct MetaRow {
     image_path: Option<String>,
     tags: Option<String>,
     developers: Option<String>,
+    staff: Option<String>,
 }
 
 pub fn get(conn: &Connection, game_id: &str) -> Result<Option<GameMetadata>> {
@@ -143,6 +144,13 @@ fn build_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>
             None => Value::Null,
         });
     }
+    if let Some(raw) = &patch.staff {
+        columns.push("staff");
+        values.push(match raw {
+            Some(v) => Value::Text(to_json(v)?),
+            None => Value::Null,
+        });
+    }
 
     Ok((columns, values))
 }
@@ -174,6 +182,7 @@ fn read_row(row: &Row<'_>) -> rusqlite::Result<MetaRow> {
         image_path: row.get("image_path")?,
         tags: row.get("tags")?,
         developers: row.get("developers")?,
+        staff: row.get("staff")?,
     })
 }
 
@@ -191,6 +200,7 @@ fn to_api(row: &MetaRow) -> Result<GameMetadata> {
         image_path: row.image_path.clone(),
         tags: from_json::<Vec<MetadataTag>>(&row.tags)?,
         developers: from_json(&row.developers)?,
+        staff: from_json(&row.staff)?,
     })
 }
 

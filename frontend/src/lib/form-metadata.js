@@ -57,5 +57,13 @@ export function buildMetadataPatch(fields) {
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean),
+    staff: (fields.staff ?? [])
+      .filter((entry) => (entry.name ?? '').trim() || (entry.original ?? '').trim())
+      .map((entry) => ({
+        role: entry.role,
+        name: (entry.name ?? '').trim() || null,
+        original: (entry.original ?? '').trim() || null,
+        note: entry.note ?? null,
+      })),
   };
 }

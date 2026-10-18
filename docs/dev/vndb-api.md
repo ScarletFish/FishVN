@@ -65,11 +65,13 @@ POST JSON body，`Content-Type: application/json`。响应恒为 JSON，`Accept`
 | `languages` | string[] | 0 | 5 | 不含机翻 |
 | `platforms` | string[] | 0 | 5 | `win` / `lin` / `mac` / `web` / 主机 … |
 | `titles` | object[] | 0 | **0** | 每语言一条，至少一条 |
+| `staff` | object[] | 0 | 2 | 每条 `{role,name,original,note}`；同一人多行（职能或备注不同），`role` 取 `enums.staff_role`（scenario / director / chardesign / art / music / songs / translator / editor / qa / staff） |
+| `developers` | object[] | 0 | 0 | 每条 `{id,name,original,type}` |
 | `aliases` | string[] | 0 | 265 | |
 | `tags` | object[] | 0 | 2 | |
 | `image` | object | **1** | — | 罕见但确有 null（样本 `v25031`） |
 
-其余字段（`screenshots` / `staff` / `va` / `relations` / `editions` / `extlinks` / `developers`）
+其余字段（`screenshots` / `va` / `relations` / `editions` / `extlinks`）
 本项目不取。
 
 裁剪字段的收益（每页 25 条实测）：

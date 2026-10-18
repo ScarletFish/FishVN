@@ -2,6 +2,7 @@
   import Modal from './Modal.svelte';
   import { t } from '../lib/i18n.js';
   import { asText } from '../lib/vn-merge.js';
+  import { staffDiff, staffGroupText, staffText } from '../lib/staff.js';
   import { compactDuration } from '../lib/playtime.js';
   import { coverSrc } from '../lib/cover-src.js';
 
@@ -56,6 +57,7 @@
     if (key === 'length_minutes' && value !== '' && value != null) {
       return `#${compactDuration(Number(value))}`;
     }
+    if (key === 'staff') return staffText(value);
     return asText(key, value);
   }
 </script>
@@ -72,6 +74,7 @@
     <ul class="vn-merge__rows scroll-thin">
       {#each rows as row, index (row.key)}
         {@const on = picked.has(row.key)}
+        {@const diff = row.key === 'staff' ? staffDiff(row.current, row.incoming) : null}
         <li class="vn-merge__row">
           <span class="vn-merge__label">{t(`gameForm.field.${row.key}`)}</span>
           {#each [[row.current, !on], [row.incoming, on]] as [value, active], side}
@@ -87,6 +90,15 @@
                     />
                   {:else}
                     <span class="vn-merge__thumb-ph" aria-hidden="true">—</span>
+                  {/if}
+                </span>
+              {:else if diff?.labels.length}
+                <span class="vn-merge__body">
+                  <span class="vn-merge__text">{staffGroupText(value, diff.labels)}</span>
+                  {#if diff.rest > 0}
+                    <span class="vn-merge__meta">
+                      {t('gameForm.merge.staffRest', { count: diff.rest })}
+                    </span>
                   {/if}
                 </span>
               {:else}

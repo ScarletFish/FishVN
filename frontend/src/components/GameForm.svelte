@@ -23,6 +23,7 @@
   import InstallationList from './InstallationList.svelte';
   import PlaytimeField from './PlaytimeField.svelte';
   import PathField from './PathField.svelte';
+  import SelectDd from './SelectDd.svelte';
   import { namedOnly, toDraft, toPayload } from '../lib/characters.js';
   import {
     defaultKeyOf,
@@ -32,14 +33,17 @@
     toInstallationPayload,
   } from '../lib/installations.js';
   import { applyCharacters, planCharacters } from '../lib/char-merge.js';
+  import { STAFF_ROLES, staffRoleLabel } from '../lib/staff.js';
   import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
 
   let { open = $bindable(false), gameId = $bindable(null), onsaved, initialTab = 'basic' } = $props();
 
-  const TABS = ['basic', 'profile', 'tags', 'installations', 'characters'];
+  const TABS = ['basic', 'profile', 'tags', 'staff', 'installations', 'characters'];
 
   const STATUS_KEYS = ['playing', 'wishlist', 'finished', 'dropped'];
+  const STATUS_OPTIONS = STATUS_KEYS.map((key) => ({ value: key, label: statusLabel(key) }));
+  const STAFF_ROLE_OPTIONS = STAFF_ROLES.map((role) => ({ value: role, label: staffRoleLabel(role) }));
 
   let name = $state('');
   let vndbId = $state(null);
@@ -63,6 +67,7 @@
   let description = $state('');
   let developers = $state('');
   let tags = $state([]);
+  let staff = $state([]);
   let coverPath = $state('');
 
   let tagDraft = $state('');
@@ -86,6 +91,7 @@
 
   let tab = $state('basic');
   let statusOpen = $state(false);
+  let staffRoleOpen = $state(null);
 
   let searchOpen = $state(false);
   const search = createVndbSearch();
@@ -113,6 +119,7 @@
     description = '';
     developers = '';
     tags = [];
+    staff = [];
     coverPath = '';
     coverUrl = null;
     tagDraft = '';
@@ -124,6 +131,7 @@
     coverBroken = false;
     tab = initialTab;
     statusOpen = false;
+    staffRoleOpen = null;
     searchOpen = false;
     mergeOpen = false;
     mergeRows = [];
@@ -178,6 +186,7 @@
       description = meta?.description ?? '';
       developers = (meta?.developers ?? []).join(', ');
       tags = (meta?.tags ?? []).map((tag) => ({ ...tag }));
+      staff = (meta?.staff ?? []).map((entry) => ({ ...entry }));
       coverPath = meta?.image_path ?? '';
       characters = roles.map(toDraft);
       installations = dirs.map(toInstallationDraft);
@@ -266,7 +275,14 @@
     tags = tags.filter((_, i) => i !== index);
   }
 
-  
+  function addStaffEntry() {
+    staff = [...staff, { role: 'scenario', name: '', original: '', note: null }];
+  }
+
+  function removeStaffEntry(index) {
+    staff = staff.filter((_, i) => i !== index);
+  }
+
 
   function formFields() {
     return {
@@ -280,6 +296,7 @@
       coverPath,
       tags,
       developers,
+      staff,
     };
   }
 
@@ -360,6 +377,7 @@
     description = next.description;
     tags = next.tags;
     developers = next.developers;
+    staff = next.staff;
     coverPath = next.coverPath;
     mergeOpen = false;
     incoming = null;
@@ -433,6 +451,7 @@
       coverPath,
       tags,
       developers,
+      staff,
     });
     try {
       const base = {
@@ -520,61 +539,15 @@
 
           <div class="form-group">
             <label for="game-form-status">{t('gameForm.field.status')}</label>
-            <div class="select-dd" class:is-open={statusOpen}>
-              <button
-                id="game-form-status"
-                type="button"
-                class="select-dd-trigger"
-                aria-haspopup="listbox"
-                aria-expanded={statusOpen}
-                disabled={saving}
-                onclick={() => (statusOpen = !statusOpen)}
-                onblur={() => (statusOpen = false)}
-              >
-                <span class="select-dd-text">{statusLabel(status)}</span>
-                <svg
-                  class="select-dd-chevron"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              {#if statusOpen}
-                <div class="select-dd-menu" role="listbox">
-                  {#each STATUS_KEYS as key (key)}
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={status === key}
-                      class="select-dd-opt"
-                      class:is-selected={status === key}
-                      onmousedown={(e) => e.preventDefault()}
-                      onclick={() => {
-                        status = key;
-                        statusOpen = false;
-                      }}
-                    >
-                      <span>{statusLabel(key)}</span>
-                      <svg
-                        class="select-dd-opt-check"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-            </div>
+            <SelectDd
+              id="game-form-status"
+              options={STATUS_OPTIONS}
+              value={status}
+              open={statusOpen}
+              onopenchange={(v) => (statusOpen = v)}
+              onchange={(v) => (status = v)}
+              disabled={saving}
+            />
           </div>
 
           <div class="form-group">
@@ -799,6 +772,67 @@
               disabled={saving}
             />
           </div>
+        </div>
+      </div>
+
+      <div class="modal-panel" class:active={tab === 'staff'}>
+        <div class="form-group">
+          <label for="game-form-staff">{t('gameForm.field.staff')}</label>
+          <div class="staff-rows">
+            {#each staff as person, i (i)}
+              <div class="staff-row">
+                <SelectDd
+                  options={STAFF_ROLE_OPTIONS}
+                  value={person.role}
+                  open={staffRoleOpen === i}
+                  onopenchange={(v) => (staffRoleOpen = v ? i : null)}
+                  onchange={(v) => (person.role = v)}
+                  ariaLabel={t('gameForm.field.staffRole')}
+                  disabled={saving}
+                />
+                <input
+                  type="text"
+                  bind:value={person.original}
+                  placeholder={t('gameForm.placeholder.staffOriginal')}
+                  disabled={saving}
+                  aria-label={t('gameForm.field.staffOriginal')}
+                />
+                <input
+                  type="text"
+                  bind:value={person.name}
+                  placeholder={t('gameForm.placeholder.staffName')}
+                  disabled={saving}
+                  aria-label={t('gameForm.field.staffAlias')}
+                />
+                <button
+                  type="button"
+                  class="staff-row__remove"
+                  aria-label={t('gameForm.action.removeStaff')}
+                  onmousedown={(e) => e.preventDefault()}
+                  onclick={() => removeStaffEntry(i)}
+                  disabled={saving}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            {/each}
+            <button
+              type="button"
+              class="staff-rows__add"
+              onclick={addStaffEntry}
+              disabled={saving}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              {t('gameForm.action.addStaff')}
+            </button>
+          </div>
+          <p class="form-hint">{t('gameForm.hint.staff')}</p>
         </div>
       </div>
 
