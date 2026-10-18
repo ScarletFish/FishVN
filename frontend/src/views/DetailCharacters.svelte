@@ -182,7 +182,7 @@
               <div class="detail-char-portrait-ph">
                 <span class="detail-char-ph-name">{displayName(c)}</span>
                 {#if vaName(c.va?.[0])}
-                  <span class="detail-char-ph-cv">{vaName(c.va[0])}</span>
+                  <span class="detail-char-ph-cv">CV：{vaName(c.va[0])}</span>
                 {/if}
               </div>
             {/if}
@@ -191,7 +191,7 @@
             <div class="detail-char-foot">
               <span class="detail-char-name">{displayName(c)}</span>
               {#if vaName(c.va?.[0])}
-                <span class="detail-char-cv">{vaName(c.va[0])}</span>
+                <span class="detail-char-cv">CV：{vaName(c.va[0])}</span>
               {/if}
             </div>
           {/if}

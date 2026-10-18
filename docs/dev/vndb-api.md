@@ -49,8 +49,8 @@ POST JSON body，`Content-Type: application/json`。响应恒为 JSON，`Accept`
 | 字段 | JSON 形状 | null 实测 (n=400) | 空数组 | 说明 |
 |---|---|---|---|---|
 | `id` | string | 0 | — | `"v14"` |
-| `title` | string | 0 | — | 主标题（原文） |
-| `alttitle` | string | 140 | — | 罗马字标题，常为 null |
+| `title` | string | 0 | — | 站点主标题：日文原作为罗马字，中文原作为中文 |
+| `alttitle` | string | 140 | — | 与主标题互补的另一种写法（日文原作是原文，中文原作常为罗马字），两种写法一致时为 null |
 | `olang` | string | 0 | — | 原作语言，`zh-Hans` / `ja` / `en` … |
 | `released` | string | 5 | — | 五种形状，见下节 |
 | `devstatus` | int | 0 | — | 0 已完成 / 1 开发中 / 2 已取消 |

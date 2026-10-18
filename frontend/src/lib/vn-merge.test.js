@@ -12,6 +12,7 @@ const VN = {
   id: 'v11',
   title: 'Fate/stay night',
   alttitle: 'フェイト／ステイナイト',
+  olang: 'ja',
   released: '2004-01-30',
   rating: 86.3,
   votecount: 19334,
@@ -92,10 +93,39 @@ test('简介里的 BBCode 在读入时就已剥掉', () => {
 test('全空的表单没有冲突，全部直接填', () => {
   expect(conflictRows(form(), VN)).toEqual([]);
   const next = applyIncoming(form(), VN, new Set());
-  expect(next.name).toBe('Fate/stay night');
+  expect(next.name).toBe('フェイト／ステイナイト');
+  expect(next.alias).toBe('Fate/stay night');
   expect(next.tags.map((t) => t.name)).toEqual(['Gore']);
   expect(next.developers).toBe('TYPE-MOON');
   expect(next.coverPath).toBe('D:\\data\\covers\\vndb\\cv75598.jpg');
+});
+
+test('展示名取官方中文标题，别名放主标题', () => {
+  const vn = {
+    ...VN,
+    titles: [
+      { lang: 'ja', title: 'フェイト／ステイナイト' },
+      { lang: 'zh-Hans', title: '命运长夜', official: true },
+    ],
+  };
+  const next = applyIncoming(form(), vn, new Set());
+  expect(next.name).toBe('命运长夜');
+  expect(next.alias).toBe('Fate/stay night');
+});
+
+test('中文标题只挑非官方的时也采用，别名仍回主标题', () => {
+  const vn = {
+    ...VN,
+    titles: [{ lang: 'zh-Hant', title: 'Fate／stay night', official: false }],
+  };
+  const next = applyIncoming(form(), vn, new Set());
+  expect(next.name).toBe('Fate／stay night');
+});
+
+test('非中文非日文的原作沿用主标题', () => {
+  const vn = { ...VN, olang: 'en', alttitle: null };
+  const next = applyIncoming(form(), vn, new Set());
+  expect(next.name).toBe('Fate/stay night');
 });
 
 test('平均时长本地为空直接填，有值且不同进冲突', () => {
@@ -145,7 +175,7 @@ test('有差异的字段进冲突列表，空的不进', () => {
     tags: [{ name: 'Old' }],
   });
   const keys = conflictRows(current, VN).map((r) => r.key);
-  expect(keys.sort()).toEqual(['rating', 'tags', 'votecount']);
+  expect(keys.sort()).toEqual(['name', 'rating', 'tags', 'votecount']);
 });
 
 /** 用户默认意图是覆盖，但没勾的字段必须保持原样 */

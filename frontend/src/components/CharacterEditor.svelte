@@ -428,7 +428,7 @@
           <div class="tag-input scroll-thin">
             {#each selected.va as entry (entry.key)}
               <span class="tag-pill">
-                {entry.name}
+                {entry.original || entry.name}
                 <button
                   type="button"
                   class="tag-pill__remove"

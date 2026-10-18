@@ -40,6 +40,18 @@ export function bbcodeParagraphs(raw) {
 
 const devName = (d) => d.name || d.original || '';
 
+function displayTitle(vn) {
+  const zh = (vn.titles ?? []).filter((x) => x.lang === 'zh-Hans' || x.lang === 'zh-Hant');
+  const preferred = zh.find((x) => x.official !== false) ?? zh[0];
+  if (preferred) return preferred.title ?? '';
+  if (vn.olang === 'ja') return vn.alttitle || vn.title || '';
+  return vn.title ?? '';
+}
+
+function aliasTitle(vn) {
+  return displayTitle(vn) === (vn.title ?? '') ? (vn.alttitle ?? '') : (vn.title ?? '');
+}
+
 function devList(value) {
   if (typeof value === 'string') return value.split(',');
   return value.map(devName);
@@ -54,8 +66,8 @@ function sameNames(a, b, toList) {
 const asString = (v) => (v === null || v === undefined ? '' : String(v));
 
 const FIELDS = [
-  { key: 'name', read: (vn) => vn.title ?? '', empty: (v) => !v?.trim(), same: (a, b) => a === b },
-  { key: 'alias', read: (vn) => vn.alttitle ?? '', empty: (v) => !v?.trim(), same: (a, b) => a === b },
+  { key: 'name', read: (vn) => displayTitle(vn), empty: (v) => !v?.trim(), same: (a, b) => a === b },
+  { key: 'alias', read: (vn) => aliasTitle(vn), empty: (v) => !v?.trim(), same: (a, b) => a === b },
   { key: 'released', read: (vn) => vn.released ?? '', empty: (v) => !v?.trim(), same: (a, b) => a === b },
   {
     key: 'rating',
