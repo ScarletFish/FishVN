@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path};
 
 use rusqlite::types::Value;
@@ -214,13 +214,6 @@ pub fn save_installations(
         .iter()
         .map(|r| (r.dir_path.as_str(), r.game_id.as_deref()))
         .collect();
-    let mut orphans: HashMap<&str, VecDeque<&Existing>> = HashMap::new();
-    for row in existing.iter().filter(|row| row.game_id.is_none()) {
-        orphans
-            .entry(row.dir_path.as_str())
-            .or_default()
-            .push_back(row);
-    }
 
     let taken_by_other = |dir_path: &str| {
         dir_owner
@@ -259,18 +252,12 @@ pub fn save_installations(
                 }
                 match by_key.get(&key) {
                     Some(&holder) => {
-                        if holder
-                            .game_id
-                            .as_deref()
-                            .is_some_and(|owner| owner != game_id)
-                        {
+                        if holder.game_id.as_deref() != Some(game_id) {
                             return Err(AppError::Conflict(TAKEN.into()));
                         }
                         Some(holder)
                     }
-                    None => orphans
-                        .get_mut(draft.dir_path.as_str())
-                        .and_then(|queue| queue.pop_front()),
+                    None => None,
                 }
             }
         };
@@ -316,14 +303,11 @@ pub fn save_installations(
         kept.insert(id);
     }
 
-    let touched: HashSet<&str> = drafts.iter().map(|draft| draft.dir_path.as_str()).collect();
     for row in &existing {
         if kept.contains(&row.id) {
             continue;
         }
-        let dropped = row.game_id.as_deref() == Some(game_id)
-            || (row.game_id.is_none() && touched.contains(row.dir_path.as_str()));
-        if dropped {
+        if row.game_id.as_deref() == Some(game_id) {
             tx.execute("DELETE FROM installations WHERE id = ?", params![&row.id])?;
         }
     }

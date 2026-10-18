@@ -35,7 +35,7 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
 
         CREATE TABLE IF NOT EXISTS installations (
           id         TEXT PRIMARY KEY,
-          game_id    TEXT REFERENCES games(id) ON DELETE SET NULL,
+          game_id    TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
           dir_path   TEXT NOT NULL,
           entry_path TEXT,
           exes       TEXT,

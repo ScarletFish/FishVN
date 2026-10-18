@@ -147,13 +147,13 @@ snake_case，裸 HTTP 没有这层转换。
 几条从表结构看不出来的语义与配套惯例：
 
 - `vndb_id` 可空且 `UNIQUE`：NULL 之间不算重复，一部 VN 只对应一条作品；重复绑定报冲突
-- `installations.game_id` 为 NULL 表示待认领。删作品走 `SET NULL` 而不是 CASCADE —— 目录还在盘上，下次扫描还会遇到它
+- 删作品时安装记录随级联一并删除（`CASCADE`），删除的是库内登记，磁盘目录原样保留
 - 状态取值定义在 `types.rs` 的 `Status` 枚举（wishlist / playing / finished / dropped），取值的合法集合只有这一份
 - `dir_path` 存 `resolve_path` 绝对化后的原样路径，不做大小写归一 —— `COLLATE NOCASE` 会在 macOS 与 Linux 上把不同目录判成同一个
 - `game_metadata` 除 `game_id` 外每列都可空：一部不绑 VNDB 的作品同样要有资料行，没有数据就是空而不是占位值
 - 资料行可有可无，且行不存在与行存在但字段为空是两种状态（「没填过」与「填了空的」），调用方要分得清
 - 作品正式名在 `games.name`，`game_metadata` 不重复存。VNDB 那份 `titles` 里已带 `official` / `main` 标记的正式标题，别名另存 `alias`
-- 状态行随作品删除而清除（`CASCADE`）；安装行相反走 `SET NULL`
+- 状态行、安装行都随作品删除而清除（`CASCADE`）
 - `game_metadata.image_id` 是 VNDB 的 cv 编号，本项目**不写它**：下载判重靠 `covers/vndb/<cv 编号>.jpg` 是否存在，同步冲突靠 `image_path` 是否为空。`image_path` 是本地文件的位置，两者不是一回事
 - JSON 文本列（`titles` / `tags` / `developers` / `aliases` / `traits` / `gender` / `exes`）：库里是文本，对外一律给数组或结构；要按其中某个键筛，只能整列取出后在 Rust 侧解
 - `characters.id` 平时是 VNDB 的 c 编号，用户手建的行是 `local-<uuid>`，两种混排
@@ -166,8 +166,8 @@ snake_case，裸 HTTP 没有这层转换。
 - 安装的身份是「目录 + 入口」这对：同一目录下可以有多条不同入口的记录，同一对只留一条。唯一索引落在 `dir_path` 与 `IFNULL(entry_path, '')` 上 —— 唯一约束不比较 NULL，空入口直接比 `entry_path` 会让约束失效
 - 建安装先按 `dir_path` 查占位行：拖同一个目录两次不必付出读整个目录的代价；唯一索引仍是最终保证
 - 安装集合由表单整包写回：草稿带 `id` 的更新、不带 `id` 的新建、库里本作品有而草稿里没有的删除，全在一个事务里；`sort_order` 按数组下标派生，读取按 `sort_order, dir_path, entry_path` 排序
-- 整包写回按「目录 + 入口」命中未认领行（`game_id` 为空）时认领它，命中别的作品的行报冲突；同批出现同一对也报冲突
-- 一个目录只归一部作品：草稿写进已被别的作品占用的目录就报冲突；某目录被本作品接管后，该目录里没被认领到的未认领行随这次保存清掉，没被碰到的目录里的未认领行照旧留着
+- 整包写回按「目录 + 入口」定位已有行：属于本作品的原地更新，属于别的作品的报冲突；同批出现同一对也报冲突
+- 一个目录只归一部作品：草稿写进已被别的作品占用的目录就报冲突
 - `patch` 改入口时先看同目录有没有别的行占着这一对，占了就报冲突而不是漏成唯一索引错误
 - 目录元信息分两档取：只要候选 exe 时下探三层（限深也截断了读取），连大小一起取时遍历整棵子树。整包写回走前者，`size_bytes` 留空；新建与换目录时重算候选，换目录顺带把失效的 `size_bytes` 置空；目录没变就不读盘，搬走的目录不挡保存
 - `entry_path` 存相对 `dir_path` 的路径：空串、绝对路径与含 `..` 的路径都判非法输入

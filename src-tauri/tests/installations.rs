@@ -539,7 +539,7 @@ fn 删掉默认安装后状态里的引用置空() {
 }
 
 #[test]
-fn 删作品时它的安装退回待认领而非消失() {
+fn 删作品时它的安装一并消失() {
     let db = Db::new();
     let mut tree = Tree::new();
     let game_id = new_game(&db, "作品将删");
@@ -547,8 +547,11 @@ fn 删作品时它的安装退回待认领而非消失() {
 
     delete_game(&db, &game_id).expect("删作品失败");
 
-    let row = get_installation(&db, &id).expect("安装记录应仍在");
-    assert_eq!(row.game_id, None, "应退回待认领");
+    assert_eq!(
+        get_installation(&db, &id).unwrap_err().to_string(),
+        "安装记录不存在",
+        "安装记录随作品级联删除"
+    );
 }
 
 fn norm(p: &std::path::Path) -> String {
@@ -627,19 +630,17 @@ fn 整包保存保住已有安装的_id() {
 }
 
 #[test]
-fn 整包保存认领未认领目录() {
+fn 删作品后同目录可被新作品登记() {
     let db = Db::new();
     let mut tree = Tree::new();
     let owner = new_game(&db, "原作品");
-    let newcomer = new_game(&db, "认领者");
+    let newcomer = new_game(&db, "后来者");
     let dir = tree.make_dir(&[("a.exe", "a")]);
-    let id = add(&db, &owner, &dir).expect("登记失败");
+    add(&db, &owner, &dir).expect("登记失败");
     delete_game(&db, &owner).expect("删作品失败");
-    assert_eq!(get_installation(&db, &id).unwrap().game_id, None);
 
-    let saved = save_installations(&db, &newcomer, &[fresh(&dir)]).expect("认领失败");
+    let saved = save_installations(&db, &newcomer, &[fresh(&dir)]).expect("登记失败");
     assert_eq!(saved.len(), 1);
-    assert_eq!(saved[0].id, id, "认领要沿用原来那行");
     assert_eq!(saved[0].game_id.as_deref(), Some(newcomer.as_str()));
 }
 
@@ -1029,86 +1030,6 @@ fn 目录归了别的作品时换入口也返回_conflict() {
     let err = save_installations(&db, &mine, &[entry(&dir, "game_zh.exe")]).unwrap_err();
     assert_eq!(variant(&err), "Conflict");
     assert!(message(&err).contains("已有安装记录"));
-}
-
-#[test]
-fn 认领未认领目录时同目录的两个入口各认一条() {
-    let db = Db::new();
-    let mut tree = Tree::new();
-    let owner = new_game(&db, "原作品");
-    let newcomer = new_game(&db, "认领者");
-    let dir = tree.make_dir(&[("game.exe", "a"), ("game_zh.exe", "b")]);
-
-    let before = save_installations(
-        &db,
-        &owner,
-        &[entry(&dir, "game.exe"), entry(&dir, "game_zh.exe")],
-    )
-    .expect("原作品登记失败");
-    delete_game(&db, &owner).expect("删作品失败");
-    assert_eq!(get_installation(&db, &before[0].id).unwrap().game_id, None);
-
-    let after = save_installations(
-        &db,
-        &newcomer,
-        &[entry(&dir, "game.exe"), entry(&dir, "game_zh.exe")],
-    )
-    .expect("认领失败");
-
-    assert_eq!(ids(&after), ids(&before), "两条都沿用原来那两行");
-    assert!(after
-        .iter()
-        .all(|i| i.game_id.as_deref() == Some(newcomer.as_str())));
-}
-
-#[test]
-fn 认领时清掉该目录多余的未认领行() {
-    let db = Db::new();
-    let mut tree = Tree::new();
-    let owner = new_game(&db, "原作品");
-    let newcomer = new_game(&db, "认领者");
-    let dir = tree.make_dir(&[("game.exe", "a"), ("game_zh.exe", "b")]);
-
-    let before = save_installations(
-        &db,
-        &owner,
-        &[entry(&dir, "game.exe"), entry(&dir, "game_zh.exe")],
-    )
-    .expect("原作品登记失败");
-    delete_game(&db, &owner).expect("删作品失败");
-
-    let after =
-        save_installations(&db, &newcomer, &[entry(&dir, "game.exe")]).expect("认领失败");
-
-    assert_eq!(after.len(), 1);
-    assert_eq!(after[0].id, before[0].id);
-    assert_eq!(
-        get_installation(&db, &before[1].id).unwrap_err().to_string(),
-        "安装记录不存在",
-        "该目录没被认领的那条随本次保存清掉"
-    );
-}
-
-#[test]
-fn 未认领行在没被碰的目录里照旧留着() {
-    let db = Db::new();
-    let mut tree = Tree::new();
-    let owner = new_game(&db, "原作品");
-    let newcomer = new_game(&db, "认领者");
-    let kept_dir = tree.make_dir(&[("a.exe", "a")]);
-    let other_dir = tree.make_dir(&[("b.exe", "b")]);
-
-    let before =
-        save_installations(&db, &owner, &[fresh(&kept_dir), fresh(&other_dir)]).expect("登记失败");
-    delete_game(&db, &owner).expect("删作品失败");
-
-    save_installations(&db, &newcomer, &[fresh(&kept_dir)]).expect("认领失败");
-
-    assert_eq!(
-        get_installation(&db, &before[1].id).unwrap().game_id,
-        None,
-        "没被碰的目录仍待认领"
-    );
 }
 
 #[test]

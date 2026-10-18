@@ -91,7 +91,7 @@ export const DICT_ZH = {
   confirm: {
     deleteGame: {
       title: '删除作品',
-      message: '《{name}》将从列表中移除，游玩记录一并删除；磁盘文件原样保留',
+      message: '《{name}》将从列表中移除，游玩记录与安装记录一并删除；磁盘文件原样保留',
       confirm: '删除',
     },
   },
