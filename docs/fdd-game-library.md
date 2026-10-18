@@ -40,7 +40,7 @@
 | 身份 | `name` · `vndb_id` | 能。`vndb_id` 为空时作品照样存在。 |
 | 用户状态 | `status` · `user_rating` · `notes` · `default_installation_id` · `play_seconds` | 能。纯用户数据。 |
 | 本地安装 | `dir_path` · `entry_path` · `exes` · `size_bytes`（可多条） | 能。来自磁盘，与 VNDB 无关。 |
-| 元数据 | 别名与本地化标题 · 封面 · 发行日期 · 评分与人数 · 简介 · 标签 · 开发商 | 此组是 VNDB 的数据来源，但即使全空，作品与元数据行仍存在。 |
+| 元数据 | 别名与本地化标题 · 封面 · 发行日期 · 评分与人数 · 平均通关时长 · 简介 · 标签 · 开发商 | 此组是 VNDB 的数据来源，但即使全空，作品与元数据行仍存在。 |
 
 聚合是逻辑边界，定义"什么属于同一部作品"；加载单位由消费方各自决定。
 
@@ -89,7 +89,7 @@
 |---|---|---|
 | 用户输入 | `name` · `status` · `user_rating` · `notes` · `image_path` · `play_seconds` | 表单自由编辑（封面经文件对话框选择，路径也可手工输入）；总时长可任意改写 |
 | 系统派生 | `created_at` · `play_count` · `last_played_at` · `foreground_seconds` · `alive_seconds` · `installation_count` · `can_launch` | 由动作产生 |
-| 外部元数据 | 别名与本地化标题 · 发行日期 · 评分与人数 · 简介 · 标签 · 开发商 | VNDB 同步填入，用户可覆盖 |
+| 外部元数据 | 别名与本地化标题 · 发行日期 · 评分与人数 · 平均通关时长 · 简介 · 标签 · 开发商 | VNDB 同步填入，用户可覆盖 |
 | 本地事实 | `dir_path` · `entry_path` · `size_bytes` | 表单的安装行里用文件对话框挑启动文件，路径也可手工输入；`entry_path` 存相对 `dir_path` 的路径 |
 
 角色字段的来源另算：立绘 · 名字 · 原名 · 性别 · 年龄 · 身高 · 体重 · 出场定位 · 声优 · 简介由用户在表单填写；`traits` 与三围、生日、血型只有 VNDB 同步才有来源，表单不暴露——本地编辑只覆盖露出的字段，未露出的保持原值。

@@ -210,6 +210,21 @@
   color: var(--fg-secondary);
 }
 
+.info-rating-sub + .info-length {
+  margin-left: var(--space-4);
+}
+
+.info-length-mark {
+  color: var(--fg-muted);
+}
+
+.info-length {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  color: var(--fg-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 .info-tags {
   display: flex;
   gap: var(--space-150);

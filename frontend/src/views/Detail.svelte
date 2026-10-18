@@ -6,7 +6,7 @@
   import { bbcodeParagraphs } from '../lib/vn-merge.js';
   import { openExternal } from '../lib/open-external.js';
   import { toast } from '../lib/toast.svelte.js';
-  import { durationText } from '../lib/playtime.js';
+  import { compactDuration, durationText } from '../lib/playtime.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
@@ -84,6 +84,7 @@
   }
 
   let ratingScore = $derived(meta?.rating != null ? trimScore(meta.rating / 10) : '');
+  let lengthText = $derived(meta?.length_minutes != null ? compactDuration(meta.length_minutes) : '');
   let releaseYear = $derived(meta?.released?.slice(0, 4) ?? '');
   let developer = $derived(meta?.developers?.[0] ?? '');
 
@@ -198,12 +199,19 @@
         {#if alias}
           <p class="detail-alias">{alias}</p>
         {/if}
-        {#if meta?.rating != null || releaseYear || developer}
+        {#if meta?.rating != null || lengthText || releaseYear || developer}
           <div class="detail-info-line">
-            {#if meta?.rating != null}
+            {#if meta?.rating != null || lengthText}
               <span class="info-left">
-                <span class="info-rating-num">★ {ratingScore}</span>
-                <span class="info-rating-sub">{t('detail.voteCount', { count: meta.votecount ?? 0 })}</span>
+                {#if meta?.rating != null}
+                  <span class="info-rating-num">★ {ratingScore}</span>
+                  <span class="info-rating-sub">{t('detail.voteCount', { count: meta.votecount ?? 0 })}</span>
+                {/if}
+                {#if lengthText}
+                  <span class="info-length" data-tooltip={t('detail.lengthHint')}>
+                    <span class="info-length-mark">#</span>{lengthText}
+                  </span>
+                {/if}
               </span>
             {/if}
             <span class="info-tags">

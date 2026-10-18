@@ -2,6 +2,7 @@
   import Modal from './Modal.svelte';
   import { t } from '../lib/i18n.js';
   import { asText } from '../lib/vn-merge.js';
+  import { compactDuration } from '../lib/playtime.js';
   import { coverSrc } from '../lib/cover-src.js';
 
   let { open = $bindable(false), rows = [], onaccept, oncancel } = $props();
@@ -50,6 +51,13 @@
   function isCover(key) {
     return key === 'coverPath';
   }
+
+  function cellText(key, value) {
+    if (key === 'length_minutes' && value !== '' && value != null) {
+      return `#${compactDuration(Number(value))}`;
+    }
+    return asText(key, value);
+  }
 </script>
 
 <Modal {open} title={t('gameForm.merge.title')} variant="modal--merge" onclose={oncancel}>
@@ -82,7 +90,7 @@
                   {/if}
                 </span>
               {:else}
-                <span class="vn-merge__text">{asText(row.key, value)}</span>
+                <span class="vn-merge__text">{cellText(row.key, value)}</span>
               {/if}
               <button
                 type="button"

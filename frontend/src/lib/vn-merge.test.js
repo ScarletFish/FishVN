@@ -15,6 +15,7 @@ const VN = {
   released: '2004-01-30',
   rating: 86.3,
   votecount: 19334,
+  length_minutes: 1820,
   description: 'In Fuyuki, a secret battle rages. See [url=https://x.jp]more[/url].',
   titles: [{ lang: 'ja', title: 'フェイト／ステイナイト' }],
   tags: [{ id: 'g1', name: 'Gore', rating: 3 }],
@@ -29,6 +30,7 @@ function form(over = {}) {
     released: '',
     rating: '',
     votecount: '',
+    length_minutes: '',
     description: '',
     tags: [],
     developers: '',
@@ -94,6 +96,17 @@ test('全空的表单没有冲突，全部直接填', () => {
   expect(next.tags.map((t) => t.name)).toEqual(['Gore']);
   expect(next.developers).toBe('TYPE-MOON');
   expect(next.coverPath).toBe('D:\\data\\covers\\vndb\\cv75598.jpg');
+});
+
+test('平均时长本地为空直接填，有值且不同进冲突', () => {
+  const next = applyIncoming(form(), VN, new Set());
+  expect(next.length_minutes).toBe('1820');
+
+  const current = form({ length_minutes: '1800' });
+  const rows = conflictRows(current, VN);
+  expect(rows.map((r) => r.key)).toEqual(['length_minutes']);
+  expect(applyIncoming(current, VN, new Set(['length_minutes'])).length_minutes).toBe('1820');
+  expect(applyIncoming(current, VN, new Set()).length_minutes).toBe('1800');
 });
 
 test('本地空封面直接采用 VNDB 的，不进冲突列表', () => {

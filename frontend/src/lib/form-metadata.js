@@ -38,12 +38,18 @@ export function votecountRejected(raw) {
   return Boolean(raw.trim()) && (votes === null || votes < 0);
 }
 
+export function lengthMinutesRejected(raw) {
+  const minutes = toNumber(raw);
+  return Boolean(raw.trim()) && (minutes === null || minutes < 0);
+}
+
 export function buildMetadataPatch(fields) {
   return {
     alias: fields.alias.trim() || null,
     released: fields.released.trim() || null,
     rating: toNumber(fields.rating),
     votecount: toInteger(fields.votecount),
+    length_minutes: toInteger(fields.lengthMinutes),
     description: fields.description.trim() || null,
     image_path: fields.coverPath.trim() || null,
     tags: fields.tags,

@@ -7,7 +7,7 @@ use crate::error::{AppError, Result};
 use crate::types::{GameMetadata, MetadataPatch, MetadataTag};
 
 const COLUMNS: &str =
-    "game_id, alias, titles, rating, votecount, released, description, image_id, image_path, tags, developers";
+    "game_id, alias, titles, rating, votecount, length_minutes, released, description, image_id, image_path, tags, developers";
 
 struct MetaRow {
     game_id: String,
@@ -15,6 +15,7 @@ struct MetaRow {
     titles: Option<String>,
     rating: Option<f64>,
     votecount: Option<i64>,
+    length_minutes: Option<i64>,
     released: Option<String>,
     description: Option<String>,
     image_id: Option<String>,
@@ -113,6 +114,13 @@ fn build_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>
             None => Value::Null,
         });
     }
+    if let Some(raw) = &patch.length_minutes {
+        columns.push("length_minutes");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
 
     if let Some(raw) = &patch.titles {
         columns.push("titles");
@@ -159,6 +167,7 @@ fn read_row(row: &Row<'_>) -> rusqlite::Result<MetaRow> {
         titles: row.get("titles")?,
         rating: row.get("rating")?,
         votecount: row.get("votecount")?,
+        length_minutes: row.get("length_minutes")?,
         released: row.get("released")?,
         description: row.get("description")?,
         image_id: row.get("image_id")?,
@@ -175,6 +184,7 @@ fn to_api(row: &MetaRow) -> Result<GameMetadata> {
         titles: from_json(&row.titles)?,
         rating: row.rating,
         votecount: row.votecount,
+        length_minutes: row.length_minutes,
         released: row.released.clone(),
         description: row.description.clone(),
         image_id: row.image_id.clone(),

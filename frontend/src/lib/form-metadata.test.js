@@ -3,6 +3,7 @@ import {
   buildMetadataPatch,
   clampRating,
   cleanRating,
+  lengthMinutesRejected,
   ratingRejected,
   toInteger,
   toNumber,
@@ -16,6 +17,7 @@ function blank() {
     released: '',
     rating: '',
     votecount: '',
+    lengthMinutes: '',
     description: '',
     coverPath: '',
     tags: [],
@@ -71,12 +73,21 @@ test('评分人数只拦负数与非数字，没填的不算错', () => {
   expect(votecountRejected('abc')).toBe(true);
 });
 
+test('平均时长只拦负数与非数字，没填的不算错', () => {
+  expect(lengthMinutesRejected('')).toBe(false);
+  expect(lengthMinutesRejected('0')).toBe(false);
+  expect(lengthMinutesRejected('1820')).toBe(false);
+  expect(lengthMinutesRejected('-5')).toBe(true);
+  expect(lengthMinutesRejected('abc')).toBe(true);
+});
+
 test('空白表单写出的全是 null', () => {
   expect(buildMetadataPatch(blank())).toEqual({
     alias: null,
     released: null,
     rating: null,
     votecount: null,
+    length_minutes: null,
     description: null,
     image_path: null,
     tags: [],

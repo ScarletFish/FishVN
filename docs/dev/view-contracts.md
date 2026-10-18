@@ -9,7 +9,7 @@
 | 身份 | `name` · `vndb_id` |
 | 用户状态 | `status` · `user_rating` · `notes` · `default_installation_id` |
 | 本地安装 | `dir_path` · `entry_path` · `exes` · `size_bytes`（一部作品可有多条） |
-| 元数据 | 别名与本地化标题 · 封面 · 发行日期 · 评分与人数 · 简介 · 标签 · 开发商 |
+| 元数据 | 别名与本地化标题 · 封面 · 发行日期 · 评分与人数 · 平均通关时长 · 简介 · 标签 · 开发商 |
 
 **聚合是逻辑边界**，定义「什么属于同一个游戏」。加载单位由消费方各自决定。
 
@@ -43,7 +43,7 @@
 |---|---|---|
 | 用户输入 | `name` · `status` · `user_rating` · `notes` · `play_seconds` | 表单自由编辑 |
 | 系统派生 | `created_at` · `play_count` · `last_played_at` · `foreground_seconds` · `alive_seconds` · `installation_count` · `can_launch` | 由动作产生 |
-| 外部元数据 | 别名与本地化标题 · 封面 · 发行日期 · 评分与人数 · 简介 · 标签 · 开发商 | 同步逐字段比对库里现值与新值，差异由用户在冲突面板逐字段选覆盖或跳过；JSON 列整列替换 |
+| 外部元数据 | 别名与本地化标题 · 封面 · 发行日期 · 评分与人数 · 平均通关时长 · 简介 · 标签 · 开发商 | 同步逐字段比对库里现值与新值，差异由用户在冲突面板逐字段选覆盖或跳过；JSON 列整列替换 |
 | 本地事实 | `dir_path` · `entry_path` · `size_bytes` | 表单的安装行里用文件对话框挑启动文件，路径也可手工输入；`entry_path` 存相对 `dir_path` 的路径 |
 
 `installation_count` · `can_launch` 与四个游玩聚合值是查询期算出来的，其余系统派生字段有列，写者见 [backend.md](./backend.md)。`play_seconds` 有列：用户可任意改写，结算时系统在它上面累加。

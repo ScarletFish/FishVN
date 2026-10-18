@@ -73,6 +73,7 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           titles      TEXT,
           rating      REAL,
           votecount   INTEGER,
+          length_minutes INTEGER,
           released    TEXT,
           description TEXT,
           image_id    TEXT,

@@ -30,6 +30,7 @@ export const DICT_ZH = {
   detail: {
     notFound: '作品不存在',
     voteCount: '{count} 人',
+    lengthHint: 'VNDB 平均通关时长',
     error: '读取作品失败',
     moreTags: '+{count}',
     actionPlay: '开始游戏',
@@ -107,6 +108,7 @@ export const DICT_ZH = {
       released: '发行日期',
       rating: '评分',
       votecount: '评分人数',
+      length_minutes: '平均时长',
       description: '简介',
       developers: '开发商',
       tags: '标签',
@@ -133,6 +135,7 @@ export const DICT_ZH = {
       empty: '尚未同步',
       rating: '0-100',
       votecount: '如 19334',
+      lengthMinutes: '分钟数，如 1820',
       alias: '作品的别称，详情页显示在标题下方',
       released: '如 2005-08-02',
       description: '作品的简介',
@@ -209,6 +212,7 @@ export const DICT_ZH = {
       nameRequired: '请填写游戏名',
       ratingRange: '评分要在 0 到 100 之间（百分制）',
       votecountRange: '评分人数要是 0 或更大的整数',
+      lengthMinutesRange: '平均时长要是 0 或更大的分钟数',
     },
   },
   toast: {

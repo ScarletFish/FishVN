@@ -9,6 +9,7 @@
     buildMetadataPatch,
     clampRating,
     cleanRating,
+    lengthMinutesRejected,
     ratingRejected,
     toNumber,
     votecountRejected,
@@ -55,8 +56,10 @@
   let released = $state('');
   let rating = $state('');
   let votecount = $state('');
+  let lengthMinutes = $state('');
   let ratingError = $state('');
   let votecountError = $state('');
+  let lengthMinutesError = $state('');
   let description = $state('');
   let developers = $state('');
   let tags = $state([]);
@@ -103,8 +106,10 @@
     alias = '';
     rating = '';
     votecount = '';
+    lengthMinutes = '';
     ratingError = '';
     votecountError = '';
+    lengthMinutesError = '';
     description = '';
     developers = '';
     tags = [];
@@ -169,6 +174,7 @@
       alias = meta?.alias ?? '';
       rating = meta?.rating != null ? String(meta.rating) : '';
       votecount = meta?.votecount != null ? String(meta.votecount) : '';
+      lengthMinutes = meta?.length_minutes != null ? String(meta.length_minutes) : '';
       description = meta?.description ?? '';
       developers = (meta?.developers ?? []).join(', ');
       tags = (meta?.tags ?? []).map((tag) => ({ ...tag }));
@@ -269,6 +275,7 @@
       released,
       rating,
       votecount,
+      lengthMinutes,
       description,
       coverPath,
       tags,
@@ -343,6 +350,7 @@
     released = next.released;
     rating = next.rating;
     votecount = next.votecount;
+    lengthMinutes = next.lengthMinutes;
     description = next.description;
     tags = next.tags;
     developers = next.developers;
@@ -380,7 +388,10 @@
   function validateRanges() {
     ratingError = ratingRejected(rating) ? t('gameForm.error.ratingRange') : '';
     votecountError = votecountRejected(votecount) ? t('gameForm.error.votecountRange') : '';
-    return ratingError || votecountError;
+    lengthMinutesError = lengthMinutesRejected(lengthMinutes)
+      ? t('gameForm.error.lengthMinutesRange')
+      : '';
+    return ratingError || votecountError || lengthMinutesError;
   }
 
   async function submit(e) {
@@ -411,6 +422,7 @@
       released,
       rating,
       votecount,
+      lengthMinutes,
       description,
       coverPath,
       tags,
@@ -675,6 +687,21 @@
             />
             {#if votecountError}
               <p class="form-hint form-hint--error">{votecountError}</p>
+            {/if}
+          </div>
+
+          <div class="form-group">
+            <label for="game-form-meta-length">{t('gameForm.field.length_minutes')}</label>
+            <input
+              id="game-form-meta-length"
+              type="text"
+              inputmode="numeric"
+              bind:value={lengthMinutes}
+              placeholder={t('gameForm.placeholder.lengthMinutes')}
+              disabled={saving}
+            />
+            {#if lengthMinutesError}
+              <p class="form-hint form-hint--error">{lengthMinutesError}</p>
             {/if}
           </div>
 

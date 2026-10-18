@@ -15,6 +15,14 @@ export function durationText(t, seconds) {
   return `${hours} ${t('common.unitHour')} ${rest} ${t('common.unitMinute')}`;
 }
 
+export function compactDuration(minutes) {
+  const value = Math.max(0, Math.floor(Number(minutes) || 0));
+  const hours = Math.floor(value / 60);
+  const rest = value % 60;
+  if (hours <= 0) return `${rest}m`;
+  return `${hours}h${pad(rest)}m`;
+}
+
 export function durationInput(seconds) {
   const total = Math.max(0, Math.floor(Number(seconds) || 0));
   if (total <= 0) return '';

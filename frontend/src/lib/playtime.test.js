@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { durationInput, durationText, parseDuration } from './playtime.js';
+import { compactDuration, durationInput, durationText, parseDuration } from './playtime.js';
 
 const t = (key) =>
   ({ 'common.unitHour': '小时', 'common.unitMinute': '分' })[key];
@@ -10,6 +10,15 @@ test('时长文案按分钟四舍五入', () => {
   expect(durationText(t, 34 * 60)).toBe('34 分');
   expect(durationText(t, 3600)).toBe('1 小时');
   expect(durationText(t, 12 * 3600 + 34 * 60 + 56)).toBe('12 小时 35 分');
+});
+
+test('紧凑时长小时进位带两位分钟，不足一小时为 m', () => {
+  expect(compactDuration(0)).toBe('0m');
+  expect(compactDuration(45)).toBe('45m');
+  expect(compactDuration(59)).toBe('59m');
+  expect(compactDuration(60)).toBe('1h00m');
+  expect(compactDuration(1820)).toBe('30h20m');
+  expect(compactDuration(1949.7)).toBe('32h29m');
 });
 
 test('输入框回填整秒不丢精度', () => {
