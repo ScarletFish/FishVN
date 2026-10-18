@@ -46,6 +46,7 @@ export const DICT_ZH = {
     actionPlay: '开始游戏',
     playNoInstall: '无启动文件',
     actionDelete: '删除',
+    deleted: '已删除',
     fewerTags: '收起',
     playtime: '游戏时长',
     characters: '角色',
@@ -90,7 +91,7 @@ export const DICT_ZH = {
   confirm: {
     deleteGame: {
       title: '删除作品',
-      message: '《{name}》将从列表中移除，游玩记录一并删除',
+      message: '《{name}》将从列表中移除，游玩记录一并删除；磁盘文件原样保留',
       confirm: '删除',
     },
   },

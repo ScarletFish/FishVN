@@ -6,6 +6,7 @@
   import { bbcodeParagraphs } from '../lib/vn-merge.js';
   import { openExternal } from '../lib/open-external.js';
   import { toast } from '../lib/toast.svelte.js';
+  import { confirm } from '../lib/confirm.svelte.js';
   import { compactDuration, durationText } from '../lib/playtime.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import GameForm from '../components/GameForm.svelte';
@@ -56,6 +57,19 @@
       api.listActiveSessions(),
     ]);
     applyState(state, active);
+  }
+
+  async function removeGame() {
+    menuOpen = false;
+    try {
+      const ok = await confirm('deleteGame', game?.name ?? '');
+      if (!ok) return;
+      await api.deleteGame(gameId);
+      toast(t('detail.deleted'));
+      onclose?.();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   }
 
   async function launch() {
@@ -283,7 +297,7 @@
                   formOpen = true;
                 },
               },
-              { label: t('detail.actionDelete'), onclick: () => {} },
+              { label: t('detail.actionDelete'), onclick: removeGame },
             ]}
           />
         </div>
