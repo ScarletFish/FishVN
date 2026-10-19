@@ -30,6 +30,12 @@
 
 DM Sans 以可变字体拉丁子集打包在 `assets/fonts/dm-sans-latin.woff2`（OFL 许可文本同目录存放），`fonts.css` 声明 `@font-face`，字重轴 100–1000 全覆盖，新字重直接取用。中文字符、斜体、扩展拉丁不在子集内，回落到字体栈里的系统字体。
 
+### 动画
+
+GSAP 与 ScrollTrigger 以 vendor 全局脚本加载（`public/vendor/gsap/`，`index.html` 在模块脚本之前引入）。动画代码全程判空 `globalThis.gsap`，脚本缺失时界面照常渲染，动画只是增强层；`prefers-reduced-motion: reduce` 时入场动画直接跳过。
+
+滚动入场（`lib/scroll-anim.js`）：区块 fade+rise、卡片按批 stagger，触发线在视口 92% 处、`once` 自毁；scroller 固定 `.shell__main`，它也是页面的唯一滚动容器。使用契约：视图持有一个实例，用数据签名 gate 驱动——`$effect` 里比较签名，变化后才 `tick().then(build)`，`build` 先 `kill` 旧 trigger 并清内联样式（防残留 `opacity: 0`），视图销毁时调 `kill()`。动画只动 transform 与 opacity。
+
 ### Token 引用规则
 
 - 颜色/间距/圆角/字重一律引用 token，**禁止写死值**；token 单点定义在 `tokens.css`，禁止在别处重新声明

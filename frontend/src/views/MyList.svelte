@@ -5,6 +5,7 @@
   import { getScrollViewport } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { pickDirectory, pickExecutable } from '../lib/pick-path.js';
+  import { createScrollAnim } from '../lib/scroll-anim.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
@@ -108,6 +109,28 @@
       items: filtered.filter((g) => g.status === status),
     })).filter((s) => s.items.length > 0)
   );
+
+  const scrollAnim = createScrollAnim();
+
+  const animSig = $derived(
+    loading || error || filtered.length === 0
+      ? null
+      : `${filter}|${filtered.map((g) => g.id).join(',')}`
+  );
+
+  $effect(() => {
+    const sig = animSig;
+    if (!sig) return;
+    tick().then(() => {
+      if (animSig !== sig) return;
+      scrollAnim.build({
+        sections: document.querySelectorAll('.mylist-section'),
+        cards: document.querySelectorAll('.cover-card'),
+      });
+    });
+  });
+
+  onDestroy(() => scrollAnim.kill());
 </script>
 
 <section class="view">
