@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 vi.mock('./env.js', () => ({ DEV_HTTP: true, DEV_HTTP_BASE: '/dev-http' }));
+vi.mock('./dev-backend.js', () => ({ ensureBackend: async () => {} }));
 
 class FakeEventSource {
   static instances = [];

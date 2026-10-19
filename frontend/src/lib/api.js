@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { DEV_HTTP, DEV_HTTP_BASE } from './env.js';
+import { ensureBackend } from './dev-backend.js';
 import { report } from './frontend-log.js';
 
 function toSnake(args) {
@@ -12,6 +13,7 @@ function toSnake(args) {
 }
 
 async function overHttp(command, args) {
+  await ensureBackend();
   const res = await fetch(`${DEV_HTTP_BASE}/${command}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

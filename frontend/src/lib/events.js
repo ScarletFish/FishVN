@@ -1,4 +1,5 @@
 import { DEV_HTTP, DEV_HTTP_BASE } from './env.js';
+import { ensureBackend } from './dev-backend.js';
 
 let source = null;
 let lastId = 0;
@@ -38,6 +39,7 @@ function detach(name, handler) {
 
 export async function subscribe(name, handler) {
   if (DEV_HTTP) {
+    await ensureBackend();
     attach(name, handler);
     if (!source) connect();
     return () => detach(name, handler);
