@@ -2,7 +2,7 @@
   import './lib/tooltip.js';
   import { t } from './lib/i18n.js';
   import { api } from './lib/api.js';
-  import { syncTheme } from './lib/theme.js';
+  import { syncTheme, syncAccent } from './lib/theme.js';
   import Sidebar from './components/Sidebar.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import Titlebar from './components/chrome/Titlebar.svelte';
@@ -15,7 +15,10 @@
   $effect(() => {
     api
       .getConfig()
-      .then((config) => syncTheme(config.theme))
+      .then((config) => {
+        syncTheme(config.theme);
+        syncAccent(config.accent);
+      })
       .catch(() => {});
   });
 

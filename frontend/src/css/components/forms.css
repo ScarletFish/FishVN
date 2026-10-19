@@ -332,3 +332,43 @@
   cursor: default;
   opacity: 0.45;
 }
+
+.accent-swatches {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.accent-swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.accent-swatch:hover {
+  transform: scale(1.12);
+}
+
+.accent-swatch:focus-visible {
+  outline: none;
+  border-color: var(--fg-default);
+}
+
+.accent-swatch.active {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+  transform: scale(1.12);
+}
+
+.accent-swatch[data-accent='default'] { background: var(--swatch-default); }
+.accent-swatch[data-accent='amber'] { background: var(--swatch-amber); }
+.accent-swatch[data-accent='ocean'] { background: var(--swatch-ocean); }
+.accent-swatch[data-accent='sakura'] { background: var(--swatch-sakura); }
+.accent-swatch[data-accent='emerald'] { background: var(--swatch-emerald); }
+.accent-swatch[data-accent='violet'] { background: var(--swatch-violet); }

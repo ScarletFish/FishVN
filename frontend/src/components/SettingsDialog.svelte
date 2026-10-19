@@ -1,6 +1,6 @@
 <script>
   import Modal from './Modal.svelte';
-  import { getTheme, toggleTheme } from '../lib/theme.js';
+  import { getTheme, toggleTheme, getAccent, setAccent, ACCENTS } from '../lib/theme.js';
   import { t } from '../lib/i18n.js';
   import { toast } from '../lib/toast.svelte.js';
   import { api } from '../lib/api.js';
@@ -9,11 +9,13 @@
 
   let tab = $state('appearance');
   let dark = $state(getTheme() === 'dark');
+  let accent = $state(getAccent());
   let timeMetric = $state('foreground');
 
   $effect(() => {
     if (!open) return;
     dark = getTheme() === 'dark';
+    accent = getAccent();
     api
       .getConfig()
       .then((config) => {
@@ -26,6 +28,14 @@
     dark = toggleTheme() === 'dark';
     api
       .updateConfig({ theme: dark ? 'dark' : 'light' })
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  function onAccentPick(name) {
+    if (name === accent) return;
+    accent = setAccent(name);
+    api
+      .updateConfig({ accent: name })
       .catch((err) => toast(err.message, 'error'));
   }
 
@@ -62,6 +72,25 @@
             <span class="toggle-slider"></span>
           </label>
           <span class="form-row-label">{t('settings.themeHint')}</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.accent')}</div>
+        <div class="accent-swatches" role="radiogroup" aria-label={t('settings.accent')}>
+          {#each ACCENTS as name (name)}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={accent === name}
+              aria-label={t('settings.accent_' + name)}
+              class="accent-swatch"
+              class:active={accent === name}
+              data-accent={name}
+              data-tooltip={t('settings.accent_' + name)}
+              onclick={() => onAccentPick(name)}
+            ></button>
+          {/each}
         </div>
       </div>
 

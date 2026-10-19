@@ -6,11 +6,15 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>FishVN</title>
     <script>
-      // 主题钩子。浅色是 tokens.css 的 :root 默认值，只需在深色时打标记。
-      // 当前写死浅色单主题开发；将来加切换器时写 localStorage['fishvn.theme']，此处无需改动。
+      // 首帧钩子：读 localStorage 打 data-theme / data-accent，赶在 CSS 与 JS 包之前，
+      // 避免包加载后深浅或色系闪变。浅色与绯红是默认值，不打属性。
       (() => {
         if (localStorage.getItem('fishvn.theme') === 'dark') {
           document.documentElement.dataset.theme = 'dark';
+        }
+        const accent = localStorage.getItem('fishvn.accent');
+        if (accent && accent !== 'default') {
+          document.documentElement.dataset.accent = accent;
         }
       })();
     </script>

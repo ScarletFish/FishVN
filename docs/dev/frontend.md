@@ -24,6 +24,12 @@
 
 浅色是 `:root` 默认值，深色在 `[data-theme="dark"]`。`index.html` 首帧前定 `data-theme`，无 `data-theme` 属性即浅色。
 
+强调色系是正交的第二轴：`[data-accent="…"]` 挂色系名（amber/ocean/sakura/emerald/violet），绯红是默认、不打属性。深浅由 `data-theme` 管、色系由 `data-accent` 管，任意组合；深色下的色系值用 `[data-theme="dark"][data-accent="…"]` 双属性选择器覆盖浅色值。`index.html` 首帧前同时定 `data-theme` 与 `data-accent`。新色系补齐 tokens.css 的三处：L1 原值（accent 族与配套 fg 族）、浅色与深色两个覆盖块、设置面板色块的 `--swatch-*`；faint/bg/border/selected 等派生槽引用 `--accent`，自动跟随。
+
+### 字体
+
+DM Sans 以可变字体拉丁子集打包在 `assets/fonts/dm-sans-latin.woff2`（OFL 许可文本同目录存放），`fonts.css` 声明 `@font-face`，字重轴 100–1000 全覆盖，新字重直接取用。中文字符、斜体、扩展拉丁不在子集内，回落到字体栈里的系统字体。
+
 ### Token 引用规则
 
 - 颜色/间距/圆角/字重一律引用 token，**禁止写死值**；token 单点定义在 `tokens.css`，禁止在别处重新声明

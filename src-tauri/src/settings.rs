@@ -23,18 +23,33 @@ pub enum Theme {
     Dark,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Accent {
+    #[default]
+    Default,
+    Amber,
+    Ocean,
+    Sakura,
+    Emerald,
+    Violet,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub time_metric: TimeMetric,
     #[serde(default)]
     pub theme: Theme,
+    #[serde(default)]
+    pub accent: Accent,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 pub struct ConfigPatch {
     pub time_metric: Option<TimeMetric>,
     pub theme: Option<Theme>,
+    pub accent: Option<Accent>,
 }
 
 static CACHE: OnceLock<RwLock<Option<AppConfig>>> = OnceLock::new();
@@ -74,6 +89,9 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     if let Some(value) = patch.theme {
         config.theme = value;
     }
+    if let Some(value) = patch.accent {
+        config.accent = value;
+    }
     update(dir, config)?;
     Ok(current())
 }
@@ -110,18 +128,22 @@ mod tests {
             AppConfig {
                 time_metric: TimeMetric::Alive,
                 theme: Theme::Dark,
+                accent: Accent::Ocean,
             },
         )
         .unwrap();
         assert_eq!(current().time_metric, TimeMetric::Alive);
         assert_eq!(current().theme, Theme::Dark);
+        assert_eq!(current().accent, Accent::Ocean);
 
         init(tmp.path());
         assert_eq!(current().time_metric, TimeMetric::Alive);
         assert_eq!(current().theme, Theme::Dark);
+        assert_eq!(current().accent, Accent::Ocean);
         let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
         assert!(text.contains("\"alive\""));
         assert!(text.contains("\"dark\""));
+        assert!(text.contains("\"ocean\""));
     }
 
     #[test]
@@ -133,6 +155,7 @@ mod tests {
             AppConfig {
                 time_metric: TimeMetric::Alive,
                 theme: Theme::Dark,
+                accent: Accent::Default,
             },
         )
         .unwrap();
@@ -142,12 +165,14 @@ mod tests {
             ConfigPatch {
                 time_metric: None,
                 theme: Some(Theme::Light),
+                accent: Some(Accent::Amber),
             },
         )
         .unwrap();
 
         assert_eq!(config.time_metric, TimeMetric::Alive);
         assert_eq!(config.theme, Theme::Light);
+        assert_eq!(config.accent, Accent::Amber);
         assert_eq!(current().time_metric, TimeMetric::Alive);
     }
 

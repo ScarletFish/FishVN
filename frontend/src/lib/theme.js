@@ -1,4 +1,7 @@
 const KEY = 'fishvn.theme';
+const ACCENT_KEY = 'fishvn.accent';
+
+export const ACCENTS = ['default', 'amber', 'ocean', 'sakura', 'emerald', 'violet'];
 
 function isDark() {
   return document.documentElement.dataset.theme === 'dark';
@@ -7,6 +10,14 @@ function isDark() {
 function paint(dark) {
   if (dark) document.documentElement.dataset.theme = 'dark';
   else delete document.documentElement.dataset.theme;
+}
+
+function paintAccent(accent) {
+  if (ACCENTS.includes(accent) && accent !== 'default') {
+    document.documentElement.dataset.accent = accent;
+  } else {
+    delete document.documentElement.dataset.accent;
+  }
 }
 
 export function getTheme() {
@@ -30,4 +41,21 @@ export function syncTheme(theme) {
   if (isDark() === dark && localStorage.getItem(KEY) === theme) return;
   paint(dark);
   localStorage.setItem(KEY, theme);
+}
+
+export function getAccent() {
+  return document.documentElement.dataset.accent || 'default';
+}
+
+export function setAccent(accent) {
+  paintAccent(accent);
+  localStorage.setItem(ACCENT_KEY, accent);
+  return getAccent();
+}
+
+export function syncAccent(accent) {
+  const valid = ACCENTS.includes(accent) ? accent : 'default';
+  if (getAccent() === valid && localStorage.getItem(ACCENT_KEY) === valid) return;
+  paintAccent(valid);
+  localStorage.setItem(ACCENT_KEY, valid);
 }
