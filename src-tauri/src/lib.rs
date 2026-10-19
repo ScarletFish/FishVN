@@ -7,6 +7,7 @@ pub mod error;
 pub mod fsinfo;
 pub mod games;
 pub mod installations;
+pub mod inspect;
 pub mod metadata;
 pub mod sessions;
 pub mod settings;

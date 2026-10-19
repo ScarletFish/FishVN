@@ -9,6 +9,8 @@ use crate::db;
 use crate::error::{AppError, Result};
 use crate::games;
 use crate::installations;
+use crate::inspect;
+use crate::inspect::{PathInspect, ScanCandidate};
 use crate::metadata;
 use crate::sessions;
 use crate::settings::{self, AppConfig, ConfigPatch};
@@ -193,6 +195,50 @@ pub async fn fetch_vn_metadata(
 #[tauri::command]
 pub fn cancel_task(tasks: State<'_, Arc<Tasks>>, task: String) -> bool {
     tasks.cancel(&task)
+}
+
+#[tauri::command]
+pub async fn inspect_path(path: String) -> Result<PathInspect> {
+    tauri::async_runtime::spawn_blocking(move || inspect::inspect(&path))
+        .await
+        .map_err(|e| AppError::Upstream(format!("识别任务失败：{e}")))?
+}
+
+pub const SCAN: &str = "scan";
+
+#[tauri::command]
+pub async fn scan_dir(
+    app: tauri::AppHandle,
+    shared: State<'_, Arc<Mutex<Connection>>>,
+    tasks: State<'_, Arc<Tasks>>,
+    log: State<'_, Arc<Mutex<EventLog>>>,
+    path: String,
+) -> Result<Vec<ScanCandidate>> {
+    let task = Task::new(SCAN, app, log.inner().clone(), tasks.register(SCAN));
+    let conn = shared.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let started = std::time::Instant::now();
+        log::info!("目录扫描开始 {path}");
+        let registered = {
+            let guard = db::lock(&conn)?;
+            installations::registered_dirs(&guard)?
+        };
+        let result = inspect::scan_root(&path, &registered, &task);
+        match &result {
+            Ok(found) => log::info!(
+                "目录扫描完成 {path}：{} 个候选，{} ms",
+                found.len(),
+                started.elapsed().as_millis()
+            ),
+            Err(AppError::Cancelled) => {
+                log::info!("目录扫描取消 {path}：{} ms", started.elapsed().as_millis())
+            }
+            Err(e) => log::warn!("目录扫描失败 {path}：{e}"),
+        }
+        result
+    })
+    .await
+    .map_err(|e| AppError::Upstream(format!("扫描任务失败：{e}")))?
 }
 
 const FRONTEND_LOG_MAX_CHARS: usize = 2000;

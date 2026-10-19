@@ -211,6 +211,42 @@ async fn cancel_task(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Rep
     finish(a.task().map(|name| dev.tasks.cancel(name)))
 }
 
+async fn inspect_path(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let path = a.path().map(str::to_owned);
+    let result = tokio::task::spawn_blocking(move || {
+        path.and_then(|p| crate::inspect::inspect(&p))
+    })
+    .await
+    .unwrap_or_else(|e| Err(AppError::Upstream(format!("识别任务失败：{e}"))));
+    finish(result)
+}
+
+async fn scan_dir(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let path = match a.path() {
+        Ok(p) => p.to_owned(),
+        Err(e) => return Err(Fail(StatusCode::BAD_REQUEST, e.to_string())),
+    };
+    let task = Task::new(
+        commands::SCAN,
+        dev.app.clone(),
+        dev.events.clone(),
+        dev.tasks.register(commands::SCAN),
+    );
+    let registered = {
+        let guard = dev.conn.lock().unwrap_or_else(|poison| poison.into_inner());
+        match installations::registered_dirs(&guard) {
+            Ok(set) => set,
+            Err(e) => return Err(Fail(StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+        }
+    };
+    let result = tokio::task::spawn_blocking(move || {
+        crate::inspect::scan_root(&path, &registered, &task)
+    })
+    .await
+    .unwrap_or_else(|e| Err(AppError::Upstream(format!("扫描任务失败：{e}"))));
+    finish(result)
+}
+
 #[derive(Deserialize)]
 struct SinceQuery {
     since: Option<u64>,
@@ -324,6 +360,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/search_vndb", post(search_vndb))
         .route("/fetch_vn_metadata", post(fetch_vn_metadata))
         .route("/cancel_task", post(cancel_task))
+        .route("/inspect_path", post(inspect_path))
+        .route("/scan_dir", post(scan_dir))
         .route("/allow_local_file", post(allow_local_file))
         .route("/thumbnail", post(thumbnail))
         .route("/get_config", post(get_config))
@@ -355,6 +393,8 @@ pub const COMMANDS: &[&str] = &[
     "search_vndb",
     "fetch_vn_metadata",
     "cancel_task",
+    "inspect_path",
+    "scan_dir",
     "allow_local_file",
     "thumbnail",
     "get_config",

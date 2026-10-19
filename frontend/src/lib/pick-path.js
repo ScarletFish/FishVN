@@ -14,12 +14,13 @@ export async function pickDirectory(title) {
   return picked ?? null;
 }
 
-export async function pickExecutable(title) {
+export async function pickExecutable(title, defaultPath = null) {
   guard();
   const picked = await open({
     directory: false,
     multiple: false,
     title,
+    defaultPath: defaultPath ?? undefined,
     filters: [{ name: '可执行文件', extensions: EXEC_EXT }],
   });
   return picked ?? null;

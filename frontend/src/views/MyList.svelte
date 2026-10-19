@@ -3,9 +3,13 @@
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { getScrollViewport } from '../lib/scrollbars.js';
+  import { toast } from '../lib/toast.svelte.js';
+  import { pickDirectory, pickExecutable } from '../lib/pick-path.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
+  import Menu from '../components/Menu.svelte';
+  import ScanAddDialog from '../components/ScanAddDialog.svelte';
 
   let { onopen, scroll = 0, onscroll } = $props();
 
@@ -17,10 +21,42 @@
   let error = $state(null);
   let formOpen = $state(false);
   let formGameId = $state(null);
+  let prefill = $state(null);
+  let addMenuOpen = $state(false);
+  let scanOpen = $state(false);
+  let scanPath = $state('');
 
   function openForm(id) {
+    prefill = null;
     formGameId = id;
     formOpen = true;
+  }
+
+  async function addFromFile() {
+    const picked = await pickExecutable(t('mylist.pickExecutable'));
+    if (!picked) return;
+    await openPrefilled(picked);
+  }
+
+  async function addFromScan() {
+    const dir = await pickDirectory(t('mylist.pickDirectory'));
+    if (!dir) return;
+    scanPath = dir;
+    scanOpen = true;
+  }
+
+  async function openPrefilled(path) {
+    try {
+      const info = await api.inspectPath(path);
+      prefill = {
+        name: info.name,
+        installations: [{ dir_path: info.dir_path, entry_path: info.entry_path ?? '' }],
+      };
+      formGameId = null;
+      formOpen = true;
+    } catch (e) {
+      toast(e.message, 'error');
+    }
   }
 
   async function load() {
@@ -95,18 +131,35 @@
   <header class="view-header">
     <h1>{t('mylist.title')}</h1>
     <div class="view-header-right">
-      <button
-        type="button"
-        class="mylist-add"
-        onclick={() => openForm(null)}
-        aria-label={t('mylist.add')}
-        data-tooltip={t('mylist.add')}
+      <Menu
+        bind:open={addMenuOpen}
+        label={t('mylist.add')}
+        items={[
+          { label: t('mylist.addManual'), onclick: () => openForm(null) },
+          { label: t('mylist.addFromFile'), onclick: addFromFile },
+          { label: t('mylist.addScan'), onclick: addFromScan },
+        ]}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </button>
+        {#snippet trigger()}
+          <button
+            type="button"
+            class="mylist-add"
+            aria-haspopup="menu"
+            aria-expanded={addMenuOpen}
+            aria-label={t('mylist.add')}
+            data-tooltip={t('mylist.add')}
+            onclick={() => (addMenuOpen = !addMenuOpen)}
+            onblur={(e) => {
+              if (!e.currentTarget.parentElement.contains(e.relatedTarget)) addMenuOpen = false;
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        {/snippet}
+      </Menu>
     </div>
   </header>
 
@@ -139,4 +192,6 @@
   {/if}
 </section>
 
-<GameForm bind:open={formOpen} bind:gameId={formGameId} onsaved={load} />
+<GameForm bind:open={formOpen} bind:gameId={formGameId} onsaved={load} prefill={prefill} />
+
+<ScanAddDialog bind:open={scanOpen} path={scanPath} ondone={load} />

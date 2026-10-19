@@ -427,6 +427,12 @@ fn game_exists(conn: &Connection, id: &str) -> Result<bool> {
     Ok(found.is_some())
 }
 
+pub fn registered_dirs(conn: &Connection) -> Result<HashSet<String>> {
+    let mut stmt = conn.prepare("SELECT dir_path FROM installations")?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    Ok(rows.flatten().map(|p| p.to_ascii_lowercase()).collect())
+}
+
 fn read_row(row: &Row<'_>) -> rusqlite::Result<InstallRow> {
     Ok(InstallRow {
         id: row.get("id")?,

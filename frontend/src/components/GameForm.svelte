@@ -36,7 +36,13 @@
   import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
 
-  let { open = $bindable(false), gameId = $bindable(null), onsaved, initialTab = 'basic' } = $props();
+  let {
+    open = $bindable(false),
+    gameId = $bindable(null),
+    onsaved,
+    initialTab = 'basic',
+    prefill = null,
+  } = $props();
 
   const TABS = ['basic', 'profile', 'tags', 'staff', 'installations', 'characters'];
 
@@ -142,7 +148,14 @@
     syncNotice = '';
     search.reset();
     loading = Boolean(gameId);
-    if (gameId) loadExisting(gameId);
+    if (gameId) {
+      loadExisting(gameId);
+    } else if (prefill) {
+      name = prefill.name;
+      const drafts = prefill.installations.map(toInstallationDraft);
+      installations = drafts;
+      defaultInstallKey = drafts[0]?.key ?? null;
+    }
     tick().then(() => input?.focus());
   });
 

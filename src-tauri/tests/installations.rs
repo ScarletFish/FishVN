@@ -94,15 +94,11 @@ fn 建安装时读目录填入候选入口与大小() {
     .expect("建安装失败");
 
     assert_eq!(inst.game_id.as_deref(), Some(game_id.as_str()));
-    // 层数浅的在前：两个顶层 exe，再是嵌套的
+    // 层数浅的在前；setup.exe 属安装器，不进候选但计入大小
     assert_eq!(
         inst.exes,
-        Some(vec![
-            "game.exe".to_owned(),
-            "setup.exe".to_owned(),
-            "data/nested.exe".to_owned()
-        ]),
-        "候选入口要按层数排序"
+        Some(vec!["game.exe".to_owned(), "data/nested.exe".to_owned()]),
+        "候选入口按层数排序，安装器类文件排除"
     );
     assert_eq!(inst.size_bytes, Some(4 + 2 + 8 + 1), "大小要累加全部深度");
     assert_eq!(inst.entry_path, None, "候选不止一个时入口留空");

@@ -114,6 +114,8 @@ fn main() {
             commands::thumbnail,
             commands::get_config,
             commands::update_config,
+            commands::inspect_path,
+            commands::scan_dir,
             commands::log_frontend,
         ])
         .run(tauri::generate_context!())

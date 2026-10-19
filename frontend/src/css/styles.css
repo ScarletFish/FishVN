@@ -25,5 +25,6 @@
 @import "./components/hscroll.css";
 @import "./components/scroll-dots.css";
 @import "./components/vn-merge.css";
+@import "./components/scan.css";
 @import "./views/mylist.css";
 @import "./views/detail.css";
