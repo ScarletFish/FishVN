@@ -12,12 +12,18 @@ let current = null;
 
 document.addEventListener('mouseover', (e) => {
   const target = e.target.closest('[data-tooltip]');
-  if (!target || target === current) return;
+  if (target === current) return;
 
   clearTimeout(showTimer);
   clearTimeout(hideTimer);
-  current = target;
+  if (current && !current.isConnected) {
+    current = null;
+    el.classList.add('is-exiting');
+    el.classList.remove('is-visible');
+  }
+  if (!target) return;
 
+  current = target;
   const entryX = e.clientX;
   const entryY = e.clientY;
 

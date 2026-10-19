@@ -31,6 +31,8 @@ export const DICT_ZH = {
     statPlayCount: '游玩次数',
     comingSoon: '这个模块还没有内容',
     error: '读取统计数据失败',
+    continueOpen: '查看详情',
+    continueStart: '启动游戏',
   },
   mylist: {
     title: '我的列表',

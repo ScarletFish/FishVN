@@ -3,6 +3,9 @@
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { durationText } from '../lib/playtime.js';
+  import { coverSrc } from '../lib/cover-src.js';
+  import { initScrollDots } from '../lib/scroll-dots.svelte.js';
+  import { captureHero } from '../lib/hero-transition.js';
   import { DASHBOARD_MODULES } from '../lib/dashboard-layout.js';
   import { CONFIG_CHANGED } from '../lib/config-events.js';
 
@@ -10,19 +13,33 @@
 
   let layout = $state([]);
   let stats = $state(null);
+  let recent = $state([]);
+  let covers = $state({});
   let loading = $state(true);
   let error = $state(null);
+  let scrollEl = $state(null);
+  let headEl = $state(null);
 
   const moduleLabel = (id) => {
     const known = DASHBOARD_MODULES.find((m) => m.id === id);
     return known ? t(known.label) : id;
   };
 
+  function continueOpen(item, card) {
+    captureHero(card, { frame: 'self', bg: '.continue-bg', aspect: 3 / 4 });
+    onopen(item.id, true);
+  }
+
   async function load() {
     try {
-      const [config, value] = await Promise.all([api.getConfig(), api.dashboardStats()]);
+      const [config, value, items] = await Promise.all([
+        api.getConfig(),
+        api.dashboardStats(),
+        api.dashboardRecent().catch(() => []),
+      ]);
       layout = config.dashboard_layout;
       stats = value;
+      recent = items;
       error = null;
     } catch (e) {
       error = e.message;
@@ -31,6 +48,22 @@
     }
     window.dispatchEvent(new CustomEvent('app:ready'));
   }
+
+  $effect(() => {
+    for (const item of recent) {
+      if (!item.cover_path || covers[item.id]) continue;
+      coverSrc(item.cover_path)
+        .then((url) => {
+          if (url) covers = { ...covers, [item.id]: url };
+        })
+        .catch(() => {});
+    }
+  });
+
+  $effect(() => {
+    if (!scrollEl || !headEl || recent.length === 0) return;
+    return initScrollDots({ scroll: scrollEl, total: recent.length, dotsParent: headEl });
+  });
 
   onMount(() => {
     load();
@@ -50,7 +83,52 @@
     <p class="dashboard-note">{t('dashboard.error')}</p>
   {:else}
     {#each layout as module (module.id)}
-      {#if module.enabled && module.id === 'stats' && stats}
+      {#if module.enabled && module.id === 'continue_play' && recent.length > 0}
+        <div class="dashboard-section">
+          <div class="continue-head" bind:this={headEl}>
+            <span class="dashboard-section-title">{moduleLabel(module.id)}</span>
+          </div>
+          <div class="hscroll-section continue-scroll" bind:this={scrollEl}>
+            {#each recent as item (item.id)}
+              <div
+                class="hscroll-card continue-card"
+                role="button"
+                tabindex="0"
+                onclick={(e) => continueOpen(item, e.currentTarget)}
+                onkeydown={(e) => e.key === 'Enter' && continueOpen(item, e.currentTarget)}
+              >
+                {#if covers[item.id]}
+                  <div class="continue-bg" style:background-image={`url(${covers[item.id]})`}></div>
+                {:else}
+                  <div class="continue-ph">{item.name.charAt(0)}</div>
+                {/if}
+                <div class="continue-overlay"></div>
+                <div class="continue-content">
+                  <span class="continue-eyebrow">{moduleLabel(module.id)}</span>
+                  <span class="continue-title">{item.name}</span>
+                </div>
+                {#if item.play_seconds > 0}
+                  <span class="continue-meta">{durationText(t, item.play_seconds)}</span>
+                {/if}
+                <button
+                  type="button"
+                  class="continue-play"
+                  data-tooltip={t('dashboard.continueStart')}
+                  aria-label={t('dashboard.continueStart')}
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    continueOpen(item, e.currentTarget.closest('.continue-card'));
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"
+                    ><path d="M8 5.5v13l11-6.5z"></path></svg
+                  >
+                </button>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {:else if module.enabled && module.id === 'stats' && stats}
         <div class="dashboard-section">
           <div class="dashboard-stats">
             <div class="dashboard-stat">
@@ -86,11 +164,6 @@
               <span>{t('dashboard.statPlayCount')}</span>
             </div>
           </div>
-        </div>
-      {:else if module.enabled && module.id === 'continue_play'}
-        <div class="dashboard-section">
-          <div class="dashboard-section-title">{moduleLabel(module.id)}</div>
-          <p class="dashboard-note">{t('dashboard.comingSoon')}</p>
         </div>
       {/if}
     {/each}

@@ -52,12 +52,26 @@
 
   let current = $state('home');
   let detailId = $state(null);
+  let autoLaunch = $state(false);
   let detailTitle = $state('');
   let listScroll = $state(0);
+  let prevCurrent = current;
+
+  function openDetail(id, autostart = false) {
+    detailId = id;
+    autoLaunch = autostart;
+  }
+
+  function closeDetail() {
+    detailId = null;
+    autoLaunch = false;
+  }
 
   $effect(() => {
-    current;
-    if (detailId !== null && current !== 'mylist') detailId = null;
+    if (current !== prevCurrent) {
+      prevCurrent = current;
+      closeDetail();
+    }
   });
 
   $effect(() => {
@@ -74,7 +88,7 @@
   <Titlebar
     mode={detailId !== null ? 'detail' : 'default'}
     title={detailTitle}
-    onback={() => (detailId = null)}
+    onback={closeDetail}
     onsettings={() => (settingsOpen = true)}
   />
 
@@ -85,14 +99,15 @@
       {#if detailId !== null}
         <Detail
           gameId={detailId}
+          autostart={autoLaunch}
           onname={(name) => (detailTitle = name ?? '')}
-          onclose={() => (detailId = null)}
+          onclose={closeDetail}
         />
       {:else if current === 'home'}
-        <Dashboard onopen={(id) => (detailId = id)} />
+        <Dashboard onopen={openDetail} />
       {:else if current === 'mylist'}
         <MyList
-          onopen={(id) => (detailId = id)}
+          onopen={(id) => openDetail(id)}
           scroll={listScroll}
           onscroll={(top) => (listScroll = top)}
         />

@@ -136,6 +136,10 @@ handler!(dashboard_stats, |c, _a| {
     let week_start = crate::now() - 7 * 24 * 3600;
     dashboard::stats(c, config.time_metric, week_start)
 });
+handler!(dashboard_recent, |c, _a| {
+    let config = settings::current();
+    dashboard::recent(c, config.time_metric, 6)
+});
 handler!(get_game, |c, a| games::get_game(c, a.id()?));
 handler!(create_game, |c, a| games::create_game(
     c,
@@ -345,6 +349,7 @@ pub fn router(dev: Dev) -> Router {
     Router::new()
         .route("/list_games", post(list_games))
         .route("/dashboard_stats", post(dashboard_stats))
+        .route("/dashboard_recent", post(dashboard_recent))
         .route("/get_game", post(get_game))
         .route("/create_game", post(create_game))
         .route("/update_game", post(update_game))
@@ -379,6 +384,7 @@ pub fn router(dev: Dev) -> Router {
 pub const COMMANDS: &[&str] = &[
     "list_games",
     "dashboard_stats",
+    "dashboard_recent",
     "get_game",
     "create_game",
     "update_game",

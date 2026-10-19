@@ -34,6 +34,7 @@ async function call(command, args) {
 export const api = {
   listGames: () => call('list_games'),
   dashboardStats: () => call('dashboard_stats'),
+  dashboardRecent: () => call('dashboard_recent'),
   getGame: (id) => call('get_game', { id }),
   createGame: (input) => call('create_game', { input }),
   updateGame: (id, patch) => call('update_game', { id, patch }),

@@ -5,7 +5,7 @@ use rusqlite::Connection;
 use tauri::{Manager, State};
 
 use crate::characters;
-use crate::dashboard::{self, DashboardStats};
+use crate::dashboard::{self, DashboardStats, RecentPlay};
 use crate::db;
 use crate::error::{AppError, Result};
 use crate::games;
@@ -41,6 +41,12 @@ pub fn dashboard_stats(shared: Shared<'_>) -> Result<DashboardStats> {
     let config = settings::current();
     let week_start = crate::now() - 7 * 24 * 3600;
     dashboard::stats(&*lock(&shared)?, config.time_metric, week_start)
+}
+
+#[tauri::command]
+pub fn dashboard_recent(shared: Shared<'_>) -> Result<Vec<RecentPlay>> {
+    let config = settings::current();
+    dashboard::recent(&*lock(&shared)?, config.time_metric, 6)
 }
 
 #[tauri::command]

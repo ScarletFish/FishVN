@@ -15,7 +15,7 @@
   import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
 
-  let { gameId, onname, onclose } = $props();
+  let { gameId, onname, onclose, autostart = false } = $props();
 
   let game = $state(null);
   let meta = $state(null);
@@ -88,6 +88,15 @@
       launching = false;
     }
   }
+
+  let autostartDone = $state(false);
+
+  $effect(() => {
+    if (!autostart || autostartDone) return;
+    if (loading || failed || !game || !canLaunch || running || launching) return;
+    autostartDone = true;
+    launch();
+  });
 
   const TAGS_PREVIEW = 8;
   let tagsExpanded = $state(false);

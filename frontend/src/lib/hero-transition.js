@@ -1,17 +1,41 @@
 let pending = null;
 
-export function captureHero(sourceEl) {
+function bgSrc(el) {
+  const bg = el && getComputedStyle(el).backgroundImage;
+  const m = bg && bg.match(/url\(["']?([^"')]+)["']?\)/);
+  return m ? m[1] : null;
+}
+
+export function captureHero(sourceEl, opts = {}) {
   const gsap = globalThis.gsap;
   if (!gsap) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const img = sourceEl?.querySelector('.cover-card__media img');
-  if (!img || !img.complete || img.naturalWidth === 0) return;
-  const box = sourceEl.querySelector('.cover-card__frame') || img;
-  const rect = box.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
+  const img = sourceEl?.querySelector(opts.img ?? '.cover-card__media img');
+  if (img && (!img.complete || img.naturalWidth === 0)) return;
+  const bgEl = img ? null : sourceEl?.querySelector(opts.bg ?? '.continue-bg');
+  const src = img ? img.currentSrc || img.src : bgSrc(bgEl);
+  if (!src) return;
+  const frameEl =
+    opts.frame === 'self'
+      ? sourceEl
+      : opts.frame
+        ? sourceEl.querySelector(opts.frame)
+        : sourceEl.querySelector('.cover-card__frame');
+  const box = frameEl || img || bgEl;
+  if (!box) return;
+  let { left, top, width, height } = box.getBoundingClientRect();
+  if (!width || !height) return;
+  if (opts.aspect) {
+    const w = Math.min(width, height * opts.aspect);
+    const h = w / opts.aspect;
+    left += (width - w) / 2;
+    top += (height - h) / 2;
+    width = w;
+    height = h;
+  }
   pending = {
-    src: img.currentSrc || img.src,
-    rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+    src,
+    rect: { left, top, width, height },
   };
 }
 

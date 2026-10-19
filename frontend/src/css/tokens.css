@@ -168,6 +168,9 @@ body {
   --accent-faint: color-mix(in srgb, var(--accent) 6%, transparent);
   --accent-bg: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 25%, transparent);
+  /* 压在暗色遮罩（封面/场景卡）上的强调色文字：浅色主题的 --accent-soft 是深色变体，
+     暗上叠暗会看不清，用白混淡 accent 保留色相并随色系自动跟随 */
+  --accent-on-image: color-mix(in srgb, var(--accent) 40%, var(--ink-white) 60%);
 
   /* 状态色。语义色不分主题，两个主题同值 */
   --success: var(--green-500);
@@ -183,6 +186,15 @@ body {
 
   /* 封面文字的压暗渐变；两个主题都用暗色，封面本身明度不定 */
   --cover-scrim: linear-gradient(transparent 20%, color-mix(in srgb, var(--ink-black) 88%, transparent) 80%);
+
+  /* 场景卡（封面满铺的横滚卡）的斜向压暗渐变与图上次级文字；两个主题都用暗色，底下是封面图 */
+  --scene-scrim: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ink-black) 82%, transparent) 15%,
+    color-mix(in srgb, var(--ink-black) 42%, transparent) 55%,
+    color-mix(in srgb, var(--ink-black) 66%, transparent) 100%
+  );
+  --fg-on-image: color-mix(in srgb, var(--ink-white) 78%, transparent);
 
   /* 滚动条手柄；由 components/scrollbars.css 喂给 overlayscrollbars */
   --scrollbar-thumb: color-mix(in srgb, var(--fg-muted) 45%, transparent);
@@ -217,6 +229,8 @@ body {
   --accent-gradient: linear-gradient(135deg, var(--red-600), var(--red-400));
   --accent-bg: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 16%, transparent);
+  /* 深色主题的 --accent-soft 已是浅色变体，直接沿用 */
+  --accent-on-image: var(--accent-soft);
 
   --border-default: color-mix(in srgb, var(--ink-white) 12%, transparent);
   --border-strong: color-mix(in srgb, var(--ink-white) 22%, transparent);

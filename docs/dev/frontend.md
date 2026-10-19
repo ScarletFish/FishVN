@@ -117,6 +117,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 分页滚动由一条契约贯穿 JS 与 CSS：容器上写 `--card-w`（基准卡宽）与 `--cols`（整数列数），`lib/scroll-dots.svelte.js` 按基准卡宽与容器宽算出列数写回 `--cols`，CSS 据此把容器宽均分成 `--cols` 份，每屏恰好整数张完整卡片、铺满无空隙。两侧只要不同源，圆点数就会对不上实际能放几张。
 
 - 基准卡宽是档位门槛，不是实际渲染宽：各分区按需覆盖 `--card-w`，渲染宽由均分结果决定
+- `--card-w` 只写 px：JS 用 `parseFloat` 读取该值，`20rem` 会被截断成 20，列数暴涨、卡片塌缩
 - 不量测任何渲染尺寸：容器隐藏后再显示不影响结果，窗口尺寸一变即重算
 - 圆点数要算上末尾那张添加卡，漏计会让最后一屏跳不过去
 - 展开态只换配色：动尺寸会触发分页重算，卡宽与 `--cols` 会在一帧里塌缩
@@ -132,7 +133,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - **`Menu`**：关闭判定等焦点整个移出菜单 —— 点菜单项时 `blur` 先于 `click` 触发。
 - **`SelectDd`**：下拉选择的唯一入口，选项以 `{ value, label }` 数组传入，开合状态由调用方持有（`open` + `onopenchange`），同一表单内多处下拉互斥靠调用方比较存的是「哪一处开着」。浮层随组件文档流定位，宿主容器不要再套 `overflow` 滚动，长列表交给面板级滚动。
 - **`DetailSection`**：详情页分区的统一外壳（卡片 + 标题 + 计数 + 内边距）。`.section-card` 基类只有背景与边框，内边距由外壳统一给出；新增详情分区直接用组件，自己拼 `section.section-card` 会让标题与相邻分区错位。
-- **`tooltip.js` / `side-tip.js`**：`data-tooltip` 的全局气泡替代原生 `title`；`sideTip` 是面向侧栏的变体，定位与外观不同，两者并存互不干扰。
+- **`tooltip.js` / `side-tip.js`**：`data-tooltip` 的全局气泡替代原生 `title`；`sideTip` 是面向侧栏的变体，定位与外观不同，两者并存互不干扰。提示源被移除（切页、关弹窗）后浏览器不再对它发 `mouseout`，收尾由下一次 `mouseover` 探测 `isConnected` 完成；新增移除提示源的场景不需要额外清理。
 - **`events.js` 的 devhttp 订阅**：共享一条 EventSource，后端重启窗口期代理会以错误状态码应答，EventSource 因此进入 CLOSED 终态；`onerror` 里销毁并按 1 秒间隔重建，重挂全部监听，重建地址带 `?since=` 续传已收到的最大事件 id，避免重放旧事件。
 - **错误文案**：后端与网络错误不走 i18n，原样显示。
 - **`theme.js`**：首帧由 `index.html` 的内联脚本定，运行时切换只在 `theme.js`；两边判断必须一致 —— 深色加 `data-theme` 属性、其余删属性，不往 `localStorage` 写 `'light'`。
