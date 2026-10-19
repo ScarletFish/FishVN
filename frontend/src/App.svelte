@@ -55,7 +55,6 @@
   let autoLaunch = $state(false);
   let detailTitle = $state('');
   let listScroll = $state(0);
-  let prevCurrent = current;
 
   function openDetail(id, autostart = false) {
     detailId = id;
@@ -66,13 +65,6 @@
     detailId = null;
     autoLaunch = false;
   }
-
-  $effect(() => {
-    if (current !== prevCurrent) {
-      prevCurrent = current;
-      closeDetail();
-    }
-  });
 
   $effect(() => {
     function onOpenGame(e) {
@@ -93,7 +85,7 @@
   />
 
   <div class="shell__body">
-    <Sidebar items={NAV} bottom={BOTTOM} bind:current />
+    <Sidebar items={NAV} bottom={BOTTOM} bind:current onnavigate={closeDetail} />
 
     <main class="shell__main" data-overlayscrollbars-initialize>
       {#if detailId !== null}

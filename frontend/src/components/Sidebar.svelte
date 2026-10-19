@@ -2,7 +2,7 @@
   import BrandMark from './BrandMark.svelte';
   import { sideTip } from '../lib/side-tip.js';
 
-  let { items = [], bottom = [], current = $bindable() } = $props();
+  let { items = [], bottom = [], current = $bindable(), onnavigate } = $props();
 </script>
 
 <aside class="sidebar">
@@ -21,7 +21,10 @@
         aria-label={item.label}
         aria-current={current === item.id ? 'page' : undefined}
         use:sideTip
-        onclick={() => (current = item.id)}
+        onclick={() => {
+          current = item.id;
+          onnavigate?.();
+        }}
       >
         {@html item.icon}
       </button>
