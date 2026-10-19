@@ -33,7 +33,7 @@
   ]);
 </script>
 
-<div class="cover-card">
+<div class="cover-card" data-game-id={item.id}>
   <div class="cover-card__frame">
     <div class="cover-card__media">
       {#if coverUrl && !coverBroken}

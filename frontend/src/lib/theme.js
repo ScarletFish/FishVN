@@ -24,9 +24,17 @@ export function getTheme() {
   return isDark() ? 'dark' : 'light';
 }
 
+function withViewTransition(update) {
+  if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.startViewTransition(update);
+  } else {
+    update();
+  }
+}
+
 export function setTheme(theme) {
   const dark = theme === 'dark';
-  paint(dark);
+  withViewTransition(() => paint(dark));
   localStorage.setItem(KEY, theme);
 }
 
@@ -48,7 +56,7 @@ export function getAccent() {
 }
 
 export function setAccent(accent) {
-  paintAccent(accent);
+  withViewTransition(() => paintAccent(accent));
   localStorage.setItem(ACCENT_KEY, accent);
   return getAccent();
 }

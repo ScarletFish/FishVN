@@ -1,4 +1,5 @@
 <script>
+  import { tick } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { coverSrc } from '../lib/cover-src.js';
@@ -8,6 +9,7 @@
   import { toast } from '../lib/toast.svelte.js';
   import { confirm } from '../lib/confirm.svelte.js';
   import { compactDuration, durationText } from '../lib/playtime.js';
+  import { playHero, discardHero } from '../lib/hero-transition.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import DetailStaff from './DetailStaff.svelte';
   import GameForm from '../components/GameForm.svelte';
@@ -171,6 +173,17 @@
       refreshPlay().catch(() => {});
     }, POLL_MS);
     return () => clearInterval(timer);
+  });
+
+  $effect(() => {
+    if (loading) return;
+    if (failed || !game || coverBroken) {
+      discardHero();
+      return;
+    }
+    tick().then(() => {
+      playHero(document.querySelector('.detail-cover'));
+    });
   });
 
   let formWasOpen = false;

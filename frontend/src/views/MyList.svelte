@@ -6,6 +6,7 @@
   import { toast } from '../lib/toast.svelte.js';
   import { pickDirectory, pickExecutable } from '../lib/pick-path.js';
   import { createScrollAnim } from '../lib/scroll-anim.js';
+  import { captureHero } from '../lib/hero-transition.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
@@ -31,6 +32,12 @@
     prefill = null;
     formGameId = id;
     formOpen = true;
+  }
+
+  function openFromCard(item) {
+    const card = document.querySelector(`.cover-card[data-game-id="${CSS.escape(String(item.id))}"]`);
+    if (card) captureHero(card);
+    onopen(item.id);
   }
 
   async function addFromFile() {
@@ -208,7 +215,7 @@
     {#each sections as section (section.status)}
       <StatusSection label={section.label} items={section.items}>
         {#snippet children(item)}
-          <GameCard {item} onopen={() => onopen(item.id)} onedit={openForm} />
+          <GameCard {item} onopen={() => openFromCard(item)} onedit={openForm} />
         {/snippet}
       </StatusSection>
     {/each}

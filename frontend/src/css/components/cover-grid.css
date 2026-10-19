@@ -38,8 +38,6 @@
 .cover-card__media {
   width: 100%;
   height: 100%;
-  display: grid;
-  place-items: center;
 }
 
 .cover-card__hit {
