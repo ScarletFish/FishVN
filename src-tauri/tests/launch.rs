@@ -46,7 +46,7 @@ fn 启动一条后记会话并按进程退出收尾() {
     assert_eq!(shared.with(sessions::list_active).unwrap().len(), 1);
 
     let again = sessions::launch(shared.conn.clone(), &game).unwrap_err();
-    assert_eq!(message(&again), "这部作品已经在游玩中");
+    assert_eq!(message(&again), "这个游戏已经在游玩中");
 
     wait_until_settled(&shared);
 

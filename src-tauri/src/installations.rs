@@ -69,7 +69,7 @@ pub fn create_installation(conn: &Connection, input: &NewInstallation) -> Result
     }
 
     if !game_exists(conn, &input.game_id)? {
-        return Err(AppError::NotFound("作品不存在".into()));
+        return Err(AppError::NotFound("游戏不存在".into()));
     }
 
     let dir = resolve_path(requested);
@@ -135,7 +135,7 @@ pub fn update_installation(
     }
     if let Some(Some(gid)) = &patch.game_id {
         if !game_exists(conn, gid)? {
-            return Err(AppError::NotFound("作品不存在".into()));
+            return Err(AppError::NotFound("游戏不存在".into()));
         }
     }
 
@@ -199,7 +199,7 @@ pub fn save_installations(
     entries: &[InstallationInput],
 ) -> Result<Vec<Installation>> {
     if !game_exists(conn, game_id)? {
-        return Err(AppError::NotFound("作品不存在".into()));
+        return Err(AppError::NotFound("游戏不存在".into()));
     }
     let drafts = validate_drafts(entries)?;
 
@@ -236,7 +236,7 @@ pub fn save_installations(
                     .get(id.as_str())
                     .ok_or_else(|| AppError::NotFound("安装记录不存在".into()))?;
                 if row.game_id.as_deref() != Some(game_id) {
-                    return Err(AppError::Conflict("安装记录不属于这部作品".into()));
+                    return Err(AppError::Conflict("安装记录不属于这个游戏".into()));
                 }
                 if taken_by_other(draft.dir_path.as_str()) {
                     return Err(AppError::Conflict(DIR_TAKEN.into()));

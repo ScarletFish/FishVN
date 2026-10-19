@@ -89,7 +89,7 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 - **前景时间按节拍累加**（命中一次加 1 秒），不是记两个时间戳相减 —— 后者会把系统休眠的整段算进前景时间。判定 = `GetForegroundWindow` → pid → `IsProcessInJob`。
 - **落盘时机**：前台状态翻转时立刻写，另有 30 个节拍的心跳兜底。前景时间只在 FishVN 在场时才可能增长，所以断电最多丢最后一个心跳周期、不会虚高；存活时间由起止时间戳相减，FishVN 不在场的那段必然少算。两种偏差都朝「少算」。
 - **孤儿收尾只在开库时做**（`sweep`）：把 `ended_at IS NULL` 的记录按 `last_seen_at` 结算。不能挪进 `launch_game` —— 那会把别的作品的进行中记录一起结算掉。
-- **状态自动迁移只在越过静默窗后**做一次「想玩 → 游玩中」：spawn 成功不等于游戏真的跑起来了，点一条失效的路径不该改写状态。
+- **状态自动迁移只在越过静默窗后**做一次「计划中 → 游玩中」：spawn 成功不等于游戏真的跑起来了，点一条失效的路径不该改写状态。
 - **启动方式按扩展名分派**：`bat` / `cmd` 走 `cmd /C`，`lnk` 走 `cmd /C start`（`CreateProcess` 不认识 `.lnk`），其余直接起；工作目录显式设为安装项的 `dir_path`。
 - 依赖 `windows` crate（Job Objects / Threading / WindowsAndMessaging）：版本要与 tauri 的传递依赖对齐，错开会编两遍。
 

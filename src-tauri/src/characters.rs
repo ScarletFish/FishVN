@@ -36,7 +36,7 @@ struct CharacterRow {
 
 pub fn list(conn: &Connection, game_id: &str) -> Result<Vec<GameCharacter>> {
     if !game_exists(conn, game_id)? {
-        return Err(AppError::NotFound("作品不存在".into()));
+        return Err(AppError::NotFound("游戏不存在".into()));
     }
     let mut stmt = conn.prepare(&format!(
         "SELECT {CHARACTER_COLUMNS} FROM characters WHERE game_id = ? ORDER BY sort_order, id"
@@ -53,7 +53,7 @@ pub fn replace_all(
     characters: &[GameCharacter],
 ) -> Result<Vec<GameCharacter>> {
     if !game_exists(conn, game_id)? {
-        return Err(AppError::NotFound("作品不存在".into()));
+        return Err(AppError::NotFound("游戏不存在".into()));
     }
     let mut seen = HashSet::with_capacity(characters.len());
     for entry in characters {
@@ -61,7 +61,7 @@ pub fn replace_all(
             return Err(AppError::BadRequest("角色缺少 id".into()));
         }
         if !seen.insert(entry.id.as_str()) {
-            return Err(AppError::BadRequest("同一部作品里出现重复的角色 id".into()));
+            return Err(AppError::BadRequest("同一个游戏里出现重复的角色 id".into()));
         }
         for credit in entry.va.iter().flatten() {
             if credit.staff_id.trim().is_empty() {

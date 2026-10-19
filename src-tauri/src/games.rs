@@ -58,7 +58,7 @@ pub fn get_game(conn: &Connection, id: &str) -> Result<Game> {
         },
     )
     .optional()?
-    .ok_or_else(|| AppError::NotFound("条目不存在".into()))
+    .ok_or_else(|| AppError::NotFound("游戏不存在".into()))
 }
 
 pub fn create_game(conn: &Connection, input: &NewGame) -> Result<Game> {
@@ -79,7 +79,7 @@ pub fn create_game(conn: &Connection, input: &NewGame) -> Result<Game> {
         "INSERT INTO games (id, name, vndb_id, created_at) VALUES (?, ?, ?, ?)",
         params![&game.id, &game.name, &game.vndb_id, game.created_at],
     )
-    .map_err(|e| write_conflict(e, "vndb_id 已被其他条目占用"))?;
+    .map_err(|e| write_conflict(e, "vndb_id 已被其他游戏占用"))?;
     tx.execute(
         "INSERT INTO user_game_state (game_id, status) VALUES (?, ?)",
         params![&game.id, DEFAULT_STATUS],
@@ -116,9 +116,9 @@ pub fn update_game(conn: &Connection, id: &str, patch: &GamePatch) -> Result<Gam
             &format!("UPDATE games SET {} WHERE id = ?", sets.join(", ")),
             params_from_iter(values.iter()),
         )
-        .map_err(|e| write_conflict(e, "vndb_id 已被其他条目占用"))?;
+        .map_err(|e| write_conflict(e, "vndb_id 已被其他游戏占用"))?;
     if changes == 0 {
-        return Err(AppError::NotFound("条目不存在".into()));
+        return Err(AppError::NotFound("游戏不存在".into()));
     }
     get_game(conn, id)
 }
@@ -126,7 +126,7 @@ pub fn update_game(conn: &Connection, id: &str, patch: &GamePatch) -> Result<Gam
 pub fn delete_game(conn: &Connection, id: &str) -> Result<()> {
     let changes = conn.execute("DELETE FROM games WHERE id = ?", params![id])?;
     if changes == 0 {
-        return Err(AppError::NotFound("条目不存在".into()));
+        return Err(AppError::NotFound("游戏不存在".into()));
     }
     Ok(())
 }
@@ -147,7 +147,7 @@ pub fn get_game_state(conn: &Connection, id: &str) -> Result<UserGameState> {
         read_state_row,
     )
     .optional()?
-    .ok_or_else(|| AppError::NotFound("条目不存在".into()))
+    .ok_or_else(|| AppError::NotFound("游戏不存在".into()))
 }
 
 pub fn update_game_state(conn: &Connection, id: &str, patch: &StatePatch) -> Result<UserGameState> {
@@ -167,7 +167,7 @@ pub fn update_game_state(conn: &Connection, id: &str, patch: &StatePatch) -> Res
         match owner {
             None => return Err(AppError::NotFound("安装记录不存在".into())),
             Some(Some(owner_id)) if owner_id != id => {
-                return Err(AppError::BadRequest("该安装不属于这部作品".into()))
+                return Err(AppError::BadRequest("该安装不属于这个游戏".into()))
             }
             _ => {}
         }
@@ -220,7 +220,7 @@ pub fn update_game_state(conn: &Connection, id: &str, patch: &StatePatch) -> Res
         params_from_iter(values.iter()),
     )?;
     if changes == 0 {
-        return Err(AppError::NotFound("条目不存在".into()));
+        return Err(AppError::NotFound("游戏不存在".into()));
     }
     get_game_state(conn, id)
 }

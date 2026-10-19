@@ -27,7 +27,7 @@ struct MetaRow {
 
 pub fn get(conn: &Connection, game_id: &str) -> Result<Option<GameMetadata>> {
     if !game_exists(conn, game_id)? {
-        return Err(AppError::NotFound("作品不存在".into()));
+        return Err(AppError::NotFound("游戏不存在".into()));
     }
     let row = conn
         .query_row(
@@ -44,7 +44,7 @@ pub fn get(conn: &Connection, game_id: &str) -> Result<Option<GameMetadata>> {
 
 pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result<GameMetadata> {
     if !game_exists(conn, game_id)? {
-        return Err(AppError::NotFound("作品不存在".into()));
+        return Err(AppError::NotFound("游戏不存在".into()));
     }
 
     let (columns, mut values) = build_columns(patch)?;
@@ -78,7 +78,7 @@ pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result
         )?;
     }
 
-    get(conn, game_id)?.ok_or_else(|| AppError::NotFound("作品不存在".into()))
+    get(conn, game_id)?.ok_or_else(|| AppError::NotFound("游戏不存在".into()))
 }
 
 fn build_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {

@@ -78,7 +78,7 @@ pub fn launch(shared: Arc<Mutex<Connection>>, game_id: &str) -> Result<PlaySessi
     let conn = lock(&shared)?;
     games::get_game(&conn, game_id)?;
     if active(&conn, game_id)?.is_some() {
-        return Err(AppError::BadRequest("这部作品已经在游玩中".into()));
+        return Err(AppError::BadRequest("这个游戏已经在游玩中".into()));
     }
     let (installation, dir, entry) = resolve(&conn, game_id)?;
 
@@ -272,7 +272,7 @@ fn resolve(conn: &Connection, game_id: &str) -> Result<(Installation, PathBuf, P
         .as_ref()
         .and_then(|id| launchable.iter().find(|item| &item.id == id))
         .or_else(|| launchable.first())
-        .ok_or_else(|| AppError::BadRequest("这部作品还没有指定启动文件".into()))?
+        .ok_or_else(|| AppError::BadRequest("这个游戏还没有指定启动文件".into()))?
         .clone();
 
     let dir = PathBuf::from(&picked.dir_path);

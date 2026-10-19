@@ -463,7 +463,7 @@ fn 默认安装只接受属于该作品的安装() {
     )
     .unwrap_err();
     assert_eq!(variant(&wrong), "BadRequest");
-    assert!(message(&wrong).contains("不属于这部作品"));
+    assert!(message(&wrong).contains("不属于这个游戏"));
 
     let missing = update_game_state(
         &db,
@@ -712,7 +712,7 @@ fn 整包保存带别作品的安装_id返回_conflict() {
     )
     .unwrap_err();
     assert_eq!(variant(&err), "Conflict");
-    assert!(message(&err).contains("不属于这部作品"));
+    assert!(message(&err).contains("不属于这个游戏"));
 }
 
 #[test]

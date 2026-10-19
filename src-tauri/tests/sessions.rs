@@ -151,7 +151,7 @@ fn 没有启动文件的安装不能启动() {
 
     let err = sessions::launch(shared.conn.clone(), &game).unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
-    assert_eq!(message(&err), "这部作品还没有指定启动文件");
+    assert_eq!(message(&err), "这个游戏还没有指定启动文件");
 }
 
 #[test]
