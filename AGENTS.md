@@ -40,7 +40,8 @@ Svelte 5 SPA + Rust 后端的 Tauri v2 桌面应用
 | `npm run dev` | `tauri dev`：起 Vite 4545 并拉起桌面窗口 |
 | `npm run dev:frontend` | 只起 Vite 4545；`tauri dev` 通过 `beforeDevCommand` 调它，浏览器里单独跑没有 IPC |
 | `npm run check:rust` | 后端 `cargo clippy --all-targets`（前面串上注释检查） |
-| `npm test` | 后端 `cargo test` 全量套件（`--quiet`：每套件一行结果，失败才展开） |
+| `npm test` | 后端全量（nextest）；真启进程的 `launch` 套件默认跳过 |
+| `npm run test:launch` | 真启进程的会话套件：启动、会话收尾与状态迁移（慢，改动该链路时手动跑） |
 | `cargo test --manifest-path src-tauri/Cargo.toml --test <套件>` | 后端只跑一个集成套件（编译面最小） |
 | `cargo test --manifest-path src-tauri/Cargo.toml --lib <模块路径>` | 后端只跑 lib 内单测，可用模块或用例名前缀收窄 |
 | `npm test -w frontend -- <测试文件>` | 前端只跑一个测试文件；再加 `-t <用例名>` 收窄到一条 |

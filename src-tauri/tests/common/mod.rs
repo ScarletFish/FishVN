@@ -11,11 +11,15 @@
 use std::fs;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use rusqlite::Connection;
 use tempfile::{tempdir, TempDir};
 
 use fishvn::db;
+use fishvn::games::{create_game, update_game_state};
+use fishvn::installations::{create_installation, update_installation};
+use fishvn::types::{InstallationPatch, NewGame, NewInstallation, StatePatch};
 
 pub struct Db {
     conn: Connection,
@@ -42,6 +46,86 @@ impl Default for Db {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub struct Shared {
+    pub conn: Arc<Mutex<Connection>>,
+    dir: TempDir,
+}
+
+impl Shared {
+    pub fn new() -> Self {
+        let dir = tempdir().expect("临时目录建不出来");
+        let conn = db::open(dir.path()).expect("临时库开不了");
+        Self {
+            conn: Arc::new(Mutex::new(conn)),
+            dir,
+        }
+    }
+
+    pub fn with<T>(&self, f: impl FnOnce(&Connection) -> T) -> T {
+        let guard: MutexGuard<'_, Connection> = self.conn.lock().expect("库锁被毒化");
+        f(guard.deref())
+    }
+}
+
+pub fn new_game(shared: &Shared, name: &str) -> String {
+    shared
+        .with(|conn| {
+            create_game(
+                conn,
+                &NewGame {
+                    name: name.into(),
+                    vndb_id: None,
+                    metadata: None,
+                },
+            )
+        })
+        .expect("建作品失败")
+        .id
+}
+
+pub fn add_launch(shared: &Shared, game: &str, dir: &Path, entry: &str) -> String {
+    let id = shared
+        .with(|conn| {
+            create_installation(
+                conn,
+                &NewInstallation {
+                    game_id: game.into(),
+                    dir_path: dir.to_string_lossy().into_owned(),
+                },
+            )
+        })
+        .expect("建安装失败")
+        .id;
+    shared
+        .with(|conn| {
+            update_installation(
+                conn,
+                &id,
+                &InstallationPatch {
+                    game_id: None,
+                    entry_path: Some(Some(entry.into())),
+                },
+            )
+        })
+        .expect("设启动入口失败")
+        .id
+}
+
+pub fn set_default(shared: &Shared, game: &str, installation: String) {
+    shared
+        .with(|conn| {
+            update_game_state(
+                conn,
+                game,
+                &StatePatch {
+                    default_installation_id: Some(Some(installation)),
+                    ..Default::default()
+                },
+            )
+        })
+        .expect("设默认启动失败");
 }
 
 /// 建一棵真实的目录树供文件系统相关用例使用。
