@@ -22,7 +22,7 @@ src-tauri/
 ├── sessions.rs      # 启动与游玩记录（作业 + 计时回路）
 ├── tasks.rs        # 长任务进度事件与取消
 ├── thumbs.rs        # 封面派生图与缓存
-├── vndb.rs          # VNDB 上游客户端
+├── vndb/            # VNDB 上游客户端（入口 + client/dto/characters/images）
 ├── devhttp.rs       # 开发期 HTTP 通道（commands 的镜像，仅 debug 构建）
 └── fsinfo.rs        # 目录遍历
 ```
@@ -31,7 +31,7 @@ src-tauri/
 
 | 改这些 | 先读 |
 |---|---|
-| `vndb.rs` | [vndb-api.md](./vndb-api.md)：上游字段形状、过滤与限流、图片编号 |
+| `vndb/` | [vndb-api.md](./vndb-api.md)：上游字段形状、过滤与限流、图片编号 |
 | `db.rs` / `types.rs` | 本文「数据模型」 |
 | `thumbs.rs` / 前端 `cover-src.js` | 本文「封面派生图」与「本地封面授权」 |
 | `sessions.rs` / 启动与计时 | 本文「启动与游玩记录」 |

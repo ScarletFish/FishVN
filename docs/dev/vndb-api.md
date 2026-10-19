@@ -1,7 +1,7 @@
 # VNDB Kana API v2 — 响应格式
 
 `https://api.vndb.org/kana`，沙箱 `https://beta.vndb.org/api/kana`。本文只记实测到的响应格式与
-约束，供 `src-tauri/src/vndb.rs` 反序列化时对照。
+约束，供 `src-tauri/src/vndb/dto.rs` 反序列化时对照。
 
 抽样口径：2026-10-09 抓取 400 条全字段 VN（`id > v25000` 与 `id > v17000` 各 200 条，25 条一页）
 做逐字段统计，另单独抓搜索、TBA、未发售样本。
@@ -37,7 +37,7 @@ POST JSON body，`Content-Type: application/json`。响应恒为 JSON，`Accept`
 | 档 | 用途 | 特点 |
 |---|---|---|
 | `SEARCH_FIELDS` | 搜索结果，判断是哪部作品 | 不取 `description` 与 `tags`；`image` 只要 `id,thumbnail,thumbnail_dims`，所以 `url` 与 `dims` 恒为 `None` |
-| `VN_FIELDS` | 详情页真正渲染的字段 | `image{id,url,dims}`，封面用 `url` |
+| `META_FIELDS` | 详情页真正渲染的字段 | `image{id,url,dims}`，封面用 `url` |
 
 除 `id` 与 `title` 外一律按 `Option` 反序列化：null 率高（`rating` 238/400、`alttitle` 140/400，
 `image` 罕见但确有 null），详见下表。
