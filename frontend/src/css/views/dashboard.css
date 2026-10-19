@@ -119,8 +119,13 @@
 }
 
 .continue-card:hover {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-md);
+  border-color: var(--accent-faint);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme='dark'] .continue-card:hover {
+  border-color: var(--accent-border);
+  box-shadow: none;
 }
 
 .continue-card:focus-visible {
@@ -211,7 +216,7 @@
   justify-content: center;
   color: var(--fg-on-accent);
   background: var(--scrim);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--accent-border);
   cursor: pointer;
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.7);
@@ -219,6 +224,7 @@
     opacity var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-spring),
     background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
 }
 
@@ -231,7 +237,12 @@
 
 .continue-play:hover {
   background: var(--accent);
-  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 40%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 32px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.continue-play svg {
+  margin-left: 2px;
 }
 
 .continue-play:active {
