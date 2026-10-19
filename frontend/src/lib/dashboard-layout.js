@@ -1,6 +1,7 @@
 export const DASHBOARD_MODULES = [
   { id: 'continue_play', label: 'dashboard.module.continuePlay' },
   { id: 'stats', label: 'dashboard.module.stats' },
+  { id: 'local_library', label: 'dashboard.module.localLibrary' },
 ];
 
 export function moveModule(list, id, delta) {

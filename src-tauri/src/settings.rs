@@ -45,6 +45,7 @@ pub fn default_dashboard_layout() -> Vec<DashboardModule> {
     vec![
         DashboardModule { id: "continue_play".into(), enabled: true },
         DashboardModule { id: "stats".into(), enabled: true },
+        DashboardModule { id: "local_library".into(), enabled: true },
     ]
 }
 
@@ -222,6 +223,7 @@ mod tests {
             vec![
                 DashboardModule { id: "continue_play".into(), enabled: true },
                 DashboardModule { id: "stats".into(), enabled: true },
+                DashboardModule { id: "local_library".into(), enabled: true },
             ]
         );
 

@@ -20,6 +20,7 @@ export const DICT_ZH = {
     module: {
       continuePlay: '继续游玩',
       stats: '统计概览',
+      localLibrary: '本地作品',
     },
     statTotal: '作品总数',
     statPlaying: '游玩中',

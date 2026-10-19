@@ -8,12 +8,17 @@
   import { captureHero } from '../lib/hero-transition.js';
   import { DASHBOARD_MODULES } from '../lib/dashboard-layout.js';
   import { CONFIG_CHANGED } from '../lib/config-events.js';
+  import GameCard from '../components/GameCard.svelte';
+  import StatusSection from '../components/StatusSection.svelte';
 
   let { onopen } = $props();
+
+  const LOCAL_STATUSES = ['playing', 'wishlist', 'finished'];
 
   let layout = $state([]);
   let stats = $state(null);
   let recent = $state([]);
+  let games = $state([]);
   let covers = $state({});
   let loading = $state(true);
   let error = $state(null);
@@ -25,6 +30,26 @@
     return known ? t(known.label) : id;
   };
 
+  const byName = (a, b) => a.name.localeCompare(b.name, 'zh-CN');
+
+  const localSections = $derived(
+    LOCAL_STATUSES.map((status) => ({
+      status,
+      label: t(`status.${status}`),
+      items: games
+        .filter((game) => game.installation_count > 0 && game.status === status)
+        .sort(byName),
+    })).filter((section) => section.items.length > 0)
+  );
+
+  function openLocal(item) {
+    const card = document.querySelector(
+      `.cover-card[data-game-id="${CSS.escape(String(item.id))}"]`
+    );
+    if (card) captureHero(card);
+    onopen(item.id);
+  }
+
   function continueOpen(item, card) {
     captureHero(card, { frame: 'self', bg: '.continue-bg', aspect: 3 / 4 });
     onopen(item.id, true);
@@ -32,14 +57,16 @@
 
   async function load() {
     try {
-      const [config, value, items] = await Promise.all([
+      const [config, value, items, list] = await Promise.all([
         api.getConfig(),
         api.dashboardStats(),
         api.dashboardRecent().catch(() => []),
+        api.listGames(),
       ]);
       layout = config.dashboard_layout;
       stats = value;
       recent = items;
+      games = list;
       error = null;
     } catch (e) {
       error = e.message;
@@ -85,7 +112,7 @@
     {#each layout as module (module.id)}
       {#if module.enabled && module.id === 'continue_play' && recent.length > 0}
         <div class="dashboard-section">
-          <div class="continue-head" bind:this={headEl}>
+          <div class="dashboard-module-header" bind:this={headEl}>
             <span class="dashboard-section-title">{moduleLabel(module.id)}</span>
           </div>
           <div class="hscroll-section continue-scroll" bind:this={scrollEl}>
@@ -164,6 +191,19 @@
               <span>{t('dashboard.statPlayCount')}</span>
             </div>
           </div>
+        </div>
+      {:else if module.enabled && module.id === 'local_library' && localSections.length > 0}
+        <div class="dashboard-section">
+          <div class="dashboard-module-header">
+            <span class="dashboard-section-title">{moduleLabel(module.id)}</span>
+          </div>
+          {#each localSections as section (section.status)}
+            <StatusSection variant="dashboard" label={section.label} items={section.items}>
+              {#snippet children(item)}
+                <GameCard {item} onopen={() => openLocal(item)} />
+              {/snippet}
+            </StatusSection>
+          {/each}
         </div>
       {/if}
     {/each}

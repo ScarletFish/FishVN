@@ -61,7 +61,9 @@
     onclick={() => onopen?.(item.id)}
   ></button>
 
-  <div class="cover-card__menu">
-    <Menu items={menuItems} label={t('common.actionMore')} variant="plain" />
-  </div>
+  {#if onedit}
+    <div class="cover-card__menu">
+      <Menu items={menuItems} label={t('common.actionMore')} variant="plain" />
+    </div>
+  {/if}
 </div>

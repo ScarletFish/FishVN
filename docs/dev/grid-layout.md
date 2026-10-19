@@ -60,9 +60,10 @@ chrome 固定不随视口缩放：侧栏 `var(--sidebar-w)`（3.75rem / 60px）+
 
 `auto-fit` 基于**容器实测宽度**，不是视口。窗口 resize、DPI 缩放都由浏览器和 `ResizeObserver` 处理，不需预测。
 
-窗口化实现必须遵守：**列数在 JS 侧从实测容器宽算出，CSS 侧写成显式列数**（`repeat(N, var(--card-w))`），不让 CSS 的 `auto-fit` 决定 —— 否则列数公式会散落在 JS 和 CSS 两处，改一处就可能不同步。
+窗口化实现必须遵守：**列数在 JS 侧从实测容器宽算出，CSS 侧写成显式列数**（`repeat(N, min(var(--card-w), 100%))`），不让 CSS 的 `auto-fit` 决定 —— 否则列数公式会散落在 JS 和 CSS 两处，改一处就可能不同步。
 
-## 待定
+## 窗口化
 
-- **窗口化阈值**：多少个条目以上启用
-- **卡片宽高比**已定为 3:4；窗口化下 `rowH = cardW × 4/3 + gap`，需与实际封面比例一致
+- 单区达到 60 条启用。
+- `rowH = cardW × 4/3 + gap`，与卡片 3:4 比例一致。
+- 分区不在滚动容器顶部，`scrollMargin` 取网格容器相对滚动视口的偏移；行的 `top` 用 `row.start - scrollMargin`，漏掉会渲染错行。
