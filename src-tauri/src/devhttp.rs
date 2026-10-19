@@ -18,7 +18,7 @@ use crate::error::{AppError, Result};
 use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
 use crate::types::{GameCharacter, InstallationInput};
 use crate::vndb::RateLimiter;
-use crate::{characters, commands, games, installations, metadata, sessions, settings, vndb};
+use crate::{characters, commands, dashboard, games, installations, metadata, sessions, settings, vndb};
 
 pub const PORT: u16 = 4546;
 
@@ -131,6 +131,11 @@ macro_rules! handler {
 }
 
 handler!(list_games, |c, _a| games::list_games(c));
+handler!(dashboard_stats, |c, _a| {
+    let config = settings::current();
+    let week_start = crate::now() - 7 * 24 * 3600;
+    dashboard::stats(c, config.time_metric, week_start)
+});
 handler!(get_game, |c, a| games::get_game(c, a.id()?));
 handler!(create_game, |c, a| games::create_game(
     c,
@@ -339,6 +344,7 @@ async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply
 pub fn router(dev: Dev) -> Router {
     Router::new()
         .route("/list_games", post(list_games))
+        .route("/dashboard_stats", post(dashboard_stats))
         .route("/get_game", post(get_game))
         .route("/create_game", post(create_game))
         .route("/update_game", post(update_game))
@@ -372,6 +378,7 @@ pub fn router(dev: Dev) -> Router {
 
 pub const COMMANDS: &[&str] = &[
     "list_games",
+    "dashboard_stats",
     "get_game",
     "create_game",
     "update_game",

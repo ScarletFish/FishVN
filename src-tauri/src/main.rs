@@ -89,6 +89,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::list_games,
+            commands::dashboard_stats,
             commands::get_game,
             commands::create_game,
             commands::update_game,

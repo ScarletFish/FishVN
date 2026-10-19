@@ -1,5 +1,6 @@
 pub mod characters;
 pub mod commands;
+pub mod dashboard;
 pub mod db;
 #[cfg(debug_assertions)]
 pub mod devhttp;

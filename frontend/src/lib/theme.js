@@ -24,7 +24,7 @@ export function getTheme() {
   return isDark() ? 'dark' : 'light';
 }
 
-function withViewTransition(update) {
+export function viewTransition(update) {
   if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     document.startViewTransition(update);
   } else {
@@ -34,7 +34,7 @@ function withViewTransition(update) {
 
 export function setTheme(theme) {
   const dark = theme === 'dark';
-  withViewTransition(() => paint(dark));
+  paint(dark);
   localStorage.setItem(KEY, theme);
 }
 
@@ -56,7 +56,7 @@ export function getAccent() {
 }
 
 export function setAccent(accent) {
-  withViewTransition(() => paintAccent(accent));
+  paintAccent(accent);
   localStorage.setItem(ACCENT_KEY, accent);
   return getAccent();
 }

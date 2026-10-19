@@ -74,6 +74,10 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 
 作品的聚合划分、消费方的字段归属判据、写权限分类、加载策略与数据流见 [view-contracts.md](./view-contracts.md)。
 
+### 首页与视图切换
+
+默认视图是首页（`App.svelte` 的 `current` 初值 `'home'`），模块按 `config.dashboard_layout` 的顺序渲染，只渲染认识的模块 id，配置里多余的 id 被忽略。模块的注册表、开关与调序的纯函数在 `lib/dashboard-layout.js`，设置弹窗与首页共用这一份。首页监听 `lib/config-events.js` 的 `CONFIG_CHANGED` 事件并整页重载——设置弹窗每次成功保存配置后必须广播，否则首页与统计口径不刷新。品牌页的就绪事件（`app:ready`）由「启动时实际挂载的那个视图」派发——MyList 与 Dashboard 的首次加载各自派发，监听侧 `{ once: true }`，重复派发无害；新增默认视图或改默认视图时必须确认这条链路有人接手。
+
 ## 构建与开发服务器
 
 `vite.config.js` 里几处不能动的配置：

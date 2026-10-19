@@ -8,6 +8,7 @@
   import Titlebar from './components/chrome/Titlebar.svelte';
   import Toaster from './components/Toaster.svelte';
   import MyList from './views/MyList.svelte';
+  import Dashboard from './views/Dashboard.svelte';
   import Detail from './views/Detail.svelte';
 
   let settingsOpen = $state(false);
@@ -24,6 +25,11 @@
 
   const NAV = [
     {
+      id: 'home',
+      label: t('nav.home'),
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
+    },
+    {
       id: 'mylist',
       label: t('nav.mylist'),
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>',
@@ -32,11 +38,6 @@
       id: 'scan',
       label: t('nav.scan'),
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
-    },
-    {
-      id: 'stats',
-      label: t('nav.stats'),
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>',
     },
   ];
 
@@ -49,7 +50,7 @@
     },
   ];
 
-  let current = $state('mylist');
+  let current = $state('home');
   let detailId = $state(null);
   let detailTitle = $state('');
   let listScroll = $state(0);
@@ -87,6 +88,8 @@
           onname={(name) => (detailTitle = name ?? '')}
           onclose={() => (detailId = null)}
         />
+      {:else if current === 'home'}
+        <Dashboard onopen={(id) => (detailId = id)} />
       {:else if current === 'mylist'}
         <MyList
           onopen={(id) => (detailId = id)}
