@@ -93,6 +93,7 @@ impl Progress for Task {
     }
 
     fn report_error(&self, phase: &str, message: &str) {
+        tauri_plugin_log::log::warn!("任务 {} 在 {phase} 阶段报告：{message}", self.name);
         let logged = match self.log.lock() {
             Ok(mut log) => log.push(
                 &self.name,

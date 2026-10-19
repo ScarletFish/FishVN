@@ -108,6 +108,9 @@ fn declared_commands() -> BTreeSet<String> {
     out
 }
 
+/// 浏览器会话的前端异常直接看 devtools，前端日志命令不经 devhttp
+const DEVHTTP_EXEMPT: &[&str] = &["log_frontend"];
+
 #[test]
 fn 路由表覆盖全部命令() {
     let declared = declared_commands();
@@ -116,7 +119,10 @@ fn 路由表覆盖全部命令() {
         .map(|s| (*s).to_owned())
         .collect();
 
-    let missing: Vec<_> = declared.difference(&routed).collect();
+    let missing: Vec<_> = declared
+        .difference(&routed)
+        .filter(|name| !DEVHTTP_EXEMPT.contains(&name.as_str()))
+        .collect();
     assert!(missing.is_empty(), "命令没进 devhttp 路由：{missing:?}");
 
     let extra: Vec<_> = routed.difference(&declared).collect();

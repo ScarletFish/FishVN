@@ -119,7 +119,14 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 撞上会自己请求自己。
 
 请求体字段用命令原样的 snake_case：`invoke` 那条路会把 `gameId` 这类驼峰参数转成
-snake_case，裸 HTTP 没有这层转换。
+snake_case，裸 HTTP 没有这层转换。前端日志命令（`log_frontend`）不经 devhttp——浏览器
+会话的前端异常直接看 devtools，对应豁免记录在 devhttp 集成测试里。
+
+### 日志
+
+日志走 `tauri-plugin-log`，写入系统日志目录（Windows 为 `%LOCALAPPDATA%\{bundleIdentifier}\logs`），单文件 5MB 触发轮转并保留一个备份，时间戳用本地时区，级别 `info`。开发与安装版写同一处，排查问题直接看这个目录。
+
+进日志的内容与各自的 target：启动计时（`startup`，Rust 侧进程到后端就绪、前端侧 webview 导航到列表就绪）、任务生命周期（开始 / 完成 / 取消 / 失败，带耗时，记在 `fetch_vn_metadata` 外壳）、任务 `report_error` 的降级事件（封面单张下载失败这类不中断任务的错误）、图片下载失败、Rust panic（`panic`）、前端异常与 IPC 失败（`webview`，经 `log_frontend` 转发）。成功的 IPC 调用与高频进度事件不进日志；`log_frontend` 把超长消息截断到 2000 字符。
 
 ### 错误与 IPC
 

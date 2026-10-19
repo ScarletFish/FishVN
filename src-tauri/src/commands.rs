@@ -20,6 +20,7 @@ use crate::types::{
     UserGameState,
 };
 use crate::vndb::{self, RateLimiter, VnSearchHit, VnSync};
+use tauri_plugin_log::log;
 
 type Shared<'a> = State<'a, Arc<Mutex<Connection>>>;
 
@@ -176,12 +177,39 @@ pub async fn fetch_vn_metadata(
         log.inner().clone(),
         tasks.register(VNDB_SYNC),
     );
-    vndb::fetch_sync(vndb::http(), &vndb_id, &dir, &task).await
+    let started = std::time::Instant::now();
+    log::info!("VNDB 同步开始 {vndb_id}");
+    let result = vndb::fetch_sync(vndb::http(), &vndb_id, &dir, &task).await;
+    match &result {
+        Ok(_) => log::info!("VNDB 同步完成 {vndb_id}：{} ms", started.elapsed().as_millis()),
+        Err(AppError::Cancelled) => {
+            log::info!("VNDB 同步取消 {vndb_id}：{} ms", started.elapsed().as_millis())
+        }
+        Err(e) => log::warn!("VNDB 同步失败 {vndb_id}：{e}"),
+    }
+    result
 }
 
 #[tauri::command]
 pub fn cancel_task(tasks: State<'_, Arc<Tasks>>, task: String) -> bool {
     tasks.cancel(&task)
+}
+
+const FRONTEND_LOG_MAX_CHARS: usize = 2000;
+
+#[tauri::command]
+pub fn log_frontend(level: String, message: String) {
+    let message = if message.chars().count() > FRONTEND_LOG_MAX_CHARS {
+        let truncated: String = message.chars().take(FRONTEND_LOG_MAX_CHARS).collect();
+        format!("{truncated}…")
+    } else {
+        message
+    };
+    match level.as_str() {
+        "error" => log::error!(target: "webview", "{message}"),
+        "warn" => log::warn!(target: "webview", "{message}"),
+        _ => log::info!(target: "webview", "{message}"),
+    }
 }
 
 #[tauri::command]

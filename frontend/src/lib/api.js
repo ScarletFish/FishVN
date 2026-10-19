@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { DEV_HTTP, DEV_HTTP_BASE } from './env.js';
+import { report } from './frontend-log.js';
 
 function toSnake(args) {
   return Object.fromEntries(
@@ -25,6 +26,7 @@ async function call(command, args) {
     if (DEV_HTTP) return await overHttp(command, args);
     return await invoke(command, args);
   } catch (e) {
+    report('warn', `IPC 失败 ${command}：${e}`);
     throw new Error(e);
   }
 }

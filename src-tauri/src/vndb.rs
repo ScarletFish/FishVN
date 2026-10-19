@@ -551,7 +551,7 @@ async fn fetch_image(
                 return Some(dst.to_string_lossy().into_owned());
             }
             Err(ImageError::Status(code)) => {
-                eprintln!("图片下载失败 {url}：HTTP {code}");
+                tauri_plugin_log::log::warn!("图片下载失败 {url}：HTTP {code}");
                 return None;
             }
             Err(ImageError::Transport(e)) => {
@@ -562,7 +562,7 @@ async fn fetch_image(
             }
         }
     }
-    eprintln!("图片下载失败 {url}（重试 {IMAGE_RETRIES} 次）：{last_err}");
+    tauri_plugin_log::log::warn!("图片下载失败 {url}（重试 {IMAGE_RETRIES} 次）：{last_err}");
     None
 }
 

@@ -7,6 +7,7 @@ use fishvn::db;
 use fishvn::tasks::{EventLog, Tasks};
 use fishvn::vndb::RateLimiter;
 use tauri::Manager;
+use tauri_plugin_log::log;
 
 #[cfg(debug_assertions)]
 fn spawn_dev_channel(
@@ -43,10 +44,23 @@ fn spawn_dev_channel(
 }
 
 fn main() {
+    let started = std::time::Instant::now();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .setup(|app| {
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .max_file_size(5 * 1024 * 1024)
+                .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
+                .build(),
+        )
+        .setup(move |app| {
+            let default_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                log::error!(target: "panic", "{info}");
+                default_hook(info);
+            }));
             let dir = fishvn::data_dir(app.handle())?;
             fishvn::settings::init(&dir);
             let window_color = match fishvn::settings::current().theme {
@@ -70,6 +84,7 @@ fn main() {
             if std::env::var_os("FISHVN_DEV_HTTP").is_some() {
                 spawn_dev_channel(conn, rate, events, tasks, app.handle().clone());
             }
+            log::info!(target: "startup", "后端就绪：{} ms", started.elapsed().as_millis());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -99,6 +114,7 @@ fn main() {
             commands::thumbnail,
             commands::get_config,
             commands::update_config,
+            commands::log_frontend,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 启动失败");
