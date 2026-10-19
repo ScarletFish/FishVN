@@ -134,9 +134,17 @@ fn write_file(dir: &Path, config: &AppConfig) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::MutexGuard;
+
+    static CONFIG_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn exclusive() -> MutexGuard<'static, ()> {
+        CONFIG_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
 
     #[test]
     fn 没有配置文件时取默认值() {
+        let _guard = exclusive();
         let tmp = tempfile::tempdir().unwrap();
         init(tmp.path());
         assert_eq!(current(), fallback());
@@ -144,6 +152,7 @@ mod tests {
 
     #[test]
     fn 更新后写盘且缓存生效() {
+        let _guard = exclusive();
         let tmp = tempfile::tempdir().unwrap();
         init(tmp.path());
         update(
@@ -172,6 +181,7 @@ mod tests {
 
     #[test]
     fn 局部补丁只改给到的字段() {
+        let _guard = exclusive();
         let tmp = tempfile::tempdir().unwrap();
         init(tmp.path());
         update(
@@ -204,6 +214,7 @@ mod tests {
 
     #[test]
     fn 布局缺省时按默认顺序补全且补丁可整列替换() {
+        let _guard = exclusive();
         let tmp = tempfile::tempdir().unwrap();
         init(tmp.path());
         assert_eq!(
@@ -240,6 +251,7 @@ mod tests {
 
     #[test]
     fn 损坏的配置文件回落默认() {
+        let _guard = exclusive();
         let tmp = tempfile::tempdir().unwrap();
         std::fs::write(tmp.path().join(FILE_NAME), "not json").unwrap();
         init(tmp.path());

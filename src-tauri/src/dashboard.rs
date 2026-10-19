@@ -120,7 +120,6 @@ mod tests {
     use crate::games::create_game;
     use crate::types::NewGame;
     use rusqlite::Connection;
-    use std::sync::{Arc, Mutex};
 
     fn db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();

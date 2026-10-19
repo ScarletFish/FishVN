@@ -253,7 +253,7 @@ fn validate_vndb_id(raw: &str) -> Result<String> {
     let digits = trimmed.strip_prefix('v').unwrap_or_default();
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return Err(AppError::BadRequest(
-            "vndb_id 必须是 v+数字，或 null 解绑".into(),
+            "vndb_id 必须是 v+数字".into(),
         ));
     }
     Ok(trimmed.to_owned())

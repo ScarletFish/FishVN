@@ -84,7 +84,7 @@ fn vndb_id格式非法返回_bad_request() {
         )
         .unwrap_err();
         assert_eq!(variant(&err), "BadRequest", "vndb_id={bad:?} 应该被拒");
-        assert_eq!(message(&err), "vndb_id 必须是 v+数字，或 null 解绑");
+        assert_eq!(message(&err), "vndb_id 必须是 v+数字");
     }
 }
 
@@ -353,7 +353,7 @@ fn patch绑到已被占用的vndb_id返回_conflict() {
 }
 
 #[test]
-fn patch_vndb_id给null是解绑之后另一条可以绑同一个号() {
+fn patch_vndb_id置null后另一条可以绑同一个号() {
     let db = Db::new();
     let a = create_game(
         &db,
@@ -382,7 +382,7 @@ fn patch_vndb_id给null是解绑之后另一条可以绑同一个号() {
             vndb_id: Some(None),
         },
     )
-    .expect("解绑失败");
+    .expect("置空失败");
     assert_eq!(get_game(&db, &a.id).unwrap().vndb_id, None);
 
     update_game(
@@ -455,9 +455,9 @@ fn patch空body返回_bad_request() {
 }
 
 #[test]
-fn patch只给vndb_id解绑不动name() {
+fn patch只给vndb_id置null不动name() {
     let db = Db::new();
-    let id = new_game(&db, "只解绑");
+    let id = new_game(&db, "只置空");
     update_game(
         &db,
         &id,
@@ -476,9 +476,9 @@ fn patch只给vndb_id解绑不动name() {
             vndb_id: Some(None),
         },
     )
-    .expect("解绑失败");
+    .expect("置空失败");
 
     let game = get_game(&db, &id).unwrap();
     assert_eq!(game.vndb_id, None);
-    assert_eq!(game.name, "只解绑", "没给的字段不该被动到");
+    assert_eq!(game.name, "只置空", "没给的字段不该被动到");
 }
