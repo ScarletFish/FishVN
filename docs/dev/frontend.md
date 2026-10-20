@@ -28,7 +28,7 @@
 
 ### 字体
 
-DM Sans 以可变字体拉丁子集打包在 `assets/fonts/dm-sans-latin.woff2`（OFL 许可文本同目录存放），`fonts.css` 声明 `@font-face`，字重轴 100–1000 全覆盖，新字重直接取用。中文字符、斜体、扩展拉丁不在子集内，回落到字体栈里的系统字体。
+拉丁走 DM Sans：可变字体拉丁子集打包在 `assets/fonts/dm-sans-latin.woff2`（OFL 许可文本同目录存放），`fonts.css` 声明 `@font-face`，字重轴 100–1000 全覆盖，新字重直接取用。CJK 走 `@fontsource-variable/noto-sans-sc`（OFL，族名 `Noto Sans SC Variable`）：101 个按 `unicode-range` 切片的可变字体，在 `fonts.css` 里 `@import`，构建时进 `dist`，浏览器按用到的字符取片；升级换版本即换包。`--font-sans` 中 CJK 族排在系统字体之前；两族之外的字符（斜体、扩展区汉字）回落字体栈里的系统字体。
 
 ### 动画
 

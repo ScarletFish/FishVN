@@ -397,8 +397,8 @@ body {
 
 /* === L3 scales · 字体 === */
 :root {
-  /* DM Sans 打包了拉丁子集（见 fonts.css），中文回落到系统字体 */
-  --font-sans: 'DM Sans', 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+  /* DM Sans 打包了拉丁子集，CJK 用 Noto Sans SC 子集（见 fonts.css），两族之外的字符回落系统字体 */
+  --font-sans: 'DM Sans', 'Noto Sans SC Variable', 'Microsoft YaHei UI', 'PingFang SC', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
 
   --fw-normal: 400;
