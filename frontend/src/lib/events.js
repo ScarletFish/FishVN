@@ -1,3 +1,4 @@
+import { listen } from '@tauri-apps/api/event';
 import { DEV_HTTP, DEV_HTTP_BASE } from './env.js';
 import { ensureBackend } from './dev-backend.js';
 
@@ -44,7 +45,6 @@ export async function subscribe(name, handler) {
     if (!source) connect();
     return () => detach(name, handler);
   }
-  const { listen } = await import('@tauri-apps/api/event');
   const unlisten = await listen(name, (event) => handler(event.payload));
   return () => unlisten();
 }

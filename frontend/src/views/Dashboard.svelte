@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { durationText } from '../lib/playtime.js';
@@ -73,6 +73,7 @@
     } finally {
       loading = false;
     }
+    await tick();
     window.dispatchEvent(new CustomEvent('app:ready'));
   }
 

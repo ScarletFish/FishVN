@@ -4,6 +4,8 @@ import App from './App.svelte';
 import { useScrollbars } from './lib/scrollbars.js';
 import { report } from './lib/frontend-log.js';
 
+const isTauri = '__TAURI_INTERNALS__' in window;
+
 window.addEventListener('error', (e) => {
   report('error', `未捕获异常：${e.message}（${e.filename}:${e.lineno}）`);
 });
@@ -11,31 +13,23 @@ window.addEventListener('unhandledrejection', (e) => {
   report('error', `未处理的 Promise 拒绝：${e.reason}`);
 });
 
-const splash = document.getElementById('splash');
+const splash = window.__splash;
 
-function hideSplash() {
-  if (!splash || splash.classList.contains('is-hidden')) return;
-  splash.classList.add('is-hidden');
-  setTimeout(() => splash.remove(), 320);
-}
-
-if ('__TAURI_INTERNALS__' in window) {
+if (isTauri) {
   window.addEventListener(
     'app:ready',
     () => {
-      hideSplash();
-      report('info', `启动：webview 导航到列表就绪 ${Math.round(performance.now())}ms`);
+      splash?.ready();
+      report('info', `启动：列表就绪 ${Math.round(performance.now())}ms`);
     },
     { once: true }
   );
   setTimeout(() => {
-    if (splash && !splash.classList.contains('is-hidden')) {
-      report('warn', '8 秒兜底隐藏 splash：app:ready 未按时到达');
-    }
-    hideSplash();
+    report('warn', '8 秒兜底：app:ready 未按时到达');
+    splash?.ready();
   }, 8000);
 } else {
-  splash?.remove();
+  document.getElementById('splash')?.remove();
 }
 
 const app = mount(App, {

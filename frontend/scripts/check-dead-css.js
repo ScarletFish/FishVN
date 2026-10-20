@@ -30,12 +30,11 @@ const referenced = new Set();
 for (const file of cssFiles) {
   const css = stripNonSelectors(readFileSync(file, 'utf8'));
 
-  for (const m of css.matchAll(CLASS_RE)) {
-    if (!defined.has(m[1])) defined.set(m[1], file);
-  }
-
   for (const m of css.matchAll(/([^{}]+)\{/g)) {
     const inSel = [...m[1].matchAll(CLASS_RE)].map((x) => x[1]);
+    for (const cls of inSel) {
+      if (!defined.has(cls)) defined.set(cls, file);
+    }
     for (let i = 0; i < inSel.length; i++) {
       for (let j = 0; j < inSel.length; j++) {
         if (i !== j) referenced.add(inSel[i]);

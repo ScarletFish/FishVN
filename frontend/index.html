@@ -32,7 +32,7 @@
       })();
     </script>
     <style>
-      /* 启动页：JS 加载前可见的全屏覆盖层（品牌标识 + spinner），就绪后由 main.js 淡出移除。 */
+      /* 启动页：窗口 show 时已在 DOM 中，内容就绪后淡出移除。 */
       /* tokens.css 随 JS 包才到，首帧靠 var 的字面量兜底，取值与 tokens 的 --bg-page / --accent 严格一致。 */
       #splash {
         position: fixed;
@@ -44,10 +44,14 @@
         justify-content: center;
         gap: 28px;
         background: var(--bg-page, #f1f0ec);
-        transition: opacity 300ms ease;
+        transition: opacity 160ms ease;
       }
       [data-theme='dark'] #splash {
         background: var(--bg-page, #121212);
+      }
+      #splash.is-hidden {
+        opacity: 0;
+        pointer-events: none;
       }
       #splash .splash-mark {
         width: 112px;
@@ -65,10 +69,6 @@
         to {
           transform: rotate(360deg);
         }
-      }
-      #splash.is-hidden {
-        opacity: 0;
-        pointer-events: none;
       }
     </style>
   </head>
@@ -93,6 +93,64 @@
       </svg>
       <div class="splash-spinner"></div>
     </div>
+    <script>
+      (() => {
+        const internals = window.__TAURI_INTERNALS__;
+        const splash = document.getElementById('splash');
+        if (!internals || !splash) return;
+
+        // 窗口在「内容就绪」与「加载页该出现」两者先到者处显示，出现时必定已有内容。
+        // SPLASH_AFTER 高于打包版列表就绪时间（本机 160ms 内），就绪更快时窗口直接带内容。
+        const SPLASH_AFTER = 250;
+        const MIN_VISIBLE = 300;
+        const now = () => Math.round(performance.now());
+        const parsedAt = now();
+        const report = (level, message) =>
+          internals.invoke('log_frontend', { level, message }).catch(() => {});
+
+        let shown = false;
+        let revealedAt = 0;
+        let done = false;
+        let showTimer = 0;
+
+        function showWindow(withSplash) {
+          if (shown) return;
+          shown = true;
+          if (withSplash) {
+            revealedAt = performance.now();
+          }
+          internals
+            .invoke('plugin:window|show', { label: internals.metadata.currentWindow.label })
+            .then(() =>
+              report(
+                'info',
+                `启动：窗口 show 返回 ${now()}ms（解析 ${parsedAt}ms，${withSplash ? '带加载页' : '直接进内容'}）`
+              )
+            )
+            .catch((e) => report('warn', `启动：窗口 show 失败 ${e}`));
+        }
+
+        window.__splash = {
+          ready() {
+            if (done) return;
+            done = true;
+            clearTimeout(showTimer);
+            if (!shown) {
+              showWindow(false);
+              splash.remove();
+              return;
+            }
+            const wait = Math.max(0, revealedAt + MIN_VISIBLE - performance.now());
+            setTimeout(() => {
+              splash.classList.add('is-hidden');
+              splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+            }, wait);
+          },
+        };
+
+        showTimer = setTimeout(() => showWindow(true), SPLASH_AFTER);
+      })();
+    </script>
     <div id="app"></div>
     <div id="modal-root"></div>
     <script src="/vendor/gsap/gsap.min.js"></script>

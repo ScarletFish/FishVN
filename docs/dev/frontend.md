@@ -78,6 +78,14 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 
 默认视图是首页（`App.svelte` 的 `current` 初值 `'home'`），模块按 `config.dashboard_layout` 的顺序渲染，只渲染认识的模块 id，配置里多余的 id 被忽略。模块的注册表、开关与调序的纯函数在 `lib/dashboard-layout.js`，设置弹窗与首页共用这一份。首页监听 `lib/config-events.js` 的 `CONFIG_CHANGED` 事件并整页重载——设置弹窗每次成功保存配置后必须广播，否则首页与统计口径不刷新。品牌页的就绪事件（`app:ready`）由「启动时实际挂载的那个视图」派发——MyList 与 Dashboard 的首次加载各自派发，监听侧 `{ once: true }`，重复派发无害；新增默认视图或改默认视图时必须确认这条链路有人接手。
 
+## 启动页
+
+窗口以 `visible: false` 创建，前端在「内容就绪」与「加载页该出现」两者先到者处 show，Rust 侧 1.5 秒兜底。窗口出现时必定已有内容：快机直接是完整首页，慢机是同一帧出现的加载页，中间没有空白窗口。窗口背景色在 setup 里按已存主题设置，先于 webview 首帧，深色用户看不到浅色底。
+
+`splash` 是纯 HTML/CSS，JS 不执行也照样显示 —— 前端整体挂掉时 Rust 兜底 show 出来的是静态加载页，不是空窗。判定落在 `index.html` 的内联脚本里：内容在该阈值内就绪则窗口跳过加载页，否则窗口与加载页同时出现。加载页有最短可见时长，避免出现即被撤走。
+
+启动页图标与 `frontend/public/favicon.svg` 是同源副本，换品牌图标要同步两处。
+
 ## 构建与开发服务器
 
 `vite.config.js` 里几处不能动的配置：

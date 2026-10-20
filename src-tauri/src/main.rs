@@ -70,6 +70,19 @@ fn main() {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_background_color(Some(window_color));
             }
+            let fallback = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                let Some(window) = fallback.get_webview_window("main") else {
+                    return;
+                };
+                if window.is_visible().unwrap_or(true) {
+                    return;
+                }
+                log::warn!(target: "startup", "兜底显示窗口：前端未在 1.5 秒内显示");
+                let _ = window.show();
+                let _ = window.set_focus();
+            });
             let conn = db::open(&dir)?;
             fishvn::sessions::sweep(&conn)?;
             let conn = Arc::new(Mutex::new(conn));
