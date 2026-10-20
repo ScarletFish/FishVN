@@ -30,6 +30,22 @@
 
 拉丁走 DM Sans：可变字体拉丁子集打包在 `assets/fonts/dm-sans-latin.woff2`（OFL 许可文本同目录存放），`fonts.css` 声明 `@font-face`，字重轴 100–1000 全覆盖，新字重直接取用。CJK 走 `@fontsource-variable/noto-sans-sc`（OFL，族名 `Noto Sans SC Variable`）：101 个按 `unicode-range` 切片的可变字体，在 `fonts.css` 里 `@import`，构建时进 `dist`，浏览器按用到的字符取片；升级换版本即换包。`--font-sans` 中 CJK 族排在系统字体之前；两族之外的字符（斜体、扩展区汉字）回落字体栈里的系统字体。
 
+#### 字号阶层
+
+字号一律引用 `--text-*` token；SVG 内文字与 DOM 文字同样适用（SVG 按 1:1 渲染时 rem 即屏幕像素）。阶层与用途：
+
+| token | 像素 | 用途 |
+|---|---|---|
+| `--text-2xs` | 12.5 | 最小注记 |
+| `--text-xs` | 14.4 | 图表轴标签、徽章数字、图表数值标注、次要说明 |
+| `--text-sm` | 15 | 卡片副标题、列表辅助行 |
+| `--text-base` | 16.3 | 正文、卡标题 |
+| `--text-md` | 17.5 | 表单主标签、强调正文 |
+| `--text-lg` | 20 | 区块标题 |
+| `--text-xl` | 24 | KPI 大数字 |
+| `--text-2xl` | 26 | 弹窗标题 |
+| `--text-3xl` | 36 | 详情页主标题 |
+
 ### 动画
 
 GSAP 与 ScrollTrigger 以 vendor 全局脚本加载（`public/vendor/gsap/`，`index.html` 在模块脚本之前引入）。动画代码全程判空 `globalThis.gsap`，脚本缺失时界面照常渲染，动画只是增强层；`prefers-reduced-motion: reduce` 时入场动画直接跳过。
@@ -43,6 +59,7 @@ GSAP 与 ScrollTrigger 以 vendor 全局脚本加载（`public/vendor/gsap/`，`
 ### Token 引用规则
 
 - 颜色/间距/圆角/字重一律引用 token，**禁止写死值**；token 单点定义在 `tokens.css`，禁止在别处重新声明
+- 字号一律引用 `--text-*` token，阶层见「字体」节；SVG 内文字同样适用
 - **组件禁止直连 L1 原始值**，只能引用 L2/L3
 - **阴影与过渡只从 L2/L3 取**，不在组件里写死；要半透明色用 `color-mix(in srgb, var(--accent) 12%, transparent)`，不新增 `-rgb` 三元组
 

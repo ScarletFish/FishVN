@@ -5,7 +5,7 @@ use rusqlite::Connection;
 use tauri::{Manager, State};
 
 use crate::characters;
-use crate::dashboard::{self, DashboardStats, RecentPlay};
+use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, PlaytimeRank, RecentPlay, TagCount};
 use crate::db;
 use crate::error::{AppError, Result};
 use crate::games;
@@ -47,6 +47,26 @@ pub fn dashboard_stats(shared: Shared<'_>) -> Result<DashboardStats> {
 pub fn dashboard_recent(shared: Shared<'_>) -> Result<Vec<RecentPlay>> {
     let config = settings::current();
     dashboard::recent(&*lock(&shared)?, config.time_metric, 6)
+}
+
+#[tauri::command]
+pub fn dashboard_tag_cloud(shared: Shared<'_>) -> Result<Vec<TagCount>> {
+    dashboard::tag_cloud(&*lock(&shared)?, 40)
+}
+
+#[tauri::command]
+pub fn dashboard_playtime_top(shared: Shared<'_>) -> Result<Vec<PlaytimeRank>> {
+    dashboard::playtime_top(&*lock(&shared)?, 6)
+}
+
+#[tauri::command]
+pub fn dashboard_release_eras(shared: Shared<'_>) -> Result<Vec<EraPoint>> {
+    dashboard::release_eras(&*lock(&shared)?)
+}
+
+#[tauri::command]
+pub fn dashboard_monthly_activity(shared: Shared<'_>, months: i64) -> Result<Vec<ActivityPoint>> {
+    dashboard::monthly_activity(&*lock(&shared)?, months)
 }
 
 #[tauri::command]

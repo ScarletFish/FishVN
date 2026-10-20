@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use rusqlite::Connection;
 use serde::Serialize;
 
 use crate::error::Result;
 use crate::settings::TimeMetric;
+use crate::types::MetadataTag;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -17,6 +20,13 @@ pub struct DashboardStats {
     pub play_count: i64,
 }
 
+fn metric_text(metric: TimeMetric) -> &'static str {
+    match metric {
+        TimeMetric::Foreground => "foreground",
+        TimeMetric::Alive => "alive",
+    }
+}
+
 pub fn stats(conn: &Connection, metric: TimeMetric, week_start: i64) -> Result<DashboardStats> {
     let mut stmt = conn.prepare(
         "SELECT
@@ -26,9 +36,15 @@ pub fn stats(conn: &Connection, metric: TimeMetric, week_start: i64) -> Result<D
             (SELECT COALESCE(SUM(s.status = 'finished'), 0) FROM user_game_state s) AS finished,
             (SELECT COALESCE(SUM(s.status = 'dropped'), 0) FROM user_game_state s) AS dropped,
             (SELECT COALESCE(SUM(s.play_seconds), 0) FROM user_game_state s) AS total_seconds,
-            (SELECT COUNT(*) FROM play_sessions) AS play_count",
+            (SELECT COUNT(*) FROM play_sessions) AS play_count,
+            (SELECT COALESCE(SUM(
+                CASE WHEN ?1 = 'alive'
+                    THEN COALESCE(ended_at, last_seen_at) - started_at
+                    ELSE foreground_seconds
+                END), 0)
+             FROM play_sessions WHERE started_at >= ?2) AS week_seconds",
     )?;
-    let mut out = stmt.query_row([], |row| {
+    let out = stmt.query_row(rusqlite::params![metric_text(metric), week_start], |row| {
         Ok(DashboardStats {
             total: row.get("total")?,
             playing: row.get("playing")?,
@@ -36,31 +52,11 @@ pub fn stats(conn: &Connection, metric: TimeMetric, week_start: i64) -> Result<D
             finished: row.get("finished")?,
             dropped: row.get("dropped")?,
             total_seconds: row.get("total_seconds")?,
-            week_seconds: 0,
+            week_seconds: row.get("week_seconds")?,
             play_count: row.get("play_count")?,
         })
     })?;
-    out.week_seconds = week_seconds(conn, metric, week_start)?;
     Ok(out)
-}
-
-pub fn week_seconds(conn: &Connection, metric: TimeMetric, week_start: i64) -> Result<i64> {
-    let mut stmt = conn.prepare(
-        "SELECT COALESCE(SUM(
-            CASE WHEN ?1 = 'alive'
-                THEN COALESCE(ended_at, last_seen_at) - started_at
-                ELSE foreground_seconds
-            END), 0)
-        FROM play_sessions WHERE started_at >= ?2",
-    )?;
-    let metric_text = match metric {
-        TimeMetric::Foreground => "foreground",
-        TimeMetric::Alive => "alive",
-    };
-    let value: i64 = stmt.query_row(rusqlite::params![metric_text, week_start], |row| {
-        row.get(0)
-    })?;
-    Ok(value)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -93,10 +89,7 @@ pub fn recent(conn: &Connection, metric: TimeMetric, limit: i64) -> Result<Vec<R
          ORDER BY last_played_at DESC
          LIMIT ?1",
     )?;
-    let metric_text = match metric {
-        TimeMetric::Foreground => "foreground",
-        TimeMetric::Alive => "alive",
-    };
+    let metric_text = metric_text(metric);
     let rows = stmt.query_map(rusqlite::params![limit, metric_text], |row| {
         Ok(RecentPlay {
             id: row.get("id")?,
@@ -106,11 +99,127 @@ pub fn recent(conn: &Connection, metric: TimeMetric, limit: i64) -> Result<Vec<R
             play_seconds: row.get("play_seconds")?,
         })
     })?;
-    let mut out = Vec::new();
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TagCount {
+    pub tag: String,
+    pub count: i64,
+}
+
+pub fn tag_cloud(conn: &Connection, limit: i64) -> Result<Vec<TagCount>> {
+    let mut stmt = conn.prepare("SELECT tags FROM game_metadata WHERE tags IS NOT NULL")?;
+    let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
+    let mut counts: HashMap<String, i64> = HashMap::new();
     for row in rows {
-        out.push(row?);
+        let Some(text) = row? else { continue };
+        let Ok(tags) = serde_json::from_str::<Vec<MetadataTag>>(&text) else {
+            continue;
+        };
+        for tag in tags {
+            if tag.spoiler.unwrap_or(0) != 0 || tag.lie.unwrap_or(false) {
+                continue;
+            }
+            *counts.entry(tag.name).or_insert(0) += 1;
+        }
     }
+    let mut out: Vec<TagCount> = counts
+        .into_iter()
+        .map(|(tag, count)| TagCount { tag, count })
+        .collect();
+    out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
+    out.truncate(limit.max(0) as usize);
     Ok(out)
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PlaytimeRank {
+    pub id: String,
+    pub name: String,
+    pub seconds: i64,
+}
+
+pub fn playtime_top(conn: &Connection, limit: i64) -> Result<Vec<PlaytimeRank>> {
+    let mut stmt = conn.prepare(
+        "SELECT g.id, g.name, COALESCE(s.play_seconds, 0) AS seconds
+         FROM games g
+         JOIN user_game_state s ON s.game_id = g.id
+         WHERE s.play_seconds > 0
+         ORDER BY s.play_seconds DESC, g.name
+         LIMIT ?1",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![limit.max(0)], |row| {
+        Ok(PlaytimeRank {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            seconds: row.get("seconds")?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct EraPoint {
+    pub key: String,
+    pub count: i64,
+}
+
+const ERA_KEYS: [&str; 4] = ["pre2000", "y2000", "y2010", "y2020"];
+
+pub fn release_eras(conn: &Connection) -> Result<Vec<EraPoint>> {
+    let mut stmt = conn.prepare(
+        "SELECT CASE
+            WHEN CAST(substr(m.released, 1, 4) AS INTEGER) < 2000 THEN 'pre2000'
+            WHEN CAST(substr(m.released, 1, 4) AS INTEGER) < 2010 THEN 'y2000'
+            WHEN CAST(substr(m.released, 1, 4) AS INTEGER) < 2020 THEN 'y2010'
+            ELSE 'y2020'
+         END AS era, COUNT(*) AS count
+         FROM game_metadata m
+         WHERE m.released IS NOT NULL
+           AND length(m.released) >= 4
+           AND CAST(substr(m.released, 1, 4) AS INTEGER) BETWEEN 1900 AND 2100
+         GROUP BY era",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+    })?;
+    let counts: HashMap<String, i64> = rows.collect::<rusqlite::Result<HashMap<_, _>>>()?;
+    Ok(ERA_KEYS
+        .iter()
+        .map(|key| EraPoint {
+            key: (*key).to_string(),
+            count: counts.get(*key).copied().unwrap_or(0),
+        })
+        .collect())
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ActivityPoint {
+    pub month: String,
+    pub seconds: i64,
+}
+
+pub fn monthly_activity(conn: &Connection, months: i64) -> Result<Vec<ActivityPoint>> {
+    let mut stmt = conn.prepare(
+        "WITH RECURSIVE seq(ym) AS (
+            SELECT strftime('%Y-%m', ?1, 'unixepoch')
+            UNION ALL
+            SELECT strftime('%Y-%m', date(ym || '-01', '-1 month')) FROM seq LIMIT ?2
+         )
+         SELECT seq.ym AS ym, COALESCE(SUM(p.foreground_seconds), 0) AS s
+         FROM seq
+         LEFT JOIN play_sessions p ON strftime('%Y-%m', p.started_at, 'unixepoch') = seq.ym
+         GROUP BY seq.ym
+         ORDER BY seq.ym",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![crate::now(), months.max(1)], |row| {
+        Ok(ActivityPoint {
+            month: row.get("ym")?,
+            seconds: row.get("s")?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
 #[cfg(test)]
@@ -127,6 +236,28 @@ mod tests {
         conn
     }
 
+    fn make_game(conn: &Connection, name: &str) -> String {
+        create_game(conn, &NewGame { name: name.into(), vndb_id: None, metadata: None })
+            .unwrap()
+            .id
+    }
+
+    fn set_status(conn: &Connection, game_id: &str, status: &str) {
+        conn.execute(
+            "UPDATE user_game_state SET status = ?2 WHERE game_id = ?1",
+            rusqlite::params![game_id, status],
+        )
+        .unwrap();
+    }
+
+    fn set_play_seconds(conn: &Connection, game_id: &str, seconds: i64) {
+        conn.execute(
+            "UPDATE user_game_state SET play_seconds = ?2 WHERE game_id = ?1",
+            rusqlite::params![game_id, seconds],
+        )
+        .unwrap();
+    }
+
     #[test]
     fn 空库统计全为零() {
         let conn = db();
@@ -137,18 +268,12 @@ mod tests {
     #[test]
     fn 状态计数与累计时长按库内数据聚合() {
         let conn = db();
-        let a = create_game(&conn, &NewGame { name: "甲".into(), vndb_id: None, metadata: None }).unwrap().id;
-        let b = create_game(&conn, &NewGame { name: "乙".into(), vndb_id: None, metadata: None }).unwrap().id;
-        conn.execute(
-            "UPDATE user_game_state SET status = 'finished', play_seconds = 3600 WHERE game_id = ?1",
-            rusqlite::params![a],
-        )
-        .unwrap();
-        conn.execute(
-            "UPDATE user_game_state SET status = 'playing', play_seconds = 60 WHERE game_id = ?1",
-            rusqlite::params![b],
-        )
-        .unwrap();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        set_status(&conn, &a, "finished");
+        set_play_seconds(&conn, &a, 3600);
+        set_status(&conn, &b, "playing");
+        set_play_seconds(&conn, &b, 60);
 
         let stats = stats(&conn, TimeMetric::Foreground, 0).unwrap();
         assert_eq!(stats.total, 2);
@@ -161,7 +286,7 @@ mod tests {
     #[test]
     fn 周时长按口径取对应列() {
         let conn = db();
-        let id = create_game(&conn, &NewGame { name: "丙".into(), vndb_id: None, metadata: None }).unwrap().id;
+        let id = make_game(&conn, "丙");
         let now = crate::now();
         conn.execute(
             "INSERT INTO play_sessions (id, game_id, started_at, last_seen_at, ended_at, foreground_seconds)
@@ -171,9 +296,9 @@ mod tests {
         .unwrap();
 
         let week_start = now - 7 * 24 * 3600;
-        assert_eq!(week_seconds(&conn, TimeMetric::Foreground, week_start).unwrap(), 120);
-        assert_eq!(week_seconds(&conn, TimeMetric::Alive, week_start).unwrap(), 60);
-        assert_eq!(week_seconds(&conn, TimeMetric::Foreground, now + 1).unwrap(), 0);
+        assert_eq!(stats(&conn, TimeMetric::Foreground, week_start).unwrap().week_seconds, 120);
+        assert_eq!(stats(&conn, TimeMetric::Alive, week_start).unwrap().week_seconds, 60);
+        assert_eq!(stats(&conn, TimeMetric::Foreground, now + 1).unwrap().week_seconds, 0);
     }
 
     fn add_installation(conn: &Connection, game_id: &str, entry: bool) {
@@ -198,37 +323,26 @@ mod tests {
     fn 继续游玩只含游玩中有入口有会话的并按最近排序() {
         let conn = db();
         let now = crate::now();
-        let make = |name: &str| {
-            create_game(&conn, &NewGame { name: name.into(), vndb_id: None, metadata: None })
-                .unwrap()
-                .id
-        };
-        let a = make("甲");
-        let b = make("乙");
-        let c = make("丙");
-        let d = make("丁");
-        let _e = make("戊");
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        let c = make_game(&conn, "丙");
+        let d = make_game(&conn, "丁");
+        let e = make_game(&conn, "戊");
         add_installation(&conn, &a, true);
         add_installation(&conn, &b, true);
         add_installation(&conn, &c, false);
         add_installation(&conn, &d, true);
-        add_installation(&conn, &_e, true);
+        add_installation(&conn, &e, true);
         add_session(&conn, &a, "a1", now - 3_600, 1_800);
         add_session(&conn, &a, "a2", now - 60, 600);
         add_session(&conn, &b, "b1", now - 30, 120);
         add_session(&conn, &b, "b2", now - 120, 60);
         add_session(&conn, &c, "c1", now - 30, 60);
         add_session(&conn, &d, "d1", now - 10, 60);
-        conn.execute(
-            "UPDATE user_game_state SET status = 'playing' WHERE game_id IN (?1, ?2, ?3, ?4)",
-            rusqlite::params![a, b, c, _e],
-        )
-        .unwrap();
-        conn.execute(
-            "UPDATE user_game_state SET status = 'finished' WHERE game_id = ?1",
-            rusqlite::params![d],
-        )
-        .unwrap();
+        for id in [&a, &b, &c, &e] {
+            set_status(&conn, id, "playing");
+        }
+        set_status(&conn, &d, "finished");
 
         let recent = recent(&conn, TimeMetric::Foreground, 6).unwrap();
         assert_eq!(
@@ -244,13 +358,9 @@ mod tests {
     fn 继续游玩受限数量并按口径取时长() {
         let conn = db();
         let now = crate::now();
-        let a = create_game(&conn, &NewGame { name: "甲".into(), vndb_id: None, metadata: None }).unwrap().id;
+        let a = make_game(&conn, "甲");
         add_installation(&conn, &a, true);
-        conn.execute(
-            "UPDATE user_game_state SET status = 'playing' WHERE game_id = ?1",
-            rusqlite::params![a],
-        )
-        .unwrap();
+        set_status(&conn, &a, "playing");
         add_session(&conn, &a, "a1", now - 120, 1_800);
         conn.execute(
             "UPDATE play_sessions SET ended_at = ?1, last_seen_at = ?1 WHERE id = 'p-a1'",
@@ -263,5 +373,147 @@ mod tests {
         assert_eq!(items[0].play_seconds, 120);
         let items = recent(&conn, TimeMetric::Foreground, 1).unwrap();
         assert_eq!(items[0].play_seconds, 1_800);
+    }
+
+    fn set_tags(conn: &Connection, game_id: &str, json: &str) {
+        conn.execute(
+            "INSERT INTO game_metadata (game_id, tags) VALUES (?1, ?2)",
+            rusqlite::params![game_id, json],
+        )
+        .unwrap();
+    }
+
+    fn set_released(conn: &Connection, game_id: &str, released: &str) {
+        conn.execute(
+            "INSERT INTO game_metadata (game_id, released) VALUES (?1, ?2)",
+            rusqlite::params![game_id, released],
+        )
+        .unwrap();
+    }
+
+    fn month_index(ym: &str) -> i64 {
+        let y: i64 = ym[0..4].parse().unwrap();
+        let m: i64 = ym[5..7].parse().unwrap();
+        y * 12 + m
+    }
+
+    #[test]
+    fn 词云按频次计数并过滤剧透标签() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        set_tags(
+            &conn,
+            &a,
+            r#"[{"id":"g1","name":"恋爱","category":"theme","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g2","name":"战斗","category":"acts","rating":2.0,"vn_count":5,"spoiler":0,"lie":false}]"#,
+        );
+        let b = make_game(&conn, "乙");
+        set_tags(
+            &conn,
+            &b,
+            r#"[{"id":"g1","name":"恋爱","category":"theme","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g3","name":"伏笔回收","category":"theme","rating":1.0,"vn_count":1,"spoiler":2,"lie":false}]"#,
+        );
+
+        let cloud = tag_cloud(&conn, 40).unwrap();
+        assert_eq!(cloud.len(), 2);
+        assert_eq!(cloud[0].tag, "恋爱");
+        assert_eq!(cloud[0].count, 2);
+        assert_eq!(cloud[1].tag, "战斗");
+        assert_eq!(cloud[1].count, 1);
+    }
+
+    #[test]
+    fn 词云截断到上限() {
+        let conn = db();
+        let mut json = String::from("[");
+        for i in 0..5 {
+            if i > 0 {
+                json.push(',');
+            }
+            json.push_str(&format!(
+                r#"{{"id":"t{i}","name":"标签{i}","spoiler":0,"lie":false}}"#
+            ));
+        }
+        json.push(']');
+        let id = make_game(&conn, "甲");
+        set_tags(&conn, &id, &json);
+
+        assert_eq!(tag_cloud(&conn, 3).unwrap().len(), 3);
+        assert_eq!(tag_cloud(&conn, 0).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn 无标签时词云为空() {
+        let conn = db();
+        make_game(&conn, "甲");
+        assert!(tag_cloud(&conn, 40).unwrap().is_empty());
+    }
+
+    #[test]
+    fn 月度活跃按月份聚合前景时间并补齐空月() {
+        let conn = db();
+        let now = crate::now();
+        let a = make_game(&conn, "甲");
+        add_session(&conn, &a, "x1", now - 30 * 86400, 3600);
+        add_session(&conn, &a, "x2", now - 60 * 86400, 1800);
+
+        let points = monthly_activity(&conn, 12).unwrap();
+        assert_eq!(points.len(), 12);
+        let total: i64 = points.iter().map(|p| p.seconds).sum();
+        assert_eq!(total, 5400);
+        assert_eq!(month_index(&points[11].month) - month_index(&points[0].month), 11);
+        assert_eq!(monthly_activity(&conn, 1).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn 时长排行按时长降序且不含零时长() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        make_game(&conn, "丙");
+        set_play_seconds(&conn, &a, 7200);
+        set_play_seconds(&conn, &b, 3600);
+
+        let top = playtime_top(&conn, 6).unwrap();
+        assert_eq!(top.len(), 2);
+        assert_eq!(top[0].id, a);
+        assert_eq!(top[0].seconds, 7200);
+        assert_eq!(top[1].id, b);
+        assert_eq!(top[1].seconds, 3600);
+        assert_eq!(playtime_top(&conn, 1).unwrap().len(), 1);
+        assert_eq!(playtime_top(&conn, 0).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn 发行年代按十年分桶并补零() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        let c = make_game(&conn, "丙");
+        let d = make_game(&conn, "丁");
+        let e = make_game(&conn, "戊");
+        set_released(&conn, &a, "1998-06-12");
+        set_released(&conn, &b, "2004-01-01");
+        set_released(&conn, &c, "2016-11-30");
+        set_released(&conn, &d, "2024-05-24");
+        set_released(&conn, &e, "2026-01-09");
+
+        let eras = release_eras(&conn).unwrap();
+        assert_eq!(
+            eras.iter().map(|e| e.key.as_str()).collect::<Vec<_>>(),
+            vec!["pre2000", "y2000", "y2010", "y2020"]
+        );
+        assert_eq!(
+            eras.iter().map(|e| e.count).collect::<Vec<_>>(),
+            vec![1, 1, 1, 2]
+        );
+    }
+
+    #[test]
+    fn 发行年代过滤无效年份() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        set_released(&conn, &a, "abcd");
+        let eras = release_eras(&conn).unwrap();
+        assert_eq!(eras.iter().map(|e| e.count).sum::<i64>(), 0);
     }
 }

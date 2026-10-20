@@ -12,7 +12,7 @@ export const DICT_ZH = {
   nav: {
     home: '首页',
     mylist: '我的列表',
-    scan: '扫描',
+    stats: '统计',
     settings: '设置',
   },
   dashboard: {
@@ -34,6 +34,37 @@ export const DICT_ZH = {
     error: '读取统计数据失败',
     continueOpen: '查看详情',
     continueStart: '启动游戏',
+    tagCloud: {
+      title: '标签词云',
+      sub: '共 {count} 个标签',
+      empty: '暂无标签数据（同步 VNDB 元数据后显示）',
+      error: '读取标签失败',
+    },
+    activity: {
+      title: '游玩活跃度',
+      sub: '近 6 个月',
+      empty: '暂无游玩记录',
+      error: '读取活跃度失败',
+    },
+    playtime: {
+      title: '游玩时长',
+      sub: '累计时长 · 前 6 名',
+      empty: '暂无游玩记录',
+      error: '读取游玩时长失败',
+    },
+    era: {
+      title: '发行年代',
+      sub: '按发行年份',
+      empty: '暂无发行年份数据',
+      error: '读取发行年代失败',
+      pre2000: '2000 年前',
+      y2000: '2000 年代',
+      y2010: '2010 年代',
+      y2020: '2020 年代',
+    },
+  },
+  stats: {
+    summary: '共 {count} 部作品',
   },
   mylist: {
     title: '我的列表',

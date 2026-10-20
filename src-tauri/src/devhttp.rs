@@ -75,6 +75,8 @@ pub struct Args {
     pub entries: Option<Value>,
     #[serde(default)]
     pub task: Option<String>,
+    #[serde(default)]
+    pub months: Option<i64>,
 }
 
 impl Args {
@@ -140,6 +142,12 @@ handler!(dashboard_recent, |c, _a| {
     let config = settings::current();
     dashboard::recent(c, config.time_metric, 6)
 });
+handler!(dashboard_tag_cloud, |c, _a| dashboard::tag_cloud(c, 40));
+handler!(dashboard_monthly_activity, |c, a| {
+    dashboard::monthly_activity(c, a.months.unwrap_or(12))
+});
+handler!(dashboard_playtime_top, |c, _a| dashboard::playtime_top(c, 6));
+handler!(dashboard_release_eras, |c, _a| dashboard::release_eras(c));
 handler!(get_game, |c, a| games::get_game(c, a.id()?));
 handler!(create_game, |c, a| games::create_game(
     c,
@@ -350,6 +358,10 @@ pub fn router(dev: Dev) -> Router {
         .route("/list_games", post(list_games))
         .route("/dashboard_stats", post(dashboard_stats))
         .route("/dashboard_recent", post(dashboard_recent))
+        .route("/dashboard_tag_cloud", post(dashboard_tag_cloud))
+        .route("/dashboard_monthly_activity", post(dashboard_monthly_activity))
+        .route("/dashboard_playtime_top", post(dashboard_playtime_top))
+        .route("/dashboard_release_eras", post(dashboard_release_eras))
         .route("/get_game", post(get_game))
         .route("/create_game", post(create_game))
         .route("/update_game", post(update_game))
@@ -385,6 +397,10 @@ pub const COMMANDS: &[&str] = &[
     "list_games",
     "dashboard_stats",
     "dashboard_recent",
+    "dashboard_tag_cloud",
+    "dashboard_monthly_activity",
+    "dashboard_playtime_top",
+    "dashboard_release_eras",
     "get_game",
     "create_game",
     "update_game",
