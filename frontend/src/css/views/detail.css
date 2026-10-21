@@ -548,28 +548,51 @@
 }
 
 .detail-install {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   flex-basis: 100%;
-  overflow: hidden;
+  min-width: 0;
   padding: var(--space-150) var(--space-3);
-  background: color-mix(in srgb, var(--bg-raised) 55%, transparent);
+  background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
-  color: var(--fg-muted);
+  font-weight: var(--fw-normal);
+  color: var(--fg-default);
   text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.detail-install-label {
+  flex: none;
+  color: var(--fg-muted);
+  font-weight: var(--fw-medium);
+}
+
+.detail-install-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
-  transition:
-    border-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
+}
+
+.detail-install-edit {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--fg-muted);
 }
 
 .detail-install:hover {
-  color: var(--fg-default);
   border-color: var(--border-strong);
+}
+
+.detail-install:hover .detail-install-edit {
+  color: var(--fg-default);
 }
 .detail-staff-grid {
   display: grid;

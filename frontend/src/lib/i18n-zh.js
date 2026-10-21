@@ -119,6 +119,8 @@ export const DICT_ZH = {
     deleted: '已删除',
     fewerTags: '收起',
     playtime: '游玩时长',
+    installDefaultTip: '点击编辑',
+    installDefault: '默认启动项：',
     characters: '角色',
     staff: '制作人员',
     staffMore: '… 还有 {count} 人',
