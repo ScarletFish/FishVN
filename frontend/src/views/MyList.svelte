@@ -4,6 +4,7 @@
   import { t } from '../lib/i18n.js';
   import { getScrollViewport } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
+  import { confirm } from '../lib/confirm.svelte.js';
   import { pickDirectory, pickExecutable } from '../lib/pick-path.js';
   import { createScrollAnim } from '../lib/scroll-anim.js';
   import { captureHero } from '../lib/hero-transition.js';
@@ -32,6 +33,13 @@
     prefill = null;
     formGameId = id;
     formOpen = true;
+  }
+
+  async function deleteGame(item) {
+    const ok = await confirm('deleteGame', item.name);
+    if (!ok) return;
+    await api.deleteGame(item.id);
+    await load();
   }
 
   function openFromCard(item) {
@@ -215,7 +223,7 @@
     {#each sections as section (section.status)}
       <StatusSection label={section.label} items={section.items}>
         {#snippet children(item)}
-          <GameCard {item} onopen={() => openFromCard(item)} onedit={openForm} />
+          <GameCard {item} onopen={() => openFromCard(item)} onedit={openForm} ondelet={deleteGame} />
         {/snippet}
       </StatusSection>
     {/each}

@@ -3,7 +3,7 @@
   import Menu from './Menu.svelte';
   import { coverSrc } from '../lib/cover-src.js';
 
-  let { item, onopen, onedit } = $props();
+  let { item, onopen, onedit, ondelet } = $props();
 
   let coverBroken = $state(false);
   let coverUrl = $state(null);
@@ -29,7 +29,12 @@
   const initial = $derived((item.name || '?')[0].toUpperCase());
 
   const menuItems = $derived([
-    { label: t('common.actionEdit'), onclick: () => onedit?.(item.id) },
+    ...(onedit
+      ? [{ label: t('common.actionEdit'), onclick: () => onedit?.(item.id) }]
+      : []),
+    ...(ondelet
+      ? [{ label: t('detail.actionDelete'), onclick: () => ondelet?.(item) }]
+      : []),
   ]);
 </script>
 
@@ -61,7 +66,7 @@
     onclick={() => onopen?.(item.id)}
   ></button>
 
-  {#if onedit}
+  {#if menuItems.length}
     <div class="cover-card__menu">
       <Menu items={menuItems} label={t('common.actionMore')} variant="plain" />
     </div>

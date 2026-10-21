@@ -371,7 +371,7 @@
 <Modal
   bind:open
   bind:asideOpen={searchOpen}
-  title={t('gameForm.title')}
+  title={gameId ? t('common.actionEdit') : t('gameForm.title')}
   variant="modal--form"
   asideTitle={t('gameForm.search.title')}
   onclose={close}

@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
+  import { confirm } from '../lib/confirm.svelte.js';
   import { durationText } from '../lib/playtime.js';
   import { coverSrc } from '../lib/cover-src.js';
   import { initScrollDots } from '../lib/scroll-dots.svelte.js';
@@ -9,6 +10,7 @@
   import { DASHBOARD_MODULES } from '../lib/dashboard-layout.js';
   import { CONFIG_CHANGED } from '../lib/config-events.js';
   import GameCard from '../components/GameCard.svelte';
+  import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
 
   let { onopen } = $props();
@@ -24,6 +26,8 @@
   let error = $state(null);
   let scrollEl = $state(null);
   let headEl = $state(null);
+  let formOpen = $state(false);
+  let formGameId = $state(null);
 
   const moduleLabel = (id) => {
     const known = DASHBOARD_MODULES.find((m) => m.id === id);
@@ -48,6 +52,18 @@
     );
     if (card) captureHero(card);
     onopen(item.id);
+  }
+
+  function openForm(id) {
+    formGameId = id;
+    formOpen = true;
+  }
+
+  async function deleteGame(item) {
+    const ok = await confirm('deleteGame', item.name);
+    if (!ok) return;
+    await api.deleteGame(item.id);
+    await load();
   }
 
   function continueOpen(item, card) {
@@ -201,7 +217,7 @@
           {#each localSections as section (section.status)}
             <StatusSection variant="dashboard" label={section.label} items={section.items}>
               {#snippet children(item)}
-                <GameCard {item} onopen={() => openLocal(item)} />
+                <GameCard {item} onopen={() => openLocal(item)} onedit={openForm} ondelet={deleteGame} />
               {/snippet}
             </StatusSection>
           {/each}
@@ -210,3 +226,5 @@
     {/each}
   {/if}
 </section>
+
+<GameForm bind:open={formOpen} bind:gameId={formGameId} onsaved={load} />
