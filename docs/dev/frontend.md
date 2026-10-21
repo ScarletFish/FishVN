@@ -225,6 +225,28 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - `sidebar`：`stroke-width` 与尺寸绑定，图标放大后线条会相对变细；`.active:hover` 必须与 `.active` 一起清，否则悬停时半透明底色会回来
 - `buttons`：`.btn-primary:hover` 用 `brightness` 提亮（不过滤会瞬间跳变）；覆盖 `.btn:hover` 的规则与它特异性相同，要逐项写全才不会漏掉被按顺序冲掉的属性
 
+**表面层级与交互态**
+
+表面层级只连 L2 的 `--bg-*` token，用途对应：
+
+| 用途 | token |
+|---|---|
+| 页面底 / 侧栏 | `--bg-page` / `--bg-modal` |
+| 常规表面 / 卡片 / 输入框底 | `--bg-surface` |
+| 抬起的块（卡片常态、浮层锚） | `--bg-raised` |
+| 浮层（菜单 / 下拉 / 弹窗内容） | `--bg-floating` |
+| hover / 按下蒙版（压暗） | `--bg-hover` |
+| 选中（accent 身份） | `--bg-selected` + `--accent-border` |
+
+交互态写法：
+- hover / active 用 `--bg-hover` 蒙版压暗，或只强化 `--border-strong` 边框。
+- 浮层（菜单、下拉、弹窗）用 `--bg-floating`，取 ramp 最浅一档。
+- 选中用 `--bg-selected` 淡染 + `--accent-border` 描边表达身份。
+- 表单字段（输入框、标签输入框等）hover 只动边框，`focus` / `:focus-within` 才升 `--bg-raised` + `--shadow-sm`。
+- 下拉 / 菜单：触发器（按钮）走 `--bg-hover` 压暗，弹出菜单走 `--bg-floating`。
+- 标签页 / 段控选中指示用 accent 下划线或 accent 淡染。
+- 已添加的「内容」类胶囊（tag 芯片）恒定背景用 `--bg-hover`，比容器深一档，hover 时仍保持边界（与只读 `.pill--tag` 同款）。
+
 ## 注释
 
 代码里不写注释，前端惯例写进本文。规则与例外见 [comments.md](./comments.md)。

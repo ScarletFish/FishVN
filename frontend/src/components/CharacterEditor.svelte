@@ -407,10 +407,9 @@
     border-color: var(--border-strong);
   }
 
-  .char-card.expanded {
-    border-color: var(--border-strong);
-    background: var(--bg-raised);
-  }
+.char-card.expanded {
+  border-color: var(--accent-border);
+}
 
   .char-card--add {
     align-items: center;
@@ -432,11 +431,11 @@
       color var(--duration-fast) var(--ease-out);
   }
 
-  .char-card--add:hover {
-    color: var(--fg-default);
-    border-color: var(--border-strong);
-    background: var(--bg-raised);
-  }
+.char-card--add:hover {
+  color: var(--fg-default);
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
 
   .char-card--add span {
     font-size: var(--text-xs);

@@ -67,9 +67,10 @@ body {
 /* === L1 primitives === */
 :root {
   /* 中性：表面用，暖调 */
-  --gray-25:  #fbfbf7;
-  --gray-50:  #f7f7f1;
-  --gray-100: #f5f4f1;
+  --gray-10:  #fefefb;
+  --gray-25:  #fcfbf7;
+  --gray-50:  #f7f6f1;
+  --gray-100: #f3f1ec;
   --gray-200: #f1f0ec;
   --gray-400: #d8d6d1;
   --gray-700: #333333;
@@ -157,14 +158,14 @@ body {
 
 /* === L2 semantic · 浅色 === */
 :root {
-  /* 背景 —— 单调递增：越靠前越亮，两个主题同向。
-     浅色下相邻档明度差常不足 1.10，靠底色分不出层级，浮起由边框与阴影承担。 */
+  /* 背景 —— 单调递增：越上浮越亮，两个主题同向。
+     浅色下相邻档明度差拉到 4–5，层级可读；浮起仍由边框与阴影承担。 */
   --bg-sidebar: var(--gray-200); /* 侧栏：导航 chrome，与内容区并列 */
   --bg-page: var(--gray-200); /* 页面底 */
   --bg-modal: var(--gray-100); /* 弹窗底 */
   --bg-surface: var(--gray-50); /* 卡片、面板、弹窗内的块与输入框 */
   --bg-raised: var(--gray-25); /* 按钮、下拉、tooltip */
-  --bg-floating: var(--ink-white); /* Toast：压页面或弹窗，靠阴影与边框分层 */
+  --bg-floating: var(--gray-10); /* Toast：压页面或弹窗，靠阴影与边框分层 */
   --bg-hover: color-mix(in srgb, var(--ink-black) 6%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
 

@@ -180,15 +180,15 @@
       border-color var(--duration-fast) var(--ease-out);
   }
 
-  .vndb-hit:hover {
-    background: var(--bg-raised);
-    border-color: var(--border-strong);
-  }
+.vndb-hit:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
 
-  .vndb-hit.active {
-    background: var(--bg-raised);
-    border-color: var(--border-strong);
-  }
+.vndb-hit.active {
+  background: var(--bg-selected);
+  border-color: var(--accent-border);
+}
 
   .vndb-hit__cover {
     flex-shrink: 0;

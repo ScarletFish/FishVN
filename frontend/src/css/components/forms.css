@@ -79,7 +79,10 @@
 
 .form-group input:hover,
 .form-group select:hover,
-.form-group textarea:hover,
+.form-group textarea:hover {
+  border-color: var(--border-strong);
+}
+
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
@@ -142,7 +145,7 @@
 
 .staff-row__remove:hover {
   color: var(--fg-default);
-  background: var(--bg-raised);
+  background: var(--bg-hover);
   border-color: var(--border-default);
 }
 
@@ -284,7 +287,7 @@
 }
 
 .seg-radio-item:hover {
-  background: color-mix(in srgb, var(--bg-page) 60%, transparent);
+  background: var(--bg-hover);
 }
 
 .seg-radio-item:has(input:checked) {
@@ -472,7 +475,7 @@
 
 .layout-row:hover {
   border-color: var(--border-strong);
-  background: var(--bg-raised);
+  background: var(--bg-hover);
 }
 
 .layout-row.dragging {
