@@ -49,13 +49,15 @@
   padding: 0 var(--space-2) 0 var(--space-1);
   flex-shrink: 0;
   border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
   font-weight: var(--fw-medium);
+  line-height: 1;
 }
 
 .titlebar__back:hover {
   color: var(--fg-default);
-  background: color-mix(in srgb, var(--bg-raised) 60%, transparent);
+  background: var(--bg-hover);
 }
 
 .titlebar__back svg {
@@ -260,7 +262,7 @@
 }
 
 .titlebar__btn:hover {
-  background: color-mix(in srgb, var(--bg-raised) 70%, transparent);
+  background: var(--bg-hover);
   color: var(--fg-secondary);
 }
 

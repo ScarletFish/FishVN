@@ -15,6 +15,19 @@ textarea,
   user-select: auto;
 }
 
+/* 原生控件（button/input/select/textarea）不继承 font（含 font-family /
+   font-size / font-weight），UA 会给一套系统默认字体与尺寸，与页面其余
+   --font-sans 文字错位（标题栏返回按钮当初就因此与标题差 ~2px）。
+   font: inherit 是标准重置写法，强制它们沿用父级字体与尺寸，从根上
+   消除整类「控件字体不对」的隐患；组件仍可用
+   font-family: var(--font-sans) 显式写死，特异性更高会覆盖此处。 */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 /* ─── 焦点可见 ───
    全局兜底一条规则。自带焦点样式的组件（输入框、开关滑块）
    要显式写 :focus-visible { outline: none } 关掉，避免叠成双环。 */

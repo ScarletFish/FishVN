@@ -16,18 +16,19 @@ window.addEventListener('unhandledrejection', (e) => {
 const splash = window.__splash;
 
 if (isTauri) {
+  const readyTimeout = setTimeout(() => {
+    report('warn', '8 秒兜底：app:ready 未按时到达');
+    splash?.ready();
+  }, 8000);
   window.addEventListener(
     'app:ready',
     () => {
+      clearTimeout(readyTimeout);
       splash?.ready();
       report('info', `启动：列表就绪 ${Math.round(performance.now())}ms`);
     },
     { once: true }
   );
-  setTimeout(() => {
-    report('warn', '8 秒兜底：app:ready 未按时到达');
-    splash?.ready();
-  }, 8000);
 } else {
   document.getElementById('splash')?.remove();
 }
