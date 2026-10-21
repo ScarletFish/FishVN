@@ -115,38 +115,6 @@ body {
   --violet-600: #7c3aed;
   --violet-700: #6d28d9;
 
-  /* 各色系配套前景（与 sand 同构：浅色 950/700/500，深色 100/300/400） */
-  --amber-fg-950: #1a1814;
-  --amber-fg-700: #4a4842;
-  --amber-fg-500: #6a6860;
-  --amber-fg-100: #f5e6c8;
-  --amber-fg-300: #b8a88a;
-  --amber-fg-400: #7a6e58;
-  --ocean-fg-950: #0f2030;
-  --ocean-fg-700: #304a60;
-  --ocean-fg-500: #4a606a;
-  --ocean-fg-100: #dce8f0;
-  --ocean-fg-300: #8a9ca8;
-  --ocean-fg-400: #5a6c78;
-  --sakura-fg-950: #201018;
-  --sakura-fg-700: #503840;
-  --sakura-fg-500: #5a4850;
-  --sakura-fg-100: #f0e2e8;
-  --sakura-fg-300: #a08a94;
-  --sakura-fg-400: #70606a;
-  --emerald-fg-950: #0f2018;
-  --emerald-fg-700: #304a40;
-  --emerald-fg-500: #4a6050;
-  --emerald-fg-100: #e0f0e8;
-  --emerald-fg-300: #8aa094;
-  --emerald-fg-400: #5a7064;
-  --violet-fg-950: #1a1030;
-  --violet-fg-700: #403060;
-  --violet-fg-500: #5a4880;
-  --violet-fg-100: #e8e0f0;
-  --violet-fg-300: #a098b0;
-  --violet-fg-400: #6a6080;
-
   /* 状态色原值：仅 --success/--warning/--info 一族引用 */
   --green-500: #22c55e;
   --amber-500: #f59e0b;
@@ -268,90 +236,60 @@ body {
   --accent: var(--amber-700);
   --accent-soft: var(--amber-500);
   --accent-gradient: linear-gradient(135deg, var(--amber-700), var(--amber-500));
-  --fg-default: var(--amber-fg-950);
-  --fg-secondary: var(--amber-fg-700);
-  --fg-muted: var(--amber-fg-500);
 }
 
 [data-theme="dark"][data-accent="amber"] {
   --accent: var(--amber-600);
   --accent-soft: var(--amber-300);
   --accent-gradient: linear-gradient(135deg, var(--amber-600), var(--amber-300));
-  --fg-default: var(--amber-fg-100);
-  --fg-secondary: var(--amber-fg-300);
-  --fg-muted: var(--amber-fg-400);
 }
 
 [data-accent="ocean"] {
   --accent: var(--ocean-700);
   --accent-soft: var(--ocean-500);
   --accent-gradient: linear-gradient(135deg, var(--ocean-700), var(--ocean-500));
-  --fg-default: var(--ocean-fg-950);
-  --fg-secondary: var(--ocean-fg-700);
-  --fg-muted: var(--ocean-fg-500);
 }
 
 [data-theme="dark"][data-accent="ocean"] {
   --accent: var(--ocean-600);
   --accent-soft: var(--ocean-300);
   --accent-gradient: linear-gradient(135deg, var(--ocean-600), var(--ocean-300));
-  --fg-default: var(--ocean-fg-100);
-  --fg-secondary: var(--ocean-fg-300);
-  --fg-muted: var(--ocean-fg-400);
 }
 
 [data-accent="sakura"] {
   --accent: var(--sakura-600);
   --accent-soft: var(--sakura-500);
   --accent-gradient: linear-gradient(135deg, var(--sakura-600), var(--sakura-500));
-  --fg-default: var(--sakura-fg-950);
-  --fg-secondary: var(--sakura-fg-700);
-  --fg-muted: var(--sakura-fg-500);
 }
 
 [data-theme="dark"][data-accent="sakura"] {
   --accent: var(--sakura-500);
   --accent-soft: var(--sakura-300);
   --accent-gradient: linear-gradient(135deg, var(--sakura-500), var(--sakura-300));
-  --fg-default: var(--sakura-fg-100);
-  --fg-secondary: var(--sakura-fg-300);
-  --fg-muted: var(--sakura-fg-400);
 }
 
 [data-accent="emerald"] {
   --accent: var(--emerald-700);
   --accent-soft: var(--emerald-600);
   --accent-gradient: linear-gradient(135deg, var(--emerald-700), var(--emerald-600));
-  --fg-default: var(--emerald-fg-950);
-  --fg-secondary: var(--emerald-fg-700);
-  --fg-muted: var(--emerald-fg-500);
 }
 
 [data-theme="dark"][data-accent="emerald"] {
   --accent: var(--emerald-600);
   --accent-soft: var(--emerald-400);
   --accent-gradient: linear-gradient(135deg, var(--emerald-600), var(--emerald-400));
-  --fg-default: var(--emerald-fg-100);
-  --fg-secondary: var(--emerald-fg-300);
-  --fg-muted: var(--emerald-fg-400);
 }
 
 [data-accent="violet"] {
   --accent: var(--violet-700);
   --accent-soft: var(--violet-600);
   --accent-gradient: linear-gradient(135deg, var(--violet-700), var(--violet-600));
-  --fg-default: var(--violet-fg-950);
-  --fg-secondary: var(--violet-fg-700);
-  --fg-muted: var(--violet-fg-500);
 }
 
 [data-theme="dark"][data-accent="violet"] {
   --accent: var(--violet-600);
   --accent-soft: var(--violet-300);
   --accent-gradient: linear-gradient(135deg, var(--violet-600), var(--violet-300));
-  --fg-default: var(--violet-fg-100);
-  --fg-secondary: var(--violet-fg-300);
-  --fg-muted: var(--violet-fg-400);
 }
 
 /* 设置面板里的色块预览：组件经此层取色，不直连上面的 L1 原值 */
