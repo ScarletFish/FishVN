@@ -1,7 +1,7 @@
 <script>
   import { tick } from 'svelte';
   import Modal from './Modal.svelte';
-  import { getTheme, toggleTheme, getAccent, setAccent, viewTransition, ACCENTS } from '../lib/theme.js';
+  import { getTheme, toggleTheme, getAccent, setAccent, viewTransition, ACCENTS, getFontScale, setFontScale } from '../lib/theme.js';
   import { t } from '../lib/i18n.js';
   import { toast } from '../lib/toast.svelte.js';
   import { api } from '../lib/api.js';
@@ -13,6 +13,7 @@
   let tab = $state('appearance');
   let dark = $state(getTheme() === 'dark');
   let accent = $state(getAccent());
+  let fontScale = $state(getFontScale());
   let timeMetric = $state('foreground');
   let layout = $state([]);
 
@@ -20,6 +21,7 @@
     if (!open) return;
     dark = getTheme() === 'dark';
     accent = getAccent();
+    fontScale = getFontScale();
     api
       .getConfig()
       .then((config) => {
@@ -152,6 +154,24 @@
             ></button>
           {/each}
         </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label-row">
+          <div class="form-label">{t('settings.fontSize')}</div>
+          <span class="form-value">{Math.round(fontScale * 100)}%</span>
+        </div>
+        <input
+          class="font-scale-slider"
+          type="range"
+          min="75"
+          max="125"
+          step="5"
+          value={Math.round(fontScale * 100)}
+          aria-label={t('settings.fontSize')}
+          oninput={(e) => (fontScale = setFontScale(Number(e.currentTarget.value) / 100))}
+        />
+        <p class="form-hint">{t('settings.fontSizeHint')}</p>
       </div>
 
       <div class="form-group">

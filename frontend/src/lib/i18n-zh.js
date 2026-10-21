@@ -192,6 +192,8 @@ export const DICT_ZH = {
     layoutMoveUp: '上移',
     layoutMoveDown: '下移',
     layoutEmpty: '所有模块都已关闭',
+    fontSize: '字体大小',
+    fontSizeHint: '整体字号缩放，影响全部界面文字与控件',
   },
   gameForm: {
     title: '添加游戏',

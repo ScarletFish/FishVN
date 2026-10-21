@@ -535,3 +535,55 @@
   opacity: 0.3;
   cursor: default;
 }
+
+/* 字体缩放滑块 */
+.form-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.form-value {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+
+.font-scale-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-default);
+  outline: none;
+  cursor: pointer;
+}
+
+.font-scale-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-floating);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.font-scale-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-floating);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.font-scale-slider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}

@@ -6,13 +6,20 @@
 .detail-banner {
   position: relative;
   z-index: var(--z-sticky);
-  display: grid;
-  grid-template-columns: var(--card-w) 1fr;
-  grid-template-rows: auto auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--space-4) clamp(1.875rem, 3vw, 3.75rem);
-  align-items: start;
   padding-top: 10rem;
   padding-bottom: var(--space-4);
+}
+
+.detail-banner-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: var(--card-w);
+  flex-shrink: 0;
 }
 
 .detail-actions {
@@ -158,10 +165,11 @@
 }
 
 .detail-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  min-width: 0;
 }
 
 .detail-info h1 {
@@ -248,7 +256,7 @@
   width: 100%;
   overflow: hidden;
   color: var(--fg-secondary);
-  font-size: var(--text-base);
+  font-size: var(--text-md);
   line-height: 1.7;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
@@ -447,7 +455,7 @@
 }
 
 .detail-char-section-label {
-  font-size: var(--text-2xs);
+  font-size: var(--text-sm);
   font-weight: var(--fw-medium);
   color: var(--fg-muted);
 }
@@ -465,7 +473,7 @@
 }
 
 .detail-char-fact dt {
-  font-size: var(--text-2xs);
+  font-size: var(--text-sm);
   color: var(--fg-muted);
 }
 
@@ -482,7 +490,7 @@
 }
 
 .detail-char-traits dt {
-  font-size: var(--text-2xs);
+  font-size: var(--text-sm);
   line-height: 1.6;
   color: var(--fg-muted);
 }
@@ -500,14 +508,14 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   color: var(--fg-muted);
 }
 
 .detail-char-desc {
   max-height: 8lh;
   overflow-y: auto;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   line-height: 1.7;
   color: var(--fg-secondary);
   user-select: text;
@@ -541,14 +549,13 @@
 
 .detail-install {
   display: block;
+  flex-basis: 100%;
   overflow: hidden;
-  grid-column: 1 / -1;
-  grid-row: 3;
   padding: var(--space-150) var(--space-3);
   background: color-mix(in srgb, var(--bg-raised) 55%, transparent);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
   color: var(--fg-muted);
   text-align: left;

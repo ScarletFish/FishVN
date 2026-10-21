@@ -39,6 +39,7 @@ textarea {
 /* ─── 全局元素基底 ─── */
 html {
   background: var(--bg-page);
+  font-size: calc(16px * var(--app-font-scale, 1));
   scroll-behavior: smooth;
 }
 
@@ -433,11 +434,6 @@ body {
   --text-xl: 1.5rem;
   --text-2xl: 1.625rem;
   --text-3xl: 2.25rem;
-
-  --text-compact-xs: 0.625rem;
-  --text-compact-sm: 0.6875rem;
-  --text-compact-md: 0.75rem;
-  --text-compact-lg: 0.8125rem;
 }
 
 /* === L3 scales · z-index === */

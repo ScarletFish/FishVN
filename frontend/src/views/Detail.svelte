@@ -223,14 +223,50 @@
       {/if}
     </div>
     <div class="detail-banner">
-      <div class="detail-cover">
-        {#if coverUrl && !coverBroken}
-          <img src={coverUrl} alt={game.name} onerror={() => (coverBroken = true)} />
-        {:else}
-          <div class="detail-cover__ph">
-            <span class="detail-cover__initial" aria-hidden="true">{(game.name || '?')[0]}</span>
+      <div class="detail-banner-left">
+        <div class="detail-cover">
+          {#if coverUrl && !coverBroken}
+            <img src={coverUrl} alt={game.name} onerror={() => (coverBroken = true)} />
+          {:else}
+            <div class="detail-cover__ph">
+              <span class="detail-cover__initial" aria-hidden="true">{(game.name || '?')[0]}</span>
+            </div>
+          {/if}
+        </div>
+        <div class="detail-actions">
+          <span
+            class="detail-action"
+            data-tooltip={canLaunch ? null : t('detail.playNoInstall')}
+          >
+            <button
+              type="button"
+              class="btn btn-primary"
+              disabled={!canLaunch || launching || running}
+              onclick={launch}
+            >
+              {running ? t('status.playing') : t('detail.actionPlay')}
+            </button>
+          </span>
+          <div class="detail-launch-meta">
+            <span class="detail-stat" data-tooltip={t('detail.playtime')}
+              >{playSeconds > 0 ? durationText(t, playSeconds) : '--'}</span
+            >
+            <Menu
+              bind:open={menuOpen}
+              label={t('common.actionMore')}
+              items={[
+                {
+                  label: t('common.actionEdit'),
+                  onclick: () => {
+                    formTab = 'basic';
+                    formOpen = true;
+                  },
+                },
+                { label: t('detail.actionDelete'), onclick: removeGame },
+              ]}
+            />
           </div>
-        {/if}
+        </div>
       </div>
       <div class="detail-info">
         <h1>{game.name}</h1>
@@ -289,40 +325,6 @@
                 }}>{seg.text}</a
               >{:else}{seg.text}{/if}{/each}</p>
           {/each}
-        </div>
-      </div>
-      <div class="detail-actions">
-        <span
-          class="detail-action"
-          data-tooltip={canLaunch ? null : t('detail.playNoInstall')}
-        >
-          <button
-            type="button"
-            class="btn btn-primary"
-            disabled={!canLaunch || launching || running}
-            onclick={launch}
-          >
-            {running ? t('status.playing') : t('detail.actionPlay')}
-          </button>
-        </span>
-        <div class="detail-launch-meta">
-          <span class="detail-stat" data-tooltip={t('detail.playtime')}
-            >{playSeconds > 0 ? durationText(t, playSeconds) : '--'}</span
-          >
-          <Menu
-            bind:open={menuOpen}
-            label={t('common.actionMore')}
-            items={[
-              {
-                label: t('common.actionEdit'),
-                onclick: () => {
-                  formTab = 'basic';
-                  formOpen = true;
-                },
-              },
-              { label: t('detail.actionDelete'), onclick: removeGame },
-            ]}
-          />
         </div>
       </div>
       {#if launchPath}

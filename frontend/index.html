@@ -18,6 +18,10 @@
         if (accent && accent !== 'default') {
           root.dataset.accent = accent;
         }
+        const fontScale = localStorage.getItem('fishvn.fontScale');
+        if (fontScale) {
+          root.style.setProperty('--app-font-scale', fontScale);
+        }
         // 与 tokens.css 的强调色表一致；改色值要同步
         const palette = {
           default: ['#c92a4a', '#e13a5a'],

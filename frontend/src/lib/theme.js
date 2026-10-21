@@ -67,3 +67,21 @@ export function syncAccent(accent) {
   paintAccent(valid);
   localStorage.setItem(ACCENT_KEY, valid);
 }
+
+const FONT_SCALE_KEY = 'fishvn.fontScale';
+
+export function getFontScale() {
+  const raw = parseFloat(localStorage.getItem(FONT_SCALE_KEY));
+  return Number.isFinite(raw) && raw >= 0.5 && raw <= 2 ? raw : 1;
+}
+
+export function setFontScale(scale) {
+  const clamped = Math.min(2, Math.max(0.5, scale));
+  document.documentElement.style.setProperty('--app-font-scale', String(clamped));
+  localStorage.setItem(FONT_SCALE_KEY, String(clamped));
+  return clamped;
+}
+
+export function syncFontScale() {
+  setFontScale(getFontScale());
+}
