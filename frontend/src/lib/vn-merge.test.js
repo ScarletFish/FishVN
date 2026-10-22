@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import {
   applyIncoming,
   asText,
@@ -7,6 +7,9 @@ import {
   conflictRows,
   stripBbcode,
 } from './vn-merge.js';
+
+vi.mock('./env.js', () => ({ DEV_HTTP: false, DEV_HTTP_BASE: '/dev-http' }));
+vi.mock('./dev-backend.js', () => ({ ensureBackend: async () => {} }));
 
 const VN = {
   id: 'v11',

@@ -6,6 +6,7 @@
   import { coverSrc } from '../lib/cover-src.js';
   import { displayName } from '../lib/characters.js';
   import { stripBbcode, bbcodeSegments } from '../lib/vn-merge.js';
+  import { traitLabel } from '../lib/tag-label.svelte.js';
   import { openExternal } from '../lib/open-external.js';
   import DetailSection from '../components/DetailSection.svelte';
 
@@ -105,13 +106,13 @@
           if (!showSpoilers) continue;
         }
         if (!map.has(tr.group_name)) map.set(tr.group_name, []);
-        map.get(tr.group_name).push(tr.name);
+        map.get(tr.group_name).push(tr);
       }
       const groups = [...map.entries()]
         .sort((a, b) => groupRank(a[0]) - groupRank(b[0]))
-        .map(([group, names]) => ({
+        .map(([group, traits]) => ({
           label: localized(`detail.traitGroups.${group}`, group),
-          names,
+          traits,
         }));
       return { groups, spoilerCount };
     })()
@@ -242,8 +243,8 @@
                   {#each traitData.groups as g (g.label)}
                     <dt>{g.label}</dt>
                     <dd>
-                      {#each g.names as name (name)}
-                        <span class="pill pill--tag">{name}</span>
+                      {#each g.traits as tr (tr.id ?? tr.name)}
+                        <span class="pill pill--tag">{traitLabel(tr)}</span>
                       {/each}
                     </dd>
                   {/each}

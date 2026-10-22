@@ -12,6 +12,7 @@ pub mod inspect;
 pub mod metadata;
 pub mod sessions;
 pub mod settings;
+pub mod tagdict;
 pub mod tasks;
 pub mod thumbs;
 pub mod types;

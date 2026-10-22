@@ -199,7 +199,9 @@ va{character{id},staff{id,name,original},note}
                "sexual": 0, "violence": 0, "votecount": 14 }
 "titles":    [ { "lang": "ru", "title": "Школьные Дни", "latin": "Shkol'nye Dni",
                  "official": true, "main": true } ]
-"tags":      [ { "id": "g23", "rating": 2.46794867515564, "spoiler": 0, "lie": false } ]
+"tags":      [ { "id": "g23", "name": "Plot Continuity", "category": "cont",
+                 "rating": 2.46794867515564, "vn_count": 1204,
+                 "spoiler": 0, "lie": false } ]
 "relations": [ { "id": "v1193", "relation": "side", "relation_official": true } ]
 "editions":  [ { "eid": 0, "lang": "en", "name": "…", "official": true } ]
 "staff":     [ { "id": "s11993", "role": "staff", "note": "Sound production", "eid": null } ]
@@ -208,6 +210,7 @@ va{character{id},staff{id,name,original},note}
 
 `tags.rating` 是 float32 精度噪声，会出现 `2.46794867515564` 这种值，取整显示即可。
 `dims` / `thumbnail_dims` 是 `[宽, 高]`。
+`tags` 的 `name` / `category` / `vn_count` 随同步整体落库，标签中文显示见 [frontend.md](./frontend.md) 的词典机制。
 
 ### `released` 的五种形状
 

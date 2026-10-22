@@ -2,6 +2,7 @@
   import './lib/tooltip.js';
   import { t } from './lib/i18n.js';
   import { api } from './lib/api.js';
+  import { loadTagDict } from './lib/tag-label.svelte.js';
   import { syncTheme, syncAccent, syncFontScale } from './lib/theme.js';
   import Sidebar from './components/Sidebar.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
@@ -16,6 +17,7 @@
 
   $effect(() => {
     syncFontScale();
+    loadTagDict();
     api
       .getConfig()
       .then((config) => {

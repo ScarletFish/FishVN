@@ -10,6 +10,7 @@
   import { confirm } from '../lib/confirm.svelte.js';
   import { compactDuration, durationText } from '../lib/playtime.js';
   import { playHero, discardHero } from '../lib/hero-transition.js';
+  import { tagLabel } from '../lib/tag-label.svelte.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import DetailStaff from './DetailStaff.svelte';
   import GameForm from '../components/GameForm.svelte';
@@ -301,7 +302,7 @@
         <div class="detail-tags">
           <div class="detail-tags-list">
             {#each shownTags as tag (tag.id ?? tag.name)}
-              <span class="pill pill--tag">{tag.name}</span>
+              <span class="pill pill--tag">{tagLabel(tag)}</span>
             {/each}
             {#if tagsRemaining > 0}
               <button

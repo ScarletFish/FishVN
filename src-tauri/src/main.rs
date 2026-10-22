@@ -131,6 +131,7 @@ fn main() {
             commands::cancel_task,
             commands::allow_local_file,
             commands::thumbnail,
+            commands::tag_dictionary,
             commands::get_config,
             commands::update_config,
             commands::inspect_path,

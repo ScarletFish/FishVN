@@ -1,5 +1,6 @@
 <script>
   import { t } from '../../lib/i18n.js';
+  import { tagLabel } from '../../lib/tag-label.svelte.js';
   import { coverSrc } from '../../lib/cover-src.js';
   import { pickImage } from '../../lib/pick-path.js';
   import PathField from '../PathField.svelte';
@@ -66,7 +67,7 @@
   <div class="tag-input scroll-thin">
     {#each tags as tag, i (tag.id ?? tag.name)}
       <span class="tag-pill">
-        {tag.name}
+        {tagLabel(tag)}
         <button
           type="button"
           class="tag-pill__remove"

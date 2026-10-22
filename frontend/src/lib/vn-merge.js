@@ -1,4 +1,6 @@
 
+import { tagLabel } from './tag-label.svelte.js';
+
 export function stripBbcode(text) {
   if (!text) return '';
   return text
@@ -150,6 +152,6 @@ export function applyIncoming(current, incoming, selected) {
 }
 
 export function asText(key, value) {
-  if (key === 'tags') return (value ?? []).map((t) => t.name).join(' · ');
+  if (key === 'tags') return (value ?? []).map((t) => tagLabel(t)).join(' · ');
   return (value ?? '').toString();
 }

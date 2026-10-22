@@ -104,14 +104,22 @@ pub fn recent(conn: &Connection, metric: TimeMetric, limit: i64) -> Result<Vec<R
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TagCount {
+    pub id: Option<String>,
     pub tag: String,
     pub count: i64,
+}
+
+struct TagAgg {
+    id: Option<String>,
+    name: String,
+    count: i64,
 }
 
 pub fn tag_cloud(conn: &Connection, limit: i64) -> Result<Vec<TagCount>> {
     let mut stmt = conn.prepare("SELECT tags FROM game_metadata WHERE tags IS NOT NULL")?;
     let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
-    let mut counts: HashMap<String, i64> = HashMap::new();
+    // 按标签名聚合：手输标签与同步标签同名则合并计数，桶内携带首个非空 id 供中文译名查找
+    let mut counts: HashMap<String, TagAgg> = HashMap::new();
     for row in rows {
         let Some(text) = row? else { continue };
         let Ok(tags) = serde_json::from_str::<Vec<MetadataTag>>(&text) else {
@@ -121,12 +129,24 @@ pub fn tag_cloud(conn: &Connection, limit: i64) -> Result<Vec<TagCount>> {
             if tag.spoiler.unwrap_or(0) != 0 || tag.lie.unwrap_or(false) {
                 continue;
             }
-            *counts.entry(tag.name).or_insert(0) += 1;
+            let entry = counts.entry(tag.name.clone()).or_insert_with(|| TagAgg {
+                id: None,
+                name: tag.name.clone(),
+                count: 0,
+            });
+            if entry.id.is_none() {
+                entry.id = tag.id.clone();
+            }
+            entry.count += 1;
         }
     }
     let mut out: Vec<TagCount> = counts
-        .into_iter()
-        .map(|(tag, count)| TagCount { tag, count })
+        .into_values()
+        .map(|a| TagCount {
+            id: a.id,
+            tag: a.name,
+            count: a.count,
+        })
         .collect();
     out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
     out.truncate(limit.max(0) as usize);
@@ -415,9 +435,37 @@ mod tests {
 
         let cloud = tag_cloud(&conn, 40).unwrap();
         assert_eq!(cloud.len(), 2);
+        assert_eq!(cloud[0].id.as_deref(), Some("g1"));
         assert_eq!(cloud[0].tag, "恋爱");
         assert_eq!(cloud[0].count, 2);
+        assert_eq!(cloud[1].id.as_deref(), Some("g2"));
         assert_eq!(cloud[1].tag, "战斗");
+        assert_eq!(cloud[1].count, 1);
+    }
+
+    #[test]
+    fn 词云合并手输与同步的同名标签() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        set_tags(
+            &conn,
+            &a,
+            r#"[{"id":"g1","name":"恋爱","spoiler":0,"lie":false}]"#,
+        );
+        let b = make_game(&conn, "乙");
+        set_tags(
+            &conn,
+            &b,
+            r#"[{"name":"恋爱","spoiler":0,"lie":false},{"name":"手输独占","spoiler":0,"lie":false}]"#,
+        );
+
+        let cloud = tag_cloud(&conn, 40).unwrap();
+        assert_eq!(cloud.len(), 2);
+        assert_eq!(cloud[0].tag, "恋爱");
+        assert_eq!(cloud[0].id.as_deref(), Some("g1"));
+        assert_eq!(cloud[0].count, 2);
+        assert_eq!(cloud[1].tag, "手输独占");
+        assert_eq!(cloud[1].id, None);
         assert_eq!(cloud[1].count, 1);
     }
 

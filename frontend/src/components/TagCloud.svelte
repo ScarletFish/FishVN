@@ -1,5 +1,6 @@
 <script>
   import { api } from '../lib/api.js';
+  import { tagLabel } from '../lib/tag-label.svelte.js';
   import { t } from '../lib/i18n.js';
   import { useStat } from '../lib/stat-loader.svelte.js';
   import StatCard from './StatCard.svelte';
@@ -22,7 +23,8 @@
     return tags.map((x) => {
       const ratio = (x.count - min) / span;
       return {
-        tag: x.tag,
+        id: x.id,
+        label: tagLabel({ id: x.id, name: x.tag }),
         count: x.count,
         size: MIN_SIZE + ratio * (MAX_SIZE - MIN_SIZE),
         weight: Math.round(45 + ratio * 55),
@@ -39,7 +41,7 @@
     const sized = words.map((w) => {
       const px = w.size * 16;
       ctx.font = `${w.bold ? 600 : 400} ${px}px "Noto Sans SC", sans-serif`;
-      const tw = ctx.measureText(w.tag).width;
+      const tw = ctx.measureText(w.label).width;
       return { ...w, px, tw, th: px * 1.35 };
     });
     const area = (w) => (w.tw + 6) * w.th;
@@ -61,7 +63,7 @@
           const hit = placed.some((p) => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0);
           if (!hit) {
             placed.push(box);
-            out.push({ tag: w.tag, count: w.count, px: w.px, bold: w.bold, weight: w.weight, x, y });
+            out.push({ id: w.id, label: w.label, count: w.count, px: w.px, bold: w.bold, weight: w.weight, x, y });
             return;
           }
         }
@@ -82,7 +84,7 @@
   emptyText={t('dashboard.tagCloud.empty')}
 >
   <div class="tag-cloud-body" bind:clientWidth={boxW} bind:clientHeight={boxH}>
-    {#each cloud as word (word.tag)}
+    {#each cloud as word (word.id ?? word.label)}
       <span
         class="tag-cloud-word"
         style:transform="translate(-50%, -50%) translate({word.x.toFixed(1)}px, {word.y.toFixed(1)}px)"
@@ -92,7 +94,7 @@
           style:font-size="{word.px}px"
           style:font-weight={word.bold ? 'var(--fw-semibold)' : 'var(--fw-normal)'}
           style:color="color-mix(in srgb, var(--accent) {word.weight}%, var(--fg-muted))"
-        >{word.tag}</span>
+        >{word.label}</span>
       </span>
     {/each}
   </div>

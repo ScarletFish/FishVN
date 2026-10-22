@@ -336,6 +336,10 @@ async fn get_config(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Re
     finish(Ok(settings::current()))
 }
 
+async fn tag_dictionary(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
+    finish(Ok(crate::tagdict::dictionary()))
+}
+
 async fn update_config(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     let config: settings::AppConfig = a.parse(a.config.as_ref(), "config")?;
     let dir = crate::data_dir(&dev.app)
@@ -388,6 +392,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/allow_local_file", post(allow_local_file))
         .route("/thumbnail", post(thumbnail))
         .route("/get_config", post(get_config))
+        .route("/tag_dictionary", post(tag_dictionary))
         .route("/update_config", post(update_config))
         .route("/events", get(events))
         .with_state(dev)
@@ -428,4 +433,5 @@ pub const COMMANDS: &[&str] = &[
     "thumbnail",
     "get_config",
     "update_config",
+    "tag_dictionary",
 ];

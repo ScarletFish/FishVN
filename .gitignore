@@ -33,3 +33,13 @@ src-tauri/gen/schemas/
 
 #临时
 vndb-sample/
+
+# VNDB 本地化：官方 dump / 上游脚本存档 / 分析中间产物 不入库（可重新下载或生成）
+src-tauri/resources/vndb/tags.json.gz
+src-tauri/resources/vndb/traits.json.gz
+src-tauri/resources/vndb/community/raw/
+src-tauri/resources/vndb/community/gap_tags_top500.json
+src-tauri/resources/vndb/community/gap_traits_top500.json
+src-tauri/resources/vndb/community/gap_missing.json
+src-tauri/resources/vndb/community/coverage.cjs
+src-tauri/resources/vndb/community/coverage_potatovn.py

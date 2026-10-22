@@ -9,6 +9,7 @@ const EXT = /\.(rs|js|mjs|ts|svelte|css)$/;
 
 const WHOLE_FILE = new Set(['frontend/src/css/tokens.css']);
 const VENDOR = /^frontend\/public\/vendor\//;
+const THIRD_PARTY = /^src-tauri\/resources\/vndb\/community\/raw\//;
 const TEST_FILE = [/^frontend\/src\/.*\.test\.js$/, /^src-tauri\/tests\//];
 const DIRECTIVE = [
   /^<!--\s*svelte-ignore/,
@@ -40,6 +41,7 @@ for (const rel of DIRS) {
   for (const abs of files) {
     const path = abs.slice(root.length + 1).replace(/\\/g, '/');
     if (VENDOR.test(path)) continue;
+    if (THIRD_PARTY.test(path)) continue;
     const isTest = TEST_FILE.some((re) => re.test(path));
     let blockEnd = null;
     readFileSync(abs, 'utf8')

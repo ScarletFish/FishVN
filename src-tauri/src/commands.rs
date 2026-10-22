@@ -300,6 +300,11 @@ pub fn thumbnail(app: tauri::AppHandle, src: String) -> Result<String> {
     Ok(path.to_string_lossy().into_owned())
 }
 
+#[tauri::command]
+pub fn tag_dictionary() -> Result<crate::tagdict::TagDictionary> {
+    Ok(crate::tagdict::dictionary())
+}
+
 fn data_dir_or_err(app: &tauri::AppHandle) -> Result<PathBuf> {
     crate::data_dir(app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))
 }

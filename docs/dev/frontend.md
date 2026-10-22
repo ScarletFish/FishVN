@@ -269,3 +269,21 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 runes（`$state` `$derived` `$effect` `$props`）**只在 `.svelte` / `.svelte.js` / `.svelte.ts` 里可用**，普通 `.js` 写了会运行时抛 `rune_outside_svelte`（构建和 `check:frontend` 都不拦，只有打开页面才炸）。
 
 共享响应式状态放 `.svelte.js`；跨模块导出 state 必须包一层对象，直接 `export let x = $state(0)` 会被编译器拒绝。
+
+## VNDB 标签/特征中文显示
+
+tag 与 trait 的显示名走 `lib/tag-label.svelte.js`（`tagLabel` / `traitLabel`）与 `tag_dictionary` 命令，**不进 i18n 字典**：它们是随 VN 同步进来的动态数据，量级几千条，手写字典承载不了。trait 的分组标签（`detail.traitGroups.*`）是唯一走 i18n 的相关文案。
+
+查表是一层：按 id 命中中文译名则显示中文，未命中或没有 id（表单手输标签）显示原名。
+
+id 的形态与同步数据对齐：tag 是 `g`+数字、trait 是 `i`+数字。tag 与 trait 的 id 数字空间互相重叠（同一个数字在两张表中是不同的词条），词典分 `tags` / `traits` 两张表存放，查询必须按类型进行。
+
+数据管线（开发期一次性生成，产物入 git）：
+
+1. `src-tauri/resources/vndb/tags.json.gz` / `traits.json.gz` 是 VNDB 官方 dump，提供 id 与英文名的权威对应；
+2. `src-tauri/resources/vndb/community/build_tag_zh.py` 按英文名（含 aliases）把 `community/vndb-tags-translation.json`（社区表，MIT）与 `community/gap-fill.json`（自补，优先）join 成 id→中文，换算出 `g`/`i` 前缀键，产出 `src-tauri/resources/vndb/tags_zh.json`；
+3. 词典经 `include_str!` 编译进二进制（`src-tauri/src/tagdict.rs`），`tag_dictionary` 命令下发，`App.svelte` 启动时加载一次（失败静默，全量回退英文）。
+
+改翻译只动 `community/gap-fill.json` 后重跑 `build_tag_zh.py`；数据来源链路、许可证与署名要求见 [vndb-localization.md](vndb-localization.md)，署名见 `src-tauri/resources/vndb/ATTRIBUTION.md`（随包分发）。
+
+仪表盘词云的 `TagCount` 带 `id`：Rust 侧按 tag id 聚合并输出，无 id 的条目按 name 聚合，键加 `#` 前缀避免与真实 id 相撞。
