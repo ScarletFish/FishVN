@@ -8,8 +8,9 @@
   import { DASHBOARD_MODULES, moveModule, setModuleEnabled, reorderModule } from '../lib/dashboard-layout.js';
   import { notifyConfigChanged } from '../lib/config-events.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
-  import { getLibraryTags, loadLibraryTags } from '../lib/library-tags.svelte.js';
-  import { tagKeyLabel, tagLabel } from '../lib/tag-label.svelte.js';
+  import { loadLibraryTags } from '../lib/library-tags.svelte.js';
+  import { tagKeyLabel } from '../lib/tag-label.svelte.js';
+  import TagPicker from './game-form/TagPicker.svelte';
 
   let { open = $bindable(false) } = $props();
 
@@ -21,25 +22,14 @@
   let hideR18 = $state(false);
   let spoilerLevel = $state('hide_all');
   let excludedTags = $state([]);
-  let excludeQuery = $state('');
+  let poolOpen = $state(false);
   let layout = $state([]);
 
   const SPOILER_LEVELS = ['hide_all', 'hide_major', 'show_all'];
 
-  const excludedMatches = $derived.by(() => {
-    const query = excludeQuery.trim().toLowerCase();
-    const pool = new Set(excludedTags);
-    return getLibraryTags()
-      .filter((item) => !(item.id ? pool.has(item.id) : pool.has(item.tag)))
-      .filter((item) => {
-        if (!query) return true;
-        const label = tagKeyLabel(item.id ?? item.tag);
-        return label.toLowerCase().includes(query) || item.tag.toLowerCase().includes(query);
-      });
-  });
-
   $effect(() => {
     if (!open) return;
+    poolOpen = false;
     dark = getTheme() === 'dark';
     accent = getAccent();
     fontScale = getFontScale();
@@ -70,12 +60,16 @@
 
   function addExcludedTag(key) {
     if (excludedTags.includes(key)) return;
-    excludeQuery = '';
     saveExcludedTags([...excludedTags, key]);
   }
 
   function removeExcludedTag(key) {
     saveExcludedTags(excludedTags.filter((item) => item !== key));
+  }
+
+  function toggleExcludedTag(key) {
+    if (excludedTags.includes(key)) removeExcludedTag(key);
+    else addExcludedTag(key);
   }
 
   async function saveLayout(next) {
@@ -175,7 +169,23 @@
   }
 </script>
 
-<Modal bind:open title={t('settings.title')} variant="modal--settings">
+<Modal
+  bind:open
+  title={t('settings.title')}
+  variant="modal--settings"
+  bind:asideOpen={poolOpen}
+  asideTitle={t('settings.excludedTags')}
+>
+  {#snippet aside()}
+    <TagPicker
+      selected={excludedTags}
+      includeHidden={false}
+      emptyText={t('settings.excludedPoolEmpty')}
+      ontoggle={toggleExcludedTag}
+      onclose={() => (poolOpen = false)}
+    />
+  {/snippet}
+
   <div class="modal-tabs" role="tablist">
     <button
       type="button"
@@ -392,7 +402,16 @@
       </div>
 
       <div class="form-group">
-        <div class="form-label">{t('settings.excludedTags')}</div>
+        <div class="form-label-row">
+          <div class="form-label">{t('settings.excludedTags')}</div>
+          <button
+            type="button"
+            class="btn tag-field__browse"
+            onclick={() => (poolOpen = true)}
+          >
+            {t('settings.excludedBrowse')}
+          </button>
+        </div>
         <p class="form-hint">{t('settings.excludedTagsHint')}</p>
         {#if excludedTags.length > 0}
           <div class="excluded-chips">
@@ -413,28 +432,6 @@
         {:else}
           <p class="form-hint">{t('settings.excludedEmpty')}</p>
         {/if}
-        <div class="excluded-add">
-          <input
-            type="text"
-            bind:value={excludeQuery}
-            placeholder={t('settings.excludedSearch')}
-            autocomplete="off"
-          />
-          {#if excludedMatches.length > 0}
-            <ul class="excluded-matches">
-              {#each excludedMatches as item (item.id ?? item.tag)}
-                <li>
-                  <button type="button" onclick={() => addExcludedTag(item.id ?? item.tag)}>
-                    <span>{tagLabel(item)}</span>
-                    <span class="excluded-match-count">×{item.count}</span>
-                  </button>
-                </li>
-              {/each}
-            </ul>
-          {:else if excludeQuery.trim()}
-            <p class="form-hint">{t('settings.excludedNoMatch')}</p>
-          {/if}
-        </div>
       </div>
     </div>
   </div>

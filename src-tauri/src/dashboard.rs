@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use crate::error::Result;
 use crate::settings::{SpoilerLevel, TimeMetric};
-use crate::tagdict;
+use crate::tagdict::{self, TagScope};
 use crate::types::MetadataTag;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -130,25 +130,10 @@ struct TagAgg {
     count: i64,
 }
 
-const CLOUD_ROOTS: [&str; 2] = ["g1", "g20"];
 const CLOUD_MIN_COUNT: i64 = 2;
 
 pub fn library_tags(conn: &Connection) -> Result<Vec<LibraryTag>> {
-    let mut counts: HashMap<String, TagAgg> = HashMap::new();
-    for tags in iter_metadata_tags(conn)? {
-        for tag in tags {
-            let entry = counts.entry(tag.name.clone()).or_insert_with(|| TagAgg {
-                id: None,
-                name: tag.name.clone(),
-                count: 0,
-            });
-            if entry.id.is_none() {
-                entry.id = tag.id.clone();
-            }
-            entry.count += 1;
-        }
-    }
-    let mut out: Vec<LibraryTag> = counts
+    let mut out: Vec<LibraryTag> = count_tags(conn, |_| true)?
         .into_values()
         .map(|a| LibraryTag {
             id: a.id,
@@ -168,23 +153,46 @@ pub fn tag_cloud(
     excluded: &[String],
 ) -> Result<TagCloudView> {
     let groups = tagdict::dictionary().tag_groups;
+    let counts = count_tags(conn, |tag| {
+        let hidden = tag.lie.unwrap_or(false)
+            || spoiler_level.hides(tag.spoiler.unwrap_or(0))
+            || (hide_r18_tags && tag.category.as_deref() == Some("ero"))
+            || groups.scope(tag.id.as_deref()) != TagScope::Full;
+        !hidden
+    })?;
+    let mut pool: Vec<TagAgg> = counts
+        .into_values()
+        .filter(|a| a.count >= CLOUD_MIN_COUNT)
+        .collect();
+    pool.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
+    let candidates = pool.len() as i64;
+    let (hidden, visible): (Vec<TagAgg>, Vec<TagAgg>) = pool
+        .into_iter()
+        .partition(|a| is_excluded(a.id.as_deref(), &a.name, excluded));
+    let mut out: Vec<TagCount> = visible
+        .into_iter()
+        .map(|a| TagCount {
+            id: a.id,
+            tag: a.name,
+            count: a.count,
+        })
+        .collect();
+    out.truncate(limit.max(0) as usize);
+    Ok(TagCloudView {
+        tags: out,
+        candidates,
+        excluded: hidden.len() as i64,
+    })
+}
+
+fn count_tags<F>(conn: &Connection, keep: F) -> Result<HashMap<String, TagAgg>>
+where
+    F: Fn(&MetadataTag) -> bool,
+{
     let mut counts: HashMap<String, TagAgg> = HashMap::new();
     for tags in iter_metadata_tags(conn)? {
         for tag in tags {
-            if tag.lie.unwrap_or(false) || spoiler_level.hides(tag.spoiler.unwrap_or(0)) {
-                continue;
-            }
-            if hide_r18_tags && tag.category.as_deref() == Some("ero") {
-                continue;
-            }
-            if tag
-                .id
-                .as_deref()
-                .is_some_and(|id| groups.excluded.binary_search_by(|e| e.as_str().cmp(id)).is_ok())
-            {
-                continue;
-            }
-            if !cloud_root_keeps(tag.id.as_deref(), &groups.roots) {
+            if !keep(&tag) {
                 continue;
             }
             let entry = counts.entry(tag.name.clone()).or_insert_with(|| TagAgg {
@@ -198,31 +206,7 @@ pub fn tag_cloud(
             entry.count += 1;
         }
     }
-    let mut pool: Vec<TagAgg> = counts
-        .into_values()
-        .filter(|a| a.count >= CLOUD_MIN_COUNT)
-        .collect();
-    pool.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
-    let candidates = pool.len() as i64;
-    let excluded_count = pool
-        .iter()
-        .filter(|a| is_excluded(a.id.as_deref(), &a.name, excluded))
-        .count() as i64;
-    let mut out: Vec<TagCount> = pool
-        .into_iter()
-        .filter(|a| !is_excluded(a.id.as_deref(), &a.name, excluded))
-        .map(|a| TagCount {
-            id: a.id,
-            tag: a.name,
-            count: a.count,
-        })
-        .collect();
-    out.truncate(limit.max(0) as usize);
-    Ok(TagCloudView {
-        tags: out,
-        candidates,
-        excluded: excluded_count,
-    })
+    Ok(counts)
 }
 
 fn iter_metadata_tags(conn: &Connection) -> Result<Vec<Vec<MetadataTag>>> {
@@ -236,16 +220,6 @@ fn iter_metadata_tags(conn: &Connection) -> Result<Vec<Vec<MetadataTag>>> {
         }
     }
     Ok(out)
-}
-
-fn cloud_root_keeps(id: Option<&str>, roots: &HashMap<String, String>) -> bool {
-    match id {
-        None => true,
-        Some(id) => match roots.get(id) {
-            Some(root) => CLOUD_ROOTS.contains(&root.as_str()),
-            None => true,
-        },
-    }
 }
 
 fn is_excluded(id: Option<&str>, name: &str, pool: &[String]) -> bool {

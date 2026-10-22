@@ -27,9 +27,11 @@
   import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { notifyLibraryTagsChanged } from '../lib/library-events.js';
+  import { tagKey } from '../lib/tag-label.svelte.js';
   import BasicPanel from './game-form/BasicPanel.svelte';
   import ProfilePanel from './game-form/ProfilePanel.svelte';
   import TagsPanel from './game-form/TagsPanel.svelte';
+  import TagPicker from './game-form/TagPicker.svelte';
   import StaffPanel from './game-form/StaffPanel.svelte';
   import VndbAside from './game-form/VndbAside.svelte';
 
@@ -69,7 +71,6 @@
   let coverPath = $state('');
 
   let tagDraft = $state('');
-  let tagInputOpen = $state(false);
   let characters = $state([]);
   let installations = $state([]);
   let defaultInstallKey = $state(null);
@@ -88,8 +89,19 @@
   let statusOpen = $state(false);
   let staffRoleOpen = $state(null);
 
-  let searchOpen = $state(false);
+  let asideOpen = $state(false);
+  let asideMode = $state('search');
   const search = createVndbSearch();
+
+  const customTagNames = $derived(tags.filter((tag) => !tag.id).map((tag) => tag.name));
+
+  function toggleTag(key, item) {
+    if (tags.some((tag) => tagKey(tag) === key)) {
+      tags = tags.filter((tag) => tagKey(tag) !== key);
+      return;
+    }
+    tags = [...tags, item.id ? { id: item.id, name: item.tag } : { name: item.tag }];
+  }
 
   let panelsEl = $state(null);
   let panelsSb = null;
@@ -117,14 +129,14 @@
     staff = [];
     coverPath = '';
     tagDraft = '';
-    tagInputOpen = false;
     characters = [];
     installations = [];
     defaultInstallKey = null;
     tab = initialTab;
     statusOpen = false;
     staffRoleOpen = null;
-    searchOpen = false;
+    asideOpen = false;
+    asideMode = 'search';
     mergeOpen = false;
     mergeRows = [];
     charMergeRows = [];
@@ -372,10 +384,10 @@
 
 <Modal
   bind:open
-  bind:asideOpen={searchOpen}
+  bind:asideOpen
   title={gameId ? t('common.actionEdit') : t('gameForm.title')}
   variant="modal--form"
-  asideTitle={t('gameForm.search.title')}
+  asideTitle={asideMode === 'tags' ? t('tagPicker.title') : t('gameForm.search.title')}
   onclose={close}
 >
   <form class="form-panel" onsubmit={submit}>
@@ -430,9 +442,12 @@
         <TagsPanel
           bind:tags
           bind:tagDraft
-          bind:tagInputOpen
           bind:coverPath
           {saving}
+          onbrowse={() => {
+            asideMode = 'tags';
+            asideOpen = true;
+          }}
         />
       </div>
 
@@ -458,7 +473,8 @@
         type="button"
         class="game-form__sync btn"
         onclick={() => {
-          searchOpen = true;
+          asideMode = 'search';
+          asideOpen = true;
           search.search(name);
         }}
         disabled={saving || search.searching || !name.trim()}
@@ -475,17 +491,29 @@
   </form>
 
   {#snippet aside()}
-    <VndbAside
-      {search}
-      {pulling}
-      {syncProgress}
-      {syncNotice}
-      {syncCancelled}
-      selectedId={vndbId}
-      onpick={pickHit}
-      oncancel={cancelSync}
-      onclose={() => (searchOpen = false)}
-    />
+    {#if asideMode === 'tags'}
+      <TagPicker
+        selected={tags.map(tagKey)}
+        extraNames={customTagNames}
+        allowCustom
+        {saving}
+        ontoggle={toggleTag}
+        onadd={(name) => (tags = [...tags, { name }])}
+        onclose={() => (asideOpen = false)}
+      />
+    {:else}
+      <VndbAside
+        {search}
+        {pulling}
+        {syncProgress}
+        {syncNotice}
+        {syncCancelled}
+        selectedId={vndbId}
+        onpick={pickHit}
+        oncancel={cancelSync}
+        onclose={() => (asideOpen = false)}
+      />
+    {/if}
   {/snippet}
 </Modal>
 

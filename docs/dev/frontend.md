@@ -286,4 +286,4 @@ id 的形态与同步数据对齐：tag 是 `g`+数字、trait 是 `i`+数字。
 
 改翻译只动 `community/gap-fill.json` 后重跑 `build_tag_zh.py`；数据来源链路、许可证与署名要求见 [vndb-localization.md](vndb-localization.md)，署名见 `src-tauri/resources/vndb/ATTRIBUTION.md`（随包分发）。
 
-仪表盘词云的 `TagCount` 带 `id`：Rust 侧按 tag id 聚合并输出，无 id 的条目按 name 聚合，键加 `#` 前缀避免与真实 id 相撞。
+仪表盘词云与库内标签清单都按显示名聚合并输出 `{id, tag, count}`：同步标签与手输的同名标签并成一条，代表 id 取该名下首个带 id 的条目。标签的可见性、排序与计数口径见 [tags.md](tags.md)。

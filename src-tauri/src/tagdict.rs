@@ -15,6 +15,28 @@ pub struct TagGroups {
     pub excluded: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TagScope {
+    Hidden,
+    Detail,
+    Full,
+}
+
+impl TagGroups {
+    pub fn scope(&self, id: Option<&str>) -> TagScope {
+        let Some(id) = id else {
+            return TagScope::Full;
+        };
+        if self.excluded.binary_search_by(|e| e.as_str().cmp(id)).is_ok() {
+            return TagScope::Hidden;
+        }
+        match self.roots.get(id).map(String::as_str) {
+            Some("g22" | "g24" | "g674") => TagScope::Detail,
+            _ => TagScope::Full,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct TagDictionary {
     pub tags: &'static HashMap<String, String>,
@@ -77,6 +99,19 @@ mod tests {
         assert_ne!(d.traits.get("i2").map(String::as_str), Some("奇幻"));
         assert_eq!(d.tags.get("g4").map(String::as_str), Some("魔法"));
         assert_eq!(d.traits.get("i4").map(String::as_str), Some("黑色"));
+    }
+
+    #[test]
+    fn 显示范围按根与排除表分档() {
+        let groups = dictionary().tag_groups;
+        assert_eq!(groups.scope(Some("g32")), TagScope::Hidden);
+        assert_eq!(groups.scope(Some("g2")), TagScope::Full);
+        assert_eq!(groups.scope(Some("g64")), TagScope::Full);
+        assert_eq!(groups.scope(Some("g47")), TagScope::Detail);
+        assert_eq!(groups.scope(Some("g148")), TagScope::Detail);
+        assert_eq!(groups.scope(Some("g31")), TagScope::Detail);
+        assert_eq!(groups.scope(Some("g999999")), TagScope::Full);
+        assert_eq!(groups.scope(None), TagScope::Full);
     }
 
     #[test]

@@ -69,7 +69,7 @@ pub fn default_dashboard_layout() -> Vec<DashboardModule> {
 }
 
 pub const EXCLUDED_TAGS_PRESET: &[&str] = &[
-    "g32", "g23", "g133", "g96", "g134", "g2", "g147", "g148", "g728", "g304", "g214", "g1094",
+    "g520", "g23", "g133", "g96", "g134", "g2", "g147", "g148", "g728", "g304", "g214", "g1094",
     "g202", "g373",
 ];
 
@@ -187,6 +187,19 @@ mod tests {
 
     fn exclusive() -> MutexGuard<'static, ()> {
         CONFIG_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    #[test]
+    fn 排除池预置均为可显示标签且有中文译名() {
+        let dict = crate::tagdict::dictionary();
+        for id in EXCLUDED_TAGS_PRESET {
+            assert_ne!(
+                dict.tag_groups.scope(Some(*id)),
+                crate::tagdict::TagScope::Hidden,
+                "{id} 是技术向标签，不应出现在预置里"
+            );
+            assert!(dict.tags.contains_key(*id), "{id} 缺少中文译名");
+        }
     }
 
     #[test]

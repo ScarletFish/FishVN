@@ -29,6 +29,10 @@ export function tagLabel(tag) {
   return labelOf(tags, tag);
 }
 
+export function tagKey(item) {
+  return item?.id ?? item?.tag ?? item?.name ?? '';
+}
+
 export function tagKeyLabel(key) {
   if (tags[key]) return tags[key];
   const lib = getLibraryTags().find((item) => (item.id ?? item.tag) === key);

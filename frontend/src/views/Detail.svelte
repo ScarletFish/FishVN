@@ -12,7 +12,7 @@
   import { playHero, discardHero } from '../lib/hero-transition.js';
   import { tagLabel } from '../lib/tag-label.svelte.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
-  import { orderTagsForDisplay, spoilerThreshold } from '../lib/tag-order.svelte.js';
+  import { classifyTags } from '../lib/tag-order.svelte.js';
   import { notifyLibraryTagsChanged } from '../lib/library-events.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import DetailStaff from './DetailStaff.svelte';
@@ -120,41 +120,33 @@
   let releaseYear = $derived(meta?.released?.slice(0, 4) ?? '');
   let developer = $derived(meta?.developers?.[0] ?? '');
 
-  let tagSplit = $derived(
-    orderTagsForDisplay(meta?.tags, getHideR18Tags(), getSpoilerLevel(), getExcludedTags()),
+  let revealSpoilers = $derived(tagsExpanded && spoilersRevealed);
+  let tagView = $derived(
+    classifyTags(meta?.tags, {
+      hideR18: getHideR18Tags(),
+      spoilerLevel: getSpoilerLevel(),
+      excludedTags: getExcludedTags(),
+      revealSpoilers,
+    }),
   );
-  let spoilersHiddenCount = $derived(tagSplit.spoilers.length);
-  let excludedHiddenCount = $derived.by(() => {
-    const pool = new Set(getExcludedTags());
-    const threshold = spoilerThreshold(spoilersRevealed ? 'show_all' : getSpoilerLevel());
-    return (meta?.tags ?? []).filter(
-      (tag) =>
-        !tag.lie &&
-        (tag.spoiler ?? 0) < threshold &&
-        (tag.id ? pool.has(tag.id) : pool.has(tag.name)),
-    ).length;
-  });
-  let previewTags = $derived(tagSplit.visible.slice(0, TAGS_PREVIEW));
-  let expandedTags = $derived(
-    spoilersRevealed
-      ? orderTagsForDisplay(meta?.tags, getHideR18Tags(), 'show_all', getExcludedTags()).visible
-      : tagSplit.visible,
+  let spoilersHiddenCount = $derived(tagView.spoilers.length);
+  let shownTags = $derived(
+    tagsExpanded ? tagView.shown : tagView.shown.slice(0, TAGS_PREVIEW),
   );
-  let shownTags = $derived(tagsExpanded ? expandedTags : previewTags);
   let tagsHiddenCount = $derived(
-    Math.max(tagSplit.visible.length - TAGS_PREVIEW, 0) + spoilersHiddenCount,
+    Math.max(tagView.shown.length - TAGS_PREVIEW, 0) + (revealSpoilers ? 0 : spoilersHiddenCount),
   );
   let hiddenSummary = $derived.by(() => {
     const parts = [];
     if (spoilersHiddenCount > 0) {
       parts.push(
-        spoilersRevealed
+        revealSpoilers
           ? t('detail.tagSpoilersShown')
           : t('detail.tagSpoilersHidden', { count: spoilersHiddenCount }),
       );
     }
-    if (excludedHiddenCount > 0) {
-      parts.push(t('detail.tagsExcluded', { count: excludedHiddenCount }));
+    if (tagView.poolCount > 0) {
+      parts.push(t('detail.tagsExcluded', { count: tagView.poolCount }));
     }
     return parts.join(' | ');
   });
