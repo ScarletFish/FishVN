@@ -5,7 +5,7 @@ use rusqlite::Connection;
 use tauri::{Manager, State};
 
 use crate::characters;
-use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, PlaytimeRank, RecentPlay, TagCount};
+use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, LibraryTag, PlaytimeRank, RecentPlay, TagCloudView};
 use crate::db;
 use crate::error::{AppError, Result};
 use crate::games;
@@ -50,8 +50,20 @@ pub fn dashboard_recent(shared: Shared<'_>) -> Result<Vec<RecentPlay>> {
 }
 
 #[tauri::command]
-pub fn dashboard_tag_cloud(shared: Shared<'_>) -> Result<Vec<TagCount>> {
-    dashboard::tag_cloud(&*lock(&shared)?, 40)
+pub fn dashboard_tag_cloud(shared: Shared<'_>) -> Result<TagCloudView> {
+    let config = settings::current();
+    dashboard::tag_cloud(
+        &*lock(&shared)?,
+        40,
+        config.hide_r18_tags,
+        config.spoiler_level,
+        &config.excluded_tags,
+    )
+}
+
+#[tauri::command]
+pub fn library_tags(shared: Shared<'_>) -> Result<Vec<LibraryTag>> {
+    dashboard::library_tags(&*lock(&shared)?)
 }
 
 #[tauri::command]

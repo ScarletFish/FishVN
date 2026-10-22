@@ -16,6 +16,25 @@ pub enum TimeMetric {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpoilerLevel {
+    #[default]
+    HideAll,
+    HideMajor,
+    ShowAll,
+}
+
+impl SpoilerLevel {
+    pub fn hides(self, spoiler: i64) -> bool {
+        match self {
+            SpoilerLevel::HideAll => spoiler >= 1,
+            SpoilerLevel::HideMajor => spoiler >= 2,
+            SpoilerLevel::ShowAll => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Theme {
     #[default]
@@ -49,6 +68,15 @@ pub fn default_dashboard_layout() -> Vec<DashboardModule> {
     ]
 }
 
+pub const EXCLUDED_TAGS_PRESET: &[&str] = &[
+    "g32", "g23", "g133", "g96", "g134", "g2", "g147", "g148", "g728", "g304", "g214", "g1094",
+    "g202", "g373",
+];
+
+pub fn default_excluded_tags() -> Vec<String> {
+    EXCLUDED_TAGS_PRESET.iter().map(|id| (*id).to_owned()).collect()
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
@@ -59,6 +87,12 @@ pub struct AppConfig {
     pub accent: Accent,
     #[serde(default = "default_dashboard_layout")]
     pub dashboard_layout: Vec<DashboardModule>,
+    #[serde(default)]
+    pub hide_r18_tags: bool,
+    #[serde(default)]
+    pub spoiler_level: SpoilerLevel,
+    #[serde(default = "default_excluded_tags")]
+    pub excluded_tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -67,6 +101,9 @@ pub struct ConfigPatch {
     pub theme: Option<Theme>,
     pub accent: Option<Accent>,
     pub dashboard_layout: Option<Vec<DashboardModule>>,
+    pub hide_r18_tags: Option<bool>,
+    pub spoiler_level: Option<SpoilerLevel>,
+    pub excluded_tags: Option<Vec<String>>,
 }
 
 static CACHE: OnceLock<RwLock<Option<AppConfig>>> = OnceLock::new();
@@ -111,6 +148,15 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     }
     if let Some(value) = patch.dashboard_layout {
         config.dashboard_layout = value;
+    }
+    if let Some(value) = patch.hide_r18_tags {
+        config.hide_r18_tags = value;
+    }
+    if let Some(value) = patch.spoiler_level {
+        config.spoiler_level = value;
+    }
+    if let Some(value) = patch.excluded_tags {
+        config.excluded_tags = value;
     }
     update(dir, config)?;
     Ok(current())
@@ -203,6 +249,9 @@ mod tests {
                 theme: Some(Theme::Light),
                 accent: Some(Accent::Amber),
                 dashboard_layout: None,
+                hide_r18_tags: None,
+                spoiler_level: None,
+                excluded_tags: None,
             },
         )
         .unwrap();
@@ -258,5 +307,80 @@ mod tests {
         std::fs::write(tmp.path().join(FILE_NAME), "not json").unwrap();
         init(tmp.path());
         assert_eq!(current(), fallback());
+    }
+
+    #[test]
+    fn r18标签隐藏开关默认关闭且局部补丁可开启() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        assert!(!current().hide_r18_tags);
+
+        let config = patch(tmp.path(), ConfigPatch { hide_r18_tags: Some(true), ..Default::default() }).unwrap();
+        assert!(config.hide_r18_tags);
+        assert!(current().hide_r18_tags);
+
+        init(tmp.path());
+        assert!(current().hide_r18_tags);
+        let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
+        assert!(text.contains("hide_r18_tags"));
+    }
+
+    #[test]
+    fn 剧透级别默认隐藏全部且补丁可改() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        assert_eq!(current().spoiler_level, SpoilerLevel::HideAll);
+        assert!(SpoilerLevel::HideAll.hides(1));
+        assert!(SpoilerLevel::HideMajor.hides(2));
+        assert!(!SpoilerLevel::HideMajor.hides(1));
+        assert!(!SpoilerLevel::ShowAll.hides(2));
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch { spoiler_level: Some(SpoilerLevel::HideMajor), ..Default::default() },
+        )
+        .unwrap();
+        assert_eq!(config.spoiler_level, SpoilerLevel::HideMajor);
+
+        init(tmp.path());
+        assert_eq!(current().spoiler_level, SpoilerLevel::HideMajor);
+        let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
+        assert!(text.contains("spoiler_level"));
+    }
+
+    #[test]
+    fn 排除池默认含预设且补丁可整列替换() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        assert_eq!(current().excluded_tags, default_excluded_tags());
+        assert!(current().excluded_tags.contains(&"g133".to_owned()));
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch {
+                excluded_tags: Some(vec!["g96".to_owned(), "手输备注".to_owned()]),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(config.excluded_tags, vec!["g96".to_owned(), "手输备注".to_owned()]);
+        assert!(!config.excluded_tags.contains(&"g133".to_owned()));
+
+        init(tmp.path());
+        assert_eq!(current().excluded_tags, config.excluded_tags);
+        let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
+        assert!(text.contains("excluded_tags"));
+    }
+
+    #[test]
+    fn 旧配置无排除池字段时回落预设() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join(FILE_NAME), r#"{"theme":"dark"}"#).unwrap();
+        init(tmp.path());
+        assert_eq!(current().excluded_tags, default_excluded_tags());
     }
 }

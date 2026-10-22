@@ -38,6 +38,7 @@ export const api = {
   dashboardStats: () => call('dashboard_stats'),
   dashboardRecent: () => call('dashboard_recent'),
   dashboardTagCloud: () => call('dashboard_tag_cloud'),
+  libraryTags: () => call('library_tags'),
   dashboardMonthlyActivity: (months = 12) => call('dashboard_monthly_activity', { months }),
   dashboardPlaytimeTop: () => call('dashboard_playtime_top'),
   dashboardReleaseEras: () => call('dashboard_release_eras'),

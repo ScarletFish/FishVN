@@ -7,6 +7,9 @@
   import { api } from '../lib/api.js';
   import { DASHBOARD_MODULES, moveModule, setModuleEnabled, reorderModule } from '../lib/dashboard-layout.js';
   import { notifyConfigChanged } from '../lib/config-events.js';
+  import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
+  import { getLibraryTags, loadLibraryTags } from '../lib/library-tags.svelte.js';
+  import { tagKeyLabel, tagLabel } from '../lib/tag-label.svelte.js';
 
   let { open = $bindable(false) } = $props();
 
@@ -15,21 +18,65 @@
   let accent = $state(getAccent());
   let fontScale = $state(getFontScale());
   let timeMetric = $state('foreground');
+  let hideR18 = $state(false);
+  let spoilerLevel = $state('hide_all');
+  let excludedTags = $state([]);
+  let excludeQuery = $state('');
   let layout = $state([]);
+
+  const SPOILER_LEVELS = ['hide_all', 'hide_major', 'show_all'];
+
+  const excludedMatches = $derived.by(() => {
+    const query = excludeQuery.trim().toLowerCase();
+    const pool = new Set(excludedTags);
+    return getLibraryTags()
+      .filter((item) => !(item.id ? pool.has(item.id) : pool.has(item.tag)))
+      .filter((item) => {
+        if (!query) return true;
+        const label = tagKeyLabel(item.id ?? item.tag);
+        return label.toLowerCase().includes(query) || item.tag.toLowerCase().includes(query);
+      });
+  });
 
   $effect(() => {
     if (!open) return;
     dark = getTheme() === 'dark';
     accent = getAccent();
     fontScale = getFontScale();
+    hideR18 = getHideR18Tags();
+    spoilerLevel = getSpoilerLevel();
+    excludedTags = getExcludedTags();
+    loadLibraryTags();
     api
       .getConfig()
       .then((config) => {
         timeMetric = config.time_metric === 'alive' ? 'alive' : 'foreground';
+        spoilerLevel = SPOILER_LEVELS.includes(config.spoiler_level) ? config.spoiler_level : 'hide_all';
+        if (Array.isArray(config.excluded_tags)) excludedTags = config.excluded_tags;
         layout = config.dashboard_layout ?? [];
       })
       .catch(() => {});
   });
+
+  async function saveExcludedTags(next) {
+    excludedTags = next;
+    try {
+      await api.updateConfig({ excluded_tags: next });
+      notifyConfigChanged();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  function addExcludedTag(key) {
+    if (excludedTags.includes(key)) return;
+    excludeQuery = '';
+    saveExcludedTags([...excludedTags, key]);
+  }
+
+  function removeExcludedTag(key) {
+    saveExcludedTags(excludedTags.filter((item) => item !== key));
+  }
 
   async function saveLayout(next) {
     layout = next;
@@ -108,6 +155,24 @@
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
   }
+
+  function onHideR18Change(e) {
+    const value = e.target.checked;
+    hideR18 = value;
+    api
+      .updateConfig({ hide_r18_tags: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  function onSpoilerLevelChange(e) {
+    const value = SPOILER_LEVELS.includes(e.target.value) ? e.target.value : 'hide_all';
+    spoilerLevel = value;
+    api
+      .updateConfig({ spoiler_level: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
 </script>
 
 <Modal bind:open title={t('settings.title')} variant="modal--settings">
@@ -121,6 +186,16 @@
       onclick={() => (tab = 'appearance')}
     >
       {t('settings.tab.appearance')}
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="modal-tab"
+      class:active={tab === 'content'}
+      aria-selected={tab === 'content'}
+      onclick={() => (tab = 'content')}
+    >
+      {t('settings.tab.content')}
     </button>
   </div>
 
@@ -262,6 +337,102 @@
           {/each}
           {#if !layout.some((m) => DASHBOARD_MODULES.some((known) => known.id === m.id))}
             <p class="form-hint">{t('settings.layoutEmpty')}</p>
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-panel" class:active={tab === 'content'}>
+      <div class="form-group">
+        <div class="form-row">
+          <label class="toggle-switch" for="settings-hide-r18">
+            <input id="settings-hide-r18" type="checkbox" checked={hideR18} onchange={onHideR18Change} />
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="form-row-label">{t('settings.hideR18')}</span>
+        </div>
+        <p class="form-hint">{t('settings.hideR18Hint')}</p>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.spoilerLevel')}</div>
+        <div class="seg-radio-group" role="radiogroup" aria-label={t('settings.spoilerLevel')}>
+          <label class="seg-radio-item">
+            <input
+              type="radio"
+              name="settings-spoiler-level"
+              value="hide_all"
+              checked={spoilerLevel === 'hide_all'}
+              onchange={onSpoilerLevelChange}
+            />
+            {t('settings.spoilerHideAll')}
+          </label>
+          <label class="seg-radio-item">
+            <input
+              type="radio"
+              name="settings-spoiler-level"
+              value="hide_major"
+              checked={spoilerLevel === 'hide_major'}
+              onchange={onSpoilerLevelChange}
+            />
+            {t('settings.spoilerHideMajor')}
+          </label>
+          <label class="seg-radio-item">
+            <input
+              type="radio"
+              name="settings-spoiler-level"
+              value="show_all"
+              checked={spoilerLevel === 'show_all'}
+              onchange={onSpoilerLevelChange}
+            />
+            {t('settings.spoilerShowAll')}
+          </label>
+        </div>
+        <p class="form-hint">{t('settings.spoilerLevelHint')}</p>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.excludedTags')}</div>
+        <p class="form-hint">{t('settings.excludedTagsHint')}</p>
+        {#if excludedTags.length > 0}
+          <div class="excluded-chips">
+            {#each excludedTags as key (key)}
+              <span class="excluded-chip">
+                {tagKeyLabel(key)}
+                <button
+                  type="button"
+                  class="excluded-chip-remove"
+                  aria-label={t('settings.excludedRemove')}
+                  onclick={() => removeExcludedTag(key)}
+                >
+                  ×
+                </button>
+              </span>
+            {/each}
+          </div>
+        {:else}
+          <p class="form-hint">{t('settings.excludedEmpty')}</p>
+        {/if}
+        <div class="excluded-add">
+          <input
+            type="text"
+            bind:value={excludeQuery}
+            placeholder={t('settings.excludedSearch')}
+            autocomplete="off"
+          />
+          {#if excludedMatches.length > 0}
+            <ul class="excluded-matches">
+              {#each excludedMatches as item (item.id ?? item.tag)}
+                <li>
+                  <button type="button" onclick={() => addExcludedTag(item.id ?? item.tag)}>
+                    <span>{tagLabel(item)}</span>
+                    <span class="excluded-match-count">×{item.count}</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {:else if excludeQuery.trim()}
+            <p class="form-hint">{t('settings.excludedNoMatch')}</p>
           {/if}
         </div>
       </div>

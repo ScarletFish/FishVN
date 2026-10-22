@@ -105,6 +105,7 @@ fn main() {
             commands::dashboard_stats,
             commands::dashboard_recent,
             commands::dashboard_tag_cloud,
+            commands::library_tags,
             commands::dashboard_monthly_activity,
             commands::dashboard_playtime_top,
             commands::dashboard_release_eras,

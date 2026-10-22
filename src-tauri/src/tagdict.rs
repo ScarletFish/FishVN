@@ -9,10 +9,17 @@ struct Dictionary {
     traits: HashMap<String, String>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TagGroups {
+    pub roots: HashMap<String, String>,
+    pub excluded: Vec<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct TagDictionary {
     pub tags: &'static HashMap<String, String>,
     pub traits: &'static HashMap<String, String>,
+    pub tag_groups: &'static TagGroups,
 }
 
 pub fn dictionary() -> TagDictionary {
@@ -21,9 +28,15 @@ pub fn dictionary() -> TagDictionary {
         serde_json::from_str(include_str!("../resources/vndb/tags_zh.json"))
             .expect("tags_zh.json 损坏：反序列化失败")
     });
+    static GROUPS: OnceLock<TagGroups> = OnceLock::new();
+    let g = GROUPS.get_or_init(|| {
+        serde_json::from_str(include_str!("../resources/vndb/tag_groups.json"))
+            .expect("tag_groups.json 损坏：反序列化失败")
+    });
     TagDictionary {
         tags: &d.tags,
         traits: &d.traits,
+        tag_groups: g,
     }
 }
 
@@ -64,5 +77,37 @@ mod tests {
         assert_ne!(d.traits.get("i2").map(String::as_str), Some("奇幻"));
         assert_eq!(d.tags.get("g4").map(String::as_str), Some("魔法"));
         assert_eq!(d.traits.get("i4").map(String::as_str), Some("黑色"));
+    }
+
+    #[test]
+    fn 分组表覆盖五个根且排除技术支() {
+        let d = dictionary();
+        let groups = d.tag_groups;
+        assert!(groups.roots.len() > 2000, "roots 条目过少：{}", groups.roots.len());
+        assert_eq!(groups.roots.get("g2").map(String::as_str), Some("g1"));
+        assert_eq!(groups.roots.get("g133").map(String::as_str), Some("g20"));
+        assert_eq!(groups.roots.get("g148").map(String::as_str), Some("g24"));
+        assert_eq!(groups.roots.get("g35").map(String::as_str), Some("g674"));
+        assert!(!groups.excluded.contains(&"g35".to_string()), "玩法类型不应被排除");
+        assert!(groups.excluded.contains(&"g32".to_string()), "ADV 应被排除");
+        assert!(groups.excluded.contains(&"g452".to_string()), "Skip Scenes 应被排除");
+        assert!(groups.excluded.contains(&"g904".to_string()), "Super Deformed CGs 应被排除");
+        assert!(groups.excluded.contains(&"g1474".to_string()), "Ending List 应被排除");
+        assert!(!groups.excluded.contains(&"g96".to_string()), "Romance 不应被排除");
+        assert!(!groups.excluded.contains(&"g136".to_string()), "Multiple Protagonists 不应被排除");
+        assert!(
+            groups.excluded.windows(2).all(|w| w[0] < w[1]),
+            "excluded 需按字符串序排列（Rust 侧二分查找依赖该顺序）"
+        );
+        for (id, root) in groups.roots.iter() {
+            assert!(
+                matches!(root.as_str(), "g1" | "g20" | "g22" | "g24" | "g674"),
+                "{id} 的根 {root} 不在五组之内"
+            );
+            assert!(
+                !groups.excluded.contains(id),
+                "{id} 同时出现在 roots 与 excluded"
+            );
+        }
     }
 }

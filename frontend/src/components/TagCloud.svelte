@@ -1,8 +1,11 @@
 <script>
+  import { onMount } from 'svelte';
   import { api } from '../lib/api.js';
   import { tagLabel } from '../lib/tag-label.svelte.js';
   import { t } from '../lib/i18n.js';
   import { useStat } from '../lib/stat-loader.svelte.js';
+  import { CONFIG_CHANGED } from '../lib/config-events.js';
+  import { LIBRARY_TAGS_CHANGED } from '../lib/library-events.js';
   import StatCard from './StatCard.svelte';
 
   const MIN_SIZE = 0.85;
@@ -10,9 +13,21 @@
   const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
   const stat = useStat(api.dashboardTagCloud);
-  const tags = $derived(stat.data ?? []);
+  const tags = $derived(stat.data?.tags ?? []);
+  const candidates = $derived(stat.data?.candidates ?? 0);
+  const excluded = $derived(stat.data?.excluded ?? 0);
   let boxW = $state(0);
   let boxH = $state(0);
+
+  onMount(() => {
+    const refresh = () => stat.refresh();
+    window.addEventListener(CONFIG_CHANGED, refresh);
+    window.addEventListener(LIBRARY_TAGS_CHANGED, refresh);
+    return () => {
+      window.removeEventListener(CONFIG_CHANGED, refresh);
+      window.removeEventListener(LIBRARY_TAGS_CHANGED, refresh);
+    };
+  });
 
   const ranked = $derived.by(() => {
     if (tags.length === 0) return [];
@@ -77,11 +92,15 @@
 
 <StatCard
   title={t('dashboard.tagCloud.title')}
-  sub={tags.length > 0 ? t('dashboard.tagCloud.sub', { count: tags.length }) : ''}
+  sub={candidates > 0
+    ? excluded > 0
+      ? t('dashboard.tagCloud.subExcluded', { count: candidates, excluded })
+      : t('dashboard.tagCloud.sub', { count: candidates })
+    : ''}
   loading={stat.loading}
   error={stat.error}
-  empty={tags.length === 0}
-  emptyText={t('dashboard.tagCloud.empty')}
+  empty={tags.length === 0 && excluded === 0}
+  emptyText={excluded > 0 ? t('dashboard.tagCloud.allExcluded') : t('dashboard.tagCloud.empty')}
 >
   <div class="tag-cloud-body" bind:clientWidth={boxW} bind:clientHeight={boxH}>
     {#each cloud as word (word.id ?? word.label)}

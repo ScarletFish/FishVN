@@ -8,6 +8,7 @@
   import { pickDirectory, pickExecutable } from '../lib/pick-path.js';
   import { createScrollAnim } from '../lib/scroll-anim.js';
   import { captureHero } from '../lib/hero-transition.js';
+  import { notifyLibraryTagsChanged } from '../lib/library-events.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
@@ -39,6 +40,7 @@
     const ok = await confirm('deleteGame', item.name);
     if (!ok) return;
     await api.deleteGame(item.id);
+    notifyLibraryTagsChanged();
     await load();
   }
 

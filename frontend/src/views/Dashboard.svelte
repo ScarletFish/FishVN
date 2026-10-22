@@ -9,6 +9,7 @@
   import { captureHero } from '../lib/hero-transition.js';
   import { DASHBOARD_MODULES } from '../lib/dashboard-layout.js';
   import { CONFIG_CHANGED } from '../lib/config-events.js';
+  import { notifyLibraryTagsChanged } from '../lib/library-events.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
@@ -63,6 +64,7 @@
     const ok = await confirm('deleteGame', item.name);
     if (!ok) return;
     await api.deleteGame(item.id);
+    notifyLibraryTagsChanged();
     await load();
   }
 

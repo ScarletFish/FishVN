@@ -8,6 +8,8 @@
   import { stripBbcode, bbcodeSegments } from '../lib/vn-merge.js';
   import { traitLabel } from '../lib/tag-label.svelte.js';
   import { openExternal } from '../lib/open-external.js';
+  import { getSpoilerLevel } from '../lib/config-store.svelte.js';
+  import { spoilerThreshold } from '../lib/tag-order.svelte.js';
   import DetailSection from '../components/DetailSection.svelte';
 
   const TRAIT_GROUP_ORDER = [
@@ -98,10 +100,11 @@
   const traitData = $derived(
     (() => {
       const map = new Map();
+      const threshold = spoilerThreshold(getSpoilerLevel());
       let spoilerCount = 0;
       for (const tr of expanded?.traits ?? []) {
         if (tr.group_name.includes('Sexual')) continue;
-        if (tr.spoiler) {
+        if ((tr.spoiler ?? 0) >= threshold) {
           spoilerCount += 1;
           if (!showSpoilers) continue;
         }

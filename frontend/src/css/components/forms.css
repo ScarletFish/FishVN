@@ -586,3 +586,89 @@
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+
+.excluded-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.excluded-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.excluded-chip-remove {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.excluded-chip-remove:hover {
+  background: var(--bg-hover);
+  color: var(--error);
+}
+
+.excluded-add {
+  position: relative;
+}
+
+.excluded-matches {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.excluded-matches button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-default);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.excluded-matches button:hover {
+  background: var(--bg-hover);
+}
+
+.excluded-match-count {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}

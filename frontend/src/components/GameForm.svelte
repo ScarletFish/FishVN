@@ -26,6 +26,7 @@
   import { applyCharacters, planCharacters } from '../lib/char-merge.js';
   import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
+  import { notifyLibraryTagsChanged } from '../lib/library-events.js';
   import BasicPanel from './game-form/BasicPanel.svelte';
   import ProfilePanel from './game-form/ProfilePanel.svelte';
   import TagsPanel from './game-form/TagsPanel.svelte';
@@ -359,6 +360,7 @@
         if (vndbId) await api.updateGame(created.id, { vndb_id: vndbId });
       }
       open = false;
+      notifyLibraryTagsChanged();
       onsaved?.();
     } catch (err) {
       toast(err.message, 'error');

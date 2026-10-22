@@ -11,6 +11,9 @@
   import { compactDuration, durationText } from '../lib/playtime.js';
   import { playHero, discardHero } from '../lib/hero-transition.js';
   import { tagLabel } from '../lib/tag-label.svelte.js';
+  import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
+  import { orderTagsForDisplay, spoilerThreshold } from '../lib/tag-order.svelte.js';
+  import { notifyLibraryTagsChanged } from '../lib/library-events.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import DetailStaff from './DetailStaff.svelte';
   import GameForm from '../components/GameForm.svelte';
@@ -69,6 +72,7 @@
       const ok = await confirm('deleteGame', game?.name ?? '');
       if (!ok) return;
       await api.deleteGame(gameId);
+      notifyLibraryTagsChanged();
       toast(t('detail.deleted'));
       onclose?.();
     } catch (err) {
@@ -101,6 +105,7 @@
 
   const TAGS_PREVIEW = 8;
   let tagsExpanded = $state(false);
+  let spoilersRevealed = $state(false);
 
   let summaryParas = $derived(bbcodeParagraphs(meta?.description));
 
@@ -115,13 +120,44 @@
   let releaseYear = $derived(meta?.released?.slice(0, 4) ?? '');
   let developer = $derived(meta?.developers?.[0] ?? '');
 
-  let tags = $derived(
-    (meta?.tags ?? [])
-      .filter((tag) => !tag.spoiler)
-      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || (b.vn_count ?? 0) - (a.vn_count ?? 0))
+  let tagSplit = $derived(
+    orderTagsForDisplay(meta?.tags, getHideR18Tags(), getSpoilerLevel(), getExcludedTags()),
   );
-  let shownTags = $derived(tagsExpanded ? tags : tags.slice(0, TAGS_PREVIEW));
-  let tagsRemaining = $derived(tags.length - TAGS_PREVIEW);
+  let spoilersHiddenCount = $derived(tagSplit.spoilers.length);
+  let excludedHiddenCount = $derived.by(() => {
+    const pool = new Set(getExcludedTags());
+    const threshold = spoilerThreshold(spoilersRevealed ? 'show_all' : getSpoilerLevel());
+    return (meta?.tags ?? []).filter(
+      (tag) =>
+        !tag.lie &&
+        (tag.spoiler ?? 0) < threshold &&
+        (tag.id ? pool.has(tag.id) : pool.has(tag.name)),
+    ).length;
+  });
+  let previewTags = $derived(tagSplit.visible.slice(0, TAGS_PREVIEW));
+  let expandedTags = $derived(
+    spoilersRevealed
+      ? orderTagsForDisplay(meta?.tags, getHideR18Tags(), 'show_all', getExcludedTags()).visible
+      : tagSplit.visible,
+  );
+  let shownTags = $derived(tagsExpanded ? expandedTags : previewTags);
+  let tagsHiddenCount = $derived(
+    Math.max(tagSplit.visible.length - TAGS_PREVIEW, 0) + spoilersHiddenCount,
+  );
+  let hiddenSummary = $derived.by(() => {
+    const parts = [];
+    if (spoilersHiddenCount > 0) {
+      parts.push(
+        spoilersRevealed
+          ? t('detail.tagSpoilersShown')
+          : t('detail.tagSpoilersHidden', { count: spoilersHiddenCount }),
+      );
+    }
+    if (excludedHiddenCount > 0) {
+      parts.push(t('detail.tagsExcluded', { count: excludedHiddenCount }));
+    }
+    return parts.join(' | ');
+  });
 
   $effect(() => {
     loading = true;
@@ -131,6 +167,7 @@
     dirs = [];
     defaultDirId = null;
     tagsExpanded = false;
+    spoilersRevealed = false;
     menuOpen = false;
 
     let live = true;
@@ -304,17 +341,32 @@
             {#each shownTags as tag (tag.id ?? tag.name)}
               <span class="pill pill--tag">{tagLabel(tag)}</span>
             {/each}
-            {#if tagsRemaining > 0}
+            {#if tagsHiddenCount > 0}
               <button
                 type="button"
                 class="pill pill--more"
                 aria-expanded={tagsExpanded}
                 onclick={() => (tagsExpanded = !tagsExpanded)}
               >
-                {tagsExpanded ? t('detail.fewerTags') : t('detail.moreTags', { count: tagsRemaining })}
+                {tagsExpanded ? t('detail.fewerTags') : t('detail.moreTags', { count: tagsHiddenCount })}
               </button>
             {/if}
           </div>
+          {#if tagsExpanded && hiddenSummary}
+            <div class="detail-tags-hidden">
+              <span>{hiddenSummary}</span>
+              {#if spoilersHiddenCount > 0}
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    bind:checked={spoilersRevealed}
+                    aria-label={t('detail.tagSpoilersShown')}
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+              {/if}
+            </div>
+          {/if}
         </div>
         <div class="detail-summary">
           {#each summaryParas as para, i (i)}

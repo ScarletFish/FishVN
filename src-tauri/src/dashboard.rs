@@ -4,7 +4,8 @@ use rusqlite::Connection;
 use serde::Serialize;
 
 use crate::error::Result;
-use crate::settings::TimeMetric;
+use crate::settings::{SpoilerLevel, TimeMetric};
+use crate::tagdict;
 use crate::types::MetadataTag;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -109,24 +110,81 @@ pub struct TagCount {
     pub count: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LibraryTag {
+    pub id: Option<String>,
+    pub tag: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TagCloudView {
+    pub tags: Vec<TagCount>,
+    pub candidates: i64,
+    pub excluded: i64,
+}
+
 struct TagAgg {
     id: Option<String>,
     name: String,
     count: i64,
 }
 
-pub fn tag_cloud(conn: &Connection, limit: i64) -> Result<Vec<TagCount>> {
-    let mut stmt = conn.prepare("SELECT tags FROM game_metadata WHERE tags IS NOT NULL")?;
-    let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
-    // 按标签名聚合：手输标签与同步标签同名则合并计数，桶内携带首个非空 id 供中文译名查找
+const CLOUD_ROOTS: [&str; 2] = ["g1", "g20"];
+const CLOUD_MIN_COUNT: i64 = 2;
+
+pub fn library_tags(conn: &Connection) -> Result<Vec<LibraryTag>> {
     let mut counts: HashMap<String, TagAgg> = HashMap::new();
-    for row in rows {
-        let Some(text) = row? else { continue };
-        let Ok(tags) = serde_json::from_str::<Vec<MetadataTag>>(&text) else {
-            continue;
-        };
+    for tags in iter_metadata_tags(conn)? {
         for tag in tags {
-            if tag.spoiler.unwrap_or(0) != 0 || tag.lie.unwrap_or(false) {
+            let entry = counts.entry(tag.name.clone()).or_insert_with(|| TagAgg {
+                id: None,
+                name: tag.name.clone(),
+                count: 0,
+            });
+            if entry.id.is_none() {
+                entry.id = tag.id.clone();
+            }
+            entry.count += 1;
+        }
+    }
+    let mut out: Vec<LibraryTag> = counts
+        .into_values()
+        .map(|a| LibraryTag {
+            id: a.id,
+            tag: a.name,
+            count: a.count,
+        })
+        .collect();
+    out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
+    Ok(out)
+}
+
+pub fn tag_cloud(
+    conn: &Connection,
+    limit: i64,
+    hide_r18_tags: bool,
+    spoiler_level: SpoilerLevel,
+    excluded: &[String],
+) -> Result<TagCloudView> {
+    let groups = tagdict::dictionary().tag_groups;
+    let mut counts: HashMap<String, TagAgg> = HashMap::new();
+    for tags in iter_metadata_tags(conn)? {
+        for tag in tags {
+            if tag.lie.unwrap_or(false) || spoiler_level.hides(tag.spoiler.unwrap_or(0)) {
+                continue;
+            }
+            if hide_r18_tags && tag.category.as_deref() == Some("ero") {
+                continue;
+            }
+            if tag
+                .id
+                .as_deref()
+                .is_some_and(|id| groups.excluded.binary_search_by(|e| e.as_str().cmp(id)).is_ok())
+            {
+                continue;
+            }
+            if !cloud_root_keeps(tag.id.as_deref(), &groups.roots) {
                 continue;
             }
             let entry = counts.entry(tag.name.clone()).or_insert_with(|| TagAgg {
@@ -140,17 +198,61 @@ pub fn tag_cloud(conn: &Connection, limit: i64) -> Result<Vec<TagCount>> {
             entry.count += 1;
         }
     }
-    let mut out: Vec<TagCount> = counts
+    let mut pool: Vec<TagAgg> = counts
         .into_values()
+        .filter(|a| a.count >= CLOUD_MIN_COUNT)
+        .collect();
+    pool.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
+    let candidates = pool.len() as i64;
+    let excluded_count = pool
+        .iter()
+        .filter(|a| is_excluded(a.id.as_deref(), &a.name, excluded))
+        .count() as i64;
+    let mut out: Vec<TagCount> = pool
+        .into_iter()
+        .filter(|a| !is_excluded(a.id.as_deref(), &a.name, excluded))
         .map(|a| TagCount {
             id: a.id,
             tag: a.name,
             count: a.count,
         })
         .collect();
-    out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
     out.truncate(limit.max(0) as usize);
+    Ok(TagCloudView {
+        tags: out,
+        candidates,
+        excluded: excluded_count,
+    })
+}
+
+fn iter_metadata_tags(conn: &Connection) -> Result<Vec<Vec<MetadataTag>>> {
+    let mut stmt = conn.prepare("SELECT tags FROM game_metadata WHERE tags IS NOT NULL")?;
+    let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
+    let mut out = Vec::new();
+    for row in rows {
+        let Some(text) = row? else { continue };
+        if let Ok(tags) = serde_json::from_str::<Vec<MetadataTag>>(&text) {
+            out.push(tags);
+        }
+    }
     Ok(out)
+}
+
+fn cloud_root_keeps(id: Option<&str>, roots: &HashMap<String, String>) -> bool {
+    match id {
+        None => true,
+        Some(id) => match roots.get(id) {
+            Some(root) => CLOUD_ROOTS.contains(&root.as_str()),
+            None => true,
+        },
+    }
+}
+
+fn is_excluded(id: Option<&str>, name: &str, pool: &[String]) -> bool {
+    match id {
+        Some(id) => pool.iter().any(|entry| entry == id),
+        None => pool.iter().any(|entry| entry == name),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -433,14 +535,13 @@ mod tests {
             r#"[{"id":"g1","name":"恋爱","category":"theme","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g3","name":"伏笔回收","category":"theme","rating":1.0,"vn_count":1,"spoiler":2,"lie":false}]"#,
         );
 
-        let cloud = tag_cloud(&conn, 40).unwrap();
-        assert_eq!(cloud.len(), 2);
-        assert_eq!(cloud[0].id.as_deref(), Some("g1"));
-        assert_eq!(cloud[0].tag, "恋爱");
-        assert_eq!(cloud[0].count, 2);
-        assert_eq!(cloud[1].id.as_deref(), Some("g2"));
-        assert_eq!(cloud[1].tag, "战斗");
-        assert_eq!(cloud[1].count, 1);
+        let cloud = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
+        assert_eq!(cloud.candidates, 1);
+        assert_eq!(cloud.excluded, 0);
+        assert_eq!(cloud.tags.len(), 1);
+        assert_eq!(cloud.tags[0].id.as_deref(), Some("g1"));
+        assert_eq!(cloud.tags[0].tag, "恋爱");
+        assert_eq!(cloud.tags[0].count, 2);
     }
 
     #[test]
@@ -450,7 +551,7 @@ mod tests {
         set_tags(
             &conn,
             &a,
-            r#"[{"id":"g1","name":"恋爱","spoiler":0,"lie":false}]"#,
+            r#"[{"id":"g1","name":"恋爱","spoiler":0,"lie":false},{"name":"手输独占","spoiler":0,"lie":false}]"#,
         );
         let b = make_game(&conn, "乙");
         set_tags(
@@ -459,41 +560,161 @@ mod tests {
             r#"[{"name":"恋爱","spoiler":0,"lie":false},{"name":"手输独占","spoiler":0,"lie":false}]"#,
         );
 
-        let cloud = tag_cloud(&conn, 40).unwrap();
-        assert_eq!(cloud.len(), 2);
-        assert_eq!(cloud[0].tag, "恋爱");
-        assert_eq!(cloud[0].id.as_deref(), Some("g1"));
-        assert_eq!(cloud[0].count, 2);
-        assert_eq!(cloud[1].tag, "手输独占");
-        assert_eq!(cloud[1].id, None);
-        assert_eq!(cloud[1].count, 1);
+        let cloud = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
+        assert_eq!(cloud.tags.len(), 2);
+        assert_eq!(cloud.tags[0].tag, "恋爱");
+        assert_eq!(cloud.tags[0].id.as_deref(), Some("g1"));
+        assert_eq!(cloud.tags[0].count, 2);
+        assert_eq!(cloud.tags[1].tag, "手输独占");
+        assert_eq!(cloud.tags[1].id, None);
+        assert_eq!(cloud.tags[1].count, 2);
     }
 
     #[test]
     fn 词云截断到上限() {
         let conn = db();
-        let mut json = String::from("[");
-        for i in 0..5 {
+        let mut shared = String::new();
+        for i in 0..4 {
             if i > 0 {
-                json.push(',');
+                shared.push(',');
             }
-            json.push_str(&format!(
-                r#"{{"id":"t{i}","name":"标签{i}","spoiler":0,"lie":false}}"#
-            ));
+            shared.push_str(&format!(r#"{{"id":"t{i}","name":"标签{i}","spoiler":0,"lie":false}}"#));
         }
-        json.push(']');
-        let id = make_game(&conn, "甲");
-        set_tags(&conn, &id, &json);
+        let a = make_game(&conn, "甲");
+        set_tags(&conn, &a, &format!("[{shared}]"));
+        let b = make_game(&conn, "乙");
+        set_tags(&conn, &b, &format!("[{shared},{{\"id\":\"t9\",\"name\":\"乙独占\",\"spoiler\":0,\"lie\":false}}]"));
 
-        assert_eq!(tag_cloud(&conn, 3).unwrap().len(), 3);
-        assert_eq!(tag_cloud(&conn, 0).unwrap().len(), 0);
+        let view = tag_cloud(&conn, 3, false, SpoilerLevel::HideAll, &[]).unwrap();
+        assert_eq!(view.candidates, 4);
+        assert_eq!(view.tags.len(), 3);
+        assert_eq!(tag_cloud(&conn, 0, false, SpoilerLevel::HideAll, &[]).unwrap().tags.len(), 0);
+    }
+
+    #[test]
+    fn 词云在隐藏r18时排除成人标签() {
+        let conn = db();
+        for name in ["甲", "乙"] {
+            let id = make_game(&conn, name);
+            set_tags(
+                &conn,
+                &id,
+                r#"[{"id":"g1","name":"恋爱","category":"cont","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g4","name":"性描写","category":"ero","rating":1.0,"vn_count":1,"spoiler":0,"lie":false}]"#,
+            );
+        }
+
+        let shown = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
+        assert_eq!(shown.tags.len(), 2);
+        let hidden = tag_cloud(&conn, 40, true, SpoilerLevel::HideAll, &[]).unwrap();
+        assert_eq!(hidden.tags.len(), 1);
+        assert_eq!(hidden.tags[0].tag, "恋爱");
+    }
+
+    #[test]
+    fn 词云排除技术类标签() {
+        let conn = db();
+        let tech = r#"[{"id":"g32","name":"ADV","category":"tech","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g452","name":"Skip Scenes","category":"tech","rating":2.0,"vn_count":5,"spoiler":0,"lie":false},{"id":"g904","name":"Super Deformed CGs","category":"tech","rating":2.0,"vn_count":5,"spoiler":0,"lie":false},{"id":"g2","name":"奇幻","category":"cont","rating":2.0,"vn_count":9,"spoiler":0,"lie":false},{"name":"手输标签","spoiler":0,"lie":false}]"#;
+        for name in ["甲", "乙"] {
+            let id = make_game(&conn, name);
+            set_tags(&conn, &id, tech);
+        }
+
+        let cloud = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
+        assert_eq!(cloud.candidates, 2);
+        assert_eq!(cloud.tags.len(), 2);
+        assert_eq!(cloud.tags[0].tag, "奇幻");
+        assert_eq!(cloud.tags[1].tag, "手输标签");
+    }
+
+    #[test]
+    fn 词云按剧透级别过滤() {
+        let conn = db();
+        let tags = r#"[{"id":"g1","name":"恋爱","category":"cont","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g5","name":"轻微剧透","category":"cont","rating":2.0,"vn_count":5,"spoiler":1,"lie":false},{"id":"g6","name":"严重剧透","category":"cont","rating":2.0,"vn_count":5,"spoiler":2,"lie":false}]"#;
+        for name in ["甲", "乙"] {
+            let id = make_game(&conn, name);
+            set_tags(&conn, &id, tags);
+        }
+
+        let all = tag_cloud(&conn, 40, false, SpoilerLevel::ShowAll, &[]).unwrap();
+        assert_eq!(all.tags.len(), 3);
+        let major = tag_cloud(&conn, 40, false, SpoilerLevel::HideMajor, &[]).unwrap();
+        assert_eq!(major.tags.len(), 2);
+        assert!(major.tags.iter().all(|t| t.tag != "严重剧透"));
+        let none = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
+        assert_eq!(none.tags.len(), 1);
+        assert_eq!(none.tags[0].tag, "恋爱");
+    }
+
+    #[test]
+    fn 词云只收题材与角色根下的标签() {
+        let conn = db();
+        let tags = r#"[{"id":"g2","name":"奇幻","category":"cont","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g64","name":"大和抚子女主角","category":"cont","rating":2.0,"vn_count":5,"spoiler":0,"lie":false},{"id":"g145","name":"无分支","category":"cont","rating":1.0,"vn_count":1,"spoiler":0,"lie":false},{"id":"g48","name":"高中","category":"cont","rating":1.0,"vn_count":1,"spoiler":0,"lie":false}]"#;
+        for name in ["甲", "乙"] {
+            let id = make_game(&conn, name);
+            set_tags(&conn, &id, tags);
+        }
+
+        let cloud = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
+        assert_eq!(cloud.candidates, 2);
+        assert_eq!(
+            cloud.tags.iter().map(|t| t.tag.as_str()).collect::<Vec<_>>(),
+            vec!["大和抚子女主角", "奇幻"]
+        );
+    }
+
+    #[test]
+    fn 词云排除池按id与手输名命中() {
+        let conn = db();
+        let tags = r#"[{"id":"g96","name":"恋爱","category":"cont","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g64","name":"大和抚子女主角","category":"cont","rating":2.0,"vn_count":5,"spoiler":0,"lie":false},{"name":"手输备注","spoiler":0,"lie":false}]"#;
+        for name in ["甲", "乙"] {
+            let id = make_game(&conn, name);
+            set_tags(&conn, &id, tags);
+        }
+
+        let pool = vec!["g96".to_owned(), "手输备注".to_owned()];
+        let cloud = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &pool).unwrap();
+        assert_eq!(cloud.candidates, 3);
+        assert_eq!(cloud.excluded, 2);
+        assert_eq!(cloud.tags.len(), 1);
+        assert_eq!(cloud.tags[0].tag, "大和抚子女主角");
+
+        let by_name = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &["恋爱".to_owned()]).unwrap();
+        assert_eq!(by_name.excluded, 0);
+        assert_eq!(by_name.tags.len(), 3);
+    }
+
+    #[test]
+    fn 库内标签查询返回全部标签与次数() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        set_tags(
+            &conn,
+            &a,
+            r#"[{"id":"g2","name":"奇幻","spoiler":2,"lie":false},{"id":"g145","name":"无分支","spoiler":0,"lie":false},{"name":"手输标签","spoiler":0,"lie":false}]"#,
+        );
+        let b = make_game(&conn, "乙");
+        set_tags(&conn, &b, r#"[{"id":"g2","name":"奇幻","spoiler":0,"lie":false}]"#);
+
+        let all = library_tags(&conn).unwrap();
+        assert_eq!(
+            all.iter().map(|t| (t.tag.as_str(), t.count)).collect::<Vec<_>>(),
+            vec![("奇幻", 2), ("手输标签", 1), ("无分支", 1)]
+        );
+        assert_eq!(all[0].id.as_deref(), Some("g2"));
+        assert_eq!(all[1].id, None);
+        assert_eq!(all[2].id.as_deref(), Some("g145"));
     }
 
     #[test]
     fn 无标签时词云为空() {
         let conn = db();
         make_game(&conn, "甲");
-        assert!(tag_cloud(&conn, 40).unwrap().is_empty());
+        assert!(
+            tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[])
+                .unwrap()
+                .tags
+                .is_empty()
+        );
     }
 
     #[test]
