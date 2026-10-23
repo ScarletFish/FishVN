@@ -15,12 +15,11 @@
   import Menu from '../components/Menu.svelte';
   import ScanAddDialog from '../components/ScanAddDialog.svelte';
 
-  let { onopen, scroll = 0, onscroll } = $props();
+  let { onopen, scroll = 0, onscroll, filter = $bindable('all') } = $props();
 
   const STATUS_ORDER = ['playing', 'wishlist', 'finished', 'dropped'];
 
   let games = $state([]);
-  let filter = $state('all');
   let loading = $state(true);
   let error = $state(null);
   let formOpen = $state(false);

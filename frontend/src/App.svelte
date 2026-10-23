@@ -61,6 +61,7 @@
   let autoLaunch = $state(false);
   let detailTitle = $state('');
   let listScroll = $state(0);
+  let listFilter = $state('all');
 
   function openDetail(id, autostart = false) {
     detailId = id;
@@ -108,6 +109,7 @@
           onopen={(id) => openDetail(id)}
           scroll={listScroll}
           onscroll={(top) => (listScroll = top)}
+          bind:filter={listFilter}
         />
       {:else if current === 'stats'}
         <Stats />
