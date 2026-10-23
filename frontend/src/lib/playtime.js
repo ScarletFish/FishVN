@@ -6,8 +6,10 @@ function pad(value) {
 }
 
 export function durationText(t, seconds) {
-  const minutes = Math.round(Math.max(0, Number(seconds) || 0) / MINUTE);
-  if (minutes <= 0) return '0';
+  const total = Math.max(0, Number(seconds) || 0);
+  if (total <= 0) return '0';
+  const minutes = Math.round(total / MINUTE);
+  if (minutes <= 0) return `<1 ${t('common.unitMinute')}`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   if (hours <= 0) return `${rest} ${t('common.unitMinute')}`;

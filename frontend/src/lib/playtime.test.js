@@ -6,7 +6,7 @@ const t = (key) =>
 
 test('时长文案按分钟四舍五入', () => {
   expect(durationText(t, 0)).toBe('0');
-  expect(durationText(t, 20)).toBe('0');
+  expect(durationText(t, 20)).toBe('<1 分');
   expect(durationText(t, 34 * 60)).toBe('34 分');
   expect(durationText(t, 3600)).toBe('1 小时');
   expect(durationText(t, 12 * 3600 + 34 * 60 + 56)).toBe('12 小时 35 分');

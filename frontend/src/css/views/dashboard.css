@@ -193,14 +193,23 @@
 
 .continue-meta {
   position: absolute;
-  right: var(--space-3);
+  right: var(--space-2);
   bottom: var(--space-2);
   z-index: 1;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
   color: var(--fg-on-image);
   font-size: var(--text-xs);
   font-weight: var(--fw-medium);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  min-width: 6.5rem;
+  text-align: center;
+  background: var(--scrim);
+  border: 1px solid color-mix(in srgb, var(--fg-on-image) 22%, transparent);
+  box-shadow: var(--shadow-sm);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .continue-play {
