@@ -20,7 +20,7 @@ POST JSON body，`Content-Type: application/json`。响应恒为 JSON，`Accept`
 | `results` | int | 每页条数，上限 **100** |
 | `page` | int | 从 1 开始 |
 | `count` | bool | 附带总条数，官方注明有明显性能开销 |
-| `user`, `token` | string | 鉴权用，本地只读不需要 |
+| `user`, `token` | string | 鉴权用：`token` 走 `Authorization: token <t>` 请求头，只有 `/ulist` 等用户列表端点需要；`user` 认证后默认本人，省略即可 |
 
 ### 响应信封
 
@@ -177,6 +177,30 @@ va{character{id},staff{id,name,original},note}
 
 `birthday` 的 `[月, 日]` 落库拍平成 `月-日`：只公布一个分量时存已知的那个，两边都没有则该字段
 留空。
+
+### `/ulist` 端点（用户列表）
+
+用户自己的 VN 列表，合并了旧 API 的 vnlist / votelist / wishlist。读取必须带 token
+（`Authorization: token <t>` 头），`user` 参数认证后默认本人，省略即可。本节形状经官方文档
+与多个客户端库交叉确认，未经本项目实测（本地无 token 可抽样）。
+
+请求体与通用查询格式一致，本项目只取四个字段：
+
+```json
+{ "fields": "vn.id,labels{id,label},vote,lastmod", "results": 100, "page": 1 }
+```
+
+| 字段 | JSON 形状 | 说明 |
+|---|---|---|
+| `vn` | object | 固定取 `vn.id`，形如 `{"id":"v17"}` |
+| `labels` | object[] | 每项 `{id,label}`；`label` 是首字母大写的显示名（`Playing` / `Finished` / `Stalled` / `Dropped` / `Wishlist`），id 小于 10 是预定义标签且对所有用户相同；`Voted`(7) 随 `vote` 自动加减 |
+| `vote` | int \| null | 10..100，无评分为 null；与本地 `user_rating` 同为百分制、同刻度 |
+| `lastmod` | int | unix 时间戳，该列表条目最后修改时间 |
+
+翻页用 `results`（上限 100）+ `page`，响应 `more` 为 true 就续页；结果默认按 `id` 排序。
+
+写操作（`PATCH /ulist/<id>` 带 `labels_set` / `labels_unset` / `vote`，删条目用 `DELETE`）属
+仅上传与双向同步力度，设计见 [vndb-sync.md](./vndb-sync.md)，首版（仅下载）不实现。
 
 ### 封面与图片
 

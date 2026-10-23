@@ -175,9 +175,11 @@ pub fn update_game_state(conn: &Connection, id: &str, patch: &StatePatch) -> Res
 
     let mut sets: Vec<&'static str> = Vec::new();
     let mut values: Vec<Value> = Vec::new();
+    let mut touch_state = false;
     if let Some(status) = patch.status {
         sets.push("status = ?");
         values.push(Value::Text(status.as_str().to_owned()));
+        touch_state = true;
     }
     if let Some(raw) = &patch.user_rating {
         sets.push("user_rating = ?");
@@ -185,6 +187,7 @@ pub fn update_game_state(conn: &Connection, id: &str, patch: &StatePatch) -> Res
             Some(v) => Value::Real(*v),
             None => Value::Null,
         });
+        touch_state = true;
     }
     if let Some(raw) = &patch.notes {
         sets.push("notes = ?");
@@ -206,6 +209,10 @@ pub fn update_game_state(conn: &Connection, id: &str, patch: &StatePatch) -> Res
         }
         sets.push("play_seconds = ?");
         values.push(Value::Integer(seconds));
+    }
+    if touch_state {
+        sets.push("state_modified_at = ?");
+        values.push(Value::Integer(now()));
     }
     if sets.is_empty() {
         return Err(AppError::BadRequest("没有可更新的字段".into()));

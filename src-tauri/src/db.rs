@@ -52,7 +52,10 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           user_rating             REAL,
           notes                   TEXT,
           default_installation_id TEXT REFERENCES installations(id) ON DELETE SET NULL,
-          play_seconds            INTEGER NOT NULL DEFAULT 0
+          play_seconds            INTEGER NOT NULL DEFAULT 0,
+          synced_status           TEXT,
+          synced_rating           REAL,
+          state_modified_at       INTEGER
         );
 
         CREATE TABLE IF NOT EXISTS play_sessions (

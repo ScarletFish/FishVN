@@ -236,8 +236,13 @@ fn mark_playing(shared: &Arc<Mutex<Connection>>, game_id: &str) {
         return;
     };
     let _ = conn.execute(
-        "UPDATE user_game_state SET status = ? WHERE game_id = ? AND status = ?",
-        params![Status::Playing.as_str(), game_id, Status::Wishlist.as_str()],
+        "UPDATE user_game_state SET status = ?, state_modified_at = ? WHERE game_id = ? AND status = ?",
+        params![
+            Status::Playing.as_str(),
+            crate::now(),
+            game_id,
+            Status::Wishlist.as_str()
+        ],
     );
 }
 

@@ -200,3 +200,73 @@ fn 删作品时状态随外键级联清除() {
 
     assert_eq!(variant(&get_game_state(&db, &id).unwrap_err()), "NotFound");
 }
+
+fn state_modified_at(db: &Db, id: &str) -> Option<i64> {
+    db.query_row(
+        "SELECT state_modified_at FROM user_game_state WHERE game_id = ?",
+        [id],
+        |row| row.get(0),
+    )
+    .expect("读状态行失败")
+}
+
+#[test]
+fn 改状态或评分会留下本地修改时间() {
+    let db = Db::new();
+    let id = new_game(&db, "修改时间");
+    assert_eq!(state_modified_at(&db, &id), None, "建条目时没有本地修改记录");
+
+    update_game_state(
+        &db,
+        &id,
+        &StatePatch {
+            status: Some(Status::Playing),
+            ..Default::default()
+        },
+    )
+    .expect("改状态失败");
+    let stamped = state_modified_at(&db, &id);
+    assert!(stamped.is_some(), "改状态要留下本地修改时间");
+
+    update_game_state(
+        &db,
+        &id,
+        &StatePatch {
+            user_rating: Some(Some(80.0)),
+            ..Default::default()
+        },
+    )
+    .expect("改评分失败");
+    assert!(state_modified_at(&db, &id).is_some(), "改评分同样要留下时间");
+}
+
+#[test]
+fn 只改备注不刷新本地修改时间() {
+    let db = Db::new();
+    let id = new_game(&db, "只改备注");
+    update_game_state(
+        &db,
+        &id,
+        &StatePatch {
+            status: Some(Status::Playing),
+            ..Default::default()
+        },
+    )
+    .expect("改状态失败");
+    let stamped = state_modified_at(&db, &id).expect("改状态后应有时间");
+
+    update_game_state(
+        &db,
+        &id,
+        &StatePatch {
+            notes: Some(Some("随手记".into())),
+            ..Default::default()
+        },
+    )
+    .expect("改备注失败");
+    assert_eq!(
+        state_modified_at(&db, &id),
+        Some(stamped),
+        "备注不在同步字段集里，改了也不算本地状态变更"
+    );
+}

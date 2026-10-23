@@ -11,8 +11,8 @@ mod images;
 pub use characters::role_of;
 pub use client::{http, take_slot, RateLimiter};
 pub use dto::{
-    CharVn, VnDeveloper, VnEnvelope, VnImage, VnMetadata, VnSearchHit, VnSync, VnTag, VnTitle,
-    VnVa, VnVaCharacter, VnVaStaff,
+    CharVn, UlistEntry, UlistLabel, UlistVn, VnDeveloper, VnEnvelope, VnImage, VnMetadata, VnSearchHit,
+    VnSync, VnTag, VnTitle, VnVa, VnVaCharacter, VnVaStaff,
 };
 
 use dto::CharRow;
@@ -26,6 +26,10 @@ const CHAR_FIELDS: &str = "id,name,original,aliases,description,gender,age,birth
 const CHAR_RESULTS: usize = 100;
 
 const SEARCH_RESULTS: usize = 25;
+
+const ULIST_FIELDS: &str = "vn.id,labels{id,label},vote,lastmod";
+
+const ULIST_RESULTS: usize = 100;
 
 pub fn validate_keyword(raw: &str) -> Result<String> {
     let trimmed = raw.trim();
@@ -138,4 +142,27 @@ pub async fn test_token(http: &reqwest::Client, token: &str) -> Result<bool> {
         Err(AppError::BadRequest(_)) => Ok(false),
         Err(other) => Err(other),
     }
+}
+
+pub async fn fetch_ulist(http: &reqwest::Client, token: &str) -> Result<Vec<UlistEntry>> {
+    let mut entries = Vec::new();
+    let mut page = 1;
+    loop {
+        let body = json!({
+            "fields": ULIST_FIELDS,
+            "results": ULIST_RESULTS,
+            "page": page,
+        });
+        let env: VnEnvelope<UlistEntry> = client::post(http, "ulist", body, Some(token)).await?;
+        let more = env.more;
+        if env.results.is_empty() {
+            break;
+        }
+        entries.extend(env.results);
+        if !more {
+            break;
+        }
+        page += 1;
+    }
+    Ok(entries)
 }

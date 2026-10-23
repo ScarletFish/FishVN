@@ -9,6 +9,28 @@ pub struct VnEnvelope<T> {
     pub count: Option<i64>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct UlistVn {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct UlistLabel {
+    pub id: i64,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct UlistEntry {
+    pub vn: UlistVn,
+    pub labels: Vec<UlistLabel>,
+    pub vote: Option<i64>,
+    pub lastmod: Option<i64>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct VnImage {

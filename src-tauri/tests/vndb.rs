@@ -1,5 +1,6 @@
 //! 不发真实网络请求：CI 无网络会挂。反序列化用例锁住我们与真实响应的契约，
-//! JSON 片段用 META_FIELDS / SEARCH_FIELDS 向 api.vndb.org 实抓后裁剪而成。
+//! JSON 片段用 META_FIELDS / SEARCH_FIELDS 向 api.vndb.org 实抓后裁剪而成；
+//! ulist 用例的 JSON 按官方文档形状手写（本地无 token，没法抽样）。
 
 mod common;
 
@@ -7,8 +8,8 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use fishvn::vndb::{
-    role_of, take_slot, validate_keyword, validate_vn_id, CharVn, RateLimiter, VnEnvelope,
-    VnMetadata,
+    role_of, take_slot, validate_keyword, validate_vn_id, CharVn, RateLimiter, UlistEntry,
+    VnEnvelope, VnMetadata,
 };
 
 #[test]
@@ -261,4 +262,36 @@ fn 缺失字段按_default_补空而不是报错() {
     assert_eq!(vn.title, "t");
     assert_eq!(vn.rating, None);
     assert!(vn.tags.is_none());
+}
+
+#[test]
+fn ulist响应能反序列化_标签投票与lastmod() {
+    let payload = r#"{
+        "more": true,
+        "results": [
+            { "id": "u1-v17", "vn": { "id": "v17" },
+              "labels": [ { "id": 1, "label": "Playing" } ],
+              "vote": 85, "lastmod": 1710000000 },
+            { "id": "u1-v18", "vn": { "id": "v18" },
+              "labels": [], "vote": null, "lastmod": 1710003600 }
+        ]
+    }"#;
+    let env: VnEnvelope<UlistEntry> = serde_json::from_str(payload).expect("ulist 响应解析不开");
+
+    assert!(env.more);
+    assert_eq!(env.results.len(), 2);
+
+    let playing = &env.results[0];
+    assert_eq!(playing.vn.id, "v17");
+    assert_eq!(playing.labels.len(), 1);
+    assert_eq!(playing.labels[0].id, 1);
+    assert_eq!(playing.labels[0].label, "Playing");
+    assert_eq!(playing.vote, Some(85));
+    assert_eq!(playing.lastmod, Some(1710000000));
+
+    let unvoted = &env.results[1];
+    assert_eq!(unvoted.vn.id, "v18");
+    assert!(unvoted.labels.is_empty());
+    assert_eq!(unvoted.vote, None);
+    assert_eq!(unvoted.lastmod, Some(1710003600));
 }
