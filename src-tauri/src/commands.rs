@@ -322,13 +322,22 @@ fn data_dir_or_err(app: &tauri::AppHandle) -> Result<PathBuf> {
 }
 
 #[tauri::command]
-pub fn get_config(_app: tauri::AppHandle) -> Result<AppConfig> {
-    Ok(settings::current())
+pub fn get_config(_app: tauri::AppHandle) -> Result<settings::ConfigView> {
+    Ok(settings::view())
 }
 
 #[tauri::command]
 pub fn update_config(app: tauri::AppHandle, patch: ConfigPatch) -> Result<AppConfig> {
     settings::patch(&data_dir_or_err(&app)?, patch)
+}
+
+#[tauri::command]
+pub async fn test_vndb_token(token: String) -> Result<bool> {
+    let trimmed = token.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::BadRequest("token 不能为空".into()));
+    }
+    vndb::test_token(vndb::http(), trimmed).await
 }
 
 #[tauri::command]

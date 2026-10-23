@@ -104,19 +104,21 @@ pub(super) async fn post<T: for<'de> Deserialize<'de>>(
     http: &reqwest::Client,
     endpoint: &str,
     body: Value,
+    token: Option<&str>,
 ) -> Result<VnEnvelope<T>> {
-    let resp = http
+    let mut builder = http
         .post(format!("{API_BASE}/{endpoint}"))
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| {
-            if e.is_timeout() {
-                AppError::Upstream(format!("VNDB 请求超时：{e}"))
-            } else {
-                AppError::Upstream(format!("VNDB 请求失败：{e}"))
-            }
-        })?;
+        .json(&body);
+    if let Some(token) = token {
+        builder = builder.header("Authorization", format!("token {token}"));
+    }
+    let resp = builder.send().await.map_err(|e| {
+        if e.is_timeout() {
+            AppError::Upstream(format!("VNDB 请求超时：{e}"))
+        } else {
+            AppError::Upstream(format!("VNDB 请求失败：{e}"))
+        }
+    })?;
 
     let status = resp.status();
     let text = resp.text().await.map_err(|e| {
@@ -133,6 +135,7 @@ pub(super) async fn post<T: for<'de> Deserialize<'de>>(
         400 => Err(AppError::BadRequest(format!(
             "VNDB 拒绝请求（400）：{text}"
         ))),
+        401 => Err(AppError::BadRequest("VNDB 鉴权失败（401）：token 可能无效".into())),
         429 => Err(AppError::RateLimited),
         _ => Err(AppError::Upstream(format!("VNDB 返回 {status}"))),
     }

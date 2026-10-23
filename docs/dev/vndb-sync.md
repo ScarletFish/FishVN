@@ -81,7 +81,9 @@ VNDB 返回未知 label 时按 `计划中` 处理并提示。`status` 非空两�
 - 读取用 `get ulist`（Kana v2 已合并 vnlist / votelist / wishlist），一次返回 `vn`(id) + 状态 labels + `vote` + `notes` + `started`/`finished` + `lastmod`。首版只取 `vn, labels, vote, lastmod`。
 - 写入用 `set ulist { status→labels, vote }`；无对应条目时即新建。
 - 翻页用 `results`（上限 100）+ `page`，以响应 `more` 决定是否续页。限流按 `vndb-api.md` 保守口径（100 请求 / 5 分钟客户端节流）执行，500 部约 5 页，余量充足；429 按退避重排。
-- 鉴权：请求头 `Authorization: token <token>`。token 存本地配置文件，UI 入口在设置页，提供「测试连接」（发一次 `get ulist results=1` 或 `GET /authinfo`，401 即无效）与「断开」（清空）。UI 标注 token 等同只读凭证、只发往 `api.vndb.org`。
+- 鉴权：请求头 `Authorization: token <token>`。
+- token 存储：存本地 `config.json`，但以「固定掩码 XOR + hex」混淆落盘、**不存明文**。本地单机 + 只读凭证场景下，混淆只防配置文件被误提交进 git、被 dotfiles / 云盘同步、被截图或随手打开；防不住本机内存抓取型恶意软件。因此不引入加密依赖，零新增 crate。
+- UI 入口在设置页，提供「测试连接」（发一次 `get ulist results=1`，401 即无效）与「断开」（清空）。前端只持有本次会话用户输入的原始 token，不碰落盘密文；打开设置时后端只回 `has_token` 布尔。UI 标注 token 等同只读凭证、只发往 `api.vndb.org`。
 
 ## 6. UI 落点
 

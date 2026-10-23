@@ -112,6 +112,57 @@
   min-height: 200px;
 }
 
+.vndb-token-input {
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--fg-default);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.vndb-token-input:hover {
+  border-color: var(--border-strong);
+}
+
+.vndb-token-input:focus {
+  background: var(--bg-raised);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.vndb-token-input::placeholder {
+  color: var(--fg-muted);
+}
+
+.vndb-token-input:focus-visible {
+  outline: none;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.vndb-test-ok {
+  margin-top: var(--space-2);
+  color: var(--success);
+}
+
+.vndb-test-invalid {
+  margin-top: var(--space-2);
+  color: var(--accent);
+}
+
 .form-group--desc textarea {
   height: 160px;
   min-height: 160px;

@@ -26,7 +26,14 @@
   let poolOpen = $state(false);
   let layout = $state([]);
 
+  let vndbSyncMode = $state('download');
+  let hasVndbToken = $state(false);
+  let vndbTokenInput = $state('');
+  let vndbTesting = $state(false);
+  let vndbTestResult = $state(null);
+
   const SPOILER_LEVELS = ['hide_all', 'hide_major', 'show_all'];
+  const VNDB_MODES = ['download', 'upload', 'both'];
 
   $effect(() => {
     if (!open) return;
@@ -45,6 +52,12 @@
         spoilerLevel = SPOILER_LEVELS.includes(config.spoiler_level) ? config.spoiler_level : 'hide_all';
         if (Array.isArray(config.excluded_tags)) excludedTags = config.excluded_tags;
         layout = config.dashboard_layout ?? [];
+        vndbSyncMode = config.vndb_sync_mode === 'upload' || config.vndb_sync_mode === 'both'
+          ? config.vndb_sync_mode
+          : 'download';
+        hasVndbToken = !!config.has_vndb_token;
+        vndbTokenInput = '';
+        vndbTestResult = null;
       })
       .catch(() => {});
   });
@@ -168,6 +181,66 @@
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
   }
+
+  function onVndbModeChange(e) {
+    const value = VNDB_MODES.includes(e.target.value) ? e.target.value : 'download';
+    vndbSyncMode = value;
+    api
+      .updateConfig({ vndb_sync_mode: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  async function onVndbTokenTest() {
+    const token = vndbTokenInput.trim();
+    if (!token) {
+      vndbTestResult = null;
+      toast(t('settings.vndb.tokenUnset'), 'warn');
+      return;
+    }
+    vndbTesting = true;
+    vndbTestResult = null;
+    try {
+      const ok = await api.testVndbToken(token);
+      vndbTestResult = ok ? true : false;
+    } catch (err) {
+      vndbTestResult = 'error';
+      toast(err.message, 'error');
+    } finally {
+      vndbTesting = false;
+    }
+  }
+
+  async function onVndbTokenSave() {
+    const token = vndbTokenInput.trim();
+    if (!token) {
+      toast(t('settings.vndb.tokenUnset'), 'warn');
+      return;
+    }
+    try {
+      await api.updateConfig({ vndb_token: token });
+      notifyConfigChanged();
+      hasVndbToken = true;
+      vndbTokenInput = '';
+      vndbTestResult = null;
+      toast(t('settings.vndb.tokenSet'), 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  async function onVndbDisconnect() {
+    try {
+      await api.updateConfig({ vndb_token: '' });
+      notifyConfigChanged();
+      hasVndbToken = false;
+      vndbTokenInput = '';
+      vndbTestResult = null;
+      toast(t('settings.vndb.tokenUnset'), 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
 </script>
 
 <Modal
@@ -207,6 +280,16 @@
       onclick={() => (tab = 'content')}
     >
       {t('settings.tab.content')}
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="modal-tab"
+      class:active={tab === 'vndb'}
+      aria-selected={tab === 'vndb'}
+      onclick={() => (tab = 'vndb')}
+    >
+      {t('settings.vndb.tab')}
     </button>
   </div>
 
@@ -432,6 +515,77 @@
           </div>
         {:else}
           <p class="form-hint">{t('settings.excludedEmpty')}</p>
+        {/if}
+      </div>
+    </div>
+
+    <div class="modal-panel" class:active={tab === 'vndb'}>
+      <div class="form-group">
+        <div class="form-label">{t('settings.vndb.mode')}</div>
+        <div class="seg-radio-group" role="radiogroup" aria-label={t('settings.vndb.mode')}>
+          <label class="seg-radio-item" data-tooltip={t('settings.vndb.downloadDesc')}>
+            <input
+              type="radio"
+              name="settings-vndb-mode"
+              value="download"
+              checked={vndbSyncMode === 'download'}
+              onchange={onVndbModeChange}
+            />
+            {t('settings.vndb.download')}
+          </label>
+          <label class="seg-radio-item" data-tooltip={t('settings.vndb.uploadDesc')}>
+            <input
+              type="radio"
+              name="settings-vndb-mode"
+              value="upload"
+              checked={vndbSyncMode === 'upload'}
+              onchange={onVndbModeChange}
+            />
+            {t('settings.vndb.upload')}
+          </label>
+          <label class="seg-radio-item" data-tooltip={t('settings.vndb.bothDesc')}>
+            <input
+              type="radio"
+              name="settings-vndb-mode"
+              value="both"
+              checked={vndbSyncMode === 'both'}
+              onchange={onVndbModeChange}
+            />
+            {t('settings.vndb.both')}
+          </label>
+        </div>
+        <p class="form-hint">{t('settings.vndb.modeHint')}</p>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label-row">
+          <div class="form-label">{t('settings.vndb.token')}</div>
+          <span class="form-value">{hasVndbToken ? t('settings.vndb.tokenSet') : t('settings.vndb.tokenUnset')}</span>
+        </div>
+        <p class="form-hint">{t('settings.vndb.tokenHint')}</p>
+        <input
+          class="vndb-token-input"
+          type="password"
+          placeholder={t('settings.vndb.tokenPlaceholder')}
+          bind:value={vndbTokenInput}
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div class="form-actions">
+          <button type="button" class="btn" disabled={vndbTesting} onclick={onVndbTokenTest}>
+            {vndbTesting ? t('settings.vndb.testing') : t('settings.vndb.test')}
+          </button>
+          <button type="button" class="btn btn-primary" onclick={onVndbTokenSave}>
+            {t('settings.vndb.save')}
+          </button>
+          <button type="button" class="btn btn-ghost" disabled={!hasVndbToken} onclick={onVndbDisconnect}>
+            {t('settings.vndb.disconnect')}
+          </button>
+        </div>
+        {#if vndbTestResult === true}
+          <p class="form-hint vndb-test-ok">{t('settings.vndb.testOk')}</p>
+        {:else if vndbTestResult === false}
+          <p class="form-hint vndb-test-invalid">{t('settings.vndb.testInvalid')}</p>
         {/if}
       </div>
     </div>

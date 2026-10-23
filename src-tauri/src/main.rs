@@ -135,6 +135,7 @@ fn main() {
             commands::tag_dictionary,
             commands::get_config,
             commands::update_config,
+            commands::test_vndb_token,
             commands::inspect_path,
             commands::scan_dir,
             commands::log_frontend,

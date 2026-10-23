@@ -51,7 +51,7 @@ pub async fn search(http: &reqwest::Client, keyword: &str) -> Result<Vec<VnSearc
         "sort": "searchrank",
         "results": SEARCH_RESULTS,
     });
-    let env: VnEnvelope<VnSearchHit> = client::post(http, "vn", body).await?;
+    let env: VnEnvelope<VnSearchHit> = client::post(http, "vn", body, None).await?;
     Ok(env.results)
 }
 
@@ -109,7 +109,7 @@ async fn fetch_vn(http: &reqwest::Client, vndb_id: &str) -> Result<VnMetadata> {
         "fields": META_FIELDS,
         "results": 1,
     });
-    let env: VnEnvelope<VnMetadata> = client::post(http, "vn", body).await?;
+    let env: VnEnvelope<VnMetadata> = client::post(http, "vn", body, None).await?;
     let vn = env
         .results
         .into_iter()
@@ -124,6 +124,18 @@ async fn fetch_character_rows(http: &reqwest::Client, vndb_id: &str) -> Result<V
         "fields": CHAR_FIELDS,
         "results": CHAR_RESULTS,
     });
-    let env: VnEnvelope<CharRow> = client::post(http, "character", body).await?;
+    let env: VnEnvelope<CharRow> = client::post(http, "character", body, None).await?;
     Ok(env.results)
+}
+
+pub async fn test_token(http: &reqwest::Client, token: &str) -> Result<bool> {
+    let body = json!({
+        "fields": "id",
+        "results": 1,
+    });
+    match client::post::<serde_json::Value>(http, "ulist", body, Some(token)).await {
+        Ok(_) => Ok(true),
+        Err(AppError::BadRequest(_)) => Ok(false),
+        Err(other) => Err(other),
+    }
 }

@@ -77,6 +77,8 @@ pub struct Args {
     pub task: Option<String>,
     #[serde(default)]
     pub months: Option<i64>,
+    #[serde(default)]
+    pub token: Option<String>,
 }
 
 impl Args {
@@ -337,7 +339,7 @@ async fn allow_local_file(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -
 }
 
 async fn get_config(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
-    finish(Ok(settings::current()))
+    finish(Ok(settings::view()))
 }
 
 async fn tag_dictionary(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
@@ -352,6 +354,11 @@ async fn update_config(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> R
         settings::update(&dir, config)
             .map(|_| settings::current()),
     )
+}
+
+async fn test_vndb_token(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let token = a.need(a.token.as_ref(), "token")?;
+    finish(vndb::test_token(vndb::http(), token).await)
 }
 
 async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
@@ -399,6 +406,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/get_config", post(get_config))
         .route("/tag_dictionary", post(tag_dictionary))
         .route("/update_config", post(update_config))
+        .route("/test_vndb_token", post(test_vndb_token))
         .route("/events", get(events))
         .with_state(dev)
 }
@@ -440,4 +448,5 @@ pub const COMMANDS: &[&str] = &[
     "get_config",
     "update_config",
     "tag_dictionary",
+    "test_vndb_token",
 ];

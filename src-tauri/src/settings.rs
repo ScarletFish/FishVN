@@ -36,6 +36,15 @@ impl SpoilerLevel {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+pub enum VndbSyncMode {
+    #[default]
+    Download,
+    Upload,
+    Both,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Theme {
     #[default]
     Light,
@@ -93,6 +102,10 @@ pub struct AppConfig {
     pub spoiler_level: SpoilerLevel,
     #[serde(default = "default_excluded_tags")]
     pub excluded_tags: Vec<String>,
+    #[serde(default)]
+    pub vndb_sync_mode: VndbSyncMode,
+    #[serde(default)]
+    pub vndb_token_obf: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -104,6 +117,21 @@ pub struct ConfigPatch {
     pub hide_r18_tags: Option<bool>,
     pub spoiler_level: Option<SpoilerLevel>,
     pub excluded_tags: Option<Vec<String>>,
+    pub vndb_sync_mode: Option<VndbSyncMode>,
+    pub vndb_token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigView {
+    pub time_metric: TimeMetric,
+    pub theme: Theme,
+    pub accent: Accent,
+    pub dashboard_layout: Vec<DashboardModule>,
+    pub hide_r18_tags: bool,
+    pub spoiler_level: SpoilerLevel,
+    pub excluded_tags: Vec<String>,
+    pub vndb_sync_mode: VndbSyncMode,
+    pub has_vndb_token: bool,
 }
 
 static CACHE: OnceLock<RwLock<Option<AppConfig>>> = OnceLock::new();
@@ -158,8 +186,90 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     if let Some(value) = patch.excluded_tags {
         config.excluded_tags = value;
     }
+    if let Some(value) = patch.vndb_sync_mode {
+        config.vndb_sync_mode = value;
+    }
+    if let Some(raw) = patch.vndb_token {
+        config.vndb_token_obf = obfuscate_token(&raw);
+    }
     update(dir, config)?;
     Ok(current())
+}
+
+const TOKEN_MASK: &[u8] = b"FishVN-vndb-token-obf-2026";
+
+pub fn obfuscate_token(raw: &str) -> Option<String> {
+    if raw.trim().is_empty() {
+        return None;
+    }
+    let bytes = raw.as_bytes();
+    let masked: Vec<u8> = bytes
+        .iter()
+        .enumerate()
+        .map(|(i, b)| b ^ TOKEN_MASK[i % TOKEN_MASK.len()])
+        .collect();
+    Some(hex_encode(&masked))
+}
+
+pub fn deobfuscate_token(obf: &str) -> Option<String> {
+    let bytes = hex_decode(obf).ok()?;
+    let raw: Vec<u8> = bytes
+        .iter()
+        .enumerate()
+        .map(|(i, b)| b ^ TOKEN_MASK[i % TOKEN_MASK.len()])
+        .collect();
+    String::from_utf8(raw).ok()
+}
+
+pub fn has_vndb_token(config: &AppConfig) -> bool {
+    config
+        .vndb_token_obf
+        .as_ref()
+        .is_some_and(|s| !s.trim().is_empty())
+}
+
+pub fn view() -> ConfigView {
+    let config = current();
+    let token_set = has_vndb_token(&config);
+    ConfigView {
+        time_metric: config.time_metric,
+        theme: config.theme,
+        accent: config.accent,
+        dashboard_layout: config.dashboard_layout,
+        hide_r18_tags: config.hide_r18_tags,
+        spoiler_level: config.spoiler_level,
+        excluded_tags: config.excluded_tags,
+        vndb_sync_mode: config.vndb_sync_mode,
+        has_vndb_token: token_set,
+    }
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
+fn hex_decode(text: &str) -> std::result::Result<Vec<u8>, ()> {
+    let bytes = text.as_bytes();
+    if bytes.len() % 2 != 0 {
+        return Err(());
+    }
+    let mut out = Vec::with_capacity(bytes.len() / 2);
+    let val = |c: u8| match c {
+        b'0'..=b'9' => Ok(c - b'0'),
+        b'a'..=b'f' => Ok(c - b'a' + 10),
+        b'A'..=b'F' => Ok(c - b'A' + 10),
+        _ => Err(()),
+    };
+    for pair in bytes.chunks(2) {
+        out.push((val(pair[0])? << 4) | val(pair[1])?);
+    }
+    Ok(out)
 }
 
 fn read_file(dir: &Path) -> Option<AppConfig> {
@@ -265,6 +375,8 @@ mod tests {
                 hide_r18_tags: None,
                 spoiler_level: None,
                 excluded_tags: None,
+                vndb_sync_mode: None,
+                vndb_token: None,
             },
         )
         .unwrap();
@@ -395,5 +507,59 @@ mod tests {
         std::fs::write(tmp.path().join(FILE_NAME), r#"{"theme":"dark"}"#).unwrap();
         init(tmp.path());
         assert_eq!(current().excluded_tags, default_excluded_tags());
+    }
+
+    #[test]
+    fn vndb_token_混淆可逆且空串清空() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+
+        patch(
+            tmp.path(),
+            ConfigPatch {
+                vndb_token: Some("secret-token-123".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let obf = current().vndb_token_obf.clone();
+        assert!(obf.is_some());
+        assert_ne!(obf.as_deref().unwrap(), "secret-token-123");
+        assert_eq!(deobfuscate_token(obf.as_deref().unwrap()).unwrap(), "secret-token-123");
+        assert!(has_vndb_token(&current()));
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch {
+                vndb_token: Some("".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(config.vndb_token_obf.is_none());
+        assert!(!has_vndb_token(&current()));
+        assert!(!view().has_vndb_token);
+    }
+
+    #[test]
+    fn vndb_sync_mode_默认仅下载且补丁可改() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        assert_eq!(current().vndb_sync_mode, VndbSyncMode::Download);
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch {
+                vndb_sync_mode: Some(VndbSyncMode::Both),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(config.vndb_sync_mode, VndbSyncMode::Both);
+        assert_eq!(view().vndb_sync_mode, VndbSyncMode::Both);
+        let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
+        assert!(text.contains("\"both\""));
     }
 }
