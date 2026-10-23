@@ -10,6 +10,7 @@
   import { openExternal } from '../lib/open-external.js';
   import { getSpoilerLevel } from '../lib/config-store.svelte.js';
   import { spoilerThreshold } from '../lib/tag-order.svelte.js';
+  import { panelScrollbars } from '../lib/scrollbars.js';
   import DetailSection from '../components/DetailSection.svelte';
 
   const TRAIT_GROUP_ORDER = [
@@ -226,15 +227,17 @@
           {#if stripBbcode(expanded.description)}
             <div class="detail-char-section">
               <p class="detail-char-section-label">{t('detail.charSectionDesc')}</p>
-              <p class="detail-char-desc scroll-thin">
-                {#each bbcodeSegments(expanded.description) as seg, i (i)}{#if seg.type === 'link'}<a
-                    href={seg.href}
-                    onclick={(e) => {
-                      e.preventDefault();
-                      openExternal(seg.href);
-                    }}>{seg.text}</a
-                  >{:else}{seg.text}{/if}{/each}
-              </p>
+              <div class="detail-char-scroll" use:panelScrollbars>
+                <p class="detail-char-desc">
+                  {#each bbcodeSegments(expanded.description) as seg, i (i)}{#if seg.type === 'link'}<a
+                      href={seg.href}
+                      onclick={(e) => {
+                        e.preventDefault();
+                        openExternal(seg.href);
+                      }}>{seg.text}</a
+                    >{:else}{seg.text}{/if}{/each}
+                </p>
+              </div>
             </div>
           {/if}
 

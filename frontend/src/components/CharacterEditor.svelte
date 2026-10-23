@@ -2,6 +2,7 @@
   import { tick, untrack } from 'svelte';
   import { t } from '../lib/i18n.js';
   import { initScrollDots } from '../lib/scroll-dots.svelte.js';
+  import { panelScrollbars } from '../lib/scrollbars.js';
   import { coverSrc } from '../lib/cover-src.js';
   import { pickImage } from '../lib/pick-path.js';
   import {
@@ -297,38 +298,40 @@
 
         <div class="form-group">
           <label for="char-va">{t('gameForm.field.charVoice')}</label>
-          <div class="tag-input scroll-thin">
-            {#each selected.va as entry (entry.key)}
-              <span class="tag-pill">
-                {entry.original || entry.name}
-                <button
-                  type="button"
-                  class="tag-pill__remove"
-                  aria-label={t('gameForm.action.removeVoice')}
-                  onmousedown={(e) => e.preventDefault()}
-                  onclick={() => removeVa(entry.key)}
-                  {disabled}
-                >
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </span>
-            {/each}
-            <button
-              type="button"
-              class="tag-input__add"
-              aria-expanded={vaOpen}
-              aria-label={t('gameForm.action.addVoice')}
-              onclick={() => (vaOpen = !vaOpen)}
-              {disabled}
-            >
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
+          <div class="tag-input" use:panelScrollbars>
+            <div class="tag-input__flow">
+              {#each selected.va as entry (entry.key)}
+                <span class="tag-pill">
+                  {entry.original || entry.name}
+                  <button
+                    type="button"
+                    class="tag-pill__remove"
+                    aria-label={t('gameForm.action.removeVoice')}
+                    onmousedown={(e) => e.preventDefault()}
+                    onclick={() => removeVa(entry.key)}
+                    {disabled}
+                  >
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </span>
+              {/each}
+              <button
+                type="button"
+                class="tag-input__add"
+                aria-expanded={vaOpen}
+                aria-label={t('gameForm.action.addVoice')}
+                onclick={() => (vaOpen = !vaOpen)}
+                {disabled}
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+            </div>
           </div>
           {#if vaOpen}
             <input
@@ -343,7 +346,7 @@
           {/if}
         </div>
 
-        <div class="form-group">
+        <div class="form-group form-group--desc">
           <label for="char-description">{t('gameForm.field.charDescription')}</label>
           <textarea
             id="char-description"

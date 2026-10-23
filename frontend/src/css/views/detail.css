@@ -521,9 +521,14 @@
   color: var(--fg-muted);
 }
 
-.detail-char-desc {
+.detail-char-scroll {
   max-height: 8lh;
   overflow-y: auto;
+  font-size: var(--text-md);
+  line-height: 1.7;
+}
+
+.detail-char-desc {
   font-size: var(--text-md);
   line-height: 1.7;
   color: var(--fg-secondary);
@@ -603,14 +608,16 @@
 .detail-install:hover .detail-install-edit {
   color: var(--fg-default);
 }
+.detail-staff-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
 .detail-staff-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: var(--space-4) var(--space-5);
   align-items: start;
-  max-height: 320px;
-  overflow-y: auto;
-  padding-right: var(--space-1);
 }
 
 .detail-staff-role {

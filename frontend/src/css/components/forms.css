@@ -104,13 +104,22 @@
 
 .form-group textarea {
   min-height: 90px;
-  resize: vertical;
+  resize: none;
 }
 
 .form-group--tall textarea {
   height: 200px;
   min-height: 200px;
-  resize: none;
+}
+
+.form-group--desc textarea {
+  height: 160px;
+  min-height: 160px;
+}
+
+.form-group--notes textarea {
+  height: 120px;
+  min-height: 120px;
 }
 
 .staff-rows {

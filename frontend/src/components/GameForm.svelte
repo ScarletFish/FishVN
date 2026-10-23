@@ -24,7 +24,7 @@
     toInstallationPayload,
   } from '../lib/installations.js';
   import { applyCharacters, planCharacters } from '../lib/char-merge.js';
-  import { attachScrollbars, destroyScrollbars } from '../lib/scrollbars.js';
+  import { panelScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { notifyLibraryTagsChanged } from '../lib/library-events.js';
   import { tagKey } from '../lib/tag-label.svelte.js';
@@ -103,9 +103,6 @@
     tags = [...tags, item.id ? { id: item.id, name: item.tag } : { name: item.tag }];
   }
 
-  let panelsEl = $state(null);
-  let panelsSb = null;
-
   $effect(() => {
     if (!open || saving) return;
     name = '';
@@ -157,15 +154,6 @@
       defaultInstallKey = drafts[0]?.key ?? null;
     }
     tick().then(() => input?.focus());
-  });
-
-  $effect(() => {
-    if (open && panelsEl && !panelsSb) {
-      panelsSb = attachScrollbars(panelsEl);
-    } else if ((!open || !panelsEl) && panelsSb) {
-      destroyScrollbars(panelsSb);
-      panelsSb = null;
-    }
   });
 
   async function loadExisting(id) {
@@ -406,7 +394,7 @@
       {/each}
     </div>
 
-    <div class="modal-panels scroll-thin scroll-form" bind:this={panelsEl}>
+    <div class="modal-panels" use:panelScrollbars>
       <div class="modal-panel" class:active={tab === 'basic'}>
         <BasicPanel
           bind:name

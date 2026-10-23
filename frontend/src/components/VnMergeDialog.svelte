@@ -6,6 +6,7 @@
   import { charKey } from '../lib/char-merge.js';
   import { compactDuration } from '../lib/playtime.js';
   import { coverSrc } from '../lib/cover-src.js';
+  import { panelScrollbars } from '../lib/scrollbars.js';
 
   let {
     open = $bindable(false),
@@ -111,94 +112,96 @@
       <span>{t('gameForm.merge.current')}</span>
       <span>{t('gameForm.merge.incoming')}</span>
     </div>
-    <ul class="vn-merge__rows scroll-thin">
-      {#each rows as row, index (row.key)}
-        {@const on = picked.has(row.key)}
-        {@const diff = row.key === 'staff' ? staffDiff(row.current, row.incoming) : null}
-        <li class="vn-merge__row">
-          <span class="vn-merge__label">{t(`gameForm.field.${row.key}`)}</span>
-          {#each [[row.current, !on], [row.incoming, on]] as [value, active], side}
-            <span class="vn-merge__cell" class:is-active={active}>
-              {#if isCover(row.key)}
-                <span class="vn-merge__thumb">
-                  {#if thumbs[index]?.[side]}
-                    <img
-                      src={thumbs[index][side]}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  {:else}
-                    <span class="vn-merge__thumb-ph" aria-hidden="true">—</span>
-                  {/if}
-                </span>
-              {:else if diff?.labels.length}
-                <span class="vn-merge__body">
-                  <span class="vn-merge__text">{staffGroupText(value, diff.labels)}</span>
-                  {#if diff.rest > 0}
-                    <span class="vn-merge__meta">
-                      {t('gameForm.merge.staffRest', { count: diff.rest })}
-                    </span>
-                  {/if}
-                </span>
-              {:else}
-                <span class="vn-merge__text">
-                  {cellText(row.key, value) || t('gameForm.merge.emptyValue')}
-                </span>
-              {/if}
-              <button
-                type="button"
-                class="vn-merge__dot"
-                aria-pressed={active}
-                aria-label={t(`gameForm.merge.${side === 0 ? 'keep' : 'adopt'}`)}
-                onclick={() => toggle(row.key)}
-              ></button>
-            </span>
-          {/each}
-        </li>
-      {/each}
-
-      {#if charRows.length}
-        <li class="vn-merge__section">
-          {t('gameForm.merge.charSection', { count: charRows.length })}
-        </li>
-        {#each charRows as row, index (row.key)}
-          {@const on = charPicked.has(row.key)}
-          <li class="vn-merge__row vn-merge__row--char">
-            <span class="vn-merge__label">{charKey(row.current) || charKey(row.incoming)}</span>
+    <div class="vn-merge__scroll" use:panelScrollbars>
+      <ul class="vn-merge__rows">
+        {#each rows as row, index (row.key)}
+          {@const on = picked.has(row.key)}
+          {@const diff = row.key === 'staff' ? staffDiff(row.current, row.incoming) : null}
+          <li class="vn-merge__row">
+            <span class="vn-merge__label">{t(`gameForm.field.${row.key}`)}</span>
             {#each [[row.current, !on], [row.incoming, on]] as [value, active], side}
               <span class="vn-merge__cell" class:is-active={active}>
-                <span class="vn-merge__thumb">
-                  {#if charThumbs[index]?.[side]}
-                    <img
-                      src={charThumbs[index][side]}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  {:else}
-                    <span class="vn-merge__thumb-ph" aria-hidden="true">—</span>
-                  {/if}
-                </span>
-                <span class="vn-merge__text">
-                  {charNameOf(value) || t('gameForm.merge.emptyValue')}
-                  {#if value?.role}
-                    <span class="vn-merge__meta">{charRoleLabel(value.role)}</span>
-                  {/if}
-                </span>
+                {#if isCover(row.key)}
+                  <span class="vn-merge__thumb">
+                    {#if thumbs[index]?.[side]}
+                      <img
+                        src={thumbs[index][side]}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    {:else}
+                      <span class="vn-merge__thumb-ph" aria-hidden="true">—</span>
+                    {/if}
+                  </span>
+                {:else if diff?.labels.length}
+                  <span class="vn-merge__body">
+                    <span class="vn-merge__text scroll-thin">{staffGroupText(value, diff.labels)}</span>
+                    {#if diff.rest > 0}
+                      <span class="vn-merge__meta">
+                        {t('gameForm.merge.staffRest', { count: diff.rest })}
+                      </span>
+                    {/if}
+                  </span>
+                {:else}
+                  <span class="vn-merge__text scroll-thin">
+                    {cellText(row.key, value) || t('gameForm.merge.emptyValue')}
+                  </span>
+                {/if}
                 <button
                   type="button"
                   class="vn-merge__dot"
                   aria-pressed={active}
                   aria-label={t(`gameForm.merge.${side === 0 ? 'keep' : 'adopt'}`)}
-                  onclick={() => toggleChar(row.key)}
+                  onclick={() => toggle(row.key)}
                 ></button>
               </span>
             {/each}
           </li>
         {/each}
-      {/if}
-    </ul>
+
+        {#if charRows.length}
+          <li class="vn-merge__section">
+            {t('gameForm.merge.charSection', { count: charRows.length })}
+          </li>
+          {#each charRows as row, index (row.key)}
+            {@const on = charPicked.has(row.key)}
+            <li class="vn-merge__row vn-merge__row--char">
+              <span class="vn-merge__label">{charKey(row.current) || charKey(row.incoming)}</span>
+              {#each [[row.current, !on], [row.incoming, on]] as [value, active], side}
+                <span class="vn-merge__cell" class:is-active={active}>
+                  <span class="vn-merge__thumb">
+                    {#if charThumbs[index]?.[side]}
+                      <img
+                        src={charThumbs[index][side]}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    {:else}
+                      <span class="vn-merge__thumb-ph" aria-hidden="true">—</span>
+                    {/if}
+                  </span>
+                  <span class="vn-merge__text scroll-thin">
+                    {charNameOf(value) || t('gameForm.merge.emptyValue')}
+                    {#if value?.role}
+                      <span class="vn-merge__meta">{charRoleLabel(value.role)}</span>
+                    {/if}
+                  </span>
+                  <button
+                    type="button"
+                    class="vn-merge__dot"
+                    aria-pressed={active}
+                    aria-label={t(`gameForm.merge.${side === 0 ? 'keep' : 'adopt'}`)}
+                    onclick={() => toggleChar(row.key)}
+                  ></button>
+                </span>
+              {/each}
+            </li>
+          {/each}
+        {/if}
+      </ul>
+    </div>
   {/if}
 
   <div class="modal-actions">

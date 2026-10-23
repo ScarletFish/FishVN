@@ -2,10 +2,19 @@ import { OverlayScrollbars, ClickScrollPlugin } from 'overlayscrollbars';
 
 OverlayScrollbars.plugin(ClickScrollPlugin);
 
-const OPTIONS = {
+const MAIN_OPTIONS = {
   scrollbars: {
     theme: 'os-theme-light',
     autoHide: 'never',
+    clickScroll: true,
+  },
+};
+
+const PANEL_OPTIONS = {
+  scrollbars: {
+    theme: 'os-theme-light',
+    autoHide: 'leave',
+    autoHideDelay: 400,
     clickScroll: true,
   },
 };
@@ -18,7 +27,7 @@ let mainInstance = null;
 
 export function useScrollbars(target) {
   if (!target) return;
-  mainInstance = OverlayScrollbars(target, OPTIONS);
+  mainInstance = OverlayScrollbars(target, MAIN_OPTIONS);
   watchRightEdge(target, mainInstance);
 }
 
@@ -26,17 +35,16 @@ export function getScrollViewport() {
   return mainInstance?.elements().viewport;
 }
 
-export function attachScrollbars(target) {
-  if (!target) return null;
-  return OverlayScrollbars(target, OPTIONS);
-}
-
-export function destroyScrollbars(inst) {
-  if (!inst) return;
-  try {
-    inst.destroy();
-  } catch {
-  }
+export function panelScrollbars(node) {
+  const inst = OverlayScrollbars(node, PANEL_OPTIONS);
+  return {
+    destroy() {
+      try {
+        inst.destroy();
+      } catch {
+      }
+    },
+  };
 }
 
 function watchRightEdge(target, instance) {

@@ -12,12 +12,16 @@
   border-bottom: 1px solid var(--border-default);
 }
 
-.vn-merge__rows {
+.vn-merge__scroll {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.vn-merge__rows {
   margin: 0;
   padding: 0;
   list-style: none;
-  overflow-y: auto;
 }
 
 .vn-merge__row {

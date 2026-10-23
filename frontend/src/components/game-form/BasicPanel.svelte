@@ -112,10 +112,11 @@
     <p class="form-hint">{t('gameForm.hint.userRating')}</p>
   </div>
 
-  <div class="form-group panel-grid__full">
+  <div class="form-group panel-grid__full form-group--notes">
     <label for="game-form-notes">{t('gameForm.field.notes')}</label>
     <textarea
       id="game-form-notes"
+      class="scroll-thin"
       bind:value={notes}
       placeholder={t('gameForm.placeholder.notes')}
       disabled={saving}

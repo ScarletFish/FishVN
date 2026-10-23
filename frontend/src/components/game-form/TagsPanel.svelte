@@ -3,6 +3,7 @@
   import { getLibraryTags } from '../../lib/library-tags.svelte.js';
   import { tagKey, tagLabel } from '../../lib/tag-label.svelte.js';
   import { tagCategory } from '../../lib/tag-order.svelte.js';
+  import { panelScrollbars } from '../../lib/scrollbars.js';
   import { coverSrc } from '../../lib/cover-src.js';
   import { pickImage } from '../../lib/pick-path.js';
   import PathField from '../PathField.svelte';
@@ -121,36 +122,38 @@
       {t('gameForm.action.browseTags')}
     </button>
   </div>
-  <div class="tag-input tag-input--grouped scroll-thin">
-    {#each groups as group (group.key)}
-      <section class="tag-field__group">
-        <h3 class="tag-field__group-title">
-          {t(`tagPicker.group.${group.key}`)}
-          <span class="tag-field__group-num">{group.items.length}</span>
-        </h3>
-        <div class="tag-field__group-list">
-          {#each group.items as tag (tagKey(tag))}
-            <span class="tag-pill">
-              {tagLabel(tag)}
-              <button
-                type="button"
-                class="tag-pill__remove"
-                aria-label={t('gameForm.action.removeTag')}
-                onmousedown={(e) => e.preventDefault()}
-                onclick={() => removeTag(tag)}
-              >
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </span>
-          {/each}
-        </div>
-      </section>
-    {:else}
-      <p class="tag-field__empty">{t('gameForm.placeholder.noTags')}</p>
-    {/each}
+  <div class="tag-input tag-input--grouped" use:panelScrollbars>
+    <div class="tag-input__flow tag-input__flow--stacked">
+      {#each groups as group (group.key)}
+        <section class="tag-field__group">
+          <h3 class="tag-field__group-title">
+            {t(`tagPicker.group.${group.key}`)}
+            <span class="tag-field__group-num">{group.items.length}</span>
+          </h3>
+          <div class="tag-field__group-list">
+            {#each group.items as tag (tagKey(tag))}
+              <span class="tag-pill">
+                {tagLabel(tag)}
+                <button
+                  type="button"
+                  class="tag-pill__remove"
+                  aria-label={t('gameForm.action.removeTag')}
+                  onmousedown={(e) => e.preventDefault()}
+                  onclick={() => removeTag(tag)}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </span>
+            {/each}
+          </div>
+        </section>
+      {:else}
+        <p class="tag-field__empty">{t('gameForm.placeholder.noTags')}</p>
+      {/each}
+    </div>
   </div>
   <div class="tag-field__foot">
     <input

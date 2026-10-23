@@ -5,6 +5,7 @@
   import { subscribe } from '../lib/events.js';
   import { toast } from '../lib/toast.svelte.js';
   import { pickExecutable } from '../lib/pick-path.js';
+  import { panelScrollbars } from '../lib/scrollbars.js';
 
   let { open = $bindable(false), path = '', ondone } = $props();
 
@@ -176,57 +177,59 @@
       </label>
       <span class="scan-head__count">{t('scan.count', { count: candidates.length })}</span>
     </div>
-    <ul class="scan-rows scroll-thin">
-      {#each candidates as c, index (c.dir_path)}
-        <li class="scan-row" class:is-registered={c.registered}>
-          <label>
-            <input
-              type="checkbox"
-              class="checkbox"
-              checked={picked.has(c.dir_path)}
-              disabled={c.registered}
-              onchange={() => toggle(c.dir_path)}
-            />
-            <span class="scan-row__name">{c.name}</span>
-            <input
-              type="text"
-              class="scan-row__entry"
-              list={`scan-exes-${index}`}
-              value={entries[c.dir_path] ?? ''}
-              disabled={c.registered}
-              aria-label={t('scan.entryOf', { name: c.name })}
-              onchange={(e) => setEntry(c.dir_path, e.currentTarget.value.trim())}
-            />
-            <datalist id={`scan-exes-${index}`}>
-              {#each c.exes as exe (exe)}
-                <option value={exe}></option>
-              {/each}
-            </datalist>
-            {#if ambiguous(c)}
-              <span
-                class="scan-row__hint"
-                data-tooltip={t('scan.entryHint')}
-              >{c.exes.length}</span>
-            {/if}
-            <button
-              type="button"
-              class="scan-row__browse"
-              aria-label={t('common.browse')}
-              data-tooltip={t('common.browse')}
-              disabled={c.registered}
-              onclick={() => browseEntry(c)}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              </svg>
-            </button>
-            {#if c.registered}
-              <span class="scan-row__badge">{t('scan.registered')}</span>
-            {/if}
-          </label>
-        </li>
-      {/each}
-    </ul>
+    <div class="scan-rows-scroll" use:panelScrollbars>
+      <ul class="scan-rows">
+        {#each candidates as c, index (c.dir_path)}
+          <li class="scan-row" class:is-registered={c.registered}>
+            <label>
+              <input
+                type="checkbox"
+                class="checkbox"
+                checked={picked.has(c.dir_path)}
+                disabled={c.registered}
+                onchange={() => toggle(c.dir_path)}
+              />
+              <span class="scan-row__name">{c.name}</span>
+              <input
+                type="text"
+                class="scan-row__entry"
+                list={`scan-exes-${index}`}
+                value={entries[c.dir_path] ?? ''}
+                disabled={c.registered}
+                aria-label={t('scan.entryOf', { name: c.name })}
+                onchange={(e) => setEntry(c.dir_path, e.currentTarget.value.trim())}
+              />
+              <datalist id={`scan-exes-${index}`}>
+                {#each c.exes as exe (exe)}
+                  <option value={exe}></option>
+                {/each}
+              </datalist>
+              {#if ambiguous(c)}
+                <span
+                  class="scan-row__hint"
+                  data-tooltip={t('scan.entryHint')}
+                >{c.exes.length}</span>
+              {/if}
+              <button
+                type="button"
+                class="scan-row__browse"
+                aria-label={t('common.browse')}
+                data-tooltip={t('common.browse')}
+                disabled={c.registered}
+                onclick={() => browseEntry(c)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                </svg>
+              </button>
+              {#if c.registered}
+                <span class="scan-row__badge">{t('scan.registered')}</span>
+              {/if}
+            </label>
+          </li>
+        {/each}
+      </ul>
+    </div>
   {/if}
 
   <div class="modal-actions">

@@ -125,17 +125,33 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 
 ## 滚动条
 
-`lib/scrollbars.js` 支撑三类：主视图与详情页是覆盖式、不占布局宽（占宽则竖条一出现整排卡片就变窄），指针进入竖带时加粗；弹窗表单（`.scroll-form`）整块 hover 才显示，移出即隐藏；内嵌小滚动区（`.scroll-thin`）走浏览器默认的细条。
+按容器选一种：
 
-- 插件不显式注册 `clickScroll` 就静默失效
-- `autoHide: 'never'`：库自己的计时器会盖掉命中时的常驻；显隐由 `.is-visible` 控制，淡出时长在 CSS
-- 弹窗不挂 `watchRightEdge`：那套坐标判定会把滚动条卡在加粗态回不去，加粗反馈只留给主视图
-- 只记主视图的实例：`MyList` 靠它还原列表滚动位置，弹窗实例写进去会把它顶掉
-- 命中判定按坐标，不走滚动条的 `:hover`：库给滚动条设了 `pointer-events: none`，放开命中后落在竖带上的滚轮会进库自己的 `wheel` 监听并被 `preventDefault`
-- 竖带命中区取竖带右缘到容器右缘（两者之间还有死区）；首次移动指针前先算一次位置，否则 `edge=0` 会让到处都算「在边缘」
-- 指针离开整个窗口要立即清状态：抬手发生在窗口外时收不到 `pointerup`，不清 `dragging` 会卡在加粗态
+| 容器 | 用法 |
+|---|---|
+| 主滚动区 `.shell__main` | `useScrollbars(el)`，`autoHide: 'never'`，指针进入右边缘时手柄加粗到 12px |
+| 弹窗面板、侧栏、标签框、详情页分栏 | `use:panelScrollbars`，手柄 8px，指针离开 400ms 后淡出 |
+| textarea、合并面板的单元格文本 | 类 `.scroll-thin` |
 
-外观全量覆盖库内置主题（`theme` 参数只提供结构属性，尺寸与色值一律走我们的 token）：竖带、手柄、拉伸位的宽度都要写死 —— 库的 `:hover` / `:active` 默认会改宽度。`transition` 是整体替换而非叠加，位置项要一并列出，否则手柄跟随滚动会瞬移。内嵌细条只走标准属性 `scrollbar-width` / `scrollbar-color`：Chromium 一旦设了标准属性就禁用 `::-webkit-scrollbar-*`，混用会静默失效；且要挂在真正 `overflow-y: auto` 的元素上，套一层外壳会断掉高度约束。
+`panelScrollbars` 的宿主写法：
+
+- 宿主用 `div`，承担 `overflow-y`、限高与内边距
+- flex / grid 布局写在内层 `div` 上
+- 正文元素（`p`、`ul`）放进宿主内层的 `div` 里
+
+细则：
+
+- `clickScroll` 插件显式注册
+- 主视图的 `autoHide` 取 `'never'`，显隐由 `.is-visible` 控制，淡出时长在 CSS；`opacity: 0` 的初始态只写在 `.shell__main` 下
+- `watchRightEdge` 只挂主视图
+- 实例只记主视图，`MyList` 靠它还原列表滚动位置
+- 命中判定按坐标做，取竖带右缘到容器右缘；首次移动指针前先算一次位置
+- 指针离开整个窗口时清掉 `dragging` 与 `lingering`
+
+外观（`components/scrollbars.css`）：
+
+- `theme` 只给结构，尺寸与色值走 token：竖带、手柄、拉伸位宽度写死，`transition` 列全位置项
+- `.scroll-thin` 用 `::-webkit-scrollbar-*`：`width` 取 `--scrollbar-size`，`::-webkit-scrollbar-button` 置 `none`，轨道与角落透明，手柄悬停时取 `--scrollbar-thumb`；同一元素不写 `scrollbar-width` / `scrollbar-color`
 
 ## 水平分页
 

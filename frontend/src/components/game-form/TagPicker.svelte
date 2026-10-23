@@ -3,6 +3,7 @@
   import { getLibraryTags, loadLibraryTags } from '../../lib/library-tags.svelte.js';
   import { tagKey, tagLabel } from '../../lib/tag-label.svelte.js';
   import { tagCategory } from '../../lib/tag-order.svelte.js';
+  import { panelScrollbars } from '../../lib/scrollbars.js';
 
   let {
     selected = [],
@@ -95,46 +96,48 @@
         {/if}
       </div>
 
-      <div class="tag-picker__body scroll-thin">
-        {#if canAddFree}
-          <button type="button" class="tag-picker__free" onclick={addFree} disabled={saving}>
-            {t('tagPicker.addCustom', { name: freeName })}
-          </button>
-        {/if}
+      <div class="tag-picker__body" use:panelScrollbars>
+        <div class="tag-picker__stack">
+          {#if canAddFree}
+            <button type="button" class="tag-picker__free" onclick={addFree} disabled={saving}>
+              {t('tagPicker.addCustom', { name: freeName })}
+            </button>
+          {/if}
 
-        {#if groups.length === 0}
-          <p class="tag-picker__note">
-            {freeName ? t('tagPicker.noMatch') : emptyText || t('tagPicker.empty')}
-          </p>
-        {:else}
-          {#each groups as group (group.key)}
-            <section class="tag-picker__group">
-              <h3 class="tag-picker__title">
-                {t(`tagPicker.group.${group.key}`)}
-                <span class="tag-picker__num">{group.items.length}</span>
-              </h3>
-              <ul class="tag-picker__list">
-                {#each group.items as item (tagKey(item))}
-                  <li>
-                    <button
-                      type="button"
-                      class="tag-pill tag-pill--pick"
-                      class:tag-pill--on={selectedKeys.has(tagKey(item))}
-                      aria-pressed={selectedKeys.has(tagKey(item))}
-                      onclick={() => toggle(item)}
-                      disabled={saving}
-                    >
-                      {tagLabel(item)}
-                      {#if item.count != null}
-                        <span class="tag-pill__count">×{item.count}</span>
-                      {/if}
-                    </button>
-                  </li>
-                {/each}
-              </ul>
-            </section>
-          {/each}
-        {/if}
+          {#if groups.length === 0}
+            <p class="tag-picker__note">
+              {freeName ? t('tagPicker.noMatch') : emptyText || t('tagPicker.empty')}
+            </p>
+          {:else}
+            {#each groups as group (group.key)}
+              <section class="tag-picker__group">
+                <h3 class="tag-picker__title">
+                  {t(`tagPicker.group.${group.key}`)}
+                  <span class="tag-picker__num">{group.items.length}</span>
+                </h3>
+                <ul class="tag-picker__list">
+                  {#each group.items as item (tagKey(item))}
+                    <li>
+                      <button
+                        type="button"
+                        class="tag-pill tag-pill--pick"
+                        class:tag-pill--on={selectedKeys.has(tagKey(item))}
+                        aria-pressed={selectedKeys.has(tagKey(item))}
+                        onclick={() => toggle(item)}
+                        disabled={saving}
+                      >
+                        {tagLabel(item)}
+                        {#if item.count != null}
+                          <span class="tag-pill__count">×{item.count}</span>
+                        {/if}
+                      </button>
+                    </li>
+                  {/each}
+                </ul>
+              </section>
+            {/each}
+          {/if}
+        </div>
       </div>
     </div>
   </div>

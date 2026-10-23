@@ -3,6 +3,7 @@
   import Modal from './Modal.svelte';
   import { getTheme, toggleTheme, getAccent, setAccent, viewTransition, ACCENTS, getFontScale, setFontScale } from '../lib/theme.js';
   import { t } from '../lib/i18n.js';
+  import { panelScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { api } from '../lib/api.js';
   import { DASHBOARD_MODULES, moveModule, setModuleEnabled, reorderModule } from '../lib/dashboard-layout.js';
@@ -209,7 +210,7 @@
     </button>
   </div>
 
-  <div class="modal-panels scroll-thin">
+  <div class="modal-panels" use:panelScrollbars>
     <div class="modal-panel" class:active={tab === 'appearance'}>
       <div class="form-group">
         <label for="settings-theme">{t('settings.theme')}</label>

@@ -13,11 +13,13 @@
     right var(--duration-fast) var(--ease-out),
     bottom var(--duration-fast) var(--ease-out),
     left var(--duration-fast) var(--ease-out);
+}
 
+.shell__main .os-scrollbar {
   opacity: 0;
 }
 
-.os-scrollbar.is-visible {
+.shell__main .os-scrollbar.is-visible {
   opacity: 1;
 }
 
@@ -51,16 +53,28 @@
   --os-handle-interactive-area-offset: 0;
 }
 
-.scroll-thin {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
+.scroll-thin::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
 }
 
-.scroll-thin:hover {
-  scrollbar-color: var(--scrollbar-thumb) transparent;
+.scroll-thin::-webkit-scrollbar-button {
+  display: none;
 }
 
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-.scroll-form:hover .os-scrollbar {
-  opacity: 1;
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--radius-pill);
+}
+
+.scroll-thin:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+.scroll-thin::-webkit-scrollbar-corner {
+  background: transparent;
 }

@@ -1,5 +1,6 @@
 <script>
   import { t } from '../../lib/i18n.js';
+  import { panelScrollbars } from '../../lib/scrollbars.js';
 
   let {
     search,
@@ -32,7 +33,7 @@
   );
 </script>
 
-<div class="modal-panels scroll-thin">
+<div class="modal-panels" use:panelScrollbars>
   <div class="modal-panel active">
     {#if search.searching}
       <div class="vndb-progress" role="progressbar" aria-label={t('gameForm.search.loading')}>

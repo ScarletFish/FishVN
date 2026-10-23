@@ -45,13 +45,16 @@
   color: var(--fg-muted);
 }
 
-.scan-rows {
+.scan-rows-scroll {
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+}
+
+.scan-rows {
   margin: 0;
   padding: 0;
   list-style: none;
-  overflow-y: auto;
 }
 
 .scan-row {
