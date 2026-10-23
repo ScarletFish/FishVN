@@ -20,6 +20,7 @@ src-tauri/
 ├── characters.rs    # 角色与声优（集合，整包替换）
 ├── installations.rs # 本地目录
 ├── sessions.rs      # 启动与游玩记录（作业 + 计时回路）
+├── sync.rs           # VNDB 账户同步（计划-应用两段式）
 ├── tasks.rs        # 长任务进度事件与取消
 ├── thumbs.rs        # 封面派生图与缓存
 ├── vndb/            # VNDB 上游客户端（入口 + client/dto/characters/images）
@@ -35,6 +36,7 @@ src-tauri/
 | `db.rs` / `types.rs` | 本文「数据模型」 |
 | `thumbs.rs` / 前端 `cover-src.js` | 本文「封面派生图」与「本地封面授权」 |
 | `sessions.rs` / 启动与计时 | 本文「启动与游玩记录」 |
+| `sync.rs` / 账户同步 | 本文「外部数据同步：计划-应用两段式」与 [vndb-sync.md](./vndb-sync.md) |
 | `tasks.rs` / 长任务 | 本文「任务事件」 |
 | 前端组件与样式 | [frontend.md](./frontend.md) |
 
@@ -64,6 +66,8 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 
 `update_config` 收 `ConfigPatch`（各字段 `Option`）并在 Rust 侧与现值合并后整体落盘：设置项会持续增多，前端每次只发自己改的那项，互不覆盖。
 
+面向已存凭证的命令（连接测试这类），凭证参数可缺省：缺省时回退设置里已存的值。用户验证「当前保存的这份」时不必重新粘贴一遍。
+
 主题（`theme`）在 `AppConfig` 里，setup 阶段读取后对主窗口调 `set_background_color`：深 `#121212`、浅 `#f1f0ec`，与前端 tokens 的 `--bg-page` 严格一致。setup 跑在 WebView 首帧之前，这是 WebView 外壳防露白的唯一一次机会；`tauri.conf.json` 里的静态 `backgroundColor` 是 config.json 读不出来时的兜底。
 
 ### 命令层规则
@@ -71,6 +75,7 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 - `Connection` 是 `Send` 不是 `Sync`，用 `Mutex<Connection>` 交给 `app.manage`
 - 命令里必须走 `lock()` 取连接，锁毒化要转成错误上报，不能 `unwrap`
 - 跨网络 I/O（同步、下封面）不持 `Connection` 锁：那是全局单锁，持着会卡住所有库操作
+- 网络类命令入口先过限流器：`Arc<RateLimiter>` 注册进 state，命令侧 `State<'_, Arc<RateLimiter>>` 取出、发请求前 `acquire`，速率口径见 [vndb-api.md](./vndb-api.md)
 - reqwest 是 Tauri 的传递依赖，不带 TLS 后端：`native-tls` 要显式开在 `Cargo.toml`，去掉编译照过、运行期所有请求失败
 - 一次同步取元数据与角色是两次请求，额度按请求数各扣一次
 - `State` 是注入的，前端不传；其余参数由 serde 从 JSON 反序列化
@@ -111,6 +116,29 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 - 持 `Progress` 跨 `await` 时，trait 须标 `Sync`：引用它的 future 要满足 `Send`，否则检查失败只在异步 handler 边界报出。
 
 通道约定：事件有两层传输（应用内 IPC 与开发期镜像 SSE），前端以统一订阅接口屏蔽差异；**新增任务不应要求前端改动传输层**，只在任务侧调 `report` / `report_error`。事件发送时入有界缓冲，订阅后才来的消费者先补读缓冲再收实时流；事件携绝对值，消费者以最新值覆盖即可续上，但补读区间有限，靠缓冲续命而非永久历史。
+
+### 外部数据同步：计划-应用两段式
+
+拉外部账户数据（VNDB 用户列表这类）落库的动作拆成两段，中间隔一次用户确认：
+
+1. **计划段**：读上游、与本地比对、产出计划，全程零写库。计划是纯判定的结果——同样的上游条目与本地快照进来，产出同样的计划，与上次同步的结果无关，可反复重新生成。
+2. **应用段**：用户在前端对计划逐条勾选后，一次提交整份决策，单事务落库。
+
+配套约定：
+
+- 上游拉取与库访问不放在同一个锁区间：网络 I/O 全程不持 `Connection` 锁，判定与落库才短暂持锁——这是「跨网络 I/O 不持锁」在同步链路上的完整落实姿势
+- 判定分三路：本地现值、上次同步快照、上游现值。本地改过的字段进冲突集交用户逐字段选；上游相对快照变了、本地没动的进可对齐集；两侧一致的无操作
+- 用户对每条计划的取舍是一次决策（勾选结果数组随命令一次性上行），逐条 invoke 会让「全选 / 全不选」这类批量操作退化成 N 次往返
+- 「不动」与「清空」分开表达：可空字段用 `Option<Option<T>>`，外层是「这个字段没给」，内层是「显式置空」
+- 上游侧无法映射到本地口径的条目（本地没有对应取值、纯附属数据）恒跳过，并在计划的警告区显式列出，由结果弹窗告知用户
+
+### 进程内短缓存
+
+用户容易重复触发的只读网络查询（连点同步按钮、切回 tab 重取）在进程内缓存结果，设短 TTL（分钟级）。约定：
+
+- 缓存返回克隆，调用方改不到缓存内容
+- 失效条件随写动作与相关设置联动：落库类命令成功后、影响判定口径的设置项变更后、上游凭证更换后，缓存立即失效——TTL 只是兜底下限，不是唯一失效途径
+- 缓存只服务「重复触发」的读取，命令的响应语义不变：无缓存时行为与加缓存前一致
 
 ### 开发期 HTTP 通道
 
@@ -159,7 +187,7 @@ snake_case，裸 HTTP 没有这层转换。前端日志命令（`log_frontend`�
 
 - `vndb_id` 可空且 `UNIQUE`：NULL 之间不算重复，一部 VN 只对应一条作品；重复绑定报冲突
 - 删作品时安装记录随级联一并删除（`CASCADE`），删除的是库内登记，磁盘目录原样保留
-- 状态取值定义在 `types.rs` 的 `Status` 枚举（wishlist / playing / finished / dropped），取值的合法集合只有这一份
+- 状态取值定义在 `types.rs` 的 `Status` 枚举（wishlist / playing / finished / stalled / dropped），取值的合法集合只有这一份；消费方按五值全覆盖分支，漏一个就会在 UI 上丢一类条目
 - `dir_path` 存 `resolve_path` 绝对化后的原样路径，不做大小写归一 —— `COLLATE NOCASE` 会在 macOS 与 Linux 上把不同目录判成同一个
 - `game_metadata` 除 `game_id` 外每列都可空：一部不绑 VNDB 的作品同样要有资料行，没有数据就是空而不是占位值
 - 资料行可有可无，且行不存在与行存在但字段为空是两种状态（「没填过」与「填了空的」），调用方要分得清
@@ -183,6 +211,7 @@ snake_case，裸 HTTP 没有这层转换。前端日志命令（`log_frontend`�
 - 目录元信息分两档取：只要候选 exe 时下探三层（限深也截断了读取），连大小一起取时遍历整棵子树。整包写回走前者，`size_bytes` 留空；新建与换目录时重算候选，换目录顺带把失效的 `size_bytes` 置空；目录没变就不读盘，搬走的目录不挡保存
 - `entry_path` 存相对 `dir_path` 的路径：空串、绝对路径与含 `..` 的路径都判非法输入
 - `user_game_state.play_seconds` 是作品的总时长：用户可随时改写，结算在既有值上累加。次数、最近游玩、前景时间、存活时间这四个聚合值由 `play_sessions` 在查询里聚合出来
+- `user_game_state` 的同步基线三列：`synced_status` / `synced_rating` 存上次同步应用时写入的上游快照，`state_modified_at` 存本地状态与评分最后一次被改的时间。三路比对（本地现值 / 快照 / 上游）靠它们区分「本地改过」与「上游改过」：上游相对快照变了、本地没动，才进可对齐集；两者都动过的是冲突，交用户逐字段选。三列均可空，从没同步过的行是 NULL
 - `play_sessions.ended_at` 为空即进行中；计时回路收尾与开库收尾都会把这次的前景时间累加进作品的总时长
 - 主键是带连字符的小写 uuid v4 形态
 
