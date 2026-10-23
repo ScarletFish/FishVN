@@ -12,6 +12,7 @@
   import { loadLibraryTags } from '../lib/library-tags.svelte.js';
   import { tagKeyLabel } from '../lib/tag-label.svelte.js';
   import TagPicker from './game-form/TagPicker.svelte';
+  import SyncResultDialog from './SyncResultDialog.svelte';
 
   let { open = $bindable(false) } = $props();
 
@@ -27,10 +28,27 @@
   let layout = $state([]);
 
   let vndbSyncMode = $state('download');
+  let vndbImportWishlist = $state(false);
   let hasVndbToken = $state(false);
   let vndbTokenInput = $state('');
   let vndbTesting = $state(false);
   let vndbTestResult = $state(null);
+  let vndbSyncing = $state(false);
+  let syncPlan = $state(null);
+  let resultOpen = $state(false);
+
+  let tokenStatus = $derived.by(() => {
+    if (vndbTestResult === true) return { kind: 'ok', text: t('settings.vndb.testOk') };
+    if (vndbTestResult === false) return { kind: 'invalid', text: t('settings.vndb.testInvalid') };
+    if (vndbTokenInput.trim()) return null;
+    if (hasVndbToken) return { kind: 'saved', text: t('settings.vndb.tokenSet') };
+    return { kind: 'unsaved', text: t('settings.vndb.tokenUnset') };
+  });
+
+  $effect(() => {
+    void vndbTokenInput;
+    vndbTestResult = null;
+  });
 
   const SPOILER_LEVELS = ['hide_all', 'hide_major', 'show_all'];
   const VNDB_MODES = ['download', 'upload', 'both'];
@@ -55,6 +73,7 @@
         vndbSyncMode = config.vndb_sync_mode === 'upload' || config.vndb_sync_mode === 'both'
           ? config.vndb_sync_mode
           : 'download';
+        vndbImportWishlist = !!config.vndb_sync_import_wishlist;
         hasVndbToken = !!config.has_vndb_token;
         vndbTokenInput = '';
         vndbTestResult = null;
@@ -191,11 +210,20 @@
       .catch((err) => toast(err.message, 'error'));
   }
 
+  function onVndbImportWishlistChange(e) {
+    const value = e.target.checked;
+    vndbImportWishlist = value;
+    api
+      .updateConfig({ vndb_sync_import_wishlist: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
   async function onVndbTokenTest() {
     const token = vndbTokenInput.trim();
-    if (!token) {
+    if (!token && !hasVndbToken) {
       vndbTestResult = null;
-      toast(t('settings.vndb.tokenUnset'), 'warn');
+      toast(t('settings.vndb.tokenMissing'), 'warn');
       return;
     }
     vndbTesting = true;
@@ -237,6 +265,46 @@
       vndbTokenInput = '';
       vndbTestResult = null;
       toast(t('settings.vndb.tokenUnset'), 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  async function onVndbSync() {
+    if (!hasVndbToken) {
+      toast(t('settings.vndb.syncNeedToken'), 'warn');
+      return;
+    }
+    vndbSyncing = true;
+    try {
+      const plan = await api.syncVndb();
+      const changed =
+        plan.creates.length > 0 ||
+        plan.updates.length > 0 ||
+        plan.aligns.length > 0 ||
+        plan.conflicts.length > 0 ||
+        plan.skipped > 0 ||
+        plan.warnings.length > 0;
+      if (changed) {
+        syncPlan = plan;
+        resultOpen = true;
+      } else {
+        toast(t('settings.vndb.syncNothing'), 'success');
+      }
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      vndbSyncing = false;
+    }
+  }
+
+  async function onPlanApply(decision) {
+    try {
+      await api.applySyncPlan(decision);
+      resultOpen = false;
+      syncPlan = null;
+      notifyConfigChanged();
+      toast(t('settings.vndb.applied'), 'success');
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -558,38 +626,94 @@
       </div>
 
       <div class="form-group">
-        <div class="form-label-row">
-          <div class="form-label">{t('settings.vndb.token')}</div>
-          <span class="form-value">{hasVndbToken ? t('settings.vndb.tokenSet') : t('settings.vndb.tokenUnset')}</span>
+        <div class="form-row">
+          <label class="toggle-switch" for="settings-import-wishlist">
+            <input
+              id="settings-import-wishlist"
+              type="checkbox"
+              checked={vndbImportWishlist}
+              onchange={onVndbImportWishlistChange}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="form-row-label">{t('settings.vndb.importWishlist')}</span>
         </div>
-        <p class="form-hint">{t('settings.vndb.tokenHint')}</p>
-        <input
-          class="vndb-token-input"
-          type="password"
-          placeholder={t('settings.vndb.tokenPlaceholder')}
-          bind:value={vndbTokenInput}
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <div class="form-actions">
-          <button type="button" class="btn" disabled={vndbTesting} onclick={onVndbTokenTest}>
+        <p class="form-hint">{t('settings.vndb.importWishlistHint')}</p>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.vndb.token')}</div>
+        <div class="vndb-token-field">
+          <input
+            class="vndb-token-input"
+            type="password"
+            placeholder={t('settings.vndb.tokenPlaceholder')}
+            bind:value={vndbTokenInput}
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button
+            type="button"
+            class="vndb-token-field__test"
+            disabled={vndbTesting || (!vndbTokenInput.trim() && !hasVndbToken)}
+            onclick={onVndbTokenTest}
+          >
             {vndbTesting ? t('settings.vndb.testing') : t('settings.vndb.test')}
           </button>
-          <button type="button" class="btn btn-primary" onclick={onVndbTokenSave}>
+        </div>
+        <p class="form-hint">{t('settings.vndb.tokenHint')}</p>
+        {#if tokenStatus}
+          <p
+            class="form-hint"
+            class:vndb-test-ok={tokenStatus.kind === 'ok'}
+            class:vndb-test-invalid={tokenStatus.kind === 'invalid'}
+          >
+            <i
+              class="status-dot"
+              class:status-dot--ok={tokenStatus.kind === 'ok' || tokenStatus.kind === 'saved'}
+              class:status-dot--invalid={tokenStatus.kind === 'invalid'}
+              aria-hidden="true"
+            ></i>{tokenStatus.text}
+          </p>
+        {/if}
+        <div class="form-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            disabled={!vndbTokenInput.trim()}
+            onclick={onVndbTokenSave}
+          >
             {t('settings.vndb.save')}
           </button>
           <button type="button" class="btn btn-ghost" disabled={!hasVndbToken} onclick={onVndbDisconnect}>
             {t('settings.vndb.disconnect')}
           </button>
         </div>
-        {#if vndbTestResult === true}
-          <p class="form-hint vndb-test-ok">{t('settings.vndb.testOk')}</p>
-        {:else if vndbTestResult === false}
-          <p class="form-hint vndb-test-invalid">{t('settings.vndb.testInvalid')}</p>
-        {/if}
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.vndb.syncNow')}</div>
+        <p class="form-hint">{t('settings.vndb.syncHint')}</p>
+        <div class="form-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            disabled={!hasVndbToken || vndbSyncing}
+            onclick={onVndbSync}
+          >
+            {vndbSyncing ? t('settings.vndb.syncing') : t('settings.vndb.syncNow')}
+          </button>
+        </div>
       </div>
     </div>
   </div>
+
+  <SyncResultDialog
+    bind:open={resultOpen}
+    plan={syncPlan}
+    onapply={onPlanApply}
+    oncancel={() => (resultOpen = false)}
+  />
 
   <div class="modal-actions">
     <button type="button" class="btn" onclick={() => (open = false)}>

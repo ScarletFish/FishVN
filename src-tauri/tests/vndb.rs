@@ -1,6 +1,5 @@
 //! 不发真实网络请求：CI 无网络会挂。反序列化用例锁住我们与真实响应的契约，
-//! JSON 片段用 META_FIELDS / SEARCH_FIELDS 向 api.vndb.org 实抓后裁剪而成；
-//! ulist 用例的 JSON 按官方文档形状手写（本地无 token，没法抽样）。
+//! JSON 片段用 META_FIELDS / SEARCH_FIELDS / ulist 向 api.vndb.org 实抓后裁剪而成。
 
 mod common;
 
@@ -265,15 +264,16 @@ fn 缺失字段按_default_补空而不是报错() {
 }
 
 #[test]
-fn ulist响应能反序列化_标签投票与lastmod() {
+fn ulist响应能反序列化_顶层_id_即_vn_id() {
     let payload = r#"{
         "more": true,
         "results": [
-            { "id": "u1-v17", "vn": { "id": "v17" },
+            { "id": "v10",
+              "labels": [ { "id": 2, "label": "Finished" }, { "id": 7, "label": "Voted" } ],
+              "lastmod": 1742273100, "vn": { "title": "narcissu" }, "vote": 70 },
+            { "id": "v66",
               "labels": [ { "id": 1, "label": "Playing" } ],
-              "vote": 85, "lastmod": 1710000000 },
-            { "id": "u1-v18", "vn": { "id": "v18" },
-              "labels": [], "vote": null, "lastmod": 1710003600 }
+              "lastmod": 1742273928, "vn": { "title": "CROSS†CHANNEL" }, "vote": null }
         ]
     }"#;
     let env: VnEnvelope<UlistEntry> = serde_json::from_str(payload).expect("ulist 响应解析不开");
@@ -281,17 +281,18 @@ fn ulist响应能反序列化_标签投票与lastmod() {
     assert!(env.more);
     assert_eq!(env.results.len(), 2);
 
-    let playing = &env.results[0];
-    assert_eq!(playing.vn.id, "v17");
-    assert_eq!(playing.labels.len(), 1);
-    assert_eq!(playing.labels[0].id, 1);
-    assert_eq!(playing.labels[0].label, "Playing");
-    assert_eq!(playing.vote, Some(85));
-    assert_eq!(playing.lastmod, Some(1710000000));
+    let finished = &env.results[0];
+    assert_eq!(finished.id, "v10");
+    assert_eq!(finished.vn.title.as_deref(), Some("narcissu"));
+    assert_eq!(finished.labels.len(), 2);
+    assert_eq!(finished.labels[0].label, "Finished");
+    assert_eq!(finished.labels[1].label, "Voted");
+    assert_eq!(finished.vote, Some(70));
+    assert_eq!(finished.lastmod, Some(1742273100));
 
-    let unvoted = &env.results[1];
-    assert_eq!(unvoted.vn.id, "v18");
-    assert!(unvoted.labels.is_empty());
-    assert_eq!(unvoted.vote, None);
-    assert_eq!(unvoted.lastmod, Some(1710003600));
+    let playing = &env.results[1];
+    assert_eq!(playing.id, "v66");
+    assert_eq!(playing.vn.title.as_deref(), Some("CROSS†CHANNEL"));
+    assert_eq!(playing.labels.len(), 1);
+    assert_eq!(playing.vote, None);
 }

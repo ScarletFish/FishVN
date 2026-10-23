@@ -105,6 +105,8 @@ pub struct AppConfig {
     #[serde(default)]
     pub vndb_sync_mode: VndbSyncMode,
     #[serde(default)]
+    pub vndb_sync_import_wishlist: bool,
+    #[serde(default)]
     pub vndb_token_obf: Option<String>,
 }
 
@@ -118,6 +120,7 @@ pub struct ConfigPatch {
     pub spoiler_level: Option<SpoilerLevel>,
     pub excluded_tags: Option<Vec<String>>,
     pub vndb_sync_mode: Option<VndbSyncMode>,
+    pub vndb_sync_import_wishlist: Option<bool>,
     pub vndb_token: Option<String>,
 }
 
@@ -131,6 +134,7 @@ pub struct ConfigView {
     pub spoiler_level: SpoilerLevel,
     pub excluded_tags: Vec<String>,
     pub vndb_sync_mode: VndbSyncMode,
+    pub vndb_sync_import_wishlist: bool,
     pub has_vndb_token: bool,
 }
 
@@ -186,8 +190,17 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     if let Some(value) = patch.excluded_tags {
         config.excluded_tags = value;
     }
+    if patch.vndb_sync_mode.is_some()
+        || patch.vndb_sync_import_wishlist.is_some()
+        || patch.vndb_token.is_some()
+    {
+        crate::sync::invalidate_plan();
+    }
     if let Some(value) = patch.vndb_sync_mode {
         config.vndb_sync_mode = value;
+    }
+    if let Some(value) = patch.vndb_sync_import_wishlist {
+        config.vndb_sync_import_wishlist = value;
     }
     if let Some(raw) = patch.vndb_token {
         config.vndb_token_obf = obfuscate_token(&raw);
@@ -240,6 +253,7 @@ pub fn view() -> ConfigView {
         spoiler_level: config.spoiler_level,
         excluded_tags: config.excluded_tags,
         vndb_sync_mode: config.vndb_sync_mode,
+        vndb_sync_import_wishlist: config.vndb_sync_import_wishlist,
         has_vndb_token: token_set,
     }
 }
@@ -256,7 +270,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 fn hex_decode(text: &str) -> std::result::Result<Vec<u8>, ()> {
     let bytes = text.as_bytes();
-    if bytes.len() % 2 != 0 {
+    if !bytes.len().is_multiple_of(2) {
         return Err(());
     }
     let mut out = Vec::with_capacity(bytes.len() / 2);
@@ -376,6 +390,7 @@ mod tests {
                 spoiler_level: None,
                 excluded_tags: None,
                 vndb_sync_mode: None,
+                vndb_sync_import_wishlist: None,
                 vndb_token: None,
             },
         )
@@ -561,5 +576,29 @@ mod tests {
         assert_eq!(view().vndb_sync_mode, VndbSyncMode::Both);
         let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
         assert!(text.contains("\"both\""));
+    }
+
+    #[test]
+    fn vndb_sync_import_wishlist_默认不导入且补丁可改() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        assert!(!current().vndb_sync_import_wishlist);
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch {
+                vndb_sync_import_wishlist: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(config.vndb_sync_import_wishlist);
+        assert!(view().vndb_sync_import_wishlist);
+
+        init(tmp.path());
+        assert!(current().vndb_sync_import_wishlist);
+        let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
+        assert!(text.contains("vndb_sync_import_wishlist"));
     }
 }

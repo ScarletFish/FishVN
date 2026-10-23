@@ -15,6 +15,7 @@ use crate::inspect::{PathInspect, ScanCandidate};
 use crate::metadata;
 use crate::sessions;
 use crate::settings::{self, AppConfig, ConfigPatch};
+use crate::sync;
 use crate::tasks::{EventLog, Task, Tasks};
 use crate::thumbs;
 use crate::types::{
@@ -332,12 +333,37 @@ pub fn update_config(app: tauri::AppHandle, patch: ConfigPatch) -> Result<AppCon
 }
 
 #[tauri::command]
-pub async fn test_vndb_token(token: String) -> Result<bool> {
-    let trimmed = token.trim();
-    if trimmed.is_empty() {
-        return Err(AppError::BadRequest("token 不能为空".into()));
-    }
-    vndb::test_token(vndb::http(), trimmed).await
+pub async fn test_vndb_token(
+    token: Option<String>,
+    rate: State<'_, Arc<RateLimiter>>,
+) -> Result<bool> {
+    let resolved = match token.as_deref().map(str::trim) {
+        Some(t) if !t.is_empty() => t.to_owned(),
+        _ => settings::current()
+            .vndb_token_obf
+            .as_deref()
+            .and_then(settings::deobfuscate_token)
+            .ok_or_else(|| AppError::BadRequest("还没有可测试的 VNDB Token".into()))?,
+    };
+    rate.acquire().await;
+    vndb::test_token(vndb::http(), &resolved).await
+}
+
+#[tauri::command]
+pub async fn sync_vndb(
+    shared: State<'_, Arc<Mutex<Connection>>>,
+    rate: State<'_, Arc<RateLimiter>>,
+) -> Result<sync::SyncPlan> {
+    sync::plan(shared.inner().clone(), rate.inner()).await
+}
+
+#[tauri::command]
+pub fn apply_sync_plan(
+    shared: State<'_, Arc<Mutex<Connection>>>,
+    decision: sync::PlanDecision,
+) -> Result<sync::ApplyReport> {
+    let conn = lock(&shared)?;
+    sync::apply(&conn, &decision)
 }
 
 #[tauri::command]

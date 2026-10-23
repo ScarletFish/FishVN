@@ -65,7 +65,10 @@ export const api = {
   updateGameMetadata: (id, patch) => call('update_game_metadata', { id, patch }),
   getConfig: () => call('get_config'),
   updateConfig: (patch) => call('update_config', { patch }),
-  testVndbToken: (token) => call('test_vndb_token', { token }),
+  testVndbToken: (token) =>
+    token ? call('test_vndb_token', { token }) : call('test_vndb_token'),
+  syncVndb: () => call('sync_vndb'),
+  applySyncPlan: (decision) => call('apply_sync_plan', { decision }),
   tagDictionary: () => call('tag_dictionary'),
   listGameCharacters: (id) => call('list_game_characters', { id }),
   saveGameCharacters: (id, characters) => call('save_game_characters', { id, characters }),

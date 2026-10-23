@@ -136,6 +136,8 @@ fn main() {
             commands::get_config,
             commands::update_config,
             commands::test_vndb_token,
+            commands::sync_vndb,
+            commands::apply_sync_plan,
             commands::inspect_path,
             commands::scan_dir,
             commands::log_frontend,

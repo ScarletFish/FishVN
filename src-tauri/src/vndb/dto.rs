@@ -12,7 +12,7 @@ pub struct VnEnvelope<T> {
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(default)]
 pub struct UlistVn {
-    pub id: String,
+    pub title: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
@@ -25,6 +25,7 @@ pub struct UlistLabel {
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(default)]
 pub struct UlistEntry {
+    pub id: String,
     pub vn: UlistVn,
     pub labels: Vec<UlistLabel>,
     pub vote: Option<i64>,

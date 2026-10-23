@@ -181,23 +181,25 @@ va{character{id},staff{id,name,original},note}
 ### `/ulist` 端点（用户列表）
 
 用户自己的 VN 列表，合并了旧 API 的 vnlist / votelist / wishlist。读取必须带 token
-（`Authorization: token <t>` 头），`user` 参数认证后默认本人，省略即可。本节形状经官方文档
-与多个客户端库交叉确认，未经本项目实测（本地无 token 可抽样）。
+（`Authorization: token <t>` 头），`user` 参数认证后默认本人，省略即可。本节形状已经
+本项目实测（真实 token 拉取两页 128 条核对）。
 
 请求体与通用查询格式一致，本项目只取四个字段：
 
 ```json
-{ "fields": "vn.id,labels{id,label},vote,lastmod", "results": 100, "page": 1 }
+{ "fields": "vn.title,labels{id,label},vote,lastmod", "results": 100, "page": 1 }
 ```
 
 | 字段 | JSON 形状 | 说明 |
 |---|---|---|
-| `vn` | object | 固定取 `vn.id`，形如 `{"id":"v17"}` |
-| `labels` | object[] | 每项 `{id,label}`；`label` 是首字母大写的显示名（`Playing` / `Finished` / `Stalled` / `Dropped` / `Wishlist`），id 小于 10 是预定义标签且对所有用户相同；`Voted`(7) 随 `vote` 自动加减 |
+| `id` | string | **条目顶层 `id` 即 vn id**（`"v10"`）。注意它不在 `vn` 子对象里——`vn.id` 请求了也不会出现在 `vn` 下，DTO 从顶层取 |
+| `vn` | object | 只展开 `vn.title`（主标题）；`vn.*` 下所有 VN 字段都可选，点号与花括号两种写法等价 |
+| `labels` | object[] | 每项 `{id,label}`；`label` 是首字母大写的显示名（`Playing` / `Finished` / `Stalled` / `Dropped` / `Wishlist`），id 小于 10 是预定义标签且对所有用户相同；`Voted`(7) 随 `vote` 自动加减，与状态标签叠加出现在同一 `labels` 数组里（如 `[Finished, Voted]`），映射时跳过它继续找状态标签 |
 | `vote` | int \| null | 10..100，无评分为 null；与本地 `user_rating` 同为百分制、同刻度 |
 | `lastmod` | int | unix 时间戳，该列表条目最后修改时间 |
 
 翻页用 `results`（上限 100）+ `page`，响应 `more` 为 true 就续页；结果默认按 `id` 排序。
+列表条目的标题随 `vn.title` 内联返回，建壳不需要再按 id 批量查 `/vn` 补名称。
 
 写操作（`PATCH /ulist/<id>` 带 `labels_set` / `labels_unset` / `vote`，删条目用 `DELETE`）属
 仅上传与双向同步力度，设计见 [vndb-sync.md](./vndb-sync.md)，首版（仅下载）不实现。
@@ -266,6 +268,11 @@ va{character{id},staff{id,name,original},note}
 
 标志位追加在过滤器条目上：`o` 可排序比较、`n` 接受 null、`m` 一条匹配多值、`i` 取反不等价。
 
+`id` 只接受单值字符串：`["id","=","v17"]` 合法，传数组 `["id","=",["v17","v18"]]` 报 400
+`Invalid 'id' filter: Invalid value.`（与值本身合不合法无关，合法 id 的数组同样报），
+`in` 运算符也不支持（`Invalid 'id' filter: Invalid operator.`）。一次匹配多个 id 要用
+`or` 谓词组合：`["or",["id","=","v1"],["id","=","v2"]]`，官方建议单查询不超过 100 个标识符。
+
 `image` **不是** `/vn` 的 filter 名，没法按「有无封面」筛。
 
 sort 可选：`id` / `title` / `released` / `rating` / `votecount` / `searchrank`。
@@ -277,7 +284,7 @@ sort 可选：`id` / `title` / `released` / `rating` / `votecount` / `searchrank
 
 | 状态码 | 实测文案 | 场景 |
 |---|---|---|
-| 400 | `Invalid 'id' filter: Invalid value.` | id 格式非法，如 `v99999999` |
+| 400 | `Invalid 'id' filter: Invalid value.` | id 格式非法，如 `v99999999`；或给 `id` 传了数组值（只吃单值，见上） |
 | 400 | `Invalid 'fields' member: Field 'no_such_field' not found` | 字段名拼错 |
 | 400 | `Invalid 'fields' member: Field '*' not found` | 试图用通配符 |
 | 400 | `Invalid 'results' member.` | results 超 100 |

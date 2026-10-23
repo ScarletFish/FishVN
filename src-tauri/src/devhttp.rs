@@ -79,6 +79,12 @@ pub struct Args {
     pub months: Option<i64>,
     #[serde(default)]
     pub token: Option<String>,
+    #[serde(default)]
+    pub statuses: Option<Value>,
+    #[serde(default)]
+    pub ratings: Option<Value>,
+    #[serde(default)]
+    pub decision: Option<Value>,
 }
 
 impl Args {
@@ -356,9 +362,27 @@ async fn update_config(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> R
     )
 }
 
+handler!(apply_sync_plan, |c, a| {
+    let decision: crate::sync::PlanDecision = a.parse(a.decision.as_ref(), "decision")?;
+    crate::sync::apply(c, &decision)
+});
+
 async fn test_vndb_token(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
-    let token = a.need(a.token.as_ref(), "token")?;
-    finish(vndb::test_token(vndb::http(), token).await)
+    let token = match a.token.as_deref().map(str::trim) {
+        Some(t) if !t.is_empty() => t.to_owned(),
+        _ => settings::current()
+            .vndb_token_obf
+            .as_deref()
+            .and_then(settings::deobfuscate_token)
+            .ok_or_else(|| AppError::BadRequest("还没有可测试的 VNDB Token".into()))?,
+    };
+    finish(vndb::test_token(vndb::http(), &token).await)
+}
+
+async fn sync_vndb(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
+    let conn = dev.conn.clone();
+    let rate = dev.rate.clone();
+    finish(crate::sync::plan(conn, &rate).await)
 }
 
 async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
@@ -407,6 +431,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/tag_dictionary", post(tag_dictionary))
         .route("/update_config", post(update_config))
         .route("/test_vndb_token", post(test_vndb_token))
+        .route("/sync_vndb", post(sync_vndb))
+        .route("/apply_sync_plan", post(apply_sync_plan))
         .route("/events", get(events))
         .with_state(dev)
 }
@@ -449,4 +475,6 @@ pub const COMMANDS: &[&str] = &[
     "update_config",
     "tag_dictionary",
     "test_vndb_token",
+    "sync_vndb",
+    "apply_sync_plan",
 ];

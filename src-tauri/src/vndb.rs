@@ -27,7 +27,7 @@ const CHAR_RESULTS: usize = 100;
 
 const SEARCH_RESULTS: usize = 25;
 
-const ULIST_FIELDS: &str = "vn.id,labels{id,label},vote,lastmod";
+const ULIST_FIELDS: &str = "vn.title,labels{id,label},vote,lastmod";
 
 const ULIST_RESULTS: usize = 100;
 
@@ -144,10 +144,15 @@ pub async fn test_token(http: &reqwest::Client, token: &str) -> Result<bool> {
     }
 }
 
-pub async fn fetch_ulist(http: &reqwest::Client, token: &str) -> Result<Vec<UlistEntry>> {
+pub async fn fetch_ulist(
+    http: &reqwest::Client,
+    token: &str,
+    rate: &RateLimiter,
+) -> Result<Vec<UlistEntry>> {
     let mut entries = Vec::new();
     let mut page = 1;
     loop {
+        rate.acquire().await;
         let body = json!({
             "fields": ULIST_FIELDS,
             "results": ULIST_RESULTS,
