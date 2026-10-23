@@ -18,6 +18,7 @@
       { value: stats.playing, label: t('dashboard.statPlaying') },
       { value: stats.wishlist, label: t('dashboard.statWishlist') },
       { value: stats.finished, label: t('dashboard.statFinished') },
+      { value: stats.stalled, label: t('dashboard.statStalled') },
       { value: stats.dropped, label: t('dashboard.statDropped') },
       { value: durationText(t, stats.total_seconds), label: t('dashboard.statTotalTime') },
       { value: durationText(t, stats.week_seconds), label: t('dashboard.statWeekTime') },

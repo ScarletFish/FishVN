@@ -27,6 +27,7 @@ export const DICT_ZH = {
     statWishlist: '计划中',
     statFinished: '已完成',
     statDropped: '已弃坑',
+    statStalled: '已搁置',
     statTotalTime: '累计时长',
     statWeekTime: '本周时长',
     statPlayCount: '游玩次数',
@@ -395,5 +396,6 @@ export const DICT_ZH = {
     wishlist: '计划中',
     finished: '已完成',
     dropped: '已弃坑',
+    stalled: '已搁置',
   },
 };

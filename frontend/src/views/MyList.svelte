@@ -17,7 +17,7 @@
 
   let { onopen, scroll = 0, onscroll, filter = $bindable('all') } = $props();
 
-  const STATUS_ORDER = ['playing', 'wishlist', 'finished', 'dropped'];
+  const STATUS_ORDER = ['playing', 'wishlist', 'finished', 'stalled', 'dropped'];
 
   let games = $state([]);
   let loading = $state(true);

@@ -18,7 +18,7 @@
     inputEl = $bindable(null),
   } = $props();
 
-  const STATUS_KEYS = ['playing', 'wishlist', 'finished', 'dropped'];
+  const STATUS_KEYS = ['playing', 'wishlist', 'finished', 'stalled', 'dropped'];
   const STATUS_OPTIONS = STATUS_KEYS.map((key) => ({ value: key, label: t(`status.${key}`) }));
 
   function stepRating(delta) {

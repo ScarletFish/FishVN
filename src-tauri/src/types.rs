@@ -16,6 +16,7 @@ pub enum Status {
     Playing,
     Finished,
     Dropped,
+    Stalled,
 }
 
 impl Status {
@@ -25,6 +26,7 @@ impl Status {
             "playing" => Some(Self::Playing),
             "finished" => Some(Self::Finished),
             "dropped" => Some(Self::Dropped),
+            "stalled" => Some(Self::Stalled),
             _ => None,
         }
     }
@@ -35,6 +37,7 @@ impl Status {
             Self::Playing => "playing",
             Self::Finished => "finished",
             Self::Dropped => "dropped",
+            Self::Stalled => "stalled",
         }
     }
 }

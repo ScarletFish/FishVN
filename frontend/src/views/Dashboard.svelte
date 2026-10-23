@@ -194,6 +194,10 @@
               <span>{t('dashboard.statFinished')}</span>
             </div>
             <div class="dashboard-stat">
+              <b>{stats.stalled}</b>
+              <span>{t('dashboard.statStalled')}</span>
+            </div>
+            <div class="dashboard-stat">
               <b>{stats.dropped}</b>
               <span>{t('dashboard.statDropped')}</span>
             </div>

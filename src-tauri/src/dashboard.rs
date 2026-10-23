@@ -16,6 +16,7 @@ pub struct DashboardStats {
     pub wishlist: i64,
     pub finished: i64,
     pub dropped: i64,
+    pub stalled: i64,
     pub total_seconds: i64,
     pub week_seconds: i64,
     pub play_count: i64,
@@ -36,6 +37,7 @@ pub fn stats(conn: &Connection, metric: TimeMetric, week_start: i64) -> Result<D
             (SELECT COALESCE(SUM(s.status = 'wishlist'), 0) FROM user_game_state s) AS wishlist,
             (SELECT COALESCE(SUM(s.status = 'finished'), 0) FROM user_game_state s) AS finished,
             (SELECT COALESCE(SUM(s.status = 'dropped'), 0) FROM user_game_state s) AS dropped,
+            (SELECT COALESCE(SUM(s.status = 'stalled'), 0) FROM user_game_state s) AS stalled,
             (SELECT COALESCE(SUM(s.play_seconds), 0) FROM user_game_state s) AS total_seconds,
             (SELECT COUNT(*) FROM play_sessions) AS play_count,
             (SELECT COALESCE(SUM(
@@ -52,6 +54,7 @@ pub fn stats(conn: &Connection, metric: TimeMetric, week_start: i64) -> Result<D
             wishlist: row.get("wishlist")?,
             finished: row.get("finished")?,
             dropped: row.get("dropped")?,
+            stalled: row.get("stalled")?,
             total_seconds: row.get("total_seconds")?,
             week_seconds: row.get("week_seconds")?,
             play_count: row.get("play_count")?,
