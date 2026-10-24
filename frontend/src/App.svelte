@@ -7,6 +7,7 @@
   import { loadTagDict } from './lib/tag-label.svelte.js';
   import { loadConfig } from './lib/config-store.svelte.js';
   import { syncTheme, syncAccent, syncFontScale } from './lib/theme.js';
+  import { getScrollViewport } from './lib/scrollbars.js';
   import { subscribe } from './lib/events.js';
   import { backfillSummaryText } from './lib/backfill-summary.js';
   import Sidebar from './components/Sidebar.svelte';
@@ -69,8 +70,18 @@
   let detailTitle = $state('');
   let listScroll = $state(0);
   let listFilter = $state('all');
+  let dashScroll = $state(0);
+
+  function saveViewScroll() {
+    if (detailId !== null) return;
+    const viewport = getScrollViewport();
+    if (!viewport) return;
+    if (current === 'mylist') listScroll = viewport.scrollTop;
+    else if (current === 'home') dashScroll = viewport.scrollTop;
+  }
 
   function openDetail(id, autostart = false) {
+    saveViewScroll();
     detailId = id;
     autoLaunch = autostart;
   }
@@ -80,8 +91,14 @@
     autoLaunch = false;
   }
 
+  function leaveView() {
+    saveViewScroll();
+    closeDetail();
+  }
+
   $effect(() => {
     function onOpenGame(e) {
+      saveViewScroll();
       current = 'mylist';
       detailId = e.detail;
     }
@@ -112,7 +129,7 @@
   />
 
   <div class="shell__body">
-    <Sidebar items={NAV} bottom={BOTTOM} bind:current onnavigate={closeDetail} />
+    <Sidebar items={NAV} bottom={BOTTOM} bind:current onnavigate={leaveView} />
 
     <main class="shell__main" class:has-dock={dockVisible && !detailId} data-overlayscrollbars-initialize>
       {#if detailId !== null}
@@ -123,12 +140,11 @@
           onclose={closeDetail}
         />
       {:else if current === 'home'}
-        <Dashboard onopen={openDetail} />
+        <Dashboard onopen={openDetail} scroll={dashScroll} />
       {:else if current === 'mylist'}
         <MyList
           onopen={(id) => openDetail(id)}
           scroll={listScroll}
-          onscroll={(top) => (listScroll = top)}
           bind:filter={listFilter}
         />
       {:else if current === 'stats'}

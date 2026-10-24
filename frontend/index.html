@@ -99,6 +99,11 @@
     </div>
     <script>
       (() => {
+        // sessionStorage 跨 F5 存活、冷启动为空：先读后写，刷新时不再调 show、不记启动计时。
+        const BOOT_KEY = 'fishvn:booted';
+        const reloaded = sessionStorage.getItem(BOOT_KEY) !== null;
+        sessionStorage.setItem(BOOT_KEY, '1');
+        window.__reloaded = reloaded;
         const internals = window.__TAURI_INTERNALS__;
         const splash = document.getElementById('splash');
         if (!internals || !splash) return;
@@ -123,6 +128,7 @@
           if (withSplash) {
             revealedAt = performance.now();
           }
+          if (reloaded) return;
           internals
             .invoke('plugin:window|show', { label: internals.metadata.currentWindow.label })
             .then(() =>

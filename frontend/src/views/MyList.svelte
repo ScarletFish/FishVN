@@ -16,7 +16,7 @@
   import Menu from '../components/Menu.svelte';
   import ScanAddDialog from '../components/ScanAddDialog.svelte';
 
-  let { onopen, scroll = 0, onscroll, filter = $bindable('all') } = $props();
+  let { onopen, scroll = 0, filter = $bindable('all') } = $props();
 
   const STATUS_ORDER = ['playing', 'wishlist', 'finished', 'stalled', 'dropped'];
 
@@ -98,17 +98,26 @@
     } finally {
       loading = false;
     }
-    await restoreScroll();
+    if (!error) await restoreScroll();
     await tick();
     window.dispatchEvent(new CustomEvent('app:ready'));
   }
 
+  let pendingRestore = true;
+  let restored = false;
+
   async function restoreScroll() {
-    if (!scroll) return;
+    if (!pendingRestore) return;
+    if (!scroll) {
+      pendingRestore = false;
+      return;
+    }
     const viewport = getScrollViewport();
     if (!viewport) return;
+    pendingRestore = false;
     await tick();
     viewport.scrollTop = scroll;
+    restored = true;
   }
 
   onMount(async () => {
@@ -126,8 +135,6 @@
 
   onDestroy(() => {
     window.removeEventListener(LIBRARY_CHANGED, onLibraryChanged);
-    const viewport = getScrollViewport();
-    if (viewport) onscroll?.(viewport.scrollTop);
   });
 
   const byName = (a, b) => a.name.localeCompare(b.name, 'zh-CN');
@@ -164,6 +171,10 @@
     if (!sig) return;
     tick().then(() => {
       if (animSig !== sig) return;
+      if (restored) {
+        restored = false;
+        return;
+      }
       scrollAnim.build({
         sections: document.querySelectorAll('.mylist-section'),
         cards: document.querySelectorAll('.cover-card'),
@@ -175,22 +186,24 @@
 </script>
 
 <section class="view">
-  <div class="mylist-status-bar">
-    <button
-      type="button"
-      class="mylist-status-item"
-      class:active={filter === 'all'}
-      onclick={() => (filter = 'all')}
-    ><b>{counts.all}</b>{t('mylist.filter.all')}</button>
-    {#each STATUS_ORDER as status (status)}
+  {#if !loading}
+    <div class="mylist-status-bar">
       <button
         type="button"
         class="mylist-status-item"
-        class:active={filter === status}
-        onclick={() => (filter = status)}
-      ><b>{counts[status]}</b>{t(`status.${status}`)}</button>
-    {/each}
-  </div>
+        class:active={filter === 'all'}
+        onclick={() => (filter = 'all')}
+      ><b>{counts.all}</b>{t('mylist.filter.all')}</button>
+      {#each STATUS_ORDER as status (status)}
+        <button
+          type="button"
+          class="mylist-status-item"
+          class:active={filter === status}
+          onclick={() => (filter = status)}
+        ><b>{counts[status]}</b>{t(`status.${status}`)}</button>
+      {/each}
+    </div>
+  {/if}
 
   <header class="view-header">
     <h1>{t('mylist.title')}</h1>

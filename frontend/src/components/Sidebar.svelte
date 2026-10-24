@@ -22,8 +22,8 @@
         aria-current={current === item.id ? 'page' : undefined}
         use:sideTip
         onclick={() => {
-          current = item.id;
           onnavigate?.();
+          current = item.id;
         }}
       >
         {@html item.icon}
