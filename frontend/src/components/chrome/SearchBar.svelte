@@ -32,7 +32,19 @@
   }
 
   const SETTINGS_MAP = () => [
-    { label: t('settings.theme'), keywords: '主题 暗色 深色 外观 黑夜 theme dark light' },
+    { label: t('settings.theme'), keywords: '主题 外观 暗色 深色 黑夜 theme dark light' },
+    { label: t('settings.accent'), keywords: '强调色 主题色 颜色 accent color' },
+    { label: t('settings.fontSize'), keywords: '字体 字号 大小 缩放 font size' },
+    { label: t('settings.timeMetric'), keywords: '时长 统计 口径 前台 存活 计时' },
+    { label: t('settings.dashboardLayout'), keywords: '首页 布局 模块 排序 dashboard layout' },
+    { label: t('settings.dashboardIncludeUninstalled'), keywords: '首页 未安装 显示 作品' },
+    { label: t('settings.hideR18'), keywords: 'r18 成人 隐藏 过滤 标签' },
+    { label: t('settings.spoilerLevel'), keywords: '剧透 剧情隐藏 spoiler' },
+    { label: t('settings.excludedTags'), keywords: '排除 标签 黑名单 排除池 excluded tags' },
+    { label: t('settings.vndb.mode'), keywords: 'vndb 同步 模式 上传 下载 sync' },
+    { label: t('settings.vndb.importWishlist'), keywords: 'vndb 同步 想玩 愿望单 导入 wishlist' },
+    { label: t('settings.vndb.token'), keywords: 'vndb token 令牌 凭证 连接 授权' },
+    { label: t('settings.vndb.syncNow'), keywords: 'vndb 同步 立即 sync now' },
   ];
 
   let settingHits = $derived.by(() => {
@@ -225,7 +237,7 @@
         {/each}
       {/if}
       {#if settingHits.length}
-        <div class="titlebar__search-group">{t('common.settings')}</div>
+        <div class="titlebar__search-group">{t('titlebar.searchGroupSettings')}</div>
         {#each settingHits as s (s.label)}
           <button
             type="button"

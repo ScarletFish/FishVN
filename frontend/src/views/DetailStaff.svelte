@@ -36,7 +36,7 @@
 </script>
 
 {#if groups.length}
-  <DetailSection title={t('detail.staff')} count={staff.length}>
+  <DetailSection title={t('detail.staff')} count={staff.length} class="detail-enter-staff">
     <div class="detail-staff-scroll" use:panelScrollbars>
       <div class="detail-staff-grid">
         {#each groups as g (g.label)}

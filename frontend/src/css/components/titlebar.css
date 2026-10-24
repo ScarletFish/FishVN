@@ -178,7 +178,7 @@
 
 .titlebar__search-item:hover,
 .titlebar__search-item.highlighted {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background: var(--bg-hover);
   border-left-color: var(--accent);
 }
 
@@ -191,7 +191,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: var(--bg-hover);
   color: var(--fg-muted);
   font-size: var(--text-sm);
   font-weight: var(--fw-bold);
@@ -267,7 +267,7 @@
 }
 
 .titlebar__btn--close:hover {
-  background: var(--accent);
+  background: var(--error);
   color: var(--fg-on-accent);
 }
 

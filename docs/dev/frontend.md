@@ -56,6 +56,8 @@ GSAP 与 ScrollTrigger 以 vendor 全局脚本加载（`public/vendor/gsap/`，`
 
 封面 → 详情共享元素过渡（`lib/hero-transition.js`）：卡片点击时 `captureHero` 记录封面图的位置与已解码地址，详情视图挂载后 `playHero` 立即接管——先同步隐藏目标、rAF 后一次测量、GSAP 补间 0.35s。hero 的启动不依赖封面 URL 解析（`coverSrc` 走 IPC 异步返回，等它就永远赶不上首帧）；换手阶段等目标 `<img>` **出现并加载完成**（MutationObserver + 2s 兜底）再瞬间替换，异步加载期间由 hero 兜住视觉。无封面、GSAP 缺失或 `prefers-reduced-motion` 时跳过，详情瞬时打开。
 
+详情页分波入场（`detail.css` 的 `detail-rise`/`detail-fade`）：CSS animation + `animation-fill-mode: backwards`，隐藏态由首帧关键帧兜住——不需要 show 类、不需要双 rAF，动画在元素插入时自动启动，天然适配异步分区（角色/制作数据晚于外壳到达时，各自的波在自己渲染时启动）。波次：氛围底/操作按钮 0s → 信息栏逐条 0.04–0.29s（延迟内联 `animation-delay`，属编排参数，不适用 token 规则）→ 角色区头 0.12s → 制作区 0.18s；封面不参与（归 hero 过渡接管）。判据：**多图分区（角色/剧集式）直接加载、不做逐卡编排**——编排延迟与图片加载时钟不同步，且卡片是点击锚点应尽早可交互。新增详情分区挂 `detail-rise` 并给波次延迟；`prefers-reduced-motion` 全量豁免。
+
 ### Token 引用规则
 
 - 颜色/间距/圆角/字重一律引用 token，**禁止写死值**；token 单点定义在 `tokens.css`，禁止在别处重新声明

@@ -11,6 +11,7 @@
   import { getSpoilerLevel } from '../lib/config-store.svelte.js';
   import { spoilerThreshold } from '../lib/tag-order.svelte.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
+  import { LIBRARY_TAGS_CHANGED } from '../lib/library-events.js';
   import DetailSection from '../components/DetailSection.svelte';
 
   const TRAIT_GROUP_ORDER = [
@@ -53,6 +54,19 @@
     return () => {
       live = false;
     };
+  });
+
+  async function refresh() {
+    try {
+      characters = await api.listGameCharacters(gameId);
+    } catch {
+      characters = [];
+    }
+  }
+
+  $effect(() => {
+    window.addEventListener(LIBRARY_TAGS_CHANGED, refresh);
+    return () => window.removeEventListener(LIBRARY_TAGS_CHANGED, refresh);
   });
 
   $effect(() => {
@@ -162,7 +176,7 @@
 </script>
 
 {#if characters.length}
-  <DetailSection title={t('detail.characters')} count={characters.length} bind:headerEl>
+  <DetailSection title={t('detail.characters')} count={characters.length} bind:headerEl class="detail-enter-chars">
     <div class="hscroll-section detail-chars-scroll" bind:this={scrollEl}>
       {#each characters as c (c.id)}
         <div

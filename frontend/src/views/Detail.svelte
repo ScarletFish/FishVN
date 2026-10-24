@@ -247,7 +247,7 @@
   {:else if !game}
     <p class="detail-note">{t('detail.notFound')}</p>
   {:else}
-    <div class="detail-ambience" class:detail-ambience--empty={!coverUrl || coverBroken} aria-hidden="true">
+    <div class="detail-ambience detail-fade" class:detail-ambience--empty={!coverUrl || coverBroken} aria-hidden="true">
       {#if coverUrl && !coverBroken}
         <img src={coverUrl} alt="" onerror={() => (coverBroken = true)} />
       {/if}
@@ -263,7 +263,7 @@
             </div>
           {/if}
         </div>
-        <div class="detail-actions">
+        <div class="detail-actions detail-rise">
           <span
             class="detail-action"
             data-tooltip={canLaunch ? null : t('detail.playNoInstall')}
@@ -299,12 +299,12 @@
         </div>
       </div>
       <div class="detail-info">
-        <h1>{game.name}</h1>
+        <h1 class="detail-rise" style="animation-delay: 0.04s">{game.name}</h1>
         {#if alias}
-          <p class="detail-alias">{alias}</p>
+          <p class="detail-alias detail-rise" style="animation-delay: 0.09s">{alias}</p>
         {/if}
         {#if meta?.rating != null || lengthText || releaseYear || developer}
-          <div class="detail-info-line">
+          <div class="detail-info-line detail-rise" style="animation-delay: 0.14s">
             {#if meta?.rating != null || lengthText}
               <span class="info-left">
                 {#if meta?.rating != null}
@@ -328,7 +328,7 @@
             </span>
           </div>
         {/if}
-        <div class="detail-tags">
+        <div class="detail-tags detail-rise" style="animation-delay: 0.19s">
           <div class="detail-tags-list">
             {#each shownTags as tag (tag.id ?? tag.name)}
               <span class="pill pill--tag">{tagLabel(tag)}</span>
@@ -360,7 +360,7 @@
             </div>
           {/if}
         </div>
-        <div class="detail-summary">
+        <div class="detail-summary detail-rise" style="animation-delay: 0.24s">
           {#each summaryParas as para, i (i)}
             <p>{#each para as seg, j (j)}{#if seg.type === 'link'}<a
                 href={seg.href}
@@ -375,7 +375,8 @@
       {#if launchPath}
         <button
           type="button"
-          class="detail-install"
+          class="detail-install detail-rise"
+          style="animation-delay: 0.29s"
           data-tooltip={t('detail.installDefaultTip')}
           onclick={() => {
             formTab = 'installations';
