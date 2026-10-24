@@ -59,7 +59,7 @@ pub struct VnSearchHit {
 #[serde(default)]
 pub struct VnTitle {
     pub lang: String,
-    pub title: String,
+    pub title: Option<String>,
     pub latin: Option<String>,
     pub official: Option<bool>,
     pub main: Option<bool>,
@@ -143,9 +143,9 @@ pub(crate) struct CharRow {
     pub id: String,
     pub name: Option<String>,
     pub original: Option<String>,
-    pub aliases: Option<Vec<String>>,
+    pub aliases: Option<Vec<Option<String>>>,
     pub description: Option<String>,
-    pub gender: Option<Vec<String>>,
+    pub gender: Option<Vec<Option<String>>>,
     pub age: Option<i64>,
     pub birthday: Option<Vec<Option<i64>>>,
     pub blood_type: Option<String>,

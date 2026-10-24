@@ -13,6 +13,7 @@
   import { tagKeyLabel } from '../lib/tag-label.svelte.js';
   import TagPicker from './game-form/TagPicker.svelte';
   import SyncResultDialog from './SyncResultDialog.svelte';
+  import { notifyBackfillRefresh } from '../lib/task-events.js';
 
   let { open = $bindable(false) } = $props();
 
@@ -35,6 +36,10 @@
   let vndbTestResult = $state(null);
   let vndbSyncing = $state(false);
   let syncPlan = $state(null);
+  let syncError = $state(null);
+  let syncEmpty = $state(false);
+  let syncSeq = 0;
+  let syncActive = 0;
   let resultOpen = $state(false);
 
   let tokenStatus = $derived.by(() => {
@@ -275,9 +280,16 @@
       toast(t('settings.vndb.syncNeedToken'), 'warn');
       return;
     }
+    const seq = ++syncSeq;
+    syncActive = seq;
     vndbSyncing = true;
+    syncPlan = null;
+    syncError = null;
+    syncEmpty = false;
+    resultOpen = true;
     try {
       const plan = await api.syncVndb();
+      if (seq !== syncActive) return;
       const changed =
         plan.creates.length > 0 ||
         plan.updates.length > 0 ||
@@ -287,15 +299,21 @@
         plan.warnings.length > 0;
       if (changed) {
         syncPlan = plan;
-        resultOpen = true;
       } else {
-        toast(t('settings.vndb.syncNothing'), 'success');
+        syncEmpty = true;
       }
     } catch (err) {
-      toast(err.message, 'error');
+      if (seq !== syncActive) return;
+      syncError = err.message;
     } finally {
-      vndbSyncing = false;
+      if (seq === syncSeq) vndbSyncing = false;
     }
+  }
+
+  function onSyncCancel() {
+    syncActive = 0;
+    resultOpen = false;
+    vndbSyncing = false;
   }
 
   async function onPlanApply(decision) {
@@ -304,11 +322,17 @@
       resultOpen = false;
       syncPlan = null;
       notifyConfigChanged();
-      toast(t('settings.vndb.applied'), 'success');
-      if (decision.backfill && report?.created_ids?.length) {
+      const backfillCount = decision.backfill ? (report?.created_ids?.length ?? 0) : 0;
+      if (backfillCount > 0) {
+        toast(t('settings.vndb.appliedBackfill', { count: backfillCount }), 'success');
         try {
           await api.startBackfill(report.created_ids);
-        } catch {}
+          notifyBackfillRefresh();
+        } catch (e) {
+          toast(e.message, 'error');
+        }
+      } else {
+        toast(t('settings.vndb.applied'), 'success');
       }
     } catch (err) {
       toast(err.message, 'error');
@@ -706,6 +730,7 @@
             disabled={!hasVndbToken || vndbSyncing}
             onclick={onVndbSync}
           >
+            {#if vndbSyncing}<span class="btn-spinner" aria-hidden="true"></span>{/if}
             {vndbSyncing ? t('settings.vndb.syncing') : t('settings.vndb.syncNow')}
           </button>
         </div>
@@ -716,8 +741,12 @@
   <SyncResultDialog
     bind:open={resultOpen}
     plan={syncPlan}
+    loading={vndbSyncing}
+    error={syncError}
+    empty={syncEmpty}
     onapply={onPlanApply}
-    oncancel={() => (resultOpen = false)}
+    oncancel={onSyncCancel}
+    onretry={onVndbSync}
   />
 
   <div class="modal-actions">

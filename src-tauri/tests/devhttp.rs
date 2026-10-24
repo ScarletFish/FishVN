@@ -19,6 +19,7 @@ fn push(log: &Mutex<EventLog>, phase: &str, done: Option<i64>, total: Option<i64
             done,
             total,
             error: None,
+            run_id: 0,
         },
     );
 }

@@ -8,13 +8,13 @@
   import { pickDirectory, pickExecutable } from '../lib/pick-path.js';
   import { createScrollAnim } from '../lib/scroll-anim.js';
   import { captureHero } from '../lib/hero-transition.js';
-  import { notifyLibraryTagsChanged } from '../lib/library-events.js';
+  import { notifyLibraryTagsChanged, LIBRARY_CHANGED } from '../lib/library-events.js';
+  import { notifyBackfillRefresh } from '../lib/task-events.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
   import Menu from '../components/Menu.svelte';
   import ScanAddDialog from '../components/ScanAddDialog.svelte';
-  import BackfillBar from '../components/BackfillBar.svelte';
 
   let { onopen, scroll = 0, onscroll, filter = $bindable('all') } = $props();
 
@@ -65,9 +65,12 @@
   }
 
   async function startBackfill() {
+    backfillRunning = true;
     try {
       await api.startBackfill();
+      notifyBackfillRefresh();
     } catch (e) {
+      backfillRunning = false;
       toast(e.message, 'error');
     }
   }
@@ -108,9 +111,21 @@
     viewport.scrollTop = scroll;
   }
 
-  onMount(load);
+  onMount(async () => {
+    load();
+    window.addEventListener(LIBRARY_CHANGED, onLibraryChanged);
+    try {
+      backfillRunning = (await api.backfillStatus())?.running ?? false;
+    } catch {}
+  });
+
+  function onLibraryChanged() {
+    backfillRunning = false;
+    load();
+  }
 
   onDestroy(() => {
+    window.removeEventListener(LIBRARY_CHANGED, onLibraryChanged);
     const viewport = getScrollViewport();
     if (viewport) onscroll?.(viewport.scrollTop);
   });
@@ -180,7 +195,6 @@
   <header class="view-header">
     <h1>{t('mylist.title')}</h1>
     <div class="view-header-right">
-      <BackfillBar bind:running={backfillRunning} ondone={load} />
       <button
         type="button"
         class="mylist-backfill"

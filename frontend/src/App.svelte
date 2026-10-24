@@ -1,10 +1,14 @@
 <script>
+  import { onMount, onDestroy } from 'svelte';
   import './lib/tooltip.js';
   import { t } from './lib/i18n.js';
   import { api } from './lib/api.js';
+  import { toast } from './lib/toast.svelte.js';
   import { loadTagDict } from './lib/tag-label.svelte.js';
   import { loadConfig } from './lib/config-store.svelte.js';
   import { syncTheme, syncAccent, syncFontScale } from './lib/theme.js';
+  import { subscribe } from './lib/events.js';
+  import { backfillSummaryText } from './lib/backfill-summary.js';
   import Sidebar from './components/Sidebar.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import Titlebar from './components/chrome/Titlebar.svelte';
@@ -13,8 +17,11 @@
   import Dashboard from './views/Dashboard.svelte';
   import Stats from './views/Stats.svelte';
   import Detail from './views/Detail.svelte';
+  import TaskDock from './components/TaskDock.svelte';
 
   let settingsOpen = $state(false);
+  let dockVisible = $state(false);
+  let dockUnsub = null;
 
   $effect(() => {
     syncFontScale();
@@ -81,6 +88,19 @@
     document.addEventListener('search-open-game', onOpenGame);
     return () => document.removeEventListener('search-open-game', onOpenGame);
   });
+
+  onMount(async () => {
+    dockUnsub = await subscribe('vndb-backfill', async (ev) => {
+      if (ev?.phase !== 'finished') return;
+      if (detailId === null) return;
+      try {
+        const s = await api.backfillStatus();
+        if (s?.finished) toast(backfillSummaryText(s.finished), 'success');
+      } catch {}
+    });
+  });
+
+  onDestroy(() => dockUnsub?.());
 </script>
 
 <div class="shell">
@@ -94,7 +114,7 @@
   <div class="shell__body">
     <Sidebar items={NAV} bottom={BOTTOM} bind:current onnavigate={closeDetail} />
 
-    <main class="shell__main" data-overlayscrollbars-initialize>
+    <main class="shell__main" class:has-dock={dockVisible && !detailId} data-overlayscrollbars-initialize>
       {#if detailId !== null}
         <Detail
           gameId={detailId}
@@ -124,5 +144,6 @@
   </div>
 </div>
 
+<TaskDock bind:visible={dockVisible} hidden={detailId !== null} />
 <SettingsDialog bind:open={settingsOpen} />
 <Toaster />

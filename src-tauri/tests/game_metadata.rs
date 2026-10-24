@@ -321,13 +321,13 @@ fn 制作人员整列替换且往返不断() {
 
     let staff = vec![
         MetadataStaff {
-            role: "scenario".into(),
+            role: Some("scenario".into()),
             name: Some("Uchikoshi Koutarou".into()),
             original: Some("打越 鋼太郎".into()),
             note: Some("Main scenario".into()),
         },
         MetadataStaff {
-            role: "music".into(),
+            role: Some("music".into()),
             name: Some("Amao".into()),
             original: None,
             note: None,
@@ -349,7 +349,7 @@ fn 制作人员整列替换且往返不断() {
         &id,
         &MetadataPatch {
             staff: Some(Some(vec![MetadataStaff {
-                role: "art".into(),
+                role: Some("art".into()),
                 name: None,
                 original: Some("甲田屋人".into()),
                 note: None,
@@ -361,7 +361,7 @@ fn 制作人员整列替换且往返不断() {
 
     let stored = metadata::get(&db, &id).unwrap().unwrap().staff.unwrap();
     assert_eq!(stored.len(), 1, "staff 是整列替换，旧条目不残留");
-    assert_eq!(stored[0].role, "art");
+    assert_eq!(stored[0].role, Some("art".into()));
     assert_eq!(stored[0].original.as_deref(), Some("甲田屋人"));
 }
 

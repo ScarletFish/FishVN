@@ -412,7 +412,11 @@ fn load_local(conn: &Connection) -> Result<std::collections::HashMap<String, Loc
     Ok(out)
 }
 
-pub async fn plan(conn: Arc<Mutex<Connection>>, rate: &RateLimiter) -> Result<SyncPlan> {
+pub async fn plan(
+    conn: Arc<Mutex<Connection>>,
+    rate: &RateLimiter,
+    report: impl Fn(&str, Option<i64>, Option<i64>),
+) -> Result<SyncPlan> {
     let config = crate::settings::current();
     if config.vndb_sync_mode != crate::settings::VndbSyncMode::Download {
         return Err(AppError::BadRequest(
@@ -428,7 +432,11 @@ pub async fn plan(conn: Arc<Mutex<Connection>>, rate: &RateLimiter) -> Result<Sy
     if let Some(cached) = cached_plan() {
         return Ok(cached);
     }
-    let entries = crate::vndb::fetch_ulist(crate::vndb::http(), &token, rate).await?;
+    let entries = crate::vndb::fetch_ulist(crate::vndb::http(), &token, rate, |fetched, total| {
+        report("fetch", Some(fetched as i64), total);
+    })
+    .await?;
+    report("plan", None, None);
     let plan = tauri::async_runtime::spawn_blocking(move || {
         let guard = crate::db::lock(&conn)?;
         plan_ulist(&guard, &entries, include_wishlist)

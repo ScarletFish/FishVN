@@ -69,7 +69,12 @@ pub async fn fetch_sync(
         return Err(AppError::Cancelled);
     }
     progress.report("meta", None, None);
-    let (vn, rows) = tokio::join!(fetch_vn(http, vndb_id), fetch_character_rows(http, vndb_id));
+    let (vn, rows) = tokio::select! {
+        res = async { tokio::join!(fetch_vn(http, vndb_id), fetch_character_rows(http, vndb_id)) } => res,
+        _ = crate::tasks::wait_cancel(progress) => {
+            return Err(AppError::Cancelled);
+        }
+    };
     let mut vn = vn?;
     let rows = rows?;
     if progress.cancelled() {
@@ -81,13 +86,17 @@ pub async fn fetch_sync(
             if progress.cancelled() {
                 return Err(AppError::Cancelled);
             }
-            img.local_path = images::fetch_image(
-                client::image_http(),
-                img.url.as_deref(),
-                img.id.as_deref(),
-                data_dir,
-            )
-            .await;
+            img.local_path = tokio::select! {
+                local = images::fetch_image(
+                    client::image_http(),
+                    img.url.as_deref(),
+                    img.id.as_deref(),
+                    data_dir,
+                ) => local,
+                _ = crate::tasks::wait_cancel(progress) => {
+                    return Err(AppError::Cancelled);
+                }
+            };
             if img.local_path.is_none() {
                 progress.report_error("cover", "封面下载失败，可稍后在详情页重新获取");
             }
@@ -148,6 +157,7 @@ pub async fn fetch_ulist(
     http: &reqwest::Client,
     token: &str,
     rate: &RateLimiter,
+    on_page: impl Fn(usize, Option<i64>),
 ) -> Result<Vec<UlistEntry>> {
     let mut entries = Vec::new();
     let mut page = 1;
@@ -160,10 +170,12 @@ pub async fn fetch_ulist(
         });
         let env: VnEnvelope<UlistEntry> = client::post(http, "ulist", body, Some(token)).await?;
         let more = env.more;
+        let total = env.count;
         if env.results.is_empty() {
             break;
         }
         entries.extend(env.results);
+        on_page(entries.len(), total);
         if !more {
             break;
         }

@@ -380,6 +380,7 @@ body {
   --z-float:    50;
   --z-sidebar:  100;
   --z-dropdown: 200;
+  --z-dock:     310;
   --z-modal:    250;
   --z-toast:    300;
 }

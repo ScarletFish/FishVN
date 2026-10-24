@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use rusqlite::Connection;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 use crate::backfill;
 use crate::characters;
@@ -22,7 +22,7 @@ use crate::thumbs;
 use crate::types::{
     Game, GameCharacter, GameListItem, GameMetadata, GamePatch, Installation, InstallationInput,
     InstallationPatch, MetadataPatch, NewGame, NewInstallation, PlaySession, StatePatch,
-    UserGameState,
+    TaskEvent, UserGameState,
 };
 use crate::vndb::{self, RateLimiter, VnSearchHit, VnSync};
 use tauri_plugin_log::log;
@@ -207,6 +207,7 @@ pub async fn search_vndb(
 }
 
 pub const VNDB_SYNC: &str = "vndb-sync";
+pub const SYNC_PROGRESS: &str = "vndb-sync-progress";
 
 #[tauri::command]
 pub async fn fetch_vn_metadata(
@@ -226,6 +227,7 @@ pub async fn fetch_vn_metadata(
         app,
         log.inner().clone(),
         tasks.register(VNDB_SYNC),
+        0,
     );
     let started = std::time::Instant::now();
     log::info!("VNDB 同步开始 {vndb_id}");
@@ -262,7 +264,7 @@ pub async fn scan_dir(
     log: State<'_, Arc<Mutex<EventLog>>>,
     path: String,
 ) -> Result<Vec<ScanCandidate>> {
-    let task = Task::new(SCAN, app, log.inner().clone(), tasks.register(SCAN));
+    let task = Task::new(SCAN, app, log.inner().clone(), tasks.register(SCAN), 0);
     let conn = shared.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let started = std::time::Instant::now();
@@ -352,10 +354,26 @@ pub async fn test_vndb_token(
 
 #[tauri::command]
 pub async fn sync_vndb(
+    app: tauri::AppHandle,
+    log: State<'_, Arc<Mutex<EventLog>>>,
     shared: State<'_, Arc<Mutex<Connection>>>,
     rate: State<'_, Arc<RateLimiter>>,
 ) -> Result<sync::SyncPlan> {
-    sync::plan(shared.inner().clone(), rate.inner()).await
+    sync::plan(shared.inner().clone(), rate.inner(), |phase, done, total| {
+        let event = TaskEvent {
+            phase: phase.to_owned(),
+            done,
+            total,
+            error: None,
+            run_id: 0,
+        };
+        let logged = match log.inner().lock() {
+            Ok(mut log) => log.push(SYNC_PROGRESS, event),
+            Err(_) => return,
+        };
+        let _ = app.emit(SYNC_PROGRESS, logged.event);
+    })
+    .await
 }
 
 #[tauri::command]
@@ -387,13 +405,14 @@ pub async fn start_backfill(
         }
     };
     let total = items.len();
-    backfill::reset(total as i64);
+    let run_id = backfill::reset(total as i64);
     tauri::async_runtime::spawn(backfill::run(
         shared.inner().clone(),
         rate.inner().clone(),
         app,
         events.inner().clone(),
         tasks.inner().clone(),
+        run_id,
         items,
     ));
     Ok(backfill::BackfillReport {

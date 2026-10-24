@@ -16,7 +16,7 @@ use serde_json::Value;
 
 use crate::error::{AppError, Result};
 use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
-use crate::types::{GameCharacter, InstallationInput};
+use crate::types::{GameCharacter, InstallationInput, TaskEvent};
 use crate::vndb::RateLimiter;
 use crate::{characters, commands, backfill, dashboard, games, installations, metadata, sessions, settings, vndb};
 
@@ -234,12 +234,14 @@ async fn fetch_vn_metadata(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) 
         dev.app.clone(),
         dev.events.clone(),
         dev.tasks.register(commands::VNDB_SYNC),
+        0,
     );
     finish(vndb::fetch_sync(vndb::http(), &vndb_id, &dir, &task).await)
 }
 
 async fn cancel_task(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
-    finish(a.task().map(|name| dev.tasks.cancel(name)))
+    let ok = a.task().map(|name| dev.tasks.cancel(name)).unwrap_or(false);
+    finish(Ok(ok))
 }
 
 async fn inspect_path(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
@@ -262,6 +264,7 @@ async fn scan_dir(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply 
         dev.app.clone(),
         dev.events.clone(),
         dev.tasks.register(commands::SCAN),
+        0,
     );
     let registered = {
         let guard = dev.conn.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -384,7 +387,22 @@ async fn test_vndb_token(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -
 async fn sync_vndb(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
     let conn = dev.conn.clone();
     let rate = dev.rate.clone();
-    finish(crate::sync::plan(conn, &rate).await)
+    let events = dev.events.clone();
+    let report = move |phase: &str, done: Option<i64>, total: Option<i64>| {
+        if let Ok(mut log) = events.lock() {
+            log.push(
+                commands::SYNC_PROGRESS,
+                TaskEvent {
+                    phase: phase.to_owned(),
+                    done,
+                    total,
+                    error: None,
+                    run_id: 0,
+                },
+            );
+        }
+    };
+    finish(crate::sync::plan(conn, &rate, report).await)
 }
 
 async fn start_backfill(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
@@ -408,13 +426,14 @@ async fn start_backfill(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> 
         }
     };
     let total = items.len();
-    backfill::reset(total as i64);
+    let run_id = backfill::reset(total as i64);
     tokio::spawn(backfill::run(
         dev.conn.clone(),
         dev.rate.clone(),
         dev.app.clone(),
         dev.events.clone(),
         dev.tasks.clone(),
+        run_id,
         items,
     ));
     finish(Ok(backfill::BackfillReport {

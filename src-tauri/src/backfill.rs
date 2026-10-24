@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -14,6 +15,8 @@ use crate::types::{GameMetadata, GamePatch, LocalizedTitle, MetadataPatch, Metad
 use crate::vndb::{self, RateLimiter, VnMetadata, VnSync, VnTitle};
 
 pub const BACKFILL: &str = "vndb-backfill";
+
+static RUN_ID: AtomicU64 = AtomicU64::new(0);
 
 const FREEZE: Duration = Duration::from_secs(300);
 const FREEZE_ROUNDS: u32 = 3;
@@ -43,6 +46,7 @@ pub struct BackfillReport {
     pub bound: usize,
     pub unmatched: usize,
     pub failed: usize,
+    pub cancelled: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -54,6 +58,7 @@ pub struct BackfillStatus {
     pub unmatched: i64,
     pub failed: i64,
     pub rate_limited: bool,
+    pub run_id: u64,
     pub finished: Option<BackfillReport>,
 }
 
@@ -76,14 +81,17 @@ fn set_status(f: impl FnOnce(&mut BackfillStatus)) {
     }
 }
 
-pub fn reset(total: i64) {
+pub fn reset(total: i64) -> u64 {
+    let run_id = RUN_ID.fetch_add(1, Ordering::Relaxed) + 1;
     if let Ok(mut guard) = status_cell().lock() {
         *guard = Some(BackfillStatus {
             running: true,
             total,
+            run_id,
             ..Default::default()
         });
     }
+    run_id
 }
 
 pub fn set_paused(paused: bool) -> BackfillStatus {
@@ -184,7 +192,7 @@ fn display_title(vn: &VnMetadata) -> String {
             .find(|t| t.official != Some(false))
             .or_else(|| zh.first());
         if let Some(t) = preferred {
-            if let Some(title) = clean_text(&t.title) {
+            if let Some(title) = t.title.as_deref().and_then(clean_text) {
                 return title;
             }
         }
@@ -212,10 +220,10 @@ fn map_titles(vn: &VnMetadata) -> Option<Vec<LocalizedTitle>> {
     let titles = vn.titles.as_ref()?;
     let out: Vec<LocalizedTitle> = titles
         .iter()
-        .filter(|t| clean_text(&t.title).is_some())
+        .filter(|t| t.title.as_deref().and_then(clean_text).is_some())
         .map(|t| LocalizedTitle {
             lang: t.lang.clone(),
-            title: t.title.clone(),
+            title: t.title.clone().unwrap_or_default(),
             latin: t.latin.clone(),
             official: t.official,
             main: t.main,
@@ -354,6 +362,9 @@ async fn resolve_vndb_id(
     let mut rounds = FREEZE_ROUNDS;
     loop {
         rate.acquire().await;
+        if task.cancelled() {
+            return Err(AppError::Cancelled);
+        }
         match vndb::search(vndb::http(), &item.name).await {
             Ok(hits) => {
                 let Some(first) = hits.first() else {
@@ -434,6 +445,9 @@ async fn backfill_one(
     let sync = loop {
         rate.acquire().await;
         rate.acquire().await;
+        if task.cancelled() {
+            return Err(AppError::Cancelled);
+        }
         match vndb::fetch_sync(vndb::http(), &vndb_id, dir, task).await {
             Ok(sync) => break sync,
             Err(AppError::RateLimited) if rounds > 0 => {
@@ -479,9 +493,10 @@ pub async fn run(
     app: tauri::AppHandle,
     events: Arc<Mutex<EventLog>>,
     tasks: Arc<Tasks>,
+    run_id: u64,
     items: Vec<BackfillItem>,
 ) -> BackfillReport {
-    let task = Task::new(BACKFILL, app.clone(), events, tasks.register(BACKFILL));
+    let task = Task::new(BACKFILL, app.clone(), events, tasks.register(BACKFILL), run_id);
     let total = items.len() as i64;
     let mut report = BackfillReport {
         total: items.len(),
@@ -515,9 +530,10 @@ pub async fn run(
     report
 }
 
-fn finish_run(task: &Task, total: i64, done: i64, report: BackfillReport) {
+fn finish_run(task: &Task, total: i64, done: i64, mut report: BackfillReport) {
     task.report("backfill", Some(done), Some(total));
     task.report("finished", None, None);
+    report.cancelled = task.cancelled();
     set_status(|s| {
         s.running = false;
         s.paused = false;
@@ -543,9 +559,9 @@ mod tests {
             description: Some(
                 "[spoiler]剧透[/spoiler]正文 [url=https://x.com]链接[/url] [b]粗体[/b]".into(),
             ),
-            titles: Some(vec![VnTitle {
-                lang: "zh-Hans".into(),
-                title: "命运之夜".into(),
+        titles: Some(vec![VnTitle {
+            lang: "zh-Hans".into(),
+            title: Some("命运之夜".into()),
                 latin: None,
                 official: Some(true),
                 main: Some(true),
@@ -572,7 +588,7 @@ mod tests {
                 kind: None,
             }]),
             staff: Some(vec![MetadataStaff {
-                role: "scenario".into(),
+                role: Some("scenario".into()),
                 name: Some("奈须蘑菇".into()),
                 original: None,
                 note: None,
@@ -684,7 +700,7 @@ mod tests {
             }]),
             developers: Some(vec!["TYPE-MOON".into()]),
             staff: Some(vec![MetadataStaff {
-                role: "scenario".into(),
+                role: Some("scenario".into()),
                 name: Some("奈须蘑菇".into()),
                 original: None,
                 note: None,

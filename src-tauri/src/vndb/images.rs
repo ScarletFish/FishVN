@@ -29,7 +29,15 @@ pub(super) async fn download_character_images(
     for _ in 0..IMAGE_CONCURRENCY {
         spawn_next_image(&mut set, &mut pending, &data_dir);
     }
-    while let Some(finished) = set.join_next().await {
+    loop {
+        let joined = tokio::select! {
+            joined = set.join_next() => joined,
+            _ = crate::tasks::wait_cancel(progress) => {
+                set.abort_all();
+                return Err(AppError::Cancelled);
+            }
+        };
+        let Some(finished) = joined else { break };
         match finished {
             Ok((idx, path)) => {
                 let missing = path.is_none();
@@ -42,10 +50,6 @@ pub(super) async fn download_character_images(
         }
         done += 1;
         progress.report("images", Some(done), Some(total));
-        if progress.cancelled() {
-            set.abort_all();
-            return Err(AppError::Cancelled);
-        }
         spawn_next_image(&mut set, &mut pending, &data_dir);
     }
     if failed > 0 {

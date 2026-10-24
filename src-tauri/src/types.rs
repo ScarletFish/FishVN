@@ -167,7 +167,7 @@ pub struct MetadataTag {
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MetadataStaff {
-    pub role: String,
+    pub role: Option<String>,
     pub name: Option<String>,
     pub original: Option<String>,
     pub note: Option<String>,
@@ -218,7 +218,7 @@ pub struct GameCharacter {
 #[serde(default)]
 pub struct CharacterTrait {
     pub id: Option<String>,
-    pub name: String,
+    pub name: Option<String>,
     pub group_name: Option<String>,
     pub spoiler: Option<i64>,
     pub lie: Option<bool>,
@@ -260,4 +260,6 @@ pub struct TaskEvent {
     pub total: Option<i64>,
     #[serde(default)]
     pub error: Option<String>,
+    #[serde(default)]
+    pub run_id: u64,
 }

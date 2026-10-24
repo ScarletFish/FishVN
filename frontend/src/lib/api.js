@@ -19,8 +19,9 @@ async function overHttp(command, args) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(toSnake(args)),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error(text);
+  return JSON.parse(text);
 }
 
 async function call(command, args) {

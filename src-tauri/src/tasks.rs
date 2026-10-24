@@ -52,11 +52,18 @@ pub trait Progress: Sync {
     fn cancelled(&self) -> bool;
 }
 
+pub(crate) async fn wait_cancel(progress: &dyn Progress) {
+    while !progress.cancelled() {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+}
+
 pub struct Task {
     name: String,
     app: AppHandle,
     log: Arc<Mutex<EventLog>>,
     cancel: Arc<AtomicBool>,
+    run_id: u64,
 }
 
 impl Task {
@@ -65,12 +72,14 @@ impl Task {
         app: AppHandle,
         log: Arc<Mutex<EventLog>>,
         cancel: Arc<AtomicBool>,
+        run_id: u64,
     ) -> Self {
         Self {
             name: name.to_owned(),
             app,
             log,
             cancel,
+            run_id,
         }
     }
 }
@@ -85,6 +94,7 @@ impl Progress for Task {
                     done,
                     total,
                     error: None,
+                    run_id: self.run_id,
                 },
             ),
             Err(_) => return,
@@ -102,6 +112,7 @@ impl Progress for Task {
                     done: None,
                     total: None,
                     error: Some(message.to_owned()),
+                    run_id: self.run_id,
                 },
             ),
             Err(_) => return,
@@ -156,6 +167,7 @@ mod tests {
             done: None,
             total: None,
             error: None,
+            run_id: 0,
         }
     }
 

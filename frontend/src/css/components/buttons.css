@@ -32,6 +32,22 @@
   stroke-linejoin: round;
 }
 
+.btn-spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  animation: spin-ring 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .btn:hover {
   color: var(--fg-default);
   background: var(--bg-raised);

@@ -2,14 +2,50 @@
   import Modal from './Modal.svelte';
   import { t } from '../lib/i18n.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
+  import { subscribe } from '../lib/events.js';
 
-  let { open = $bindable(false), plan = null, onapply, oncancel } = $props();
+  let {
+    open = $bindable(false),
+    plan = null,
+    loading = false,
+    error = null,
+    empty = false,
+    onapply,
+    oncancel,
+    onretry,
+  } = $props();
 
   const GROUP_ORDER = ['playing', 'finished', 'stalled', 'dropped', 'wishlist'];
 
   let choices = $state({});
   let picked = $state({});
   let backfill = $state(true);
+  let phase = $state('fetch');
+  let fetched = $state(null);
+  let total = $state(null);
+  let elapsed = $state(0);
+
+  const title = $derived(
+    plan
+      ? t('settings.vndb.resultTitle')
+      : error
+        ? t('settings.vndb.syncFailedTitle')
+        : empty
+          ? t('settings.vndb.syncUpToDateTitle')
+          : loading
+            ? t('settings.vndb.syncProgressTitle')
+            : t('settings.vndb.resultTitle'),
+  );
+
+  const phaseText = $derived(
+    phase === 'plan' ? t('settings.vndb.syncPhasePlan') : t('settings.vndb.syncPhaseFetch'),
+  );
+
+  const percent = $derived(
+    phase === 'fetch' && fetched != null && total
+      ? Math.min(100, Math.round((fetched / total) * 100))
+      : -1,
+  );
 
   $effect(() => {
     if (!open || !plan) return;
@@ -23,6 +59,37 @@
     for (const c of plan.creates) pickedNext[c.vndb_id] = true;
     picked = pickedNext;
     backfill = true;
+  });
+
+  $effect(() => {
+    if (!open || !loading) return;
+    phase = 'fetch';
+    fetched = null;
+    total = null;
+    elapsed = 0;
+    let alive = true;
+    let unsub = null;
+    subscribe('vndb-sync-progress', (e) => {
+      if (!alive) return;
+      if (e.phase === 'plan') {
+        phase = 'plan';
+      } else {
+        phase = 'fetch';
+        fetched = e.done ?? null;
+        total = e.total ?? null;
+      }
+    }).then((u) => {
+      if (alive) unsub = u;
+      else u();
+    });
+    const timer = setInterval(() => {
+      elapsed += 1;
+    }, 1000);
+    return () => {
+      alive = false;
+      unsub?.();
+      clearInterval(timer);
+    };
   });
 
   function setAll(side) {
@@ -136,10 +203,28 @@
   }
 </script>
 
-<Modal {open} title={t('settings.vndb.resultTitle')} variant="modal--result" onclose={oncancel}>
-  {#if plan}
+<Modal {open} {title} variant="modal--result" onclose={oncancel}>
+  {#if loading && !plan && !error && !empty}
+    <div class="sync-progress">
+      <div class="sync-progress__spinner" aria-hidden="true"></div>
+      {#key phase}
+        <p class="sync-progress__phase">{phaseText}</p>
+      {/key}
+      <div class="sync-progress__track" class:sync-progress__track--indet={percent < 0}>
+        <div class="sync-progress__fill" style="width: {percent < 0 ? 40 : percent}%"></div>
+      </div>
+      <p class="sync-progress__meta">
+        {#if fetched != null && total}
+          <span>{t('settings.vndb.syncFetched', { fetched, total })}</span>
+          <span class="sync-progress__sep">·</span>
+        {/if}
+        <span>{t('settings.vndb.syncElapsed', { secs: elapsed })}</span>
+      </p>
+      <p class="form-hint">{t('settings.vndb.syncProgressHint')}</p>
+    </div>
+  {:else if plan}
     {@const parts = summaryParts()}
-    <div class="sync-result" use:panelScrollbars>
+    <div class="sync-result sync-result--enter" use:panelScrollbars>
       <p class="sync-result__summary">{parts.join(' | ')}</p>
       <p class="form-hint">{t('settings.vndb.resultPlanHint')}</p>
 
@@ -267,15 +352,39 @@
         <p class="form-hint">{w}</p>
       {/each}
     </div>
+  {:else if error}
+    <div class="sync-error">
+      <p class="sync-error__msg">{error}</p>
+      <p class="form-hint">{t('settings.vndb.syncErrorHint')}</p>
+    </div>
+  {:else if empty}
+    <div class="sync-empty">
+      <div class="sync-empty__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4.5 12.5L10 18L19.5 6.5" /></svg>
+      </div>
+      <p class="sync-empty__text">{t('settings.vndb.syncUpToDate')}</p>
+      <p class="form-hint">{t('settings.vndb.syncUpToDateHint')}</p>
+    </div>
   {/if}
 
   <div class="modal-actions">
-    {#if plan && hasApplicable()}
+    {#if loading && !plan && !error && !empty}
+      <button type="button" class="btn" onclick={oncancel}>
+        {t('common.cancel')}
+      </button>
+    {:else if plan && hasApplicable()}
       <button type="button" class="btn" onclick={oncancel}>
         {t('common.cancel')}
       </button>
       <button type="button" class="btn btn-primary" onclick={apply}>
         {t('settings.vndb.applyPlan')}
+      </button>
+    {:else if error}
+      <button type="button" class="btn" onclick={oncancel}>
+        {t('common.close')}
+      </button>
+      <button type="button" class="btn btn-primary" onclick={onretry}>
+        {t('settings.vndb.syncRetry')}
       </button>
     {:else}
       <button type="button" class="btn btn-primary" onclick={oncancel}>

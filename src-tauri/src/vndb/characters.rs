@@ -63,9 +63,12 @@ fn to_game_character(row: CharRow, role: String, va: Option<&[CharacterVa]>) -> 
         id: row.id,
         name: row.name,
         original: row.original,
-        aliases: row.aliases,
+        aliases: row
+            .aliases
+            .map(|list| list.into_iter().flatten().collect::<Vec<_>>())
+            .filter(|list| !list.is_empty()),
         description: row.description,
-        gender: dedupe(row.gender.unwrap_or_default()),
+        gender: dedupe(row.gender.unwrap_or_default().into_iter().flatten().collect()),
         age: row.age,
         birthday: format_birthday(row.birthday),
         blood_type: row.blood_type,
@@ -79,7 +82,14 @@ fn to_game_character(row: CharRow, role: String, va: Option<&[CharacterVa]>) -> 
         image_id: row.image.as_ref().and_then(|i| i.id.clone()),
         image_path: None,
         sort_order: 0,
-        traits: row.traits,
+        traits: row
+            .traits
+            .map(|list| {
+                list.into_iter()
+                    .filter(|t| t.name.as_deref().is_some_and(|n| !n.trim().is_empty()))
+                    .collect::<Vec<_>>()
+            })
+            .filter(|list| !list.is_empty()),
         va: va.map(<[CharacterVa]>::to_vec),
     }
 }
@@ -111,7 +121,7 @@ mod tests {
     fn row(id: &str, gender: Vec<&str>, roles: Vec<&str>) -> CharRow {
         CharRow {
             id: id.to_owned(),
-            gender: Some(gender.into_iter().map(str::to_owned).collect()),
+            gender: Some(gender.into_iter().map(|s| Some(s.to_owned())).collect()),
             vns: Some(
                 roles
                     .into_iter()
