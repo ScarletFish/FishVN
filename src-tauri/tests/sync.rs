@@ -4,14 +4,24 @@
 mod common;
 
 use common::Db;
-use fishvn::games::{create_game, update_game_state};
+use fishvn::games::{create_game, delete_game, update_game, update_game_state};
 use fishvn::sync::{
     apply, cached_plan_at, invalidate_plan, plan_ulist, store_plan, PlanAlign, PlanCreate,
     PlanDecision, PlanUpdate, RatingDecision, StatusDecision, SyncPlan,
 };
-use fishvn::types::{NewGame, StatePatch, Status};
+use fishvn::types::{GamePatch, NewGame, StatePatch, Status};
 use fishvn::vndb::{UlistEntry, UlistLabel, UlistVn};
 use rusqlite::params;
+
+// 计划缓存是进程级全局，直接读写它的用例和 apply 落库（末尾即使之失效）的用例
+// 并行执行会互相打断断言，这把锁把它们串起来。
+static PLAN_CACHE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn plan_cache_guard() -> std::sync::MutexGuard<'static, ()> {
+    PLAN_CACHE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 fn entry(vndb_id: &str, label: &str, vote: Option<i64>) -> UlistEntry {
     UlistEntry {
@@ -483,6 +493,7 @@ fn plan_全程不写库() {
 
 #[test]
 fn apply_只建勾选的壳() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
 
     let plan = plan_ulist(
@@ -520,6 +531,7 @@ fn apply_只建勾选的壳() {
 
 #[test]
 fn apply_空决策零副作用() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
     set_state(&db, &id, Some(Status::Finished), None);
@@ -532,6 +544,7 @@ fn apply_空决策零副作用() {
 
 #[test]
 fn apply_采纳更新会写值并回写基快照() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
     set_synced(&db, &id, Some(Status::Wishlist), None);
@@ -558,6 +571,7 @@ fn apply_采纳更新会写值并回写基快照() {
 
 #[test]
 fn apply_可清空评分() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
     set_state(&db, &id, None, Some(Some(70.0)));
@@ -585,6 +599,7 @@ fn apply_可清空评分() {
 
 #[test]
 fn apply_刷基快照不动本地值() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
     set_state(&db, &id, Some(Status::Playing), None);
@@ -609,6 +624,7 @@ fn apply_刷基快照不动本地值() {
 
 #[test]
 fn apply_解决冲突选本地保留本地且基快照对齐_vndb_已知值() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
     set_state(&db, &id, Some(Status::Finished), None);
@@ -633,6 +649,7 @@ fn apply_解决冲突选本地保留本地且基快照对齐_vndb_已知值() {
 
 #[test]
 fn apply_解决冲突选远端写入并回写基快照() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
 
@@ -656,6 +673,7 @@ fn apply_解决冲突选远端写入并回写基快照() {
 
 #[test]
 fn apply_解决评分可选空值() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
 
@@ -679,6 +697,7 @@ fn apply_解决评分可选空值() {
 
 #[test]
 fn apply_解决后的冲突不再重复出现() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
     set_state(&db, &id, Some(Status::Finished), None);
@@ -709,6 +728,7 @@ fn apply_解决后的冲突不再重复出现() {
 
 #[test]
 fn 拒绝后_vndb_真改了才再判冲突() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
     set_state(&db, &id, Some(Status::Finished), None);
@@ -738,6 +758,7 @@ fn 拒绝后_vndb_真改了才再判冲突() {
 
 #[test]
 fn apply_跳过库里已存在的_vndb_id() {
+    let _guard = plan_cache_guard();
     let db = Db::new();
     let id = new_game(&db, "甲", "v1");
 
@@ -818,6 +839,7 @@ fn decision_里_align_可只带状态() {
 
 #[test]
 fn 计划缓存_ttl_内命中_过期即失效() {
+    let _guard = plan_cache_guard();
     invalidate_plan();
     assert!(cached_plan_at(0).is_none(), "初始无缓存");
 
@@ -832,6 +854,7 @@ fn 计划缓存_ttl_内命中_过期即失效() {
 
 #[test]
 fn 计划缓存_存的是计划的克隆_互不影响() {
+    let _guard = plan_cache_guard();
     invalidate_plan();
     let at = store_plan(&SyncPlan::default());
 
@@ -847,6 +870,7 @@ fn 计划缓存_存的是计划的克隆_互不影响() {
 
 #[test]
 fn 应用计划后缓存失效() {
+    let _guard = plan_cache_guard();
     invalidate_plan();
     let at = store_plan(&SyncPlan::default());
     assert!(cached_plan_at(at).is_some());
@@ -878,5 +902,61 @@ fn 应用计划后缓存失效() {
     assert!(
         cached_plan_at(at).is_none(),
         "apply 落库后旧计划必须失效，否则用户看到的计划与库不一致"
+    );
+}
+
+#[test]
+fn 本地改状态后计划缓存失效() {
+    let _guard = plan_cache_guard();
+    invalidate_plan();
+    let db = Db::new();
+    let id = new_game(&db, "壳", "v1");
+
+    let at = store_plan(&SyncPlan::default());
+    set_state(&db, &id, Some(Status::Playing), None);
+
+    assert!(
+        cached_plan_at(at).is_none(),
+        "本地改完状态旧计划必须失效，否则弹窗拿着旧本地值算判定"
+    );
+}
+
+#[test]
+fn 删除作品后计划缓存失效() {
+    let _guard = plan_cache_guard();
+    invalidate_plan();
+    let db = Db::new();
+    let id = new_game(&db, "壳", "v1");
+
+    let at = store_plan(&SyncPlan::default());
+    delete_game(&db, &id).unwrap();
+
+    assert!(
+        cached_plan_at(at).is_none(),
+        "作品删了旧计划还挂着，导入名单会认错行"
+    );
+}
+
+#[test]
+fn 重绑_vndb_后计划缓存失效() {
+    let _guard = plan_cache_guard();
+    invalidate_plan();
+    let db = Db::new();
+    let id = new_game(&db, "壳", "v1");
+
+    let at = store_plan(&SyncPlan::default());
+    update_game(
+        &db,
+        &id,
+        &GamePatch {
+            name: None,
+            vndb_id: Some(Some("v2".into())),
+        },
+    )
+    .unwrap();
+
+    assert!(
+        cached_plan_at(at).is_none(),
+        "换了绑定的 vndb_id 旧计划会把条目归错桶"
     );
 }

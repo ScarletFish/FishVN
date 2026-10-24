@@ -88,6 +88,7 @@ pub fn create_game(conn: &Connection, input: &NewGame) -> Result<Game> {
         metadata::upsert(&tx, &game.id, patch)?;
     }
     tx.commit()?;
+    crate::sync::invalidate_plan();
     Ok(game)
 }
 
@@ -120,6 +121,7 @@ pub fn update_game(conn: &Connection, id: &str, patch: &GamePatch) -> Result<Gam
     if changes == 0 {
         return Err(AppError::NotFound("游戏不存在".into()));
     }
+    crate::sync::invalidate_plan();
     get_game(conn, id)
 }
 
@@ -128,6 +130,7 @@ pub fn delete_game(conn: &Connection, id: &str) -> Result<()> {
     if changes == 0 {
         return Err(AppError::NotFound("游戏不存在".into()));
     }
+    crate::sync::invalidate_plan();
     Ok(())
 }
 
@@ -229,6 +232,7 @@ pub fn update_game_state(conn: &Connection, id: &str, patch: &StatePatch) -> Res
     if changes == 0 {
         return Err(AppError::NotFound("游戏不存在".into()));
     }
+    crate::sync::invalidate_plan();
     get_game_state(conn, id)
 }
 
