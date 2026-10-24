@@ -74,6 +74,7 @@ pub struct ApplyReport {
     pub created: usize,
     pub updated: usize,
     pub resolved: usize,
+    pub created_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -307,6 +308,7 @@ pub fn apply(conn: &Connection, decision: &PlanDecision) -> Result<ApplyReport> 
             params![id, c.status.as_str(), c.rating, c.status.as_str(), c.rating],
         )?;
         report.created += 1;
+        report.created_ids.push(id);
     }
     for u in &decision.updates {
         if let Some(status) = u.status {

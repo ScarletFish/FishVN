@@ -504,7 +504,7 @@ fn apply_只建勾选的壳() {
     .unwrap();
     assert_eq!(plan.creates.len(), 2);
 
-    apply(
+    let report = apply(
         &db,
         &PlanDecision {
             creates: vec![plan.creates[0].clone()],
@@ -513,6 +513,8 @@ fn apply_只建勾选的壳() {
     )
     .unwrap();
 
+    assert_eq!(report.created, 1);
+    assert_eq!(report.created_ids.len(), 1, "创建成功后要回传新条目 id，补全任务靠它接续");
     assert_eq!(games_count(&db), 1);
     let (status, rating, synced_status, synced_rating) = state_of(
         &db,

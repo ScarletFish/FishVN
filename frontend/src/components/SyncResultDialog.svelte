@@ -9,6 +9,7 @@
 
   let choices = $state({});
   let picked = $state({});
+  let backfill = $state(true);
 
   $effect(() => {
     if (!open || !plan) return;
@@ -21,6 +22,7 @@
     const pickedNext = {};
     for (const c of plan.creates) pickedNext[c.vndb_id] = true;
     picked = pickedNext;
+    backfill = true;
   });
 
   function setAll(side) {
@@ -106,6 +108,7 @@
       aligns: plan.aligns,
       statuses,
       ratings,
+      backfill,
     });
   }
 
@@ -245,6 +248,11 @@
               </ul>
             </div>
           {/each}
+          <label class="sync-result__backfill">
+            <input type="checkbox" class="checkbox" bind:checked={backfill} />
+            <span>{t('settings.vndb.fetchMeta')}</span>
+          </label>
+          <p class="form-hint">{t('settings.vndb.fetchMetaHint')}</p>
         </section>
       {/if}
 

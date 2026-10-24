@@ -1,3 +1,4 @@
+pub mod backfill;
 pub mod characters;
 pub mod commands;
 pub mod dashboard;

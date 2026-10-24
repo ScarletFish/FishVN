@@ -20,6 +20,7 @@
 @import "./components/sidebar.css";
 @import "./components/titlebar.css";
 @import "./components/view-header.css";
+@import "./components/backfill-bar.css";
 @import "./components/tooltip.css";
 @import "./components/cover-grid.css";
 @import "./components/section-card.css";

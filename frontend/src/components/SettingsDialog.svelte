@@ -300,11 +300,18 @@
 
   async function onPlanApply(decision) {
     try {
-      await api.applySyncPlan(decision);
+      const report = await api.applySyncPlan(decision);
       resultOpen = false;
       syncPlan = null;
       notifyConfigChanged();
       toast(t('settings.vndb.applied'), 'success');
+      if (decision.backfill && report?.created_ids?.length) {
+        try {
+          await api.startBackfill(report.created_ids);
+        } catch {
+          // 补全启动失败不阻断同步结果，可在我的列表手动重试
+        }
+      }
     } catch (err) {
       toast(err.message, 'error');
     }

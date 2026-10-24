@@ -69,6 +69,8 @@ export const api = {
     token ? call('test_vndb_token', { token }) : call('test_vndb_token'),
   syncVndb: () => call('sync_vndb'),
   applySyncPlan: (decision) => call('apply_sync_plan', { decision }),
+  startBackfill: (gameIds) => call('start_backfill', { gameIds }),
+  backfillStatus: () => call('backfill_status'),
   tagDictionary: () => call('tag_dictionary'),
   listGameCharacters: (id) => call('list_game_characters', { id }),
   saveGameCharacters: (id, characters) => call('save_game_characters', { id, characters }),

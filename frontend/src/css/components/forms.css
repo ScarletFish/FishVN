@@ -352,6 +352,21 @@
   list-style: none;
 }
 
+.sync-result__backfill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--fg-default);
+}
+
+.sync-result__backfill .checkbox {
+  translate: 0 -1px;
+}
+
 .tag-pill--pick.sync-chip {
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);

@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use rusqlite::Connection;
 use tauri::{Manager, State};
 
+use crate::backfill;
 use crate::characters;
 use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, LibraryTag, PlaytimeRank, RecentPlay, TagCloudView};
 use crate::db;
@@ -364,6 +365,46 @@ pub fn apply_sync_plan(
 ) -> Result<sync::ApplyReport> {
     let conn = lock(&shared)?;
     sync::apply(&conn, &decision)
+}
+
+#[tauri::command]
+pub async fn start_backfill(
+    app: tauri::AppHandle,
+    shared: State<'_, Arc<Mutex<Connection>>>,
+    rate: State<'_, Arc<RateLimiter>>,
+    events: State<'_, Arc<Mutex<EventLog>>>,
+    tasks: State<'_, Arc<Tasks>>,
+    game_ids: Option<Vec<String>>,
+) -> Result<backfill::BackfillReport> {
+    if backfill::status().running {
+        return Err(AppError::Conflict("补全任务正在进行中".into()));
+    }
+    let items = {
+        let guard = lock(&shared)?;
+        match &game_ids {
+            Some(ids) if !ids.is_empty() => backfill::items_by_ids(&guard, ids)?,
+            _ => backfill::scan(&guard)?,
+        }
+    };
+    let total = items.len();
+    backfill::reset(total as i64);
+    tauri::async_runtime::spawn(backfill::run(
+        shared.inner().clone(),
+        rate.inner().clone(),
+        app,
+        events.inner().clone(),
+        tasks.inner().clone(),
+        items,
+    ));
+    Ok(backfill::BackfillReport {
+        total,
+        ..Default::default()
+    })
+}
+
+#[tauri::command]
+pub fn backfill_status() -> backfill::BackfillStatus {
+    backfill::status()
 }
 
 #[tauri::command]

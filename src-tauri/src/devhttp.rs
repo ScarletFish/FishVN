@@ -18,7 +18,7 @@ use crate::error::{AppError, Result};
 use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
 use crate::types::{GameCharacter, InstallationInput};
 use crate::vndb::RateLimiter;
-use crate::{characters, commands, dashboard, games, installations, metadata, sessions, settings, vndb};
+use crate::{characters, commands, backfill, dashboard, games, installations, metadata, sessions, settings, vndb};
 
 pub const PORT: u16 = 4546;
 
@@ -85,6 +85,8 @@ pub struct Args {
     pub ratings: Option<Value>,
     #[serde(default)]
     pub decision: Option<Value>,
+    #[serde(default)]
+    pub game_ids: Option<Vec<String>>,
 }
 
 impl Args {
@@ -385,6 +387,46 @@ async fn sync_vndb(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Repl
     finish(crate::sync::plan(conn, &rate).await)
 }
 
+async fn start_backfill(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    if backfill::status().running {
+        return Err(Fail(StatusCode::CONFLICT, "补全任务正在进行中".into()));
+    }
+    let items = {
+        let guard = dev
+            .conn
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        match &a.game_ids {
+            Some(ids) if !ids.is_empty() => match backfill::items_by_ids(&guard, ids) {
+                Ok(items) => items,
+                Err(e) => return Err(Fail::from(e)),
+            },
+            _ => match backfill::scan(&guard) {
+                Ok(items) => items,
+                Err(e) => return Err(Fail::from(e)),
+            },
+        }
+    };
+    let total = items.len();
+    backfill::reset(total as i64);
+    tokio::spawn(backfill::run(
+        dev.conn.clone(),
+        dev.rate.clone(),
+        dev.app.clone(),
+        dev.events.clone(),
+        dev.tasks.clone(),
+        items,
+    ));
+    finish(Ok(backfill::BackfillReport {
+        total,
+        ..Default::default()
+    }))
+}
+
+async fn backfill_status(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
+    finish(Ok(backfill::status()))
+}
+
 async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     finish(
         a.path()
@@ -433,6 +475,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/test_vndb_token", post(test_vndb_token))
         .route("/sync_vndb", post(sync_vndb))
         .route("/apply_sync_plan", post(apply_sync_plan))
+        .route("/start_backfill", post(start_backfill))
+        .route("/backfill_status", post(backfill_status))
         .route("/events", get(events))
         .with_state(dev)
 }
@@ -477,4 +521,6 @@ pub const COMMANDS: &[&str] = &[
     "test_vndb_token",
     "sync_vndb",
     "apply_sync_plan",
+    "start_backfill",
+    "backfill_status",
 ];
