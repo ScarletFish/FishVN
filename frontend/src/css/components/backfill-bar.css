@@ -25,6 +25,10 @@
   transition: width var(--duration-fast) var(--ease-out);
 }
 
+.backfill-bar__track.is-paused {
+  opacity: 0.4;
+}
+
 .backfill-bar__text {
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;

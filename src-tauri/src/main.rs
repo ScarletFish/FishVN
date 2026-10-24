@@ -140,6 +140,8 @@ fn main() {
             commands::apply_sync_plan,
             commands::start_backfill,
             commands::backfill_status,
+            commands::pause_backfill,
+            commands::resume_backfill,
             commands::inspect_path,
             commands::scan_dir,
             commands::log_frontend,

@@ -308,9 +308,7 @@
       if (decision.backfill && report?.created_ids?.length) {
         try {
           await api.startBackfill(report.created_ids);
-        } catch {
-          // 补全启动失败不阻断同步结果，可在我的列表手动重试
-        }
+        } catch {}
       }
     } catch (err) {
       toast(err.message, 'error');

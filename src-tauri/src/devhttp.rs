@@ -427,6 +427,14 @@ async fn backfill_status(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) 
     finish(Ok(backfill::status()))
 }
 
+async fn pause_backfill(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
+    finish(Ok(backfill::set_paused(true)))
+}
+
+async fn resume_backfill(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
+    finish(Ok(backfill::set_paused(false)))
+}
+
 async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     finish(
         a.path()
@@ -477,6 +485,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/apply_sync_plan", post(apply_sync_plan))
         .route("/start_backfill", post(start_backfill))
         .route("/backfill_status", post(backfill_status))
+        .route("/pause_backfill", post(pause_backfill))
+        .route("/resume_backfill", post(resume_backfill))
         .route("/events", get(events))
         .with_state(dev)
 }
@@ -523,4 +533,6 @@ pub const COMMANDS: &[&str] = &[
     "apply_sync_plan",
     "start_backfill",
     "backfill_status",
+    "pause_backfill",
+    "resume_backfill",
 ];

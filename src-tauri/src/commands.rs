@@ -408,6 +408,16 @@ pub fn backfill_status() -> backfill::BackfillStatus {
 }
 
 #[tauri::command]
+pub fn pause_backfill() -> backfill::BackfillStatus {
+    backfill::set_paused(true)
+}
+
+#[tauri::command]
+pub fn resume_backfill() -> backfill::BackfillStatus {
+    backfill::set_paused(false)
+}
+
+#[tauri::command]
 pub fn allow_local_file(app: tauri::AppHandle, path: String) -> Result<()> {
     let path = PathBuf::from(path.trim());
     let meta = std::fs::metadata(&path).map_err(|_| AppError::BadRequest("文件不存在".into()))?;

@@ -59,6 +59,14 @@
     ondone?.();
   }
 
+  async function togglePause() {
+    try {
+      status = status?.paused ? await api.resumeBackfill() : await api.pauseBackfill();
+    } catch {
+      status = await api.backfillStatus().catch(() => status);
+    }
+  }
+
   function dismiss() {
     dismissed = true;
     status = null;
@@ -84,11 +92,15 @@
 {#if status && (status.running || status.finished)}
   <div class="backfill-bar">
     {#if status.running}
-      <div class="backfill-bar__track">
+      <div class="backfill-bar__track" class:is-paused={status.paused}>
         <div class="backfill-bar__fill" style="width: {percent()}%"></div>
       </div>
       <span class="backfill-bar__text">
-        {t('mylist.backfillRunning', { done: status.done ?? 0, total: status.total ?? 0 })}
+        {#if status.paused}
+          {t('mylist.backfillPaused')}
+        {:else}
+          {t('mylist.backfillRunning', { done: status.done ?? 0, total: status.total ?? 0 })}
+        {/if}
         {#if (status.unmatched ?? 0) > 0}
           <span class="backfill-bar__sep"> | </span>{t('mylist.backfillUnmatched', { count: status.unmatched })}
         {/if}
@@ -96,6 +108,9 @@
       {#if status.rate_limited}
         <span class="backfill-bar__warn">{t('mylist.backfillRateLimited')}</span>
       {/if}
+      <button type="button" class="backfill-bar__btn" onclick={togglePause}>
+        {status.paused ? t('mylist.backfillResume') : t('mylist.backfillPause')}
+      </button>
       <button type="button" class="backfill-bar__btn" onclick={() => api.cancelTask('vndb-backfill')}>
         {t('mylist.backfillCancel')}
       </button>

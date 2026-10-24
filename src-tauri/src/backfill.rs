@@ -17,6 +17,7 @@ pub const BACKFILL: &str = "vndb-backfill";
 
 const FREEZE: Duration = Duration::from_secs(300);
 const FREEZE_ROUNDS: u32 = 3;
+const PAUSE_TICK: Duration = Duration::from_millis(250);
 
 const SCAN_SQL: &str = "SELECT g.id, g.name, g.vndb_id
      FROM games g
@@ -47,6 +48,7 @@ pub struct BackfillReport {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct BackfillStatus {
     pub running: bool,
+    pub paused: bool,
     pub done: i64,
     pub total: i64,
     pub unmatched: i64,
@@ -82,6 +84,11 @@ pub fn reset(total: i64) {
             ..Default::default()
         });
     }
+}
+
+pub fn set_paused(paused: bool) -> BackfillStatus {
+    set_status(|s| s.paused = paused);
+    status()
 }
 
 pub fn scan(conn: &Connection) -> Result<Vec<BackfillItem>> {
@@ -323,6 +330,12 @@ async fn freeze(task: &Task) -> bool {
     true
 }
 
+async fn wait_resume(task: &Task) {
+    while status().paused && !task.cancelled() {
+        tokio::time::sleep(PAUSE_TICK).await;
+    }
+}
+
 fn fail(report: &mut BackfillReport, task: &Task, phase: &str, name: &str, err: &AppError) {
     report.failed += 1;
     task.report_error(phase, &format!("「{name}」{err}"));
@@ -486,6 +499,10 @@ pub async fn run(
         if task.cancelled() {
             break;
         }
+        wait_resume(&task).await;
+        if task.cancelled() {
+            break;
+        }
         if let Err(AppError::Cancelled) = backfill_one(&task, &conn, &rate, &dir, item, &mut report).await
         {
             break;
@@ -503,6 +520,7 @@ fn finish_run(task: &Task, total: i64, done: i64, report: BackfillReport) {
     task.report("finished", None, None);
     set_status(|s| {
         s.running = false;
+        s.paused = false;
         s.finished = Some(report);
     });
 }
@@ -687,5 +705,16 @@ mod tests {
         assert_eq!(patch.image_path, None);
         assert_eq!(patch.released, None);
         assert_eq!(patch.alias, Some(Some("Fate/stay night".into())));
+    }
+
+    #[test]
+    fn 暂停开关置位且新任务重置清除() {
+        reset(3);
+        assert!(!status().paused);
+        assert!(set_paused(true).paused);
+        assert!(status().paused);
+        assert!(!set_paused(false).paused);
+        reset(1);
+        assert!(!status().paused);
     }
 }
