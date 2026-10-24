@@ -7,6 +7,7 @@ export const DICT_ZH = {
     searchPlaceholder: '搜索游戏或设置…',
     searchEmpty: '没有匹配的结果',
     searchGroupGames: '游戏',
+    searchGroupSettings: '设置',
     searchCount: '{count} 条',
   },
   nav: {
@@ -20,7 +21,7 @@ export const DICT_ZH = {
     module: {
       continuePlay: '继续游玩',
       stats: '统计概览',
-      localLibrary: '本地游戏',
+      localLibrary: '我的游戏',
     },
     statTotal: '游戏总数',
     statPlaying: '游玩中',
@@ -33,6 +34,8 @@ export const DICT_ZH = {
     statPlayCount: '游玩次数',
     comingSoon: '暂无内容',
     error: '读取统计数据失败',
+    emptyTitle: '游戏库还是空的，先添加一部作品吧',
+    emptyAdd: '添加作品',
     continueOpen: '查看详情',
     continueStart: '启动游戏',
     tagCloud: {
@@ -220,6 +223,8 @@ export const DICT_ZH = {
     timeAliveDesc: '进程从启动到结束的时长',
     timeMetricHint: '统计游玩时长的方式',
     dashboardLayout: '首页布局',
+    dashboardIncludeUninstalled: '首页包含未安装的作品',
+    dashboardIncludeUninstalledHint: '关闭后，首页各分区只展示已有本地安装的作品',
     layoutMoveUp: '上移',
     layoutMoveDown: '下移',
     layoutEmpty: '所有模块都已关闭',

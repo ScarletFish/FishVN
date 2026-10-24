@@ -27,6 +27,7 @@
   let excludedTags = $state([]);
   let poolOpen = $state(false);
   let layout = $state([]);
+  let includeUninstalled = $state(true);
 
   let vndbSyncMode = $state('download');
   let vndbImportWishlist = $state(false);
@@ -75,6 +76,7 @@
         spoilerLevel = SPOILER_LEVELS.includes(config.spoiler_level) ? config.spoiler_level : 'hide_all';
         if (Array.isArray(config.excluded_tags)) excludedTags = config.excluded_tags;
         layout = config.dashboard_layout ?? [];
+        includeUninstalled = config.dashboard_include_uninstalled !== false;
         vndbSyncMode = config.vndb_sync_mode === 'upload' || config.vndb_sync_mode === 'both'
           ? config.vndb_sync_mode
           : 'download';
@@ -118,6 +120,15 @@
     } catch (err) {
       toast(err.message, 'error');
     }
+  }
+
+  function onIncludeUninstalledChange(e) {
+    const value = e.target.checked;
+    includeUninstalled = value;
+    api
+      .updateConfig({ dashboard_include_uninstalled: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
   }
 
   let dragId = $state(null);
@@ -483,47 +494,67 @@
               class:drag-over={dragOverId === module.id}
               data-id={module.id}
             >
-              <span
-                class="layout-row-handle"
-                role="button"
-                tabindex="-1"
-                aria-label={t('settings.layoutMoveUp')}
-                onpointerdown={(e) => onHandleDown(e, module.id)}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
-              </span>
-              <label class="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={module.enabled}
-                  aria-label={moduleLabel(module.id)}
-                  onchange={(e) => saveLayout(setModuleEnabled(layout, module.id, e.target.checked))}
-                />
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="layout-row-label">{moduleLabel(module.id)}</span>
-              <span class="layout-row-actions">
-                <button
-                  type="button"
-                  class="btn btn-ghost layout-move-btn"
-                  data-tooltip={t('settings.layoutMoveUp')}
-                  disabled={module.id === layout[0]?.id}
+              <div class="layout-row-line">
+                <span
+                  class="layout-row-handle"
+                  role="button"
+                  tabindex="-1"
                   aria-label={t('settings.layoutMoveUp')}
-                  onclick={() => saveLayout(moveModule(layout, module.id, -1))}
+                  onpointerdown={(e) => onHandleDown(e, module.id)}
                 >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-ghost layout-move-btn"
-                  data-tooltip={t('settings.layoutMoveDown')}
-                  disabled={module.id === layout[layout.length - 1]?.id}
-                  aria-label={t('settings.layoutMoveDown')}
-                  onclick={() => saveLayout(moveModule(layout, module.id, 1))}
-                >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </button>
-              </span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
+                </span>
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={module.enabled}
+                    aria-label={moduleLabel(module.id)}
+                    onchange={(e) => saveLayout(setModuleEnabled(layout, module.id, e.target.checked))}
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="layout-row-label">{moduleLabel(module.id)}</span>
+                <span class="layout-row-actions">
+                  <button
+                    type="button"
+                    class="btn btn-ghost layout-move-btn"
+                    data-tooltip={t('settings.layoutMoveUp')}
+                    disabled={module.id === layout[0]?.id}
+                    aria-label={t('settings.layoutMoveUp')}
+                    onclick={() => saveLayout(moveModule(layout, module.id, -1))}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost layout-move-btn"
+                    data-tooltip={t('settings.layoutMoveDown')}
+                    disabled={module.id === layout[layout.length - 1]?.id}
+                    aria-label={t('settings.layoutMoveDown')}
+                    onclick={() => saveLayout(moveModule(layout, module.id, 1))}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </button>
+                </span>
+              </div>
+              {#if module.id === 'local_library'}
+                <div class="layout-subrow" class:disabled={!module.enabled}>
+                  <label class="layout-subrow-line">
+                    <span class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={includeUninstalled}
+                        disabled={!module.enabled}
+                        aria-label={t('settings.dashboardIncludeUninstalled')}
+                        onchange={onIncludeUninstalledChange}
+                      />
+                      <span class="toggle-slider"></span>
+                    </span>
+                    <span class="layout-subrow-label">{t('settings.dashboardIncludeUninstalled')}</span>
+                  </label>
+                  <p class="form-hint">{t('settings.dashboardIncludeUninstalledHint')}</p>
+                </div>
+              {/if}
             </div>
           {/each}
           {#if !layout.some((m) => DASHBOARD_MODULES.some((known) => known.id === m.id))}

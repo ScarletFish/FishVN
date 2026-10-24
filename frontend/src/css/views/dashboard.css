@@ -4,6 +4,26 @@
   font-size: var(--text-sm);
 }
 
+.dashboard-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-16) var(--space-4);
+  color: var(--fg-muted);
+}
+
+.dashboard-empty svg {
+  width: var(--space-8);
+  height: var(--space-8);
+  opacity: 0.5;
+}
+
+.dashboard-empty p {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
 .dashboard-section {
   display: flex;
   flex-direction: column;

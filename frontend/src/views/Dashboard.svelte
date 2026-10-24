@@ -5,6 +5,7 @@
   import { confirm } from '../lib/confirm.svelte.js';
   import { durationText } from '../lib/playtime.js';
   import { coverSrc } from '../lib/cover-src.js';
+  import { getScrollViewport } from '../lib/scrollbars.js';
   import { initScrollDots } from '../lib/scroll-dots.svelte.js';
   import { captureHero } from '../lib/hero-transition.js';
   import { DASHBOARD_MODULES } from '../lib/dashboard-layout.js';
@@ -14,7 +15,7 @@
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
 
-  let { onopen } = $props();
+  let { onopen, scroll = 0 } = $props();
 
   const LOCAL_STATUSES = ['playing', 'wishlist', 'finished'];
 
@@ -22,6 +23,7 @@
   let stats = $state(null);
   let recent = $state([]);
   let games = $state([]);
+  let includeUninstalled = $state(true);
   let covers = $state({});
   let loading = $state(true);
   let error = $state(null);
@@ -42,7 +44,9 @@
       status,
       label: t(`status.${status}`),
       items: games
-        .filter((game) => game.installation_count > 0 && game.status === status)
+        .filter(
+          (game) => game.status === status && (includeUninstalled || game.installation_count > 0)
+        )
         .sort(byName),
     })).filter((section) => section.items.length > 0)
   );
@@ -82,6 +86,7 @@
         api.listGames(),
       ]);
       layout = config.dashboard_layout;
+      includeUninstalled = config.dashboard_include_uninstalled !== false;
       stats = value;
       recent = items;
       games = list;
@@ -91,8 +96,21 @@
     } finally {
       loading = false;
     }
+    if (!error) await restoreScroll();
     await tick();
     window.dispatchEvent(new CustomEvent('app:ready'));
+  }
+
+  let pendingRestore = true;
+
+  async function restoreScroll() {
+    if (!pendingRestore) return;
+    pendingRestore = false;
+    if (!scroll) return;
+    const viewport = getScrollViewport();
+    if (!viewport) return;
+    await tick();
+    viewport.scrollTop = scroll;
   }
 
   $effect(() => {
@@ -174,7 +192,7 @@
             {/each}
           </div>
         </div>
-      {:else if module.enabled && module.id === 'stats' && stats}
+      {:else if module.enabled && module.id === 'stats' && stats && stats.total > 0}
         <div class="dashboard-section">
           <div class="dashboard-stats">
             <div class="dashboard-stat">
@@ -192,14 +210,6 @@
             <div class="dashboard-stat">
               <b>{stats.finished}</b>
               <span>{t('dashboard.statFinished')}</span>
-            </div>
-            <div class="dashboard-stat">
-              <b>{stats.stalled}</b>
-              <span>{t('dashboard.statStalled')}</span>
-            </div>
-            <div class="dashboard-stat">
-              <b>{stats.dropped}</b>
-              <span>{t('dashboard.statDropped')}</span>
             </div>
             <div class="dashboard-stat">
               <b>{durationText(t, stats.total_seconds)}</b>
@@ -230,6 +240,22 @@
         </div>
       {/if}
     {/each}
+
+    {#if games.length === 0}
+      <div class="dashboard-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+          ><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3"
+            y="14"
+            width="7"
+            height="7"
+            rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg
+        >
+        <p>{t('dashboard.emptyTitle')}</p>
+        <button type="button" class="btn btn-primary" onclick={() => openForm(null)}>
+          {t('dashboard.emptyAdd')}
+        </button>
+      </div>
+    {/if}
   {/if}
 </section>
 

@@ -86,6 +86,10 @@ pub fn default_excluded_tags() -> Vec<String> {
     EXCLUDED_TAGS_PRESET.iter().map(|id| (*id).to_owned()).collect()
 }
 
+pub fn default_dashboard_include_uninstalled() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
@@ -96,6 +100,8 @@ pub struct AppConfig {
     pub accent: Accent,
     #[serde(default = "default_dashboard_layout")]
     pub dashboard_layout: Vec<DashboardModule>,
+    #[serde(default = "default_dashboard_include_uninstalled")]
+    pub dashboard_include_uninstalled: bool,
     #[serde(default)]
     pub hide_r18_tags: bool,
     #[serde(default)]
@@ -116,6 +122,7 @@ pub struct ConfigPatch {
     pub theme: Option<Theme>,
     pub accent: Option<Accent>,
     pub dashboard_layout: Option<Vec<DashboardModule>>,
+    pub dashboard_include_uninstalled: Option<bool>,
     pub hide_r18_tags: Option<bool>,
     pub spoiler_level: Option<SpoilerLevel>,
     pub excluded_tags: Option<Vec<String>>,
@@ -130,6 +137,7 @@ pub struct ConfigView {
     pub theme: Theme,
     pub accent: Accent,
     pub dashboard_layout: Vec<DashboardModule>,
+    pub dashboard_include_uninstalled: bool,
     pub hide_r18_tags: bool,
     pub spoiler_level: SpoilerLevel,
     pub excluded_tags: Vec<String>,
@@ -180,6 +188,9 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     }
     if let Some(value) = patch.dashboard_layout {
         config.dashboard_layout = value;
+    }
+    if let Some(value) = patch.dashboard_include_uninstalled {
+        config.dashboard_include_uninstalled = value;
     }
     if let Some(value) = patch.hide_r18_tags {
         config.hide_r18_tags = value;
@@ -249,6 +260,7 @@ pub fn view() -> ConfigView {
         theme: config.theme,
         accent: config.accent,
         dashboard_layout: config.dashboard_layout,
+        dashboard_include_uninstalled: config.dashboard_include_uninstalled,
         hide_r18_tags: config.hide_r18_tags,
         spoiler_level: config.spoiler_level,
         excluded_tags: config.excluded_tags,
@@ -386,6 +398,7 @@ mod tests {
                 theme: Some(Theme::Light),
                 accent: Some(Accent::Amber),
                 dashboard_layout: None,
+                dashboard_include_uninstalled: None,
                 hide_r18_tags: None,
                 spoiler_level: None,
                 excluded_tags: None,
