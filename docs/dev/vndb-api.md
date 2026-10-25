@@ -208,8 +208,11 @@ va{character{id},staff{id,name,original},note}
 
 封面一律下 `url` 不下 `thumbnail`：thumbnail 宽度不足以覆盖 2× 屏（要 554 宽）。
 
-图片在 `t.vndb.org` 这个 CDN 上，与 `api.vndb.org` 的限流额度是两套，客户端另开一个连接
-（`IMAGE_TIMEOUT` 8 秒，不受 3 秒中断线约束），并发数只受本机带宽与 CDN 礼貌限速约束。
+图片在 `t.vndb.org` 这个 CDN 上，与 `api.vndb.org` 的限流额度是两套，客户端另开一个连接：
+超时用 `read_timeout`（`IMAGE_TIMEOUT` 8 秒，读体每收到一块就重置；等响应头是一次性 8 秒死线），
+不用总超时——封面体积没有上限（实测单张 4.26 MB，中位封面才 23 KB），总超时会在读体中途掐断
+慢但在传的大图，且 reqwest 把 body 超时一律包成「error decoding response body」，伪装成解码
+失败。并发数只受本机带宽与 CDN 礼貌限速约束。
 
 图编号（VN 封面 `cv…` / 角色 `ch…`）是 VNDB 给每张图的永久身份，换图才换号，可以直接当文件名
 判断要不要重下。

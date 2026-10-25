@@ -1,4 +1,6 @@
 
+import { clampFocal } from './cover-focal.js';
+
 export function toNumber(raw) {
   const text = raw.trim();
   if (!text) return null;
@@ -52,6 +54,8 @@ export function buildMetadataPatch(fields) {
     length_minutes: toInteger(fields.lengthMinutes),
     description: fields.description.trim() || null,
     image_path: fields.coverPath.trim() || null,
+    cover_focal_x: clampFocal(fields.focusX),
+    cover_focal_y: clampFocal(fields.focusY),
     tags: fields.tags,
     developers: fields.developers
       .split(',')

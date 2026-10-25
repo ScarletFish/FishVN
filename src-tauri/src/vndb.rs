@@ -86,20 +86,30 @@ pub async fn fetch_sync(
             if progress.cancelled() {
                 return Err(AppError::Cancelled);
             }
-            img.local_path = tokio::select! {
-                local = images::fetch_image(
+            let fetched = tokio::select! {
+                res = images::fetch_image(
                     client::image_http(),
                     img.url.as_deref(),
                     img.id.as_deref(),
                     data_dir,
-                ) => local,
+                ) => res,
                 _ = crate::tasks::wait_cancel(progress) => {
                     return Err(AppError::Cancelled);
                 }
             };
-            if img.local_path.is_none() {
-                progress.report_error("cover", "封面下载失败，可稍后在详情页重新获取");
-            }
+            img.local_path = match fetched {
+                Ok(local) => local,
+                Err(e) => {
+                    let msg = match e {
+                        images::ImageError::Local => {
+                            "封面保存失败（错误码：local）：数据目录不可写".to_owned()
+                        }
+                        _ => format!("封面下载失败，请稍后重试（错误码：{}）", e.code()),
+                    };
+                    progress.report_error("cover", &msg);
+                    None
+                }
+            };
         }
     }
     if progress.cancelled() {

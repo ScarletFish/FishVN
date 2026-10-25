@@ -7,17 +7,22 @@
   import { coverSrc } from '../../lib/cover-src.js';
   import { pickImage } from '../../lib/pick-path.js';
   import PathField from '../PathField.svelte';
+  import CoverFocalDialog from './CoverFocalDialog.svelte';
 
   let {
     tags = $bindable([]),
     tagDraft = $bindable(''),
     coverPath = $bindable(''),
+    focusX = 50,
+    focusY = 50,
+    onfocus,
     saving = false,
     onbrowse,
   } = $props();
 
   let coverBroken = $state(false);
   let coverUrl = $state(null);
+  let focalOpen = $state(false);
 
   const GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
 
@@ -90,19 +95,28 @@
 </script>
 
 <div class="form-group">
-  <label for="game-form-cover">{t('gameForm.field.cover')}</label>
+  <div class="form-label-row">
+    <label for="game-form-cover">{t('gameForm.field.cover')}</label>
+  </div>
   <div class="cover-field">
-    <div class="cover-field__preview">
+    <button
+      type="button"
+      class="cover-field__preview"
+      disabled={saving || !coverUrl || coverBroken}
+      onclick={() => (focalOpen = true)}
+    >
       {#if coverUrl && !coverBroken}
         <img
           src={coverUrl}
           alt=""
+          style:object-position="{focusX}% {focusY}%"
           onerror={() => (coverBroken = true)}
         />
       {:else}
         <div class="cover-field__ph">{t('gameForm.placeholder.empty')}</div>
       {/if}
-    </div>
+      <span class="cover-field__badge">{t('gameForm.action.adjustCover')}</span>
+    </button>
     <PathField
       id="game-form-cover"
       bind:value={coverPath}
@@ -111,9 +125,22 @@
       placeholder={t('gameForm.placeholder.cover')}
       ariaLabel={t('gameForm.field.cover')}
       disabled={saving}
+      onPick={() => {
+        onfocus?.(50, 50);
+        return true;
+      }}
     />
   </div>
 </div>
+
+<CoverFocalDialog
+  bind:open={focalOpen}
+  imagePath={coverPath}
+  {focusX}
+  {focusY}
+  oncommit={(x, y) => onfocus?.(x, y)}
+  onclose={() => (focalOpen = false)}
+/>
 
 <div class="form-group">
   <div class="form-label-row">

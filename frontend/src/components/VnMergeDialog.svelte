@@ -12,6 +12,8 @@
     open = $bindable(false),
     rows = [],
     charRows = [],
+    coverFocalX = 50,
+    coverFocalY = 50,
     onaccept,
     oncancel,
   } = $props();
@@ -129,6 +131,7 @@
                         alt=""
                         loading="lazy"
                         decoding="async"
+                        style:object-position={side === 0 ? `${coverFocalX}% ${coverFocalY}%` : undefined}
                       />
                     {:else}
                       <span class="vn-merge__thumb-ph" aria-hidden="true">—</span>

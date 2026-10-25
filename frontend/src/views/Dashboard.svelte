@@ -162,7 +162,11 @@
                 onkeydown={(e) => e.key === 'Enter' && continueOpen(item, e.currentTarget)}
               >
                 {#if covers[item.id]}
-                  <div class="continue-bg" style:background-image={`url(${covers[item.id]})`}></div>
+                  <div
+                    class="continue-bg"
+                    style:background-image={`url(${covers[item.id]})`}
+                    style:background-position={`${item.cover_focal_x ?? 50}% ${item.cover_focal_y ?? 50}%`}
+                  ></div>
                 {:else}
                   <div class="continue-ph">{item.name.charAt(0)}</div>
                 {/if}

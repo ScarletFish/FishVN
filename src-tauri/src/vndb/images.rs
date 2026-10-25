@@ -68,14 +68,30 @@ fn spawn_next_image(
     };
     let data_dir = data_dir.to_path_buf();
     set.spawn(async move {
-        let path = fetch_image(image_http(), Some(&url), Some(&id), &data_dir).await;
+        let path = fetch_image(image_http(), Some(&url), Some(&id), &data_dir)
+            .await
+            .ok()
+            .flatten();
         (idx, path)
     });
 }
 
-enum ImageError {
-    Status(u16),
-    Transport(String),
+pub(super) enum ImageError {
+    Http(u16),
+    Timeout,
+    Network,
+    Local,
+}
+
+impl ImageError {
+    pub(super) fn code(&self) -> String {
+        match self {
+            Self::Http(code) => code.to_string(),
+            Self::Timeout => "timeout".to_owned(),
+            Self::Network => "network".to_owned(),
+            Self::Local => "local".to_owned(),
+        }
+    }
 }
 
 pub(super) async fn fetch_image(
@@ -83,38 +99,38 @@ pub(super) async fn fetch_image(
     url: Option<&str>,
     id: Option<&str>,
     data_dir: &std::path::Path,
-) -> Option<String> {
+) -> std::result::Result<Option<String>, ImageError> {
     let (Some(url), Some(id)) = (url, id) else {
-        return None;
+        return Ok(None);
     };
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric()) {
-        return None;
+        return Ok(None);
     }
 
     let dir = data_dir.join("covers").join("vndb");
     let dst = dir.join(format!("{id}.jpg"));
     if dst.is_file() {
-        return Some(dst.to_string_lossy().into_owned());
+        return Ok(Some(dst.to_string_lossy().into_owned()));
     }
     if std::fs::create_dir_all(&dir).is_err() {
-        return None;
+        return Err(ImageError::Local);
     }
 
-    let mut last_err = String::new();
+    let mut last_err = None;
     for attempt in 1..=IMAGE_RETRIES {
         match download_image(http, url).await {
             Ok(bytes) => {
                 if std::fs::write(&dst, &bytes).is_err() {
-                    return None;
+                    return Err(ImageError::Local);
                 }
-                return Some(dst.to_string_lossy().into_owned());
+                return Ok(Some(dst.to_string_lossy().into_owned()));
             }
-            Err(ImageError::Status(code)) => {
-                tauri_plugin_log::log::warn!("图片下载失败 {url}：HTTP {code}");
-                return None;
-            }
-            Err(ImageError::Transport(e)) => {
-                last_err = e;
+            Err(e) => {
+                if let ImageError::Http(code) = e {
+                    tauri_plugin_log::log::warn!("图片下载失败 {url}：HTTP {code}");
+                    return Err(e);
+                }
+                last_err = Some(e);
                 if attempt < IMAGE_RETRIES {
                     tokio::time::sleep(Duration::from_millis(IMAGE_BACKOFF_MS * attempt as u64))
                         .await;
@@ -122,8 +138,9 @@ pub(super) async fn fetch_image(
             }
         }
     }
-    tauri_plugin_log::log::warn!("图片下载失败 {url}（重试 {IMAGE_RETRIES} 次）：{last_err}");
-    None
+    let e = last_err.unwrap_or(ImageError::Network);
+    tauri_plugin_log::log::warn!("图片下载失败 {url}（重试 {IMAGE_RETRIES} 次）：{}", e.code());
+    Err(e)
 }
 
 async fn download_image(
@@ -132,14 +149,35 @@ async fn download_image(
 ) -> std::result::Result<Vec<u8>, ImageError> {
     let resp = match http.get(url).send().await {
         Ok(r) => r,
-        Err(e) => return Err(ImageError::Transport(format!("{e}"))),
+        Err(e) => return Err(transport_error(&e)),
     };
     if !resp.status().is_success() {
-        return Err(ImageError::Status(resp.status().as_u16()));
+        return Err(ImageError::Http(resp.status().as_u16()));
     }
     let bytes = match resp.bytes().await {
         Ok(b) => b,
-        Err(e) => return Err(ImageError::Transport(format!("{e}"))),
+        Err(e) => return Err(transport_error(&e)),
     };
     Ok(bytes.to_vec())
+}
+
+fn transport_error(e: &reqwest::Error) -> ImageError {
+    if e.is_timeout() {
+        ImageError::Timeout
+    } else {
+        ImageError::Network
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn 错误码按失败类别映射() {
+        assert_eq!(ImageError::Http(404).code(), "404");
+        assert_eq!(ImageError::Timeout.code(), "timeout");
+        assert_eq!(ImageError::Network.code(), "network");
+        assert_eq!(ImageError::Local.code(), "local");
+    }
 }

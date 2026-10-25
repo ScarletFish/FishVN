@@ -69,6 +69,8 @@
   let tags = $state([]);
   let staff = $state([]);
   let coverPath = $state('');
+  let coverFocalX = $state(50);
+  let coverFocalY = $state(50);
 
   let tagDraft = $state('');
   let characters = $state([]);
@@ -125,6 +127,8 @@
     tags = [];
     staff = [];
     coverPath = '';
+    coverFocalX = 50;
+    coverFocalY = 50;
     tagDraft = '';
     characters = [];
     installations = [];
@@ -182,6 +186,8 @@
       tags = (meta?.tags ?? []).map((tag) => ({ ...tag }));
       staff = (meta?.staff ?? []).map((entry) => ({ ...entry }));
       coverPath = meta?.image_path ?? '';
+      coverFocalX = meta?.cover_focal_x ?? 50;
+      coverFocalY = meta?.cover_focal_y ?? 50;
       characters = roles.map(toDraft);
       installations = dirs.map(toInstallationDraft);
       defaultInstallKey = defaultKeyOf(installations, state.default_installation_id);
@@ -269,7 +275,11 @@
     tags = next.tags;
     developers = next.developers;
     staff = next.staff;
-    coverPath = next.coverPath;
+    if (next.coverPath !== coverPath) {
+      coverPath = next.coverPath;
+      coverFocalX = 50;
+      coverFocalY = 50;
+    }
     characters = applyCharacters(characters.map(toPayload), incomingCharacters, charPicked).map(
       toDraft
     );
@@ -323,6 +333,8 @@
       lengthMinutes,
       description,
       coverPath,
+      focusX: coverFocalX,
+      focusY: coverFocalY,
       tags,
       developers,
       staff,
@@ -431,6 +443,12 @@
           bind:tags
           bind:tagDraft
           bind:coverPath
+          focusX={coverFocalX}
+          focusY={coverFocalY}
+          onfocus={(x, y) => {
+            coverFocalX = x;
+            coverFocalY = y;
+          }}
           {saving}
           onbrowse={() => {
             asideMode = 'tags';
@@ -509,6 +527,8 @@
   bind:open={mergeOpen}
   rows={mergeRows}
   charRows={charMergeRows}
+  coverFocalX={coverFocalX}
+  coverFocalY={coverFocalY}
   onaccept={acceptMerge}
   oncancel={() => (mergeOpen = false)}
 />

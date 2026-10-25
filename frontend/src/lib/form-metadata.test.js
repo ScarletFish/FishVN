@@ -82,7 +82,7 @@ test('平均时长只拦负数与非数字，没填的不算错', () => {
   expect(lengthMinutesRejected('abc')).toBe(true);
 });
 
-test('空白表单写出的全是 null', () => {
+test('空白表单其余字段全 null，焦点回落默认值', () => {
   expect(buildMetadataPatch(blank())).toEqual({
     alias: null,
     released: null,
@@ -91,9 +91,21 @@ test('空白表单写出的全是 null', () => {
     length_minutes: null,
     description: null,
     image_path: null,
+    cover_focal_x: 50,
+    cover_focal_y: 50,
     tags: [],
     developers: [],
     staff: [],
+  });
+});
+
+test('焦点随表单值写入并钳制范围', () => {
+  const patch = buildMetadataPatch({ ...blank(), focusX: 130, focusY: -20 });
+  expect(patch.cover_focal_x).toBe(100);
+  expect(patch.cover_focal_y).toBe(0);
+  expect(buildMetadataPatch({ ...blank(), focusX: 72, focusY: 31 })).toMatchObject({
+    cover_focal_x: 72,
+    cover_focal_y: 31,
   });
 });
 

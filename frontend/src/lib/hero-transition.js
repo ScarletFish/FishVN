@@ -36,6 +36,7 @@ export function captureHero(sourceEl, opts = {}) {
   pending = {
     src,
     rect: { left, top, width, height },
+    objectPosition: img ? getComputedStyle(img).objectPosition : '',
   };
 }
 
@@ -103,7 +104,9 @@ export function playHero(targetWrap) {
     const clone = document.createElement('img');
     clone.src = data.src;
     clone.alt = '';
-    clone.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    clone.style.cssText =
+      'width:100%;height:100%;object-fit:cover;display:block;' +
+      (data.objectPosition ? `object-position:${data.objectPosition};` : '');
     hero.appendChild(clone);
     document.body.appendChild(hero);
     gsap.set(hero, { transformOrigin: '0 0' });

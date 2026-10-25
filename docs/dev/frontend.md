@@ -194,6 +194,16 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - **`toast.svelte.js`**：渲染在 `components/Toaster.svelte`，挂在 `App.svelte`；计时器簿记不放进 `$state`（每次读写都会触发更新）；暂停要手动记剩余时长 —— 进度条的暂停靠 CSS `animation-play-state`，计时器在 JS 里，两者不通。
 - **`TaskDock`**：全局任务状态面板，浮动在视窗底部居中（380px，非详情页展示），层级压在全部弹窗与 toast 之上。与 Toaster 一样经 portal 挂进 `#modal-root`：弹窗打开时 `body` 的直接子元素（除 `#modal-root` / `#globalTooltip`）整体 blur，浮条挂在 `#app` 里会跟着糊掉。当前承载资料补全任务——它是唯一在弹窗外跑的长任务。显隐语义：× 在任务在途时折叠成底部居中的小手柄（状态点 + 进度文案 + 展开箭头），任务 alive 期间手柄常驻，点击恢复完整面板；完结汇总始终自动唤起（含 × 折叠期间），带 6 秒倒计时自动隐藏，倒计时走完后的 × 才是真收起。新任务启动（列表按钮触发时派发 `backfill-refresh` 窗口事件、后台接续时经首个进度事件）无条件重新打开——收起不能让人错过下一轮进度。状态归约抽到纯模块 `dock-state.js`（与 Svelte/DOM 解耦、可单测）：后端 `vndb-backfill` 事件全部消费，阶段事件 `meta`/`cover`/`characters`/`images` 只更新 `phase`、不污染全局 `done`/`total`，`error` 收进 `errors[]`、面板给「N 条失败」展开；`run_id` 取代模块级「收起/关闭」标记，新一轮 `run_id` 不同即判为「这轮没折叠/关过」，上一轮完结汇总随新轮自然作废、无需手动 reset。挂载时只接在途任务，刷新后从进行中的进度续上，上一轮的完结汇总随刷新作废。× 改右上角独立角标，不再压住动作按钮。完结时经库变更事件广播，MyList 重拉列表投影；详情页中的完结由 App 级订阅兜底弹 toast——dock 不可见时用户也要收到回执。结构上完整面板与手柄是同一个 fixed 容器的两种形态、原地切换（不挂方向相反 `fly`，折叠只是换形态、不闪），形态由 `dockView` 据「折叠/关闭/隐藏」意图推导。
 - **`SyncResultDialog`**：重操作（VNDB 同步这类秒级拉取）点下即开弹窗进加载态，反馈先于结果出现，不等 await 返回才弹窗；加载态的阶段文案只消费后端进度事件，前端不虚构阶段。父级用序号令牌防迟到结果：每次触发自增序号，await 返回时序号已被新的触发或取消改掉就丢弃（`seq !== syncActive` 直接 return），旧请求的 plan / error 不会覆盖新状态；按钮的忙态只由最新一次在途调用置位与清除。
+- **`ImageViewer`**：单图查看画布（截图查看器的地基，见下「图片查看器地基」）。只管一张图怎么看：滚轮以指针为中心缩放、拖动图面平移、双击在适应窗口/100% 间切换、右上角缩放比、stage 尺寸变化时适应态保持整图可见。图源从外部注入 `src`，不关心图从哪来（封面缩略图或本地原图都行）；`maxZoom` prop 化——封面编辑器传 4（预览图最大边 560px，再大必糊），直开原图的场景可以传更大。`children` snippet 收 `{ toImage, toScreen, view }` 供浮层做坐标换算（取景框就浮在它上面）；单击图面（位移 < 4px）回调 `ontap(图坐标)`。viewport 纯函数在 `lib/image-viewer.js`（带单测）。**坑**：滚轮监听必须 `addEventListener('wheel', h, { passive: false })` 才能 `preventDefault`，Svelte 的 `onwheel` 属性写法不行——不加 passive 选项浏览器默认 passive，`preventDefault` 是静默无效的，页面会跟着滚。**边界**：多图导航、画廊、旋转、信息面板不长在这个组件里——等截图查看器的真实需求来了再长，现在猜接口必然猜错。
+- **`CoverFocalDialog`**：封面展示焦点的取景框编辑器（表单「调整展示位置」打开），画布是 `ImageViewer`，自己只做焦点数学（`lib/cover-focal.js`）。约定：焦点不参与合并面板（`vn-merge.js` 的 `FIELDS` 不加它，远端没有这个概念）；换封面重置焦点由后端 `metadata::upsert` 收口，前端只在 picker 选图与合并接受两条路径同步重置显示值，别处不要再造重置逻辑；新增封面展示处要读焦点字段（清单见 [backend.md](./backend.md)「封面展示焦点」）。手势路由：拖框与拖图面是两个区域的手势——取景框自己收 pointer 事件并 `stopPropagation`（否则画布会跟着平移），框外区域归画布（拖动平移、单击移框）；方向键微调焦点（Shift 加速，无效轴忽略），弹窗打开即聚焦到根容器。
+
+## 图片查看器地基
+
+截图查看/管理功能预计会做，查看器内核已按单图查看的边界抽好，复用时直接长多图层，不要动内核：
+
+- `lib/image-viewer.js` 是纯函数：viewport = 图坐标到屏幕坐标的 `(scale, tx, ty)` 变换，提供适应窗口、指针不动点缩放、平移、双向坐标换算、1:1 视图。无 DOM 依赖，带单测。
+- `components/ImageViewer.svelte` 是画布：滚轮缩放、拖动平移、双击适应/100% 切换、缩放比显示。图源外部注入 `src`，`maxZoom` prop 化。
+- 做截图查看器时：多图导航（上一张/下一张/键盘左右）、画廊网格、旋转、信息面板、管理动作都是内核之外的层，挂在查看器外面；封面编辑器这种「查看器 + 浮层」的形态可以抄 `CoverFocalDialog` 的 snippet 接法。
 
 ## 前端 lib 的比对契约
 

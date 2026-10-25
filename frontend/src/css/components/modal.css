@@ -228,6 +228,12 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   max-height: calc(100vh - var(--space-6) * 2);
 }
 
+.modal--focal {
+  max-width: 880px;
+  height: 830px;
+  max-height: calc(100vh - var(--space-6) * 2);
+}
+
 .modal-overlay--split {
   gap: var(--space-5);
   padding: var(--space-6);

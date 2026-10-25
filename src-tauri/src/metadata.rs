@@ -7,7 +7,7 @@ use crate::error::{AppError, Result};
 use crate::types::{GameMetadata, MetadataPatch, MetadataTag};
 
 const COLUMNS: &str =
-    "game_id, alias, titles, rating, votecount, length_minutes, released, description, image_id, image_path, tags, developers, staff";
+    "game_id, alias, titles, rating, votecount, length_minutes, released, description, image_id, image_path, cover_focal_x, cover_focal_y, tags, developers, staff";
 
 struct MetaRow {
     game_id: String,
@@ -20,6 +20,8 @@ struct MetaRow {
     description: Option<String>,
     image_id: Option<String>,
     image_path: Option<String>,
+    cover_focal_x: Option<i64>,
+    cover_focal_y: Option<i64>,
     tags: Option<String>,
     developers: Option<String>,
     staff: Option<String>,
@@ -47,7 +49,13 @@ pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result
         return Err(AppError::NotFound("游戏不存在".into()));
     }
 
-    let (columns, mut values) = build_columns(patch)?;
+    let mut patch = patch.clone();
+    if cover_swapped(&get(conn, game_id)?, &patch) {
+        patch.cover_focal_x = Some(Some(50));
+        patch.cover_focal_y = Some(Some(50));
+    }
+
+    let (columns, mut values) = build_columns(&patch)?;
     if columns.is_empty() {
         return Err(AppError::BadRequest("没有可更新的字段".into()));
     }
@@ -123,6 +131,21 @@ fn build_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>
         });
     }
 
+    if let Some(raw) = &patch.cover_focal_x {
+        columns.push("cover_focal_x");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.cover_focal_y {
+        columns.push("cover_focal_y");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+
     if let Some(raw) = &patch.titles {
         columns.push("titles");
         values.push(match raw {
@@ -168,6 +191,14 @@ fn game_exists(conn: &Connection, id: &str) -> Result<bool> {
     Ok(found.is_some())
 }
 
+fn cover_swapped(current: &Option<GameMetadata>, patch: &MetadataPatch) -> bool {
+    let Some(next) = patch.image_path.as_ref() else {
+        return false;
+    };
+    let cur = current.as_ref().and_then(|m| m.image_path.clone());
+    cur != next.clone()
+}
+
 fn read_row(row: &Row<'_>) -> rusqlite::Result<MetaRow> {
     Ok(MetaRow {
         game_id: row.get("game_id")?,
@@ -180,6 +211,8 @@ fn read_row(row: &Row<'_>) -> rusqlite::Result<MetaRow> {
         description: row.get("description")?,
         image_id: row.get("image_id")?,
         image_path: row.get("image_path")?,
+        cover_focal_x: row.get("cover_focal_x")?,
+        cover_focal_y: row.get("cover_focal_y")?,
         tags: row.get("tags")?,
         developers: row.get("developers")?,
         staff: row.get("staff")?,
@@ -198,6 +231,8 @@ fn to_api(row: &MetaRow) -> Result<GameMetadata> {
         description: row.description.clone(),
         image_id: row.image_id.clone(),
         image_path: row.image_path.clone(),
+        cover_focal_x: row.cover_focal_x,
+        cover_focal_y: row.cover_focal_y,
         tags: from_json::<Vec<MetadataTag>>(&row.tags)?,
         developers: from_json(&row.developers)?,
         staff: from_json(&row.staff)?,

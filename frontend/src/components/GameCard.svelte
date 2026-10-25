@@ -47,6 +47,7 @@
           alt=""
           loading="lazy"
           decoding="async"
+          style:object-position="{item.cover_focal_x ?? 50}% {item.cover_focal_y ?? 50}%"
           onerror={() => (coverBroken = true)}
         />
       {:else}

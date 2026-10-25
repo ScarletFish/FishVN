@@ -93,6 +93,8 @@ pub struct GameListItem {
     pub installation_count: i64,
     pub can_launch: bool,
     pub cover_path: Option<String>,
+    pub cover_focal_x: Option<i64>,
+    pub cover_focal_y: Option<i64>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
@@ -140,6 +142,8 @@ pub struct GameMetadata {
     pub description: Option<String>,
     pub image_id: Option<String>,
     pub image_path: Option<String>,
+    pub cover_focal_x: Option<i64>,
+    pub cover_focal_y: Option<i64>,
     pub tags: Option<Vec<MetadataTag>>,
     pub developers: Option<Vec<String>>,
     pub staff: Option<Vec<MetadataStaff>>,
@@ -183,6 +187,8 @@ pub struct MetadataPatch {
     pub released: Option<Option<String>>,
     pub description: Option<Option<String>>,
     pub image_path: Option<Option<String>>,
+    pub cover_focal_x: Option<Option<i64>>,
+    pub cover_focal_y: Option<Option<i64>>,
     pub tags: Option<Option<Vec<MetadataTag>>>,
     pub developers: Option<Option<Vec<String>>>,
     pub staff: Option<Option<Vec<MetadataStaff>>>,

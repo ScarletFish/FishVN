@@ -256,7 +256,12 @@
       <div class="detail-banner-left">
         <div class="detail-cover">
           {#if coverUrl && !coverBroken}
-            <img src={coverUrl} alt={game.name} onerror={() => (coverBroken = true)} />
+            <img
+              src={coverUrl}
+              alt={game.name}
+              style:object-position="{meta?.cover_focal_x ?? 50}% {meta?.cover_focal_y ?? 50}%"
+              onerror={() => (coverBroken = true)}
+            />
           {:else}
             <div class="detail-cover__ph">
               <span class="detail-cover__initial" aria-hidden="true">{(game.name || '?')[0]}</span>

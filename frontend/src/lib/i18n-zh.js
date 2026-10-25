@@ -398,6 +398,7 @@ export const DICT_ZH = {
     },
     action: {
       searchVndb: '下载资料数据',
+      adjustCover: '调整展示位置',
       removeTag: '移除标签',
       addTag: '添加',
       browseTags: '从库内标签挑选',
@@ -453,6 +454,16 @@ export const DICT_ZH = {
       charSection: '角色（{count}）',
       staffRest: '其余 {count} 项职能相同',
       accept: '接受 {count} 项',
+    },
+    coverFocal: {
+      title: '调整展示位置',
+      center: '居中',
+      top: '上',
+      bottom: '下',
+      left: '左',
+      right: '右',
+      fitWindow: '适应窗口',
+      confirm: '确定',
     },
     charRole: {
       main: '主角',

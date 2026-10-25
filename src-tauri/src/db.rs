@@ -81,6 +81,8 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           description TEXT,
           image_id    TEXT,
           image_path  TEXT,
+          cover_focal_x INTEGER NOT NULL DEFAULT 50,
+          cover_focal_y INTEGER NOT NULL DEFAULT 50,
           tags        TEXT,
           developers  TEXT,
           staff       TEXT

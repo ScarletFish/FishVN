@@ -33,7 +33,7 @@ pub(super) fn image_http() -> &'static reqwest::Client {
     static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
     CLIENT.get_or_init(|| {
         reqwest::Client::builder()
-            .timeout(IMAGE_TIMEOUT)
+            .read_timeout(IMAGE_TIMEOUT)
             .build()
             .expect("图片客户端建不起来")
     })

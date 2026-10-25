@@ -303,6 +303,8 @@ pub fn patch_for(current: Option<&GameMetadata>, sync: &VnSync) -> Option<Metada
                 .and_then(|i| i.local_path.as_deref())
                 .and_then(clean_text),
         ),
+        cover_focal_x: None,
+        cover_focal_y: None,
         titles: fill(blank_list(&cur.titles), map_titles(vn)),
         tags: fill(blank_list(&cur.tags), map_tags(vn)),
         developers: fill(blank_list(&cur.developers), map_developers(vn)),

@@ -204,7 +204,9 @@ fn 标签只给名字能读出来() {
           game_id TEXT PRIMARY KEY, alias TEXT, titles TEXT, rating REAL,
           votecount INTEGER, length_minutes INTEGER, released TEXT,
           description TEXT, image_id TEXT,
-          image_path TEXT, tags TEXT, developers TEXT, staff TEXT
+          image_path TEXT, cover_focal_x INTEGER NOT NULL DEFAULT 50,
+          cover_focal_y INTEGER NOT NULL DEFAULT 50,
+          tags TEXT, developers TEXT, staff TEXT
         );
         INSERT INTO games VALUES ('g1', '作品');
         ",
@@ -443,4 +445,71 @@ fn 没资料也能改状态() {
 
     assert!(matches!(state, UserGameState { .. }));
     assert_eq!(metadata::get(&db, &id).unwrap(), None);
+}
+
+#[test]
+fn 换封面时焦点重置为居中() {
+    let db = Db::new();
+    let id = new_game(&db, "换封面");
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            image_path: Some(Some("/covers/a.jpg".into())),
+            cover_focal_x: Some(Some(80)),
+            cover_focal_y: Some(Some(20)),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let stored = metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            image_path: Some(Some("/covers/b.jpg".into())),
+            cover_focal_x: Some(Some(10)),
+            cover_focal_y: Some(Some(90)),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        (stored.cover_focal_x, stored.cover_focal_y),
+        (Some(50), Some(50)),
+        "换封面后旧焦点不该留在新图上，patch 里带的焦点值也不作数"
+    );
+}
+
+#[test]
+fn 不换封面只调焦点正常生效() {
+    let db = Db::new();
+    let id = new_game(&db, "调焦点");
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            image_path: Some(Some("/covers/a.jpg".into())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let stored = metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            cover_focal_x: Some(Some(80)),
+            cover_focal_y: Some(Some(20)),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(stored.image_path.as_deref(), Some("/covers/a.jpg"));
+    assert_eq!(
+        (stored.cover_focal_x, stored.cover_focal_y),
+        (Some(80), Some(20))
+    );
 }

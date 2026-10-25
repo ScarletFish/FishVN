@@ -68,6 +68,8 @@ pub struct RecentPlay {
     pub id: String,
     pub name: String,
     pub cover_path: Option<String>,
+    pub cover_focal_x: Option<i64>,
+    pub cover_focal_y: Option<i64>,
     pub last_played_at: i64,
     pub play_seconds: i64,
 }
@@ -75,6 +77,8 @@ pub struct RecentPlay {
 pub fn recent(conn: &Connection, metric: TimeMetric, limit: i64) -> Result<Vec<RecentPlay>> {
     let mut stmt = conn.prepare(
         "SELECT g.id, g.name, m.image_path AS cover_path,
+                m.cover_focal_x AS cover_focal_x,
+                m.cover_focal_y AS cover_focal_y,
                 MAX(p.started_at) AS last_played_at,
                 CASE WHEN ?2 = 'alive'
                     THEN COALESCE(SUM(COALESCE(p.ended_at, p.last_seen_at) - p.started_at), 0)
@@ -89,7 +93,7 @@ pub fn recent(conn: &Connection, metric: TimeMetric, limit: i64) -> Result<Vec<R
                SELECT 1 FROM installations i
                WHERE i.game_id = g.id AND i.entry_path IS NOT NULL
            )
-         GROUP BY g.id, m.image_path
+         GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y
          ORDER BY last_played_at DESC
          LIMIT ?1",
     )?;
@@ -99,6 +103,8 @@ pub fn recent(conn: &Connection, metric: TimeMetric, limit: i64) -> Result<Vec<R
             id: row.get("id")?,
             name: row.get("name")?,
             cover_path: row.get("cover_path")?,
+            cover_focal_x: row.get("cover_focal_x")?,
+            cover_focal_y: row.get("cover_focal_y")?,
             last_played_at: row.get("last_played_at")?,
             play_seconds: row.get("play_seconds")?,
         })

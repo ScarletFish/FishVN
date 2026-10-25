@@ -34,6 +34,9 @@ src-tauri/gen/schemas/
 #临时
 vndb-sample/
 
+# 个人设计随笔：只给自己看，不入库
+docs/notes/
+
 # VNDB 本地化：官方 dump / 上游脚本存档 / 分析中间产物 不入库（可重新下载或生成）
 src-tauri/resources/vndb/tags.json.gz
 src-tauri/resources/vndb/traits.json.gz
