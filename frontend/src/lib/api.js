@@ -62,6 +62,7 @@ export const api = {
   cancelTask: (task) => call('cancel_task', { task }),
   inspectPath: (path) => call('inspect_path', { path }),
   scanDir: (path) => call('scan_dir', { path }),
+  pathExists: (path) => call('path_exists', { path }),
   getGameMetadata: (id) => call('get_game_metadata', { id }),
   updateGameMetadata: (id, patch) => call('update_game_metadata', { id, patch }),
   getConfig: () => call('get_config'),

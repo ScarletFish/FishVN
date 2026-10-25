@@ -57,6 +57,42 @@ impl ToSql for Status {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MagpieMode {
+    #[default]
+    Off,
+    Full,
+    Window,
+}
+
+impl MagpieMode {
+    pub fn from_db(raw: i64) -> Self {
+        match raw {
+            1 => Self::Full,
+            2 => Self::Window,
+            _ => Self::Off,
+        }
+    }
+
+    pub fn to_db(self) -> i64 {
+        match self {
+            Self::Off => 0,
+            Self::Full => 1,
+            Self::Window => 2,
+        }
+    }
+
+    /// 对应 Magpie `ShortcutAction` 枚举序号：0 = Scale（全屏），1 = WindowedModeScale（窗口化）。
+    pub fn hotkey_action(self) -> Option<i32> {
+        match self {
+            Self::Off => None,
+            Self::Full => Some(0),
+            Self::Window => Some(1),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserGameState {
     pub game_id: String,
@@ -79,6 +115,9 @@ pub struct Installation {
     pub entry_path: Option<String>,
     pub exes: Option<Vec<String>>,
     pub size_bytes: Option<i64>,
+    pub le_launch: bool,
+    pub magpie: MagpieMode,
+    pub launch_args: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -116,6 +155,9 @@ pub struct StatePatch {
 pub struct InstallationPatch {
     pub game_id: Option<Option<String>>,
     pub entry_path: Option<Option<String>>,
+    pub le_launch: Option<bool>,
+    pub magpie: Option<MagpieMode>,
+    pub launch_args: Option<Option<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -257,6 +299,11 @@ pub struct InstallationInput {
     pub id: Option<String>,
     pub dir_path: String,
     pub entry_path: Option<String>,
+    #[serde(default)]
+    pub le_launch: bool,
+    #[serde(default)]
+    pub magpie: MagpieMode,
+    pub launch_args: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

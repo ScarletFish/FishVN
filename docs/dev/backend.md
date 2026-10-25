@@ -92,16 +92,24 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 
 ### 启动与游玩记录
 
-启动走 `sessions.rs`：解析入口 → `Command` 起进程 → 把进程放进 Job Object → 落一条进行中的 `play_sessions` → 后台线程按 1 秒节拍守着，进程退出后结算。
+启动走 `sessions.rs`：解析入口 → 按安装项的启动方式拼 `Command` → 起进程 → 把进程放进 Job Object → 落一条进行中的 `play_sessions` → 后台线程按 1 秒节拍守着，进程退出后结算。
 
+启动方式由安装项的三项决定（`le_launch` 开关 / `magpie` 模式 / `launch_args`，均是该安装项的属性，见 FDD 活动集三）：
+
+- **直接启动**（默认）：附加参数按 MSVCRT 引号规则拆成数组透传（引号内为一个参数，引号内 `""` 是字面引号）；`bat` / `cmd` 走 `cmd /C`，`lnk` 走 `cmd /C start`（`CreateProcess` 不认识 `.lnk`），其余直接起；工作目录显式设为安装项的 `dir_path`。
+- **转区启动**（`le_launch`）：以 Locale Emulator 主程序（设置项 `le_path`，未登记时启动被 `BadRequest` 拦住、不起进程）为父进程，入口路径作参数、`dir_path` 作工作目录拉起；只收 exe 入口（非 exe 直接报错），不透传附加参数，不提权、不暴露 LE 自身的区域参数。LEProc 作父进程后 Job 覆盖不缩水。
+- **Magpie 缩放**（`magpie`，三态 `MagpieMode`：关 / 全屏 / 窗口，库里 0/1/2）：旁路链路，**不进 Job、不参与计时判定**——先把 Magpie 无参拉起（已在跑则跳过，5 秒内确认）→ 等前台切到游戏进程（60 秒超时）→ 停 2 秒 → 向类名 `Magpie_Hotkey` 的消息窗口 `PostMessageW(WM_HOTKEY)`，`wParam` 为 Magpie `ShortcutAction` 序号（全屏 = 0 `Scale`，窗口化 = 1 `WindowedModeScale`）。消息窗口分发不校验用户有没有绑过热键，所以两个动作都能直接发，不要求在 Magpie 里配热键。触发走消息窗口而非模拟按键：不依赖输入焦点、不要管理员权限、不抢用户键鼠（对标 PotatoVN 的 InputSimulator 方案）。三项可叠加：转区 + Magpie 同时开时 LE 作父进程，Magpie 照常旁路触发。
+
+计时回路对两个工具做了适配：
+
+- **前景时间按节拍累加**（命中一次加 1 秒），不是记两个时间戳相减 —— 后者会把系统休眠的整段算进前景时间。判定 = `GetForegroundWindow` → pid → `IsProcessInJob`。
+- **前台白名单保缩放期间计时连续**：前台进程映像名是 `Magpie.exe` 时仍算前台（`QueryFullProcessImageNameW` 取文件名比字），用户在 Magpie 界面操作的那几秒同样计入，宁可多算这几秒也不要断档。
 - **结束判定读作业的活跃进程数**（`QueryInformationJobObject` 的 `ActiveProcesses`），不用「作业句柄变有信号」。归零后要连续 3 个节拍仍为零才收尾：启动器型入口会「启动器退出、本体被它拉起」，计数会短暂归零，立刻收尾会把一次游玩砍成几秒。
 - **不给 breakaway 许可**（不设 `JOB_OBJECT_LIMIT_BREAKAWAY_OK`），加上子进程默认继承作业成员身份，游戏拉起的子进程逃不出去。作业句柄得自己开：`std::process::Command` 只给 pid，要拿句柄得 `OpenProcess`。
-- **前景时间按节拍累加**（命中一次加 1 秒），不是记两个时间戳相减 —— 后者会把系统休眠的整段算进前景时间。判定 = `GetForegroundWindow` → pid → `IsProcessInJob`。
 - **落盘时机**：前台状态翻转时立刻写，另有 30 个节拍的心跳兜底。前景时间只在 FishVN 在场时才可能增长，所以断电最多丢最后一个心跳周期、不会虚高；存活时间由起止时间戳相减，FishVN 不在场的那段必然少算。两种偏差都朝「少算」。
 - **孤儿收尾只在开库时做**（`sweep`）：把 `ended_at IS NULL` 的记录按 `last_seen_at` 结算。不能挪进 `launch_game` —— 那会把别的作品的进行中记录一起结算掉。
 - **状态自动迁移只在越过静默窗后**做一次「计划中 → 游玩中」：spawn 成功不等于游戏真的跑起来了，点一条失效的路径不该改写状态。
-- **启动方式按扩展名分派**：`bat` / `cmd` 走 `cmd /C`，`lnk` 走 `cmd /C start`（`CreateProcess` 不认识 `.lnk`），其余直接起；工作目录显式设为安装项的 `dir_path`。
-- 依赖 `windows` crate（Job Objects / Threading / WindowsAndMessaging）：版本要与 tauri 的传递依赖对齐，错开会编两遍。
+- 依赖 `windows` crate（Job Objects / Threading / WindowsAndMessaging）：版本要与 tauri 的传递依赖对齐，错开会编两遍。裸 `HANDLE` 不是 `Send`，跨线程传作业句柄要包 newtype 并整体传（闭包按字段捕获会绕过包装）；`DuplicateHandle` / `DUPLICATE_SAME_ACCESS` 在 `Win32::Foundation` 不在 Threading。
 
 ### 任务事件
 
@@ -188,7 +196,7 @@ snake_case，裸 HTTP 没有这层转换。前端日志命令（`log_frontend`�
 | `games` | 作品身份 | 用户创建与编辑 |
 | `user_game_state` | 状态、用户评分、笔记、默认安装、总时长 | 用户；总时长另有结算累加 |
 | `play_sessions` | 一次游玩的起点、结束与两个时长 | 启动动作 |
-| `installations` | 本地目录、入口 exe、候选入口、目录大小、顺序 | 用户在前端表单里整包写回 |
+| `installations` | 本地目录、入口 exe、候选入口、目录大小、顺序、转区开关 / Magpie 模式 / 附加参数 | 用户在前端表单里整包写回 |
 | `game_metadata` | 别名与本地化标题、封面、发行日期、评分与人数、简介、标签、开发商 | 用户直接编辑；同步时逐字段比对后由用户选覆盖或跳过 |
 
 几条从表结构看不出来的语义与配套惯例：
@@ -218,6 +226,7 @@ snake_case，裸 HTTP 没有这层转换。前端日志命令（`log_frontend`�
 - `patch` 改入口时先看同目录有没有别的行占着这一对，占了就报冲突而不是漏成唯一索引错误
 - 目录元信息分两档取：只要候选 exe 时下探三层（限深也截断了读取），连大小一起取时遍历整棵子树。整包写回走前者，`size_bytes` 留空；新建与换目录时重算候选，换目录顺带把失效的 `size_bytes` 置空；目录没变就不读盘，搬走的目录不挡保存
 - `entry_path` 存相对 `dir_path` 的路径：空串、绝对路径与含 `..` 的路径都判非法输入
+- 安装项的三项启动控制都是该行的属性、不是全局设置：`le_launch`（布尔，默认 0）、`magpie`（模式整数，0 = 关 / 1 = 全屏 / 2 = 窗口，默认 0）与 `launch_args`（文本，可空；trim 后为空串按 NULL 存）。工具本体的路径不在 installations 里，在 `config.json` 的 `le_path` / `magpie_path`（均可空），启动时现取现验——没登记就 `BadRequest` 拦住、不起进程
 - `user_game_state.play_seconds` 是作品的总时长：用户可随时改写，结算在既有值上累加。次数、最近游玩、前景时间、存活时间这四个聚合值由 `play_sessions` 在查询里聚合出来
 - `user_game_state` 的同步基线三列：`synced_status` / `synced_rating` 存上次同步应用时写入的上游快照，`state_modified_at` 存本地状态与评分最后一次被改的时间。三路比对（本地现值 / 快照 / 上游）靠它们区分「本地改过」与「上游改过」：上游相对快照变了、本地没动，才进可对齐集；两者都动过的是冲突，交用户逐字段选。三列均可空，从没同步过的行是 NULL
 - `play_sessions.ended_at` 为空即进行中；计时回路收尾与开库收尾都会把这次的前景时间累加进作品的总时长

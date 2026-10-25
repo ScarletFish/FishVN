@@ -68,29 +68,94 @@
           <span class="install-pick__ring"></span>
         </label>
 
-        <PathField
-          bind:value={item.path}
-          picker={pickExecutable}
-          pickerTitle={t('gameForm.install.pickTitle')}
-          onPick={(picked) => acceptPick(item, picked)}
-          placeholder={t('gameForm.install.pathPlaceholder')}
-          ariaLabel={t('gameForm.install.pathAria')}
-          error={installPathInvalid(item) ? t('gameForm.install.pathInvalid') : ''}
-          {disabled}
-        />
+        <div class="install-main">
+          <PathField
+            bind:value={item.path}
+            picker={pickExecutable}
+            pickerTitle={t('gameForm.install.pickTitle')}
+            onPick={(picked) => acceptPick(item, picked)}
+            placeholder={t('gameForm.install.pathPlaceholder')}
+            ariaLabel={t('gameForm.install.pathAria')}
+            error={installPathInvalid(item) ? t('gameForm.install.pathInvalid') : ''}
+            {disabled}
+          />
+
+          <div class="install-flags">
+            <div class="install-flag-row">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={item.leLaunch}
+                  onchange={(event) => (item.leLaunch = event.currentTarget.checked)}
+                  {disabled}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="install-flag-label">{t('gameForm.install.leLaunch')}</span>
+            </div>
+
+            <div class="install-flag-row">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={item.magpie !== 'off'}
+                  onchange={(event) =>
+                    (item.magpie = event.currentTarget.checked ? 'full' : 'off')}
+                  {disabled}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="install-flag-label">{t('gameForm.install.magpie')}</span>
+              <div
+                class="seg-radio-group install-magpie"
+                role="radiogroup"
+                aria-label={t('gameForm.install.magpie')}
+              >
+                <label class="seg-radio-item">
+                  <input
+                    type="radio"
+                    name="install-magpie-{item.key}"
+                    checked={item.magpie === 'full'}
+                    onchange={() => (item.magpie = 'full')}
+                    disabled={disabled || item.magpie === 'off'}
+                  />
+                  {t('gameForm.install.magpieFull')}
+                </label>
+                <label class="seg-radio-item">
+                  <input
+                    type="radio"
+                    name="install-magpie-{item.key}"
+                    checked={item.magpie === 'window'}
+                    onchange={() => (item.magpie = 'window')}
+                    disabled={disabled || item.magpie === 'off'}
+                  />
+                  {t('gameForm.install.magpieWindow')}
+                </label>
+              </div>
+            </div>
+
+            <input
+              class="install-args"
+              type="text"
+              bind:value={item.launchArgs}
+              placeholder={item.leLaunch
+                ? t('gameForm.install.argsLeDisabled')
+                : t('gameForm.install.argsPlaceholder')}
+              aria-label={t('gameForm.install.argsAria')}
+              disabled={disabled || item.leLaunch}
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
+        </div>
 
         <button
           type="button"
-          class="install-remove"
-          aria-label={t('gameForm.install.remove')}
-          data-tooltip={t('gameForm.install.remove')}
+          class="btn btn-danger install-remove"
           onclick={() => removeItem(item)}
           {disabled}
         >
-          <svg viewBox="0 0 24 24">
-            <line x1="6" y1="6" x2="18" y2="18" />
-            <line x1="18" y1="6" x2="6" y2="18" />
-          </svg>
+          {t('gameForm.install.remove')}
         </button>
       </li>
     {/each}

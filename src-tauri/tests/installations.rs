@@ -9,7 +9,10 @@ use fishvn::installations::{
     create_installation, delete_installation, get_installation, list_installations,
     save_installations, update_installation,
 };
-use fishvn::types::{Installation, InstallationInput, InstallationPatch, NewGame, NewInstallation, StatePatch};
+use fishvn::types::{
+    Installation, InstallationInput, InstallationPatch, MagpieMode, NewGame, NewInstallation,
+    StatePatch,
+};
 
 fn new_game(db: &Db, name: &str) -> String {
     create_game(
@@ -40,6 +43,9 @@ fn fresh(dir: &std::path::Path) -> InstallationInput {
         id: None,
         dir_path: path_str(dir),
         entry_path: None,
+        le_launch: false,
+        magpie: MagpieMode::Off,
+        launch_args: None,
     }
 }
 
@@ -48,6 +54,9 @@ fn kept(inst: &Installation) -> InstallationInput {
         id: Some(inst.id.clone()),
         dir_path: inst.dir_path.clone(),
         entry_path: inst.entry_path.clone(),
+        le_launch: false,
+        magpie: MagpieMode::Off,
+        launch_args: None,
     }
 }
 
@@ -60,6 +69,9 @@ fn entry(dir: &std::path::Path, name: &str) -> InstallationInput {
         id: None,
         dir_path: path_str(dir),
         entry_path: Some(name.to_owned()),
+        le_launch: false,
+        magpie: MagpieMode::Off,
+        launch_args: None,
     }
 }
 
@@ -68,6 +80,9 @@ fn with_entry(inst: &Installation, dir: &std::path::Path, name: &str) -> Install
         id: Some(inst.id.clone()),
         dir_path: path_str(dir),
         entry_path: Some(name.to_owned()),
+        le_launch: false,
+        magpie: MagpieMode::Off,
+        launch_args: None,
     }
 }
 
@@ -249,6 +264,9 @@ fn patch改入口与改归属作品() {
         &InstallationPatch {
             game_id: None,
             entry_path: Some(Some("data/nested.exe".into())),
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
         },
     )
     .expect("改入口失败");
@@ -260,6 +278,9 @@ fn patch改入口与改归属作品() {
         &InstallationPatch {
             game_id: Some(Some(other.clone())),
             entry_path: None,
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
         },
     )
     .expect("改归属失败");
@@ -285,6 +306,9 @@ fn patch把归属改成不存在的作品返回_not_found() {
         &InstallationPatch {
             game_id: Some(Some(common::ghost().to_owned())),
             entry_path: None,
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
         },
     )
     .unwrap_err();
@@ -305,6 +329,9 @@ fn patch归属给空串返回_not_found_不是外键错误() {
         &InstallationPatch {
             game_id: Some(Some(String::new())),
             entry_path: None,
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
         },
     )
     .unwrap_err();
@@ -330,6 +357,9 @@ fn patch_entry_path为空串返回_bad_request() {
         &InstallationPatch {
             game_id: None,
             entry_path: Some(Some(String::new())),
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
         },
     )
     .unwrap_err();
@@ -353,6 +383,9 @@ fn 归属与入口同时非法时报输入问题不是不存在() {
         &InstallationPatch {
             game_id: Some(Some(common::ghost().to_owned())),
             entry_path: Some(Some(String::new())),
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
         },
     )
     .unwrap_err();
@@ -385,6 +418,9 @@ fn patch不存在的安装返回_not_found() {
         &InstallationPatch {
             game_id: None,
             entry_path: Some(Some("x.exe".into())),
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
         },
     )
     .unwrap_err();
@@ -684,6 +720,9 @@ fn 整包保存重复出现同一安装项返回_bad_request() {
                 id: Some(saved[0].id.clone()),
                 dir_path: path_str(&two),
                 entry_path: None,
+                le_launch: false,
+                magpie: MagpieMode::Off,
+                launch_args: None,
             },
         ],
     )
@@ -708,6 +747,9 @@ fn 整包保存带别作品的安装_id返回_conflict() {
             id: Some(foreign),
             dir_path: path_str(&dir),
             entry_path: None,
+            le_launch: false,
+            magpie: MagpieMode::Off,
+            launch_args: None,
         }],
     )
     .unwrap_err();
@@ -729,6 +771,9 @@ fn 整包保存带不存在的安装_id返回_not_found() {
             id: Some(common::ghost().to_owned()),
             dir_path: path_str(&dir),
             entry_path: None,
+            le_launch: false,
+            magpie: MagpieMode::Off,
+            launch_args: None,
         }],
     )
     .unwrap_err();
@@ -749,6 +794,9 @@ fn 整包保存缺目录或空_id返回_bad_request() {
             id: None,
             dir_path: "   ".into(),
             entry_path: None,
+            le_launch: false,
+            magpie: MagpieMode::Off,
+            launch_args: None,
         }],
     )
     .unwrap_err();
@@ -762,6 +810,9 @@ fn 整包保存缺目录或空_id返回_bad_request() {
             id: Some("  ".into()),
             dir_path: path_str(&dir),
             entry_path: None,
+            le_launch: false,
+            magpie: MagpieMode::Off,
+            launch_args: None,
         }],
     )
     .unwrap_err();
@@ -806,6 +857,9 @@ fn 整包保存入口越出目录返回_bad_request() {
                 id: None,
                 dir_path: path_str(&dir),
                 entry_path: Some(bad.into()),
+                le_launch: false,
+                magpie: MagpieMode::Off,
+                launch_args: None,
             }],
         )
         .unwrap_err();
@@ -827,6 +881,9 @@ fn 整包保存接受候选之外的手输入口() {
             id: None,
             dir_path: path_str(&dir),
             entry_path: Some("bin/start.exe".into()),
+            le_launch: false,
+            magpie: MagpieMode::Off,
+            launch_args: None,
         }],
     )
     .expect("整包保存失败");
@@ -874,6 +931,9 @@ fn 整包保存换目录时重算候选并清掉旧的目录大小() {
             id: Some(before.id.clone()),
             dir_path: path_str(&new),
             entry_path: None,
+            le_launch: false,
+            magpie: MagpieMode::Off,
+            launch_args: None,
         }],
     )
     .expect("换目录失败");
@@ -1084,6 +1144,9 @@ fn patch把入口改成同目录已有的那条返回_conflict() {
         &InstallationPatch {
             game_id: None,
             entry_path: Some(Some("game.exe".into())),
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
         },
     )
     .unwrap_err();
@@ -1096,6 +1159,9 @@ fn patch把入口改成同目录已有的那条返回_conflict() {
         &InstallationPatch {
             game_id: None,
             entry_path: Some(Some("game_zh.exe".into())),
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
         },
     )
     .expect("改成自己原来的值该放行");

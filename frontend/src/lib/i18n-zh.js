@@ -206,6 +206,7 @@ export const DICT_ZH = {
     tab: {
       appearance: '外观',
       content: '内容',
+      tools: '工具',
     },
     theme: '深色模式',
     themeHint: '开启后使用深色配色，关闭后使用浅色',
@@ -243,6 +244,16 @@ export const DICT_ZH = {
     excludedBrowse: '从库内标签挑选',
     excludedPoolEmpty: '库内暂无可排除的标签',
     excludedRemove: '移出排除池',
+    tools: {
+      magpie: 'Magpie 可执行文件路径',
+      magpieHint: '放大游戏画面用；选择 Magpie.exe',
+      le: 'Locale Emulator 可执行文件路径',
+      leHint: '转区运行游戏用；选择 LEProc.exe',
+      pickMagpie: '选择 Magpie.exe',
+      pickLe: '选择 LEProc.exe',
+      pathPlaceholder: '未设置',
+      pathMissing: '路径不存在，请重新选择',
+    },
     vndb: {
       tab: 'VNDB 同步',
       mode: '同步方式',
@@ -425,6 +436,13 @@ export const DICT_ZH = {
       pickDefault: '指定为默认启动程序',
       remove: '移除',
       duplicate: '该启动文件已在列表中',
+      leLaunch: '转区启动',
+      magpie: 'Magpie 缩放',
+      magpieFull: '全屏',
+      magpieWindow: '窗口',
+      argsPlaceholder: '附加启动参数，如 -window',
+      argsAria: '附加启动参数',
+      argsLeDisabled: '转区时无法附加参数',
     },
     playtime: {
       label: '总时长',

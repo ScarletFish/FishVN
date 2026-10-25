@@ -6,6 +6,7 @@
     picker,
     pickerTitle = '',
     onPick = null,
+    oncommit = null,
     placeholder = '',
     ariaLabel = '',
     browseLabel = t('common.browse'),
@@ -26,6 +27,7 @@
       if (!picked) return;
       if (onPick && onPick(picked) === false) return;
       value = picked;
+      oncommit?.(picked);
     } catch (err) {
       pickError = err.message;
     }
@@ -43,6 +45,7 @@
       spellcheck="false"
       autocomplete="off"
       {disabled}
+      onblur={() => oncommit?.(value)}
     />
     <button type="button" class="btn path-field__browse" onclick={browse} {disabled}>
       {browseLabel}

@@ -1,11 +1,13 @@
 <script>
   import { tick } from 'svelte';
   import Modal from './Modal.svelte';
+  import PathField from './PathField.svelte';
   import { getTheme, toggleTheme, getAccent, setAccent, viewTransition, ACCENTS, getFontScale, setFontScale } from '../lib/theme.js';
   import { t } from '../lib/i18n.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { api } from '../lib/api.js';
+  import { pickExecutable } from '../lib/pick-path.js';
   import { DASHBOARD_MODULES, moveModule, setModuleEnabled, reorderModule } from '../lib/dashboard-layout.js';
   import { notifyConfigChanged } from '../lib/config-events.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
@@ -28,6 +30,11 @@
   let poolOpen = $state(false);
   let layout = $state([]);
   let includeUninstalled = $state(true);
+
+  let magpiePath = $state('');
+  let lePath = $state('');
+  let magpiePathError = $state('');
+  let lePathError = $state('');
 
   let vndbSyncMode = $state('download');
   let vndbImportWishlist = $state(false);
@@ -84,6 +91,10 @@
         hasVndbToken = !!config.has_vndb_token;
         vndbTokenInput = '';
         vndbTestResult = null;
+        magpiePath = config.magpie_path ?? '';
+        lePath = config.le_path ?? '';
+        magpiePathError = '';
+        lePathError = '';
       })
       .catch(() => {});
   });
@@ -116,6 +127,25 @@
     layout = next;
     try {
       await api.updateConfig({ dashboard_layout: next });
+      notifyConfigChanged();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  async function saveToolPath(field, raw) {
+    const path = (raw ?? '').trim();
+    const isMagpie = field === 'magpie';
+    const key = isMagpie ? 'magpie_path' : 'le_path';
+    if (isMagpie) magpiePathError = '';
+    else lePathError = '';
+    try {
+      if (path && !(await api.pathExists(path))) {
+        if (isMagpie) magpiePathError = t('settings.tools.pathMissing');
+        else lePathError = t('settings.tools.pathMissing');
+        return;
+      }
+      await api.updateConfig({ [key]: path || null });
       notifyConfigChanged();
     } catch (err) {
       toast(err.message, 'error');
@@ -393,6 +423,16 @@
       type="button"
       role="tab"
       class="modal-tab"
+      class:active={tab === 'tools'}
+      aria-selected={tab === 'tools'}
+      onclick={() => (tab = 'tools')}
+    >
+      {t('settings.tab.tools')}
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="modal-tab"
       class:active={tab === 'vndb'}
       aria-selected={tab === 'vndb'}
       onclick={() => (tab = 'vndb')}
@@ -644,6 +684,36 @@
         {:else}
           <p class="form-hint">{t('settings.excludedEmpty')}</p>
         {/if}
+      </div>
+    </div>
+
+    <div class="modal-panel" class:active={tab === 'tools'}>
+      <div class="form-group">
+        <div class="form-label">{t('settings.tools.magpie')}</div>
+        <PathField
+          bind:value={magpiePath}
+          picker={pickExecutable}
+          pickerTitle={t('settings.tools.pickMagpie')}
+          oncommit={(picked) => saveToolPath('magpie', picked)}
+          placeholder={t('settings.tools.pathPlaceholder')}
+          ariaLabel={t('settings.tools.magpie')}
+          error={magpiePathError}
+        />
+        <p class="form-hint">{t('settings.tools.magpieHint')}</p>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.tools.le')}</div>
+        <PathField
+          bind:value={lePath}
+          picker={pickExecutable}
+          pickerTitle={t('settings.tools.pickLe')}
+          oncommit={(picked) => saveToolPath('le', picked)}
+          placeholder={t('settings.tools.pathPlaceholder')}
+          ariaLabel={t('settings.tools.le')}
+          error={lePathError}
+        />
+        <p class="form-hint">{t('settings.tools.leHint')}</p>
       </div>
     </div>
 

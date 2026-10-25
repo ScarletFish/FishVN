@@ -106,6 +106,9 @@ pub fn add_launch(shared: &Shared, game: &str, dir: &Path, entry: &str) -> Strin
                 &InstallationPatch {
                     game_id: None,
                     entry_path: Some(Some(entry.into())),
+                    le_launch: None,
+                    magpie: None,
+                    launch_args: None,
                 },
             )
         })

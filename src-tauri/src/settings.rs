@@ -114,6 +114,10 @@ pub struct AppConfig {
     pub vndb_sync_import_wishlist: bool,
     #[serde(default)]
     pub vndb_token_obf: Option<String>,
+    #[serde(default)]
+    pub magpie_path: Option<String>,
+    #[serde(default)]
+    pub le_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -129,6 +133,8 @@ pub struct ConfigPatch {
     pub vndb_sync_mode: Option<VndbSyncMode>,
     pub vndb_sync_import_wishlist: Option<bool>,
     pub vndb_token: Option<String>,
+    pub magpie_path: Option<String>,
+    pub le_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -144,6 +150,8 @@ pub struct ConfigView {
     pub vndb_sync_mode: VndbSyncMode,
     pub vndb_sync_import_wishlist: bool,
     pub has_vndb_token: bool,
+    pub magpie_path: Option<String>,
+    pub le_path: Option<String>,
 }
 
 static CACHE: OnceLock<RwLock<Option<AppConfig>>> = OnceLock::new();
@@ -216,8 +224,19 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     if let Some(raw) = patch.vndb_token {
         config.vndb_token_obf = obfuscate_token(&raw);
     }
+    if let Some(raw) = patch.magpie_path {
+        config.magpie_path = clean_tool_path(&raw);
+    }
+    if let Some(raw) = patch.le_path {
+        config.le_path = clean_tool_path(&raw);
+    }
     update(dir, config)?;
     Ok(current())
+}
+
+fn clean_tool_path(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
 }
 
 const TOKEN_MASK: &[u8] = b"FishVN-vndb-token-obf-2026";
@@ -267,6 +286,8 @@ pub fn view() -> ConfigView {
         vndb_sync_mode: config.vndb_sync_mode,
         vndb_sync_import_wishlist: config.vndb_sync_import_wishlist,
         has_vndb_token: token_set,
+        magpie_path: config.magpie_path.clone(),
+        le_path: config.le_path.clone(),
     }
 }
 
@@ -405,6 +426,8 @@ mod tests {
                 vndb_sync_mode: None,
                 vndb_sync_import_wishlist: None,
                 vndb_token: None,
+                magpie_path: None,
+                le_path: None,
             },
         )
         .unwrap();
@@ -613,5 +636,49 @@ mod tests {
         assert!(current().vndb_sync_import_wishlist);
         let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
         assert!(text.contains("vndb_sync_import_wishlist"));
+    }
+
+    #[test]
+    fn 工具路径补丁去空白设置_空串清空_只动给到的字段() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        assert!(current().magpie_path.is_none());
+        assert!(current().le_path.is_none());
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch {
+                magpie_path: Some("  D:\\Tools\\Magpie\\Magpie.exe  ".into()),
+                le_path: Some("D:\\Tools\\LE\\LEProc.exe".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            config.magpie_path.as_deref(),
+            Some("D:\\Tools\\Magpie\\Magpie.exe")
+        );
+        assert_eq!(config.le_path.as_deref(), Some("D:\\Tools\\LE\\LEProc.exe"));
+        assert_eq!(
+            view().magpie_path.as_deref(),
+            Some("D:\\Tools\\Magpie\\Magpie.exe")
+        );
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch { magpie_path: Some("   ".into()), ..Default::default() },
+        )
+        .unwrap();
+        assert!(config.magpie_path.is_none());
+        assert!(view().magpie_path.is_none());
+        assert_eq!(config.le_path.as_deref(), Some("D:\\Tools\\LE\\LEProc.exe"));
+
+        init(tmp.path());
+        assert!(current().magpie_path.is_none());
+        assert_eq!(current().le_path.as_deref(), Some("D:\\Tools\\LE\\LEProc.exe"));
+        let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
+        assert!(text.contains("LEProc.exe"));
+        assert!(text.contains("\"magpie_path\": null"));
     }
 }

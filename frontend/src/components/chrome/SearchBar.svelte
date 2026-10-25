@@ -41,6 +41,8 @@
     { label: t('settings.hideR18'), keywords: 'r18 成人 隐藏 过滤 标签' },
     { label: t('settings.spoilerLevel'), keywords: '剧透 剧情隐藏 spoiler' },
     { label: t('settings.excludedTags'), keywords: '排除 标签 黑名单 排除池 excluded tags' },
+    { label: t('settings.tools.magpie'), keywords: 'magpie 放大 超分 缩放 画质 工具 路径' },
+    { label: t('settings.tools.le'), keywords: '转区 locale emulator leproc 日文 乱码 工具 路径' },
     { label: t('settings.vndb.mode'), keywords: 'vndb 同步 模式 上传 下载 sync' },
     { label: t('settings.vndb.importWishlist'), keywords: 'vndb 同步 想玩 愿望单 导入 wishlist' },
     { label: t('settings.vndb.token'), keywords: 'vndb token 令牌 凭证 连接 授权' },

@@ -18,6 +18,9 @@ test('取回的行铺成一行启动路径', () => {
     dir_path: 'D:\\Games\\One',
     entry_path: 'bin\\game.exe',
     size_bytes: 12,
+    le_launch: true,
+    magpie: 'window',
+    launch_args: '-window',
   });
 
   expect(draft.id).toBe('i1');
@@ -25,6 +28,9 @@ test('取回的行铺成一行启动路径', () => {
   expect(draft.entryPath).toBe('bin\\game.exe');
   expect(draft.path).toBe('D:\\Games\\One\\bin\\game.exe');
   expect(draft.key).toBeTruthy();
+  expect(draft.leLaunch).toBe(true);
+  expect(draft.magpie).toBe('window');
+  expect(draft.launchArgs).toBe('-window');
 });
 
 test('只有目录的行铺成目录本身', () => {
@@ -39,6 +45,9 @@ test('新建的安装项只有路径', () => {
   expect(draft.dirPath).toBe('');
   expect(draft.entryPath).toBe('');
   expect(draft.path).toBe('D:\\Games\\One\\game.exe');
+  expect(draft.leLaunch).toBe(false);
+  expect(draft.magpie).toBe('off');
+  expect(draft.launchArgs).toBe('');
 });
 
 test('拼接分隔符跟着目录走', () => {
@@ -107,12 +116,18 @@ test('没动过的行原样提交', () => {
     id: 'i1',
     dir_path: 'D:\\Games\\One',
     entry_path: 'bin\\game.exe',
+    le_launch: false,
+    magpie: 'off',
+    launch_args: null,
   });
 
   expect(toInstallationPayload({ ...nested, path: 'D:\\Games\\One\\bin\\other.exe' })).toEqual({
     id: 'i1',
     dir_path: 'D:\\Games\\One\\bin',
     entry_path: 'other.exe',
+    le_launch: false,
+    magpie: 'off',
+    launch_args: null,
   });
 });
 
@@ -122,11 +137,37 @@ test('提交时把路径拆成目录与启动文件', () => {
     id: null,
     dir_path: 'D:\\Games\\One\\bin',
     entry_path: 'game.exe',
+    le_launch: false,
+    magpie: 'off',
+    launch_args: null,
   });
 
   const kept = newInstallation('D:\\Games\\One\\launcher.exe');
   kept.id = 'i1';
   expect(toInstallationPayload(kept).id).toBe('i1');
+});
+
+test('启动方式开关与附加参数跟着提交', () => {
+  const draft = {
+    ...newInstallation('D:\\Games\\One\\game.exe'),
+    leLaunch: true,
+    magpie: 'window',
+    launchArgs: '  -screen-fullscreen 0  ',
+  };
+  expect(toInstallationPayload(draft)).toEqual({
+    id: null,
+    dir_path: 'D:\\Games\\One',
+    entry_path: 'game.exe',
+    le_launch: true,
+    magpie: 'window',
+    launch_args: '-screen-fullscreen 0',
+  });
+
+  const cleared = { ...draft, launchArgs: '   ' };
+  expect(toInstallationPayload(cleared).launch_args).toBeNull();
+
+  const off = { ...draft, magpie: 'off' };
+  expect(toInstallationPayload(off).magpie).toBe('off');
 });
 
 test('只有目录的行原样提交', () => {
@@ -135,12 +176,18 @@ test('只有目录的行原样提交', () => {
     id: 'i1',
     dir_path: 'D:/Games/One',
     entry_path: null,
+    le_launch: false,
+    magpie: 'off',
+    launch_args: null,
   });
 
   expect(toInstallationPayload({ ...draft, path: 'D:/Games/Two' })).toEqual({
     id: 'i1',
     dir_path: 'D:/Games/Two',
     entry_path: null,
+    le_launch: false,
+    magpie: 'off',
+    launch_args: null,
   });
 });
 

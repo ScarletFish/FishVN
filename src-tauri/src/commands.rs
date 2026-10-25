@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use rusqlite::Connection;
@@ -446,4 +446,13 @@ pub fn allow_local_file(app: tauri::AppHandle, path: String) -> Result<()> {
     app.asset_protocol_scope()
         .allow_file(&path)
         .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))
+}
+
+#[tauri::command]
+pub fn path_exists(path: String) -> Result<bool> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Ok(false);
+    }
+    Ok(Path::new(trimmed).is_file())
 }

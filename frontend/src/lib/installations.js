@@ -37,11 +37,23 @@ export function toInstallationDraft(row = {}) {
     dirPath,
     entryPath,
     path: joinLaunchPath(dirPath, entryPath),
+    leLaunch: !!row.le_launch,
+    magpie: row.magpie ?? 'off',
+    launchArgs: row.launch_args ?? '',
   };
 }
 
 export function newInstallation(path = '') {
-  return { key: newLocalId(), id: null, dirPath: '', entryPath: '', path };
+  return {
+    key: newLocalId(),
+    id: null,
+    dirPath: '',
+    entryPath: '',
+    path,
+    leLaunch: false,
+    magpie: 'off',
+    launchArgs: '',
+  };
 }
 
 export function installPathInvalid(draft) {
@@ -53,15 +65,21 @@ export function installPathInvalid(draft) {
 
 export function toInstallationPayload(draft) {
   if (installPathInvalid(draft)) return null;
+  const flags = {
+    le_launch: !!draft.leLaunch,
+    magpie: draft.magpie || 'off',
+    launch_args: (draft.launchArgs ?? '').trim() || null,
+  };
   if (isUnchanged(draft)) {
     return {
       id: draft.id ?? null,
       dir_path: draft.dirPath,
       entry_path: draft.entryPath || null,
+      ...flags,
     };
   }
   const { dirPath, entryPath } = splitLaunchPath(draft.path.trim());
-  return { id: draft.id ?? null, dir_path: dirPath, entry_path: entryPath || null };
+  return { id: draft.id ?? null, dir_path: dirPath, entry_path: entryPath || null, ...flags };
 }
 
 export function defaultKeyOf(items, defaultId) {

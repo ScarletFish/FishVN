@@ -145,6 +145,7 @@ fn main() {
             commands::inspect_path,
             commands::scan_dir,
             commands::log_frontend,
+            commands::path_exists,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 启动失败");

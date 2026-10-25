@@ -8,9 +8,9 @@ use serde_json::Value as Json;
 use crate::error::{write_conflict, AppError, Result};
 use crate::fsinfo::{ensure_dir, read_dir_info, read_exes, resolve_path};
 use crate::new_id;
-use crate::types::{Installation, InstallationInput, InstallationPatch, NewInstallation};
+use crate::types::{Installation, InstallationInput, InstallationPatch, MagpieMode, NewInstallation};
 
-const COLUMNS: &str = "id, game_id, dir_path, entry_path, exes, size_bytes";
+const COLUMNS: &str = "id, game_id, dir_path, entry_path, exes, size_bytes, le_launch, magpie, launch_args";
 
 const ORDER_BY: &str = "sort_order, dir_path, IFNULL(entry_path, '')";
 
@@ -25,6 +25,9 @@ struct InstallRow {
     entry_path: Option<String>,
     exes: Option<String>,
     size_bytes: Option<i64>,
+    le_launch: bool,
+    magpie: i64,
+    launch_args: Option<String>,
 }
 
 pub fn list_installations(conn: &Connection, game_id: Option<&str>) -> Result<Vec<Installation>> {
@@ -93,10 +96,13 @@ pub fn create_installation(conn: &Connection, input: &NewInstallation) -> Result
         entry_path,
         exes: Some(serde_json::to_string(&info.exes)?),
         size_bytes: Some(info.size_bytes),
+        le_launch: false,
+        magpie: 0,
+        launch_args: None,
     };
 
     conn.execute(
-        &format!("INSERT INTO installations ({COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)"),
+        &format!("INSERT INTO installations ({COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"),
         params![
             &row.id,
             &row.game_id,
@@ -104,6 +110,9 @@ pub fn create_installation(conn: &Connection, input: &NewInstallation) -> Result
             &row.entry_path,
             &row.exes,
             row.size_bytes,
+            row.le_launch,
+            row.magpie,
+            &row.launch_args,
         ],
     )
     .map_err(|e| write_conflict(e, DIR_TAKEN))?;
@@ -155,6 +164,21 @@ pub fn update_installation(
             None => Value::Null,
         });
     }
+    if let Some(value) = patch.le_launch {
+        sets.push("le_launch = ?");
+        values.push(Value::Integer(i64::from(value)));
+    }
+    if let Some(value) = patch.magpie {
+        sets.push("magpie = ?");
+        values.push(Value::Integer(value.to_db()));
+    }
+    if let Some(raw) = &patch.launch_args {
+        sets.push("launch_args = ?");
+        values.push(match raw.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            Some(s) => Value::Text(s.to_owned()),
+            None => Value::Null,
+        });
+    }
     if sets.is_empty() {
         return Err(AppError::BadRequest("没有可更新的字段".into()));
     }
@@ -191,6 +215,9 @@ struct Draft {
     id: Option<String>,
     dir_path: String,
     entry_path: Option<String>,
+    le_launch: bool,
+    magpie: MagpieMode,
+    launch_args: Option<String>,
 }
 
 pub fn save_installations(
@@ -265,9 +292,19 @@ pub fn save_installations(
         let id = match target {
             Some(row) => {
                 tx.execute(
-                    "UPDATE installations SET game_id = ?, dir_path = ?, entry_path = ?, sort_order = ?
+                    "UPDATE installations SET game_id = ?, dir_path = ?, entry_path = ?, sort_order = ?,
+                     le_launch = ?, magpie = ?, launch_args = ?
                      WHERE id = ?",
-                    params![game_id, &draft.dir_path, &draft.entry_path, order, &row.id],
+                    params![
+                        game_id,
+                        &draft.dir_path,
+                        &draft.entry_path,
+                        order,
+                        draft.le_launch,
+                        draft.magpie.to_db(),
+                        &draft.launch_args,
+                        &row.id
+                    ],
                 )?;
                 if row.dir_path != draft.dir_path {
                     let dir = Path::new(&draft.dir_path);
@@ -285,8 +322,9 @@ pub fn save_installations(
                 let id = new_id();
                 tx.execute(
                     "INSERT INTO installations
-                     (id, game_id, dir_path, entry_path, exes, size_bytes, sort_order)
-                     VALUES (?, ?, ?, ?, ?, NULL, ?)",
+                     (id, game_id, dir_path, entry_path, exes, size_bytes, sort_order,
+                      le_launch, magpie, launch_args)
+                     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)",
                     params![
                         &id,
                         game_id,
@@ -294,6 +332,9 @@ pub fn save_installations(
                         &draft.entry_path,
                         serde_json::to_string(&read_exes(dir))?,
                         order,
+                        draft.le_launch,
+                        draft.magpie.to_db(),
+                        &draft.launch_args,
                     ],
                 )
                 .map_err(|e| write_conflict(e, TAKEN))?;
@@ -350,6 +391,14 @@ fn validate_drafts(entries: &[InstallationInput]) -> Result<Vec<Draft>> {
             id,
             dir_path,
             entry_path: entry.entry_path.clone(),
+            le_launch: entry.le_launch,
+            magpie: entry.magpie,
+            launch_args: entry
+                .launch_args
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned),
         });
     }
     Ok(out)
@@ -441,6 +490,9 @@ fn read_row(row: &Row<'_>) -> rusqlite::Result<InstallRow> {
         entry_path: row.get("entry_path")?,
         exes: row.get("exes")?,
         size_bytes: row.get("size_bytes")?,
+        le_launch: row.get("le_launch")?,
+        magpie: row.get("magpie")?,
+        launch_args: row.get("launch_args")?,
     })
 }
 
@@ -464,5 +516,8 @@ fn to_api(row: &InstallRow) -> Result<Installation> {
         entry_path: row.entry_path.clone(),
         exes,
         size_bytes: row.size_bytes,
+        le_launch: row.le_launch,
+        magpie: MagpieMode::from_db(row.magpie),
+        launch_args: row.launch_args.clone(),
     })
 }

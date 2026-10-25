@@ -349,6 +349,10 @@ async fn allow_local_file(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -
     )
 }
 
+async fn path_exists(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    finish(a.path().and_then(|p| commands::path_exists(p.to_owned())))
+}
+
 async fn get_config(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
     finish(Ok(settings::view()))
 }
@@ -495,6 +499,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/inspect_path", post(inspect_path))
         .route("/scan_dir", post(scan_dir))
         .route("/allow_local_file", post(allow_local_file))
+        .route("/path_exists", post(path_exists))
         .route("/thumbnail", post(thumbnail))
         .route("/get_config", post(get_config))
         .route("/tag_dictionary", post(tag_dictionary))
@@ -543,6 +548,7 @@ pub const COMMANDS: &[&str] = &[
     "inspect_path",
     "scan_dir",
     "allow_local_file",
+    "path_exists",
     "thumbnail",
     "get_config",
     "update_config",

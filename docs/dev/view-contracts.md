@@ -44,7 +44,7 @@
 | 用户输入 | `name` · `status` · `user_rating` · `notes` · `play_seconds` | 表单自由编辑；`status` / `user_rating` 另有同步写路径：账户同步计划确认后按逐字段决策写，见「同步对用户状态的写路径」 |
 | 系统派生 | `created_at` · `play_count` · `last_played_at` · `foreground_seconds` · `alive_seconds` · `installation_count` · `can_launch` | 由动作产生 |
 | 外部元数据 | 别名与本地化标题 · 封面 · 发行日期 · 评分与人数 · 平均通关时长 · 简介 · 标签 · 开发商 | 同步逐字段比对库里现值与新值，不同的字段进冲突面板，由用户逐字段选覆盖或跳过；JSON 列整列替换 |
-| 本地事实 | `dir_path` · `entry_path` · `size_bytes` | 表单的安装行里用文件对话框挑启动文件，路径也可手工输入；`entry_path` 存相对 `dir_path` 的路径 |
+| 本地事实 | `dir_path` · `entry_path` · `size_bytes` · `le_launch` · `magpie` · `launch_args` | 表单的安装行里用文件对话框挑启动文件，路径也可手工输入；`entry_path` 存相对 `dir_path` 的路径；后三项是启动方式：转区开关、Magpie 缩放方式（关 / 全屏 / 窗口）、附加参数，用户点选与填写 |
 
 `installation_count` · `can_launch` 与四个游玩聚合值是查询期算出来的，其余系统派生字段有列，写者见 [backend.md](./backend.md)。`play_seconds` 有列：用户可任意改写，结算时系统在它上面累加。
 
