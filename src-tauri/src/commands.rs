@@ -372,6 +372,7 @@ pub async fn sync_vndb(
             total,
             error: None,
             run_id: 0,
+            game_id: None,
         };
         let logged = match log.inner().lock() {
             Ok(mut log) => log.push(SYNC_PROGRESS, event),

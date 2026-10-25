@@ -3,6 +3,7 @@
   import { t } from '../../lib/i18n.js';
   import { tagLabel } from '../../lib/tag-label.svelte.js';
   import { panelScrollbars } from '../../lib/scrollbars.js';
+  import { LIBRARY_TAGS_CHANGED } from '../../lib/library-events.js';
 
   let { onsettings } = $props();
 
@@ -37,7 +38,7 @@
   }
 
   const SETTINGS_MAP = () => [
-    { label: t('settings.theme'), keywords: '主题 外观 暗色 深色 黑夜 theme dark light' },
+    { label: t('settings.theme'), keywords: '主题 外观 暗色 深色 浅色 跟随系统 黑夜 theme dark light system' },
     { label: t('settings.accent'), keywords: '强调色 主题色 颜色 accent color' },
     { label: t('settings.fontSize'), keywords: '字体 字号 大小 缩放 font size' },
     { label: t('settings.timeMetric'), keywords: '时长 统计 口径 前台 存活 计时' },
@@ -133,6 +134,16 @@
       tagPool = list;
     });
   }
+
+  $effect(() => {
+    const refill = () => {
+      tagPool = null;
+      tagLoadPromise = null;
+      ensureTags();
+    };
+    window.addEventListener(LIBRARY_TAGS_CHANGED, refill);
+    return () => window.removeEventListener(LIBRARY_TAGS_CHANGED, refill);
+  });
 
   function closeDropdown() {
     open = false;

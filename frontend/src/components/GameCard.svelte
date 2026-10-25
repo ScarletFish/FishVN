@@ -7,9 +7,12 @@
 
   let coverBroken = $state(false);
   let coverUrl = $state(null);
+  let lastCoverPath = null;
 
   $effect(() => {
     const path = item.cover_path;
+    if (path === lastCoverPath) return;
+    lastCoverPath = path;
     coverBroken = false;
     coverUrl = null;
     if (!path) return;

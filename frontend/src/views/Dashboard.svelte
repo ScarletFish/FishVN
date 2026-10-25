@@ -10,7 +10,11 @@
   import { captureHero } from '../lib/hero-transition.js';
   import { DASHBOARD_MODULES } from '../lib/dashboard-layout.js';
   import { CONFIG_CHANGED } from '../lib/config-events.js';
-  import { notifyLibraryTagsChanged } from '../lib/library-events.js';
+  import {
+    notifyLibraryTagsChanged,
+    onLibraryItemsThrottled,
+    LIBRARY_CHANGED,
+  } from '../lib/library-events.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
@@ -65,7 +69,7 @@
   }
 
   async function deleteGame(item) {
-    const ok = await confirm('deleteGame', item.name);
+    const ok = await confirm('deleteGame', { name: item.name });
     if (!ok) return;
     await api.deleteGame(item.id);
     notifyLibraryTagsChanged();
@@ -132,7 +136,13 @@
   onMount(() => {
     load();
     window.addEventListener(CONFIG_CHANGED, load);
-    return () => window.removeEventListener(CONFIG_CHANGED, load);
+    window.addEventListener(LIBRARY_CHANGED, load);
+    const unwatchItems = onLibraryItemsThrottled(load);
+    return () => {
+      window.removeEventListener(CONFIG_CHANGED, load);
+      window.removeEventListener(LIBRARY_CHANGED, load);
+      unwatchItems();
+    };
   });
 </script>
 
@@ -263,4 +273,4 @@
   {/if}
 </section>
 
-<GameForm bind:open={formOpen} bind:gameId={formGameId} onsaved={load} />
+<GameForm bind:open={formOpen} bind:gameId={formGameId} />

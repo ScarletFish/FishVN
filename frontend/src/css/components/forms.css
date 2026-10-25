@@ -8,6 +8,11 @@
   border-top: 1px solid var(--border-default);
 }
 
+.form-group + .form-group.form-group--flat {
+  padding-top: 0;
+  border-top: 0;
+}
+
 .form-group > label,
 .form-label {
   display: block;
@@ -152,7 +157,7 @@
   letter-spacing: 0.12em;
 }
 
-.vndb-token-field__test {
+.vndb-token-field__action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -175,37 +180,75 @@
     border-color var(--duration-fast) var(--ease-out);
 }
 
-.vndb-token-field:hover .vndb-token-field__test,
-.vndb-token-field:focus-within .vndb-token-field__test {
+.vndb-token-field:hover .vndb-token-field__action,
+.vndb-token-field:focus-within .vndb-token-field__action {
   border-left-color: var(--border-strong);
 }
 
-.vndb-token-field__test:hover {
+.vndb-token-field__action:hover {
   color: var(--fg-default);
   background: var(--bg-hover);
 }
 
-.vndb-token-field__test:disabled {
+.vndb-token-field__action:disabled {
   opacity: 0.4;
   cursor: default;
   pointer-events: none;
 }
 
-.form-actions {
+.form-action-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.form-action-row > div {
+  min-width: 0;
+}
+
+.form-action-row > .btn {
+  flex-shrink: 0;
+}
+
+.form-action-row .form-hint {
+  margin-top: 0;
 }
 
 .vndb-test-ok {
-  margin-top: var(--space-2);
   color: var(--success);
 }
 
 .vndb-test-invalid {
-  margin-top: var(--space-2);
   color: var(--accent);
+}
+
+.vndb-token-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  color: var(--fg-muted);
+}
+
+.vndb-token-status__text {
+  font-size: var(--text-xs);
+}
+
+.vndb-token-clear {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.vndb-token-clear:hover {
+  color: var(--fg-default);
 }
 
 .sync-conflict__bulk {
@@ -289,10 +332,16 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-6);
   min-height: 0;
   overflow-y: auto;
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-5);
+}
+
+.sync-result__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .sync-result__summary {
@@ -312,6 +361,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+.sync-result__group + .sync-result__group {
+  margin-top: var(--space-2);
 }
 
 .sync-result__group-head {
@@ -350,21 +403,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.sync-result__backfill {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: var(--fw-medium);
-  color: var(--fg-default);
-}
-
-.sync-result__backfill .checkbox {
-  translate: 0 -1px;
 }
 
 .tag-pill--pick.sync-chip {
@@ -626,6 +664,16 @@
 
 .form-hint--error {
   color: var(--accent);
+}
+
+.form-hint-link {
+  color: var(--fg-secondary);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.form-hint-link:hover {
+  text-decoration-color: currentColor;
 }
 
 .num-stepper {
@@ -1043,18 +1091,30 @@
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
+  height: 20px;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+}
+
+.font-scale-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: var(--radius-pill);
   background: var(--border-default);
-  outline: none;
-  cursor: pointer;
+}
+
+.font-scale-slider::-moz-range-track {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-default);
 }
 
 .font-scale-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg-floating);
@@ -1063,8 +1123,8 @@
 }
 
 .font-scale-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg-floating);

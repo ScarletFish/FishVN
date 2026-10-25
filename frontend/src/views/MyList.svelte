@@ -8,7 +8,11 @@
   import { pickDirectory, pickExecutable } from '../lib/pick-path.js';
   import { createScrollAnim } from '../lib/scroll-anim.js';
   import { captureHero } from '../lib/hero-transition.js';
-  import { notifyLibraryTagsChanged, LIBRARY_CHANGED } from '../lib/library-events.js';
+  import {
+    notifyLibraryTagsChanged,
+    onLibraryItemsThrottled,
+    LIBRARY_CHANGED,
+  } from '../lib/library-events.js';
   import { notifyBackfillRefresh } from '../lib/task-events.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
@@ -23,6 +27,7 @@
   let games = $state([]);
   let loading = $state(true);
   let error = $state(null);
+  let unwatchItems = null;
   let formOpen = $state(false);
   let formGameId = $state(null);
   let prefill = $state(null);
@@ -38,7 +43,7 @@
   }
 
   async function deleteGame(item) {
-    const ok = await confirm('deleteGame', item.name);
+    const ok = await confirm('deleteGame', { name: item.name });
     if (!ok) return;
     await api.deleteGame(item.id);
     notifyLibraryTagsChanged();
@@ -123,18 +128,22 @@
   onMount(async () => {
     load();
     window.addEventListener(LIBRARY_CHANGED, onLibraryChanged);
+    unwatchItems = onLibraryItemsThrottled(load);
     try {
       backfillRunning = (await api.backfillStatus())?.running ?? false;
     } catch {}
   });
 
-  function onLibraryChanged() {
-    backfillRunning = false;
+  async function onLibraryChanged() {
+    try {
+      backfillRunning = (await api.backfillStatus())?.running ?? false;
+    } catch {}
     load();
   }
 
   onDestroy(() => {
     window.removeEventListener(LIBRARY_CHANGED, onLibraryChanged);
+    unwatchItems?.();
   });
 
   const byName = (a, b) => a.name.localeCompare(b.name, 'zh-CN');
@@ -282,6 +291,6 @@
   {/if}
 </section>
 
-<GameForm bind:open={formOpen} bind:gameId={formGameId} onsaved={load} prefill={prefill} />
+<GameForm bind:open={formOpen} bind:gameId={formGameId} prefill={prefill} />
 
 <ScanAddDialog bind:open={scanOpen} path={scanPath} ondone={load} />

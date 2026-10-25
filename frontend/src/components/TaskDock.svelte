@@ -1,13 +1,15 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { fade } from 'svelte/transition';
+  import { fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { api } from '../lib/api.js';
   import { subscribe } from '../lib/events.js';
   import { t } from '../lib/i18n.js';
-  import { notifyLibraryChanged } from '../lib/library-events.js';
+  import { notifyLibraryChanged, notifyLibraryItemUpdated, notifyLibraryTagsChanged } from '../lib/library-events.js';
   import { portal } from '../lib/portal.js';
   import { BACKFILL_REFRESH } from '../lib/task-events.js';
   import { backfillSummaryText } from '../lib/backfill-summary.js';
+  import { toast } from '../lib/toast.svelte.js';
   import {
     PHASE_I18N,
     createDockState,
@@ -36,16 +38,7 @@
   });
 
   onMount(async () => {
-    try {
-      const s = await api.backfillStatus();
-      if (s?.running) {
-        dock = seedFromStatus(dock, s);
-      } else {
-        dock = createDockState();
-      }
-    } catch {
-      dock = createDockState();
-    }
+    await syncStatus();
     unsub = await subscribe('vndb-backfill', onEvent);
     window.addEventListener(BACKFILL_REFRESH, onRefreshEvent);
   });
@@ -61,12 +54,15 @@
   }
 
   function onEvent(ev) {
-    if (ev?.run_id && ev.run_id !== dock.runId) {
+    const freshRun = Boolean(ev?.run_id) && ev.run_id !== dock.runId;
+    if (freshRun) {
       collapsedRun = 0;
       closedRun = 0;
       errorsOpen = false;
     }
+    const prevDone = freshRun ? 0 : dock.done;
     dock = reduce(dock, ev);
+    if (ev?.phase === 'backfill' && dock.done > prevDone) notifyLibraryItemUpdated(ev.game_id);
     if (ev?.phase === 'finished') onFinished();
   }
 
@@ -77,16 +73,14 @@
       if (s?.finished) {
         dock = markFinished(dock, s.finished);
         notifyLibraryChanged();
-        if (closedRun !== dock.runId) armHideTimer();
+        notifyLibraryTagsChanged();
+        if (hidden) toast(backfillSummaryText(s.finished), 'success');
+        else if (closedRun !== dock.runId) armHideTimer();
       }
-    } catch {
-    }
+    } catch {}
   }
 
-  async function refresh() {
-    collapsedRun = 0;
-    closedRun = 0;
-    errorsOpen = false;
+  async function syncStatus() {
     try {
       const s = await api.backfillStatus();
       if (s?.running || s?.finished) {
@@ -96,26 +90,34 @@
       } else {
         dock = createDockState();
       }
-    } catch {
-      dock = createDockState();
-    }
+    } catch {}
+  }
+
+  async function refresh() {
+    collapsedRun = 0;
+    closedRun = 0;
+    errorsOpen = false;
+    await syncStatus();
   }
 
   async function togglePause() {
     try {
       const s = dock.paused ? await api.resumeBackfill() : await api.pauseBackfill();
-      if (s) dock = { ...dock, paused: s.paused ?? false };
+      if (s) dock = { ...dock, paused: s.paused ?? false, pausedIdle: s.paused_idle ?? false };
     } catch {
       const s = await api.backfillStatus().catch(() => null);
-      if (s) dock = { ...dock, paused: s.paused ?? false };
+      if (s) dock = { ...dock, paused: s.paused ?? false, pausedIdle: s.paused_idle ?? false };
     }
   }
 
-  function cancelTask() {
+  async function cancelTask() {
     cancelling = true;
-    api.cancelTask('vndb-backfill').catch(() => {
+    try {
+      const stopped = await api.cancelTask('vndb-backfill');
+      if (!stopped) cancelling = false;
+    } catch {
       cancelling = false;
-    });
+    }
   }
 
   function dismiss() {
@@ -158,18 +160,37 @@
   }
 
   function phaseLabel() {
-    return dock.phase ? t(PHASE_I18N[dock.phase]) : t('mylist.backfillPhaseStart');
+    return t(PHASE_I18N[dock.phase] ?? 'mylist.backfillPhaseStart');
+  }
+
+  function handleText() {
+    if (dock.paused) {
+      return dock.pausedIdle
+        ? `${t('mylist.backfillPaused')} · ${dock.done ?? 0}/${dock.total ?? 0}`
+        : t('mylist.backfillPausing');
+    }
+    if (dock.rateLimited) return t('mylist.backfillRateLimitedShort');
+    return t('mylist.backfillRunning', { done: dock.done ?? 0, total: dock.total ?? 0 });
   }
 </script>
+
+{#snippet errorList()}
+  <ul class="task-dock__errors scroll-thin">
+    {#each dock.errors as e, i (i)}
+      <li>{e.message}{e.times > 1 ? ` ×${e.times}` : ''}</li>
+    {/each}
+    {#if dock.overflow > 0}
+      <li>{t('mylist.backfillErrorsMore', { count: dock.overflow })}</li>
+    {/if}
+  </ul>
+{/snippet}
 
 {#if view.form !== 'hidden'}
   <div
     class="task-dock"
     class:task-dock--handle={view.form === 'handle'}
-    role={view.form === 'panel' ? 'status' : undefined}
-    aria-live={view.form === 'panel' ? 'polite' : undefined}
     use:portal
-    transition:fade={{ duration: 160 }}
+    transition:fly={{ y: 8, duration: 200, easing: cubicOut }}
   >
     {#if view.form === 'handle'}
       <button
@@ -178,10 +199,8 @@
         aria-label={t('mylist.backfillShow')}
         onclick={expand}
       >
-        <span class="task-dock__dot" class:is-paused={dock.paused}></span>
-        <span class="task-dock__handle-text">
-          {t('mylist.backfillRunning', { done: dock.done ?? 0, total: dock.total ?? 0 })}
-        </span>
+        <span class="task-dock__dot" class:is-paused={dock.pausedIdle}></span>
+        <span class="task-dock__handle-text">{handleText()}</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m18 15-6-6-6 6"></path>
         </svg>
@@ -200,7 +219,9 @@
 
       {#if view.variant === 'summary'}
         <div class="task-dock__body">
-          <span class="task-dock__text">{backfillSummaryText(dock.finished)}</span>
+          <span class="task-dock__text" role="status" aria-live="polite">
+            {backfillSummaryText(dock.finished)}
+          </span>
           {#if dock.errors.length}
             <button
               type="button"
@@ -208,33 +229,33 @@
               aria-expanded={errorsOpen}
               onclick={() => (errorsOpen = !errorsOpen)}
             >
-              {t('mylist.backfillErrorsN', { count: dock.errors.length })}
+              {t('mylist.backfillErrorsN', { count: dock.errorCount })}
             </button>
           {/if}
           {#if errorsOpen && dock.errors.length}
-            <ul class="task-dock__errors">
-              {#each dock.errors as e (e.message)}
-                <li>{e.message}</li>
-              {/each}
-            </ul>
+            {@render errorList()}
           {/if}
         </div>
       {:else}
-        <div class="task-dock__track" class:is-paused={dock.paused}>
+        <div class="task-dock__track" class:is-paused={dock.pausedIdle}>
           <div class="task-dock__fill" style="width: {percent()}%"></div>
         </div>
         <div class="task-dock__body">
           <div class="task-dock__status">
-            {#if view.variant === 'cancelling'}
-              {t('mylist.backfillCancelling')}
-            {:else if view.variant === 'paused'}
-              {t('mylist.backfillPaused')}
-            {:else}
-              {phaseLabel()} · {t('mylist.backfillProcessing', { current, total: dock.total ?? 0 })}
-            {/if}
-            {#if dock.rateLimited}
-              <span class="task-dock__warn">{t('mylist.backfillRateLimited')}</span>
-            {/if}
+            <span class="task-dock__status-text" role="status" aria-live="polite">
+              {#if view.variant === 'cancelling'}
+                {t('mylist.backfillCancelling')}
+              {:else if view.variant === 'pausing'}
+                {t('mylist.backfillPausing')}
+              {:else if view.variant === 'paused'}
+                {t('mylist.backfillPaused')}
+              {:else}
+                {phaseLabel()} · {t('mylist.backfillProcessing', { current, total: dock.total ?? 0 })}
+              {/if}
+              {#if dock.rateLimited}
+                <span class="task-dock__warn">{t('mylist.backfillRateLimited')}</span>
+              {/if}
+            </span>
             {#if dock.errors.length}
               <button
                 type="button"
@@ -242,16 +263,12 @@
                 aria-expanded={errorsOpen}
                 onclick={() => (errorsOpen = !errorsOpen)}
               >
-                {t('mylist.backfillErrorsN', { count: dock.errors.length })}
+                {t('mylist.backfillErrorsN', { count: dock.errorCount })}
               </button>
             {/if}
           </div>
           {#if errorsOpen && dock.errors.length}
-            <ul class="task-dock__errors">
-              {#each dock.errors as e (e.message)}
-                <li>{e.message}</li>
-              {/each}
-            </ul>
+            {@render errorList()}
           {/if}
           <div class="task-dock__actions">
             <button

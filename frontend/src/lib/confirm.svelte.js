@@ -1,7 +1,7 @@
 import { mount } from 'svelte';
 import ConfirmDialog from '../components/ConfirmDialog.svelte';
 
-const props = $state({ open: false, action: 'deleteGame', name: '' });
+const props = $state({ open: false, action: 'deleteGame', params: {} });
 
 let instance = null;
 let settle = null;
@@ -12,7 +12,7 @@ function handleResult(result) {
   done?.(result);
 }
 
-export function confirm(action, name = '') {
+export function confirm(action, params = {}) {
   if (settle) throw new Error('confirm: 已有确认框打开');
 
   const promise = new Promise((resolve) => {
@@ -35,11 +35,11 @@ export function confirm(action, name = '') {
         set action(v) {
           props.action = v;
         },
-        get name() {
-          return props.name;
+        get params() {
+          return props.params;
         },
-        set name(v) {
-          props.name = v;
+        set params(v) {
+          props.params = v;
         },
         onresolve: handleResult,
       },
@@ -47,7 +47,7 @@ export function confirm(action, name = '') {
   }
 
   props.action = action;
-  props.name = name;
+  props.params = params;
   props.open = true;
   return promise;
 }

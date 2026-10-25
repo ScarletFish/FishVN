@@ -53,6 +53,7 @@ pub struct BackfillReport {
 pub struct BackfillStatus {
     pub running: bool,
     pub paused: bool,
+    pub paused_idle: bool,
     pub done: i64,
     pub total: i64,
     pub unmatched: i64,
@@ -95,7 +96,12 @@ pub fn reset(total: i64) -> u64 {
 }
 
 pub fn set_paused(paused: bool) -> BackfillStatus {
-    set_status(|s| s.paused = paused);
+    set_status(|s| {
+        s.paused = paused;
+        if paused {
+            s.paused_idle = false;
+        }
+    });
     status()
 }
 
@@ -341,9 +347,15 @@ async fn freeze(task: &Task) -> bool {
 }
 
 async fn wait_resume(task: &Task) {
+    if !status().paused {
+        return;
+    }
+    set_status(|s| s.paused_idle = true);
+    task.report("paused", None, None);
     while status().paused && !task.cancelled() {
         tokio::time::sleep(PAUSE_TICK).await;
     }
+    set_status(|s| s.paused_idle = false);
 }
 
 fn fail(report: &mut BackfillReport, task: &Task, phase: &str, name: &str, err: &AppError) {
@@ -526,7 +538,7 @@ pub async fn run(
         }
         let done = idx as i64 + 1;
         set_status(|s| s.done = done);
-        task.report("backfill", Some(done), Some(total));
+        task.report_item("backfill", Some(done), Some(total), &item.game_id);
     }
     finish_run(&task, total, report.fetched as i64, report);
     report
@@ -729,6 +741,7 @@ mod tests {
     fn 暂停开关置位且新任务重置清除() {
         reset(3);
         assert!(!status().paused);
+        assert!(!set_paused(true).paused_idle);
         assert!(set_paused(true).paused);
         assert!(status().paused);
         assert!(!set_paused(false).paused);

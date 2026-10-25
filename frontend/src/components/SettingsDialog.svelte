@@ -2,7 +2,17 @@
   import { tick } from 'svelte';
   import Modal from './Modal.svelte';
   import PathField from './PathField.svelte';
-  import { getTheme, toggleTheme, getAccent, setAccent, viewTransition, ACCENTS, getFontScale, setFontScale } from '../lib/theme.js';
+  import {
+    getThemeMode,
+    setTheme,
+    getAccent,
+    setAccent,
+    viewTransition,
+    ACCENTS,
+    THEMES,
+    getFontScale,
+    setFontScale,
+  } from '../lib/theme.js';
   import { t } from '../lib/i18n.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
@@ -15,12 +25,15 @@
   import { tagKeyLabel } from '../lib/tag-label.svelte.js';
   import TagPicker from './game-form/TagPicker.svelte';
   import SyncResultDialog from './SyncResultDialog.svelte';
+  import { confirm } from '../lib/confirm.svelte.js';
   import { notifyBackfillRefresh } from '../lib/task-events.js';
+  import { notifyLibraryChanged } from '../lib/library-events.js';
+  import { openExternal } from '../lib/open-external.js';
 
   let { open = $bindable(false) } = $props();
 
   let tab = $state('appearance');
-  let dark = $state(getTheme() === 'dark');
+  let themeMode = $state(getThemeMode());
   let accent = $state(getAccent());
   let fontScale = $state(getFontScale());
   let timeMetric = $state('foreground');
@@ -51,25 +64,27 @@
   let resultOpen = $state(false);
 
   let tokenStatus = $derived.by(() => {
+    if (vndbTesting) return { kind: 'checking', text: t('settings.vndb.testing') };
+    if (vndbTokenInput.trim()) return { kind: 'pending', text: t('settings.vndb.tokenPending') };
     if (vndbTestResult === true) return { kind: 'ok', text: t('settings.vndb.testOk') };
     if (vndbTestResult === false) return { kind: 'invalid', text: t('settings.vndb.testInvalid') };
-    if (vndbTokenInput.trim()) return null;
     if (hasVndbToken) return { kind: 'saved', text: t('settings.vndb.tokenSet') };
-    return { kind: 'unsaved', text: t('settings.vndb.tokenUnset') };
+    return { kind: 'unset', text: t('settings.vndb.tokenUnset') };
   });
 
-  $effect(() => {
-    void vndbTokenInput;
-    vndbTestResult = null;
+  const tokenAction = $derived.by(() => {
+    if (vndbTokenInput.trim()) return { label: t('settings.vndb.save'), disabled: vndbTesting };
+    return { label: t('settings.vndb.verify'), disabled: vndbTesting || !hasVndbToken };
   });
 
   const SPOILER_LEVELS = ['hide_all', 'hide_major', 'show_all'];
   const VNDB_MODES = ['download', 'upload', 'both'];
+  const VNDB_TOKENS_URL = 'https://vndb.org/u/tokens';
 
   $effect(() => {
     if (!open) return;
     poolOpen = false;
-    dark = getTheme() === 'dark';
+    themeMode = getThemeMode();
     accent = getAccent();
     fontScale = getFontScale();
     hideR18 = getHideR18Tags();
@@ -196,14 +211,16 @@
     return known ? t(known.label) : id;
   }
 
-  function onToggle() {
-    const next = !dark;
+  function onThemeChange(e) {
+    const next = THEMES.includes(e.target.value) ? e.target.value : 'light';
+    if (next === themeMode) return;
+    themeMode = next;
     viewTransition(async () => {
-      dark = toggleTheme() === 'dark';
+      setTheme(next);
       await tick();
     });
     api
-      .updateConfig({ theme: next ? 'dark' : 'light' })
+      .updateConfig({ theme: next })
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
   }
@@ -265,41 +282,33 @@
       .catch((err) => toast(err.message, 'error'));
   }
 
-  async function onVndbTokenTest() {
-    const token = vndbTokenInput.trim();
-    if (!token && !hasVndbToken) {
-      vndbTestResult = null;
-      toast(t('settings.vndb.tokenMissing'), 'warn');
-      return;
+  async function onVndbTokenSubmit() {
+    const typed = vndbTokenInput.trim();
+    if (typed) {
+      try {
+        await api.updateConfig({ vndb_token: typed });
+        notifyConfigChanged();
+        hasVndbToken = true;
+        vndbTokenInput = '';
+      } catch (err) {
+        toast(err.message, 'error');
+        return;
+      }
     }
+    await checkVndbToken();
+  }
+
+  async function checkVndbToken() {
     vndbTesting = true;
     vndbTestResult = null;
     try {
-      const ok = await api.testVndbToken(token);
+      const ok = await api.testVndbToken('');
       vndbTestResult = ok ? true : false;
     } catch (err) {
       vndbTestResult = 'error';
       toast(err.message, 'error');
     } finally {
       vndbTesting = false;
-    }
-  }
-
-  async function onVndbTokenSave() {
-    const token = vndbTokenInput.trim();
-    if (!token) {
-      toast(t('settings.vndb.tokenUnset'), 'warn');
-      return;
-    }
-    try {
-      await api.updateConfig({ vndb_token: token });
-      notifyConfigChanged();
-      hasVndbToken = true;
-      vndbTokenInput = '';
-      vndbTestResult = null;
-      toast(t('settings.vndb.tokenSet'), 'success');
-    } catch (err) {
-      toast(err.message, 'error');
     }
   }
 
@@ -310,7 +319,6 @@
       hasVndbToken = false;
       vndbTokenInput = '';
       vndbTestResult = null;
-      toast(t('settings.vndb.tokenUnset'), 'success');
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -363,18 +371,14 @@
       resultOpen = false;
       syncPlan = null;
       notifyConfigChanged();
-      const backfillCount = decision.backfill ? (report?.created_ids?.length ?? 0) : 0;
-      if (backfillCount > 0) {
-        toast(t('settings.vndb.appliedBackfill', { count: backfillCount }), 'success');
-        try {
-          await api.startBackfill(report.created_ids);
-          notifyBackfillRefresh();
-        } catch (e) {
-          toast(e.message, 'error');
-        }
-      } else {
-        toast(t('settings.vndb.applied'), 'success');
-      }
+      notifyLibraryChanged();
+      toast(t('settings.vndb.applied'), 'success');
+      const created = report?.created_ids ?? [];
+      if (created.length === 0) return;
+      const ok = await confirm('backfillNow', { count: created.length });
+      if (!ok) return;
+      await api.startBackfill(created);
+      notifyBackfillRefresh();
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -444,13 +448,20 @@
   <div class="modal-panels" use:panelScrollbars>
     <div class="modal-panel" class:active={tab === 'appearance'}>
       <div class="form-group">
-        <label for="settings-theme">{t('settings.theme')}</label>
-        <div class="form-row">
-          <label class="toggle-switch" for="settings-theme">
-            <input id="settings-theme" type="checkbox" checked={dark} onchange={onToggle} />
-            <span class="toggle-slider"></span>
-          </label>
-          <span class="form-row-label">{t('settings.themeHint')}</span>
+        <div class="form-label">{t('settings.theme')}</div>
+        <div class="seg-radio-group" role="radiogroup" aria-label={t('settings.theme')}>
+          {#each THEMES as mode (mode)}
+            <label class="seg-radio-item">
+              <input
+                type="radio"
+                name="settings-theme"
+                value={mode}
+                checked={themeMode === mode}
+                onchange={onThemeChange}
+              />
+              {t('settings.theme_' + mode)}
+            </label>
+          {/each}
         </div>
       </div>
 
@@ -608,7 +619,13 @@
       <div class="form-group">
         <div class="form-row">
           <label class="toggle-switch" for="settings-hide-r18">
-            <input id="settings-hide-r18" type="checkbox" checked={hideR18} onchange={onHideR18Change} />
+            <input
+              id="settings-hide-r18"
+              type="checkbox"
+              aria-label={t('settings.hideR18')}
+              checked={hideR18}
+              onchange={onHideR18Change}
+            />
             <span class="toggle-slider"></span>
           </label>
           <span class="form-row-label">{t('settings.hideR18')}</span>
@@ -755,12 +772,13 @@
         <p class="form-hint">{t('settings.vndb.modeHint')}</p>
       </div>
 
-      <div class="form-group">
+      <div class="form-group form-group--flat">
         <div class="form-row">
           <label class="toggle-switch" for="settings-import-wishlist">
             <input
               id="settings-import-wishlist"
               type="checkbox"
+              aria-label={t('settings.vndb.importWishlist')}
               checked={vndbImportWishlist}
               onchange={onVndbImportWishlistChange}
             />
@@ -779,62 +797,66 @@
             type="password"
             placeholder={t('settings.vndb.tokenPlaceholder')}
             bind:value={vndbTokenInput}
+            oninput={() => (vndbTestResult = null)}
+            onkeydown={(e) => {
+              if (e.key === 'Enter' && !tokenAction.disabled) onVndbTokenSubmit();
+            }}
             autocomplete="off"
             spellcheck="false"
           />
           <button
             type="button"
-            class="vndb-token-field__test"
-            disabled={vndbTesting || (!vndbTokenInput.trim() && !hasVndbToken)}
-            onclick={onVndbTokenTest}
+            class="vndb-token-field__action"
+            disabled={tokenAction.disabled}
+            onclick={onVndbTokenSubmit}
           >
-            {vndbTesting ? t('settings.vndb.testing') : t('settings.vndb.test')}
+            {tokenAction.label}
           </button>
         </div>
-        <p class="form-hint">{t('settings.vndb.tokenHint')}</p>
-        {#if tokenStatus}
+        <p class="form-hint">
+          {t('settings.vndb.tokenHintPrefix')}{' '}<a
+            class="form-hint-link"
+            href={VNDB_TOKENS_URL}
+            onclick={(e) => {
+              e.preventDefault();
+              openExternal(VNDB_TOKENS_URL);
+            }}>{t('settings.vndb.tokenHintLink')}</a>{' '}{t('settings.vndb.tokenHintSuffix')}
+        </p>
+        <div class="vndb-token-status">
           <p
-            class="form-hint"
+            class="vndb-token-status__text"
             class:vndb-test-ok={tokenStatus.kind === 'ok'}
             class:vndb-test-invalid={tokenStatus.kind === 'invalid'}
           >
             <i
               class="status-dot"
-              class:status-dot--ok={tokenStatus.kind === 'ok' || tokenStatus.kind === 'saved'}
+              class:status-dot--ok={tokenStatus.kind === 'ok'}
               class:status-dot--invalid={tokenStatus.kind === 'invalid'}
               aria-hidden="true"
             ></i>{tokenStatus.text}
           </p>
-        {/if}
-        <div class="form-actions">
-          <button
-            type="button"
-            class="btn btn-primary"
-            disabled={!vndbTokenInput.trim()}
-            onclick={onVndbTokenSave}
-          >
-            {t('settings.vndb.save')}
-          </button>
-          <button type="button" class="btn btn-ghost" disabled={!hasVndbToken} onclick={onVndbDisconnect}>
-            {t('settings.vndb.disconnect')}
-          </button>
+          {#if hasVndbToken}
+            <button type="button" class="vndb-token-clear" onclick={onVndbDisconnect}>
+              {t('settings.vndb.disconnect')}
+            </button>
+          {/if}
         </div>
       </div>
 
-      <div class="form-group">
-        <div class="form-label">{t('settings.vndb.syncNow')}</div>
-        <p class="form-hint">{t('settings.vndb.syncHint')}</p>
-        <div class="form-actions">
-          <button
-            type="button"
-            class="btn btn-primary"
-            disabled={!hasVndbToken || vndbSyncing}
-            onclick={onVndbSync}
-          >
-            {#if vndbSyncing}<span class="btn-spinner" aria-hidden="true"></span>{/if}
-            {vndbSyncing ? t('settings.vndb.syncing') : t('settings.vndb.syncNow')}
-          </button>
+      <div class="form-group form-action-row">
+        <div>
+          <div class="form-label">{t('settings.vndb.syncSection')}</div>
+          <p class="form-hint">{t('settings.vndb.syncHint')}</p>
         </div>
+        <button
+          type="button"
+          class="btn btn-primary"
+          disabled={!hasVndbToken || vndbSyncing}
+          onclick={onVndbSync}
+        >
+          {#if vndbSyncing}<span class="btn-spinner" aria-hidden="true"></span>{/if}
+          {vndbSyncing ? t('settings.vndb.syncing') : t('settings.vndb.syncNow')}
+        </button>
       </div>
     </div>
   </div>

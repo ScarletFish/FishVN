@@ -22,7 +22,7 @@
 
 ### 主题
 
-浅色是 `:root` 默认值，深色在 `[data-theme="dark"]`。`index.html` 首帧前定 `data-theme`，无 `data-theme` 属性即浅色。
+浅色是 `:root` 默认值，深色在 `[data-theme="dark"]`。用户可选浅色 / 深色 / 跟随系统三态，存的是选择而非解析结果：`index.html` 首帧前按 `fishvn.theme` 判定，值为 `system` 时看 `prefers-color-scheme`，解析成深色才挂 `data-theme`，无属性即浅色。运行时由 `theme.js` 的 `setTheme(mode)` / `syncTheme(mode)` 做同一套解析；选中 `system` 时 `theme.js` 常驻一个 `matchMedia` 监听，系统切换深浅就地重绘，不需要用户重启或重进设置。Rust 侧窗口背景色同样按「选择 → 解析」二段处理（`main.rs`）。
 
 强调色系是正交的第二轴：`[data-accent="…"]` 挂色系名（amber/ocean/sakura/emerald/violet），绯红是默认、不打属性。深浅由 `data-theme` 管、色系由 `data-accent` 管，任意组合；深色下的色系值用 `[data-theme="dark"][data-accent="…"]` 双属性选择器覆盖浅色值。`index.html` 首帧前同时定 `data-theme` 与 `data-accent`。新色系补齐 tokens.css 的三处：L1 原值（accent 族与配套 fg 族）、浅色与深色两个覆盖块、设置面板色块的 `--swatch-*`；faint/bg/border/selected 等派生槽引用 `--accent`，自动跟随。
 
@@ -52,7 +52,7 @@ GSAP 与 ScrollTrigger 以 vendor 全局脚本加载（`public/vendor/gsap/`，`
 
 滚动入场（`lib/scroll-anim.js`）：区块 fade+rise、卡片按批 stagger，触发线在视口 92% 处、`once` 自毁；scroller 固定 `.shell__main`，它也是页面的唯一滚动容器。使用契约：视图持有一个实例，用数据签名 gate 驱动——`$effect` 里比较签名，变化后才 `tick().then(build)`，`build` 先 `kill` 旧 trigger 并清内联样式（防残留 `opacity: 0`），视图销毁时调 `kill()`。动画只动 transform 与 opacity。
 
-主题与强调色切换经 `document.startViewTransition` 包裹（`theme.js` 的 `setTheme`/`setAccent`），整窗交叉淡入；启动同步（`syncTheme`/`syncAccent`）不走过渡。API 缺失或 `prefers-reduced-motion` 时直接生效。
+主题与强调色切换经 `document.startViewTransition` 包裹（`theme.js` 的 `setTheme`/`setAccent`），整窗交叉淡入；启动同步（`syncTheme`/`syncAccent`）不走过渡。API 缺失或 `prefers-reduced-motion` 时直接生效。跟随系统下的系统切换不套过渡，避免用户在别的应用里换主题时本窗跟着做一次交叉淡入。
 
 封面 → 详情共享元素过渡（`lib/hero-transition.js`）：卡片点击时 `captureHero` 记录封面图的位置与已解码地址，详情视图挂载后 `playHero` 立即接管——先同步隐藏目标、rAF 后一次测量、GSAP 补间 0.35s。hero 的启动不依赖封面 URL 解析（`coverSrc` 走 IPC 异步返回，等它就永远赶不上首帧）；换手阶段等目标 `<img>` **出现并加载完成**（MutationObserver + 2s 兜底）再瞬间替换，异步加载期间由 hero 兜住视觉。无封面、GSAP 缺失或 `prefers-reduced-motion` 时跳过，详情瞬时打开。
 
@@ -99,7 +99,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 
 ## 启动页
 
-窗口以 `visible: false` 创建，前端在「内容就绪」与「加载页该出现」两者先到者处 show，Rust 侧 1.5 秒兜底。窗口出现时必定已有内容：快机直接是完整首页，慢机是同一帧出现的加载页，中间没有空白窗口。窗口背景色在 setup 里按已存主题设置，先于 webview 首帧，深色用户看不到浅色底。
+窗口以 `visible: false` 创建，前端在「内容就绪」与「加载页该出现」两者先到者处 show，Rust 侧 1.5 秒兜底。窗口出现时必定已有内容：快机直接是完整首页，慢机是同一帧出现的加载页，中间没有空白窗口。窗口背景色在 setup 里按已存主题设置，先于 webview 首帧，深色用户看不到浅色底；主题选跟随系统时按窗口当前系统主题解析。
 
 `splash` 是纯 HTML/CSS，JS 不执行也照样显示 —— 前端整体挂掉时 Rust 兜底 show 出来的是静态加载页，不是空窗。判定落在 `index.html` 的内联脚本里：内容在该阈值内就绪则窗口跳过加载页，否则窗口与加载页同时出现。加载页有最短可见时长，避免出现即被撤走。
 
@@ -136,7 +136,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 |---|---|
 | 主滚动区 `.shell__main` | `useScrollbars(el)`，`autoHide: 'never'`，指针进入右边缘时手柄加粗到 12px |
 | 弹窗面板、侧栏、标签框、详情页分栏、搜索下拉 | `use:panelScrollbars`，手柄 8px，指针离开 400ms 后淡出 |
-| textarea、合并面板的单元格文本 | 类 `.scroll-thin` |
+| textarea、合并面板的单元格文本、任务面板的错误列表 | 类 `.scroll-thin` |
 
 `panelScrollbars` 的宿主写法：
 
@@ -183,7 +183,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - **`tooltip.js` / `side-tip.js`**：`data-tooltip` 的全局气泡替代原生 `title`；`sideTip` 是面向侧栏的变体，定位与外观不同，两者并存互不干扰。提示源被移除（切页、关弹窗）后浏览器不再对它发 `mouseout`，收尾由下一次 `mouseover` 探测 `isConnected` 完成；新增移除提示源的场景不需要额外清理。
 - **`events.js` 的 devhttp 订阅**：共享一条 EventSource，后端重启窗口期代理会以错误状态码应答，EventSource 因此进入 CLOSED 终态；`onerror` 里销毁并按 1 秒间隔重建，重挂全部监听，重建地址带 `?since=` 续传已收到的最大事件 id，避免重放旧事件。
 - **错误文案**：后端与网络错误不走 i18n，原样显示。
-- **`theme.js`**：首帧由 `index.html` 的内联脚本定，运行时切换只在 `theme.js`；两边判断必须一致 —— 深色加 `data-theme` 属性、其余删属性，不往 `localStorage` 写 `'light'`。
+- **`theme.js`**：首帧由 `index.html` 的内联脚本定，运行时切换只在 `theme.js`；两边判断必须一致 —— 把 `fishvn.theme` 解析成深浅（`system` 看 `prefers-color-scheme`）后，深色加 `data-theme` 属性、浅色删属性。`localStorage` 存的是三态选择本身，不是解析结果。
 - **`Detail`**：鼠标侧键 3 是后退，4 不接。
 - **`MyList`**：打开表单前先落 `gameId`，`GameForm` 的 `$effect` 与 `open` 在同一帧读到的是最终值。
 - **`DetailCharacters` / `CharacterEditor`**：立绘走封面那条 `coverSrc` 管线 —— 缩图与 asset 协议授权都在那边做过。
@@ -196,7 +196,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - **输入组**（输入框 + 右侧内嵌按钮）：容器单边框，输入框无框伸缩（`flex:1` + `min-width:0`），按钮坐右侧、中间一条分隔线；容器 `:focus-within` 接管焦点高亮，点输入框或点按钮整个框一起亮；按钮 `min-width` 兜住两种文字宽度，切换时输入框不抖帧；内嵌按钮做成无底无框的附属动作（hover 只变文字色 + 出 `--bg-hover` 底），不与表单行里的主按钮同权重。与 `.num-stepper` 同构，「框 + 附属动作」的组合沿用这一只。
 - **chip 双选**：tag-pill 体系复用到非标签场景（同步导入名单这类「出现在表单里 = 选中」的清单）时，选中用实心、未选用幽灵（虚线 + 前景色透明化），`aria-pressed` 承载语义，点一下两态切换；chip 内只放条目名，状态与分组由组头承载，chip 里不重复。
 - **`toast.svelte.js`**：渲染在 `components/Toaster.svelte`，挂在 `App.svelte`；计时器簿记不放进 `$state`（每次读写都会触发更新）；暂停要手动记剩余时长 —— 进度条的暂停靠 CSS `animation-play-state`，计时器在 JS 里，两者不通。
-- **`TaskDock`**：全局任务状态面板，浮动在视窗底部居中（380px，非详情页展示），层级压在全部弹窗与 toast 之上。与 Toaster 一样经 portal 挂进 `#modal-root`：弹窗打开时 `body` 的直接子元素（除 `#modal-root` / `#globalTooltip`）整体 blur，浮条挂在 `#app` 里会跟着糊掉。当前承载资料补全任务——它是唯一在弹窗外跑的长任务。显隐语义：× 在任务在途时折叠成底部居中的小手柄（状态点 + 进度文案 + 展开箭头），任务 alive 期间手柄常驻，点击恢复完整面板；完结汇总始终自动唤起（含 × 折叠期间），带 6 秒倒计时自动隐藏，倒计时走完后的 × 才是真收起。新任务启动（列表按钮触发时派发 `backfill-refresh` 窗口事件、后台接续时经首个进度事件）无条件重新打开——收起不能让人错过下一轮进度。状态归约抽到纯模块 `dock-state.js`（与 Svelte/DOM 解耦、可单测）：后端 `vndb-backfill` 事件全部消费，阶段事件 `meta`/`cover`/`characters`/`images` 只更新 `phase`、不污染全局 `done`/`total`，`error` 收进 `errors[]`、面板给「N 条失败」展开；`run_id` 取代模块级「收起/关闭」标记，新一轮 `run_id` 不同即判为「这轮没折叠/关过」，上一轮完结汇总随新轮自然作废、无需手动 reset。挂载时只接在途任务，刷新后从进行中的进度续上，上一轮的完结汇总随刷新作废。× 改右上角独立角标，不再压住动作按钮。完结时经库变更事件广播，MyList 重拉列表投影；详情页中的完结由 App 级订阅兜底弹 toast——dock 不可见时用户也要收到回执。结构上完整面板与手柄是同一个 fixed 容器的两种形态、原地切换（不挂方向相反 `fly`，折叠只是换形态、不闪），形态由 `dockView` 据「折叠/关闭/隐藏」意图推导。
+- **`TaskDock`**：全局任务状态面板，浮动在视窗底部居中（380px，非详情页展示），层级压在全部弹窗与 toast 之上。与 Toaster 一样经 portal 挂进 `#modal-root`：弹窗打开时 `body` 的直接子元素（除 `#modal-root` / `#globalTooltip`）整体 blur，浮条挂在 `#app` 里会跟着糊掉。当前承载资料补全任务——它是唯一在弹窗外跑的长任务。显隐语义：× 在任务在途时折叠成底部居中的小手柄（状态点 + 进度文案 + 展开箭头），任务 alive 期间手柄常驻，点击恢复完整面板；完结汇总始终自动唤起（含 × 折叠期间），带 6 秒倒计时自动隐藏，倒计时走完后的 × 才是真收起。新任务启动（列表按钮触发时派发 `backfill-refresh` 窗口事件、后台接续时经首个进度事件）无条件重新打开——收起不能让人错过下一轮进度。状态归约抽到纯模块 `dock-state.js`（与 Svelte/DOM 解耦、可单测）：后端 `vndb-backfill` 事件全部消费，阶段事件 `meta`/`cover`/`characters`/`images` 只更新 `phase`、不污染全局 `done`/`total`，`error` 收进 `errors[]`、面板给「N 条失败」展开；`run_id` 取代模块级「收起/关闭」标记，新一轮 `run_id` 不同即判为「这轮没折叠/关过」，上一轮完结汇总随新轮自然作废、无需手动 reset。挂载时只接在途任务，刷新后从进行中的进度续上，上一轮的完结汇总随刷新作废。× 改右上角独立角标，不再压住动作按钮。刷新分三级广播：每写完一部发 `LIBRARY_ITEM_UPDATED`，载荷带 `game_id`——`onLibraryItemUpdated(handler)` 逐条立即回调、订阅方按 id 自行过滤（详情页与角色区只认自己那部，一部只刷一次）；`onLibraryItemsThrottled(handler, ms)` 把连续多部并成一批，列表与首页用 5 秒窗口。跑完再发 `LIBRARY_CHANGED`（列表 / 首页整体重拉、详情页重拉单条）与 `LIBRARY_TAGS_CHANGED`（标签云、`#` 标签池、角色区）。写库的入口一律发 `LIBRARY_CHANGED`：补全完结、表单保存、同步计划应用；抓取阶段不落库，不发。详情页与卡片的封面解析都按 `image_path` 判重，路径没变不重置 `coverUrl`，否则逐部刷新会每秒闪一次占位。完结回执由 dock 自己在不可见时弹 toast，App 不再重复订阅该事件。结构上完整面板与手柄是同一个 fixed 容器的两种形态、原地切换（不挂方向相反 `fly`，折叠只是换形态、不闪），形态由 `dockView` 据「折叠/关闭/隐藏」意图推导。
 - **`SyncResultDialog`**：重操作（VNDB 同步这类秒级拉取）点下即开弹窗进加载态，反馈先于结果出现，不等 await 返回才弹窗；加载态的阶段文案只消费后端进度事件，前端不虚构阶段。父级用序号令牌防迟到结果：每次触发自增序号，await 返回时序号已被新的触发或取消改掉就丢弃（`seq !== syncActive` 直接 return），旧请求的 plan / error 不会覆盖新状态；按钮的忙态只由最新一次在途调用置位与清除。
 - **`ImageViewer`**：单图查看画布（截图查看器的地基，见下「图片查看器地基」）。只管一张图怎么看：滚轮以指针为中心缩放、拖动图面平移、双击在适应窗口/100% 间切换、右上角缩放比、stage 尺寸变化时适应态保持整图可见。图源从外部注入 `src`，不关心图从哪来（封面缩略图或本地原图都行）；`maxZoom` prop 化——封面编辑器传 4（预览图最大边 560px，再大必糊），直开原图的场景可以传更大。`children` snippet 收 `{ toImage, toScreen, view }` 供浮层做坐标换算（取景框就浮在它上面）；单击图面（位移 < 4px）回调 `ontap(图坐标)`。viewport 纯函数在 `lib/image-viewer.js`（带单测）。**坑**：滚轮监听必须 `addEventListener('wheel', h, { passive: false })` 才能 `preventDefault`，Svelte 的 `onwheel` 属性写法不行——不加 passive 选项浏览器默认 passive，`preventDefault` 是静默无效的，页面会跟着滚。**边界**：多图导航、画廊、旋转、信息面板不长在这个组件里——等截图查看器的真实需求来了再长，现在猜接口必然猜错。
 - **`CoverFocalDialog`**：封面展示焦点的取景框编辑器（表单「调整展示位置」打开），画布是 `ImageViewer`，自己只做焦点数学（`lib/cover-focal.js`）。约定：焦点不参与合并面板（`vn-merge.js` 的 `FIELDS` 不加它，远端没有这个概念）；换封面重置焦点由后端 `metadata::upsert` 收口，前端只在 picker 选图与合并接受两条路径同步重置显示值，别处不要再造重置逻辑；新增封面展示处要读焦点字段（清单见 [backend.md](./backend.md)「封面展示焦点」）。手势路由：拖框与拖图面是两个区域的手势——取景框自己收 pointer 事件并 `stopPropagation`（否则画布会跟着平移），框外区域归画布（拖动平移、单击移框）；方向键微调焦点（Shift 加速，无效轴忽略），弹窗打开即聚焦到根容器。
@@ -235,6 +235,10 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - `:hover` 的 `transform` 会生成层叠上下文，菜单展开时整卡抬到相邻卡之上
 - 承载弹出菜单的区块要压得过它后面的兄弟：`.detail-banner` 与 `.detail-chars` 同为 `z-index: 1` 时，DOM 靠后的角色区盖住横幅里弹出的 `.menu__list` —— 菜单自己的 `--z-dropdown` 出不了父级的层叠上下文
 - 可见表面与裁切都归 `.cover-card__frame`，菜单是它的兄弟而非子元素才逃得出裁切；卡片 `overflow: hidden` 同时承担浮层的底角，不能去掉
+
+**表单分组**
+
+- `.form-group + .form-group` 自带一条分割线，线上 20px、线下 4px：下一块的首元素若是自带边框的卡片（`.form-row`），线会和卡片边框在 4px 内并排成双线；这类 group 加 `.form-group--flat` 去掉线，靠段间距分组
 
 **详情页氛围底**
 

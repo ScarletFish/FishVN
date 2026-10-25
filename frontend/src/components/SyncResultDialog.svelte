@@ -19,7 +19,6 @@
 
   let choices = $state({});
   let picked = $state({});
-  let backfill = $state(true);
   let phase = $state('fetch');
   let fetched = $state(null);
   let total = $state(null);
@@ -58,7 +57,6 @@
     const pickedNext = {};
     for (const c of plan.creates) pickedNext[c.vndb_id] = true;
     picked = pickedNext;
-    backfill = true;
   });
 
   $effect(() => {
@@ -175,7 +173,6 @@
       aligns: plan.aligns,
       statuses,
       ratings,
-      backfill,
     });
   }
 
@@ -225,8 +222,10 @@
   {:else if plan}
     {@const parts = summaryParts()}
     <div class="sync-result sync-result--enter" use:panelScrollbars>
-      <p class="sync-result__summary">{parts.join(' | ')}</p>
-      <p class="form-hint">{t('settings.vndb.resultPlanHint')}</p>
+      <div class="sync-result__head">
+        <p class="sync-result__summary">{parts.join(' | ')}</p>
+        <p class="form-hint">{t('settings.vndb.resultPlanHint')}</p>
+      </div>
 
       {#if plan.conflicts.length > 0}
         <section class="sync-result__section">
@@ -295,13 +294,18 @@
               </div>
             {/each}
           </div>
-          <p class="form-hint">{t('settings.vndb.resultCancelHint')}</p>
         </section>
       {/if}
 
       {#if plan.creates.length > 0}
         {@const groups = groupedCreates()}
         <section class="sync-result__section">
+          <div class="form-label">
+            {t('settings.vndb.resultCreatedPicked', {
+              picked: pickedCreates().length,
+              total: plan.creates.length,
+            })}
+          </div>
           {#each groups as group (group.status)}
             <div class="sync-result__group">
               <div class="sync-result__group-head">
@@ -333,24 +337,16 @@
               </ul>
             </div>
           {/each}
-          <label class="sync-result__backfill">
-            <input type="checkbox" class="checkbox" bind:checked={backfill} />
-            <span>{t('settings.vndb.fetchMeta')}</span>
-          </label>
-          <p class="form-hint">{t('settings.vndb.fetchMetaHint')}</p>
         </section>
       {/if}
 
-      {#if plan.skipped > 0}
+      {#if plan.warnings.length > 0}
         <section class="sync-result__section">
-          <p class="form-hint">{t('settings.vndb.resultSkipped', { count: plan.skipped })}</p>
-          <p class="form-hint">{t('settings.vndb.resultSkippedHint')}</p>
+          {#each plan.warnings as w, i (i)}
+            <p class="form-hint">{w}</p>
+          {/each}
         </section>
       {/if}
-
-      {#each plan.warnings as w, i (i)}
-        <p class="form-hint">{w}</p>
-      {/each}
     </div>
   {:else if error}
     <div class="sync-error">

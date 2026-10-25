@@ -11,7 +11,9 @@
       // --splash-accent 供启动页使用：tokens.css 随 JS 包才到，这里先按同一张表兜底。
       (() => {
         const root = document.documentElement;
-        if (localStorage.getItem('fishvn.theme') === 'dark') {
+        const theme = localStorage.getItem('fishvn.theme');
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (theme === 'dark' || (theme === 'system' && systemDark)) {
           root.dataset.theme = 'dark';
         }
         const accent = localStorage.getItem('fishvn.accent');

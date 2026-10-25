@@ -5,8 +5,9 @@
   bottom: var(--space-4);
   z-index: var(--z-dock);
   width: 380px;
+  max-width: calc(100vw - var(--space-6) * 2);
   margin-inline: auto;
-  background: var(--bg-surface);
+  background: var(--bg-floating);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
@@ -31,12 +32,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   background: none;
   border: none;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   color: var(--fg-muted);
   cursor: pointer;
   transition: color var(--duration-fast) var(--ease-out),
@@ -60,14 +61,12 @@
 
 .task-dock__fill {
   height: 100%;
-  border-radius: 0 2px 2px 0;
   background: var(--accent);
   transition: width var(--duration-fast) var(--ease-out);
 }
 
 .task-dock__track.is-paused .task-dock__fill {
-  background: var(--fg-muted);
-  opacity: 0.5;
+  background: var(--border-strong);
 }
 
 .task-dock__body {
@@ -77,14 +76,26 @@
   padding: var(--space-2) var(--space-3) var(--space-3);
 }
 
+.task-dock__status,
+.task-dock__text {
+  padding-right: 26px;
+  font-size: var(--text-sm);
+  color: var(--fg-default);
+}
+
 .task-dock__status {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2);
-  padding-right: 26px;
-  font-size: var(--text-sm);
-  color: var(--fg-default);
+}
+
+.task-dock__status-text {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .task-dock__warn {
@@ -105,7 +116,7 @@
 }
 
 .task-dock__err-toggle:hover {
-  color: var(--warning);
+  border-bottom-style: solid;
 }
 
 .task-dock__errors {
@@ -118,7 +129,7 @@
   max-height: 120px;
   overflow-y: auto;
   background: var(--bg-hover);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   color: var(--fg-muted);
 }
@@ -143,7 +154,7 @@
   color: var(--fg-muted);
   background: none;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
@@ -153,7 +164,7 @@
 .task-dock__btn:hover:not(:disabled) {
   color: var(--fg-default);
   border-color: var(--border-strong);
-  background: var(--bg-hover);
+  background: var(--bg-raised);
 }
 
 .task-dock__btn:disabled {
@@ -171,7 +182,7 @@
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  padding: var(--space-1) var(--space-3);
+  padding: 6px var(--space-3);
   background: none;
   border: none;
   border-radius: inherit;

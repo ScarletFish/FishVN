@@ -1,5 +1,5 @@
 <script>
-  import { tick } from 'svelte';
+  import { tick, onMount } from 'svelte';
   import { t } from '../lib/i18n.js';
   import { initScrollDots } from '../lib/scroll-dots.svelte.js';
   import { api } from '../lib/api.js';
@@ -11,7 +11,7 @@
   import { getSpoilerLevel } from '../lib/config-store.svelte.js';
   import { spoilerThreshold } from '../lib/tag-order.svelte.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
-  import { LIBRARY_TAGS_CHANGED } from '../lib/library-events.js';
+  import { LIBRARY_TAGS_CHANGED, onLibraryItemUpdated } from '../lib/library-events.js';
   import DetailSection from '../components/DetailSection.svelte';
 
   const TRAIT_GROUP_ORDER = [
@@ -68,6 +68,13 @@
     window.addEventListener(LIBRARY_TAGS_CHANGED, refresh);
     return () => window.removeEventListener(LIBRARY_TAGS_CHANGED, refresh);
   });
+
+  onMount(() =>
+    onLibraryItemUpdated((id) => {
+      if (id !== gameId) return;
+      refresh();
+    }),
+  );
 
   $effect(() => {
     let live = true;

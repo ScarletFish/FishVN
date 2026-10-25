@@ -48,6 +48,9 @@ impl EventLog {
 
 pub trait Progress: Sync {
     fn report(&self, phase: &str, done: Option<i64>, total: Option<i64>);
+    fn report_item(&self, phase: &str, done: Option<i64>, total: Option<i64>, _game_id: &str) {
+        self.report(phase, done, total);
+    }
     fn report_error(&self, phase: &str, message: &str);
     fn cancelled(&self) -> bool;
 }
@@ -82,10 +85,15 @@ impl Task {
             run_id,
         }
     }
-}
 
-impl Progress for Task {
-    fn report(&self, phase: &str, done: Option<i64>, total: Option<i64>) {
+    fn push(
+        &self,
+        phase: &str,
+        done: Option<i64>,
+        total: Option<i64>,
+        error: Option<String>,
+        game_id: Option<&str>,
+    ) {
         let logged = match self.log.lock() {
             Ok(mut log) => log.push(
                 &self.name,
@@ -93,7 +101,8 @@ impl Progress for Task {
                     phase: phase.to_owned(),
                     done,
                     total,
-                    error: None,
+                    error,
+                    game_id: game_id.map(str::to_owned),
                     run_id: self.run_id,
                 },
             ),
@@ -101,23 +110,20 @@ impl Progress for Task {
         };
         let _ = self.app.emit(&self.name, logged.event);
     }
+}
+
+impl Progress for Task {
+    fn report(&self, phase: &str, done: Option<i64>, total: Option<i64>) {
+        self.push(phase, done, total, None, None);
+    }
+
+    fn report_item(&self, phase: &str, done: Option<i64>, total: Option<i64>, game_id: &str) {
+        self.push(phase, done, total, None, Some(game_id));
+    }
 
     fn report_error(&self, phase: &str, message: &str) {
         tauri_plugin_log::log::warn!("任务 {} 在 {phase} 阶段报告：{message}", self.name);
-        let logged = match self.log.lock() {
-            Ok(mut log) => log.push(
-                &self.name,
-                TaskEvent {
-                    phase: phase.to_owned(),
-                    done: None,
-                    total: None,
-                    error: Some(message.to_owned()),
-                    run_id: self.run_id,
-                },
-            ),
-            Err(_) => return,
-        };
-        let _ = self.app.emit(&self.name, logged.event);
+        self.push(phase, None, None, Some(message.to_owned()), None);
     }
 
     fn cancelled(&self) -> bool {
@@ -168,6 +174,7 @@ mod tests {
             total: None,
             error: None,
             run_id: 0,
+            game_id: None,
         }
     }
 

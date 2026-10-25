@@ -405,6 +405,7 @@ async fn sync_vndb(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Repl
                     total,
                     error: None,
                     run_id: 0,
+                    game_id: None,
                 },
             );
         }

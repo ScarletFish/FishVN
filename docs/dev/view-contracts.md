@@ -78,7 +78,7 @@
 
 就绪信号是 MyList 首次列表加载渲染完成派发的 `app:ready` DOM 事件；main.js 收到后 300ms 淡出并移除 DOM。信号的派发天然幂等（监听 once、splash 移除后为空），详情返回列表重挂 MyList 再派发也是 no-op。两条兜底：JS 活着但数据卡死时 8 秒超时强制移除；浏览器 dev 环境没有启动等待，直接移除。
 
-主题持久化分两层：config.json 是权威（Rust setup 读它涂窗口底色），localStorage 是首帧缓存（index.html 的主题钩子同步读它，保证下次启动第一帧主题正确）。App 挂载后以 getConfig 结果校正两者；校正发生在 splash 淡出之前，跳变被盖住。
+主题持久化分两层：config.json 是权威（Rust setup 读它涂窗口底色），localStorage 是首帧缓存（index.html 的主题钩子同步读它，保证下次启动第一帧主题正确）。两边存的都是三态选择（浅色 / 深色 / 跟随系统）而不是解析后的深浅，解析规则在前端 `theme.js` 的 `resolveTheme` 与 `index.html` 内联脚本里各写一份，改口径要同步。App 挂载后以 getConfig 结果校正两者；校正发生在 splash 淡出之前，跳变被盖住。
 
 ## 数据流与写后行为
 

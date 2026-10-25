@@ -49,6 +49,7 @@ pub enum Theme {
     #[default]
     Light,
     Dark,
+    System,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,8 +72,8 @@ pub struct DashboardModule {
 
 pub fn default_dashboard_layout() -> Vec<DashboardModule> {
     vec![
-        DashboardModule { id: "continue_play".into(), enabled: true },
         DashboardModule { id: "stats".into(), enabled: true },
+        DashboardModule { id: "continue_play".into(), enabled: true },
         DashboardModule { id: "local_library".into(), enabled: true },
     ]
 }
@@ -446,8 +447,8 @@ mod tests {
         assert_eq!(
             current().dashboard_layout,
             vec![
-                DashboardModule { id: "continue_play".into(), enabled: true },
                 DashboardModule { id: "stats".into(), enabled: true },
+                DashboardModule { id: "continue_play".into(), enabled: true },
                 DashboardModule { id: "local_library".into(), enabled: true },
             ]
         );
@@ -558,6 +559,15 @@ mod tests {
         std::fs::write(tmp.path().join(FILE_NAME), r#"{"theme":"dark"}"#).unwrap();
         init(tmp.path());
         assert_eq!(current().excluded_tags, default_excluded_tags());
+    }
+
+    #[test]
+    fn 主题跟随系统可反序列化() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join(FILE_NAME), r#"{"theme":"system"}"#).unwrap();
+        init(tmp.path());
+        assert_eq!(current().theme, Theme::System);
     }
 
     #[test]

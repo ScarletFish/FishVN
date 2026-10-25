@@ -1,7 +1,32 @@
 const KEY = 'fishvn.theme';
 const ACCENT_KEY = 'fishvn.accent';
+const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 export const ACCENTS = ['default', 'amber', 'ocean', 'sakura', 'emerald', 'violet'];
+export const THEMES = ['light', 'dark', 'system'];
+
+let media = null;
+
+function darkMedia() {
+  if (!media) {
+    media = window.matchMedia(DARK_QUERY);
+    media.addEventListener('change', () => {
+      if (getThemeMode() === 'system') paint(resolveTheme('system', media.matches) === 'dark');
+    });
+  }
+  return media;
+}
+
+export function resolveTheme(mode, systemDark) {
+  if (mode === 'dark') return 'dark';
+  if (mode === 'system') return systemDark ? 'dark' : 'light';
+  return 'light';
+}
+
+export function getThemeMode() {
+  const saved = localStorage.getItem(KEY);
+  return THEMES.includes(saved) ? saved : 'light';
+}
 
 function isDark() {
   return document.documentElement.dataset.theme === 'dark';
@@ -20,10 +45,6 @@ function paintAccent(accent) {
   }
 }
 
-export function getTheme() {
-  return isDark() ? 'dark' : 'light';
-}
-
 export function viewTransition(update) {
   if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     document.startViewTransition(update);
@@ -32,23 +53,19 @@ export function viewTransition(update) {
   }
 }
 
-export function setTheme(theme) {
-  const dark = theme === 'dark';
-  paint(dark);
-  localStorage.setItem(KEY, theme);
+export function setTheme(mode) {
+  const valid = THEMES.includes(mode) ? mode : 'light';
+  paint(resolveTheme(valid, darkMedia().matches) === 'dark');
+  localStorage.setItem(KEY, valid);
+  return valid;
 }
 
-export function toggleTheme() {
-  const next = isDark() ? 'light' : 'dark';
-  setTheme(next);
-  return next;
-}
-
-export function syncTheme(theme) {
-  const dark = theme === 'dark';
-  if (isDark() === dark && localStorage.getItem(KEY) === theme) return;
+export function syncTheme(mode) {
+  const valid = THEMES.includes(mode) ? mode : 'light';
+  const dark = resolveTheme(valid, darkMedia().matches) === 'dark';
+  if (isDark() === dark && localStorage.getItem(KEY) === valid) return;
   paint(dark);
-  localStorage.setItem(KEY, theme);
+  localStorage.setItem(KEY, valid);
 }
 
 export function getAccent() {

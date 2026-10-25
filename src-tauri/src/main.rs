@@ -63,11 +63,21 @@ fn main() {
             }));
             let dir = fishvn::data_dir(app.handle())?;
             fishvn::settings::init(&dir);
-            let window_color = match fishvn::settings::current().theme {
-                fishvn::settings::Theme::Dark => tauri::window::Color(0x12, 0x12, 0x12, 0xff),
-                fishvn::settings::Theme::Light => tauri::window::Color(0xf1, 0xf0, 0xec, 0xff),
+            let main_window = app.get_webview_window("main");
+            let dark = match fishvn::settings::current().theme {
+                fishvn::settings::Theme::Dark => true,
+                fishvn::settings::Theme::Light => false,
+                fishvn::settings::Theme::System => main_window
+                    .as_ref()
+                    .and_then(|w| w.theme().ok())
+                    .is_some_and(|t| t == tauri::Theme::Dark),
             };
-            if let Some(window) = app.get_webview_window("main") {
+            let window_color = if dark {
+                tauri::window::Color(0x12, 0x12, 0x12, 0xff)
+            } else {
+                tauri::window::Color(0xf1, 0xf0, 0xec, 0xff)
+            };
+            if let Some(window) = main_window {
                 let _ = window.set_background_color(Some(window_color));
             }
             let fallback = app.handle().clone();

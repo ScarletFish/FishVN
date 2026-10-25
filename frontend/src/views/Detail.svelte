@@ -1,5 +1,5 @@
 <script>
-  import { tick } from 'svelte';
+  import { tick, onMount } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { coverSrc } from '../lib/cover-src.js';
@@ -13,7 +13,7 @@
   import { tagLabel } from '../lib/tag-label.svelte.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
   import { classifyTags } from '../lib/tag-order.svelte.js';
-  import { notifyLibraryTagsChanged } from '../lib/library-events.js';
+  import { LIBRARY_CHANGED, notifyLibraryTagsChanged, onLibraryItemUpdated } from '../lib/library-events.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import DetailStaff from './DetailStaff.svelte';
   import GameForm from '../components/GameForm.svelte';
@@ -66,10 +66,38 @@
     applyState(state, active);
   }
 
+  async function refreshMeta() {
+    try {
+      const [g, m] = await Promise.all([api.getGame(gameId), api.getGameMetadata(gameId)]);
+      if (!g) return;
+      game = g;
+      meta = m;
+      onname?.(g.name ?? '');
+    } catch {}
+  }
+
+  onMount(() => {
+    const onItem = (id) => {
+      if (loading || failed) return;
+      if (id !== gameId) return;
+      refreshMeta();
+    };
+    const onLibrary = () => {
+      if (loading || failed) return;
+      refreshMeta();
+    };
+    const unwatch = onLibraryItemUpdated(onItem);
+    window.addEventListener(LIBRARY_CHANGED, onLibrary);
+    return () => {
+      unwatch();
+      window.removeEventListener(LIBRARY_CHANGED, onLibrary);
+    };
+  });
+
   async function removeGame() {
     menuOpen = false;
     try {
-      const ok = await confirm('deleteGame', game?.name ?? '');
+      const ok = await confirm('deleteGame', { name: game?.name ?? '' });
       if (!ok) return;
       await api.deleteGame(gameId);
       notifyLibraryTagsChanged();
@@ -196,8 +224,12 @@
     };
   });
 
+  let lastCoverPath = null;
+
   $effect(() => {
     const path = meta?.image_path;
+    if (path === lastCoverPath) return;
+    lastCoverPath = path;
     coverBroken = false;
     coverUrl = null;
     if (!path) return;

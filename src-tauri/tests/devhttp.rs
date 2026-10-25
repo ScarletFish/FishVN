@@ -20,6 +20,7 @@ fn push(log: &Mutex<EventLog>, phase: &str, done: Option<i64>, total: Option<i64
             total,
             error: None,
             run_id: 0,
+            game_id: None,
         },
     );
 }

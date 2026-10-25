@@ -73,7 +73,7 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 
 面向已存凭证的命令（连接测试这类），凭证参数可缺省：缺省时回退设置里已存的值。用户验证「当前保存的这份」时不必重新粘贴一遍。
 
-主题（`theme`）在 `AppConfig` 里，setup 阶段读取后对主窗口调 `set_background_color`：深 `#121212`、浅 `#f1f0ec`，与前端 tokens 的 `--bg-page` 严格一致。setup 跑在 WebView 首帧之前，这是 WebView 外壳防露白的唯一一次机会；`tauri.conf.json` 里的静态 `backgroundColor` 是 config.json 读不出来时的兜底。
+主题（`theme`）在 `AppConfig` 里，取值浅色 / 深色 / 跟随系统。setup 阶段读取后先解析成深浅（`system` 取窗口当前系统主题），再对主窗口调 `set_background_color`：深 `#121212`、浅 `#f1f0ec`，与前端 tokens 的 `--bg-page` 严格一致。setup 跑在 WebView 首帧之前，这是 WebView 外壳防露白的唯一一次机会；`tauri.conf.json` 里的静态 `backgroundColor` 是 config.json 读不出来时的兜底。系统主题在运行中变化时窗口底色不重涂，只有内容区边缘露底的瞬间可能差一档，webview 内的界面本身由前端 `matchMedia` 跟着换。
 
 ### 命令层规则
 
@@ -125,6 +125,7 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 
 - 任务名是跨前后端字面量，前后各定义一份，命名约定同命令名。
 - 用 `Progress` 上报：每个用户该看得见推进的可计阶段都要有发射点；不要为单文件、单响应伪造 0/1 计数器，要么合进父阶段、要么给不定长条。
+- 逐条目处理的任务在「这一条已写完」时调 `report_item`（`Progress` 的默认实现退化成 `report`，只有 `Task` 会把它落成 `game_id` 字段）：阶段事件说的是「正在处理」，不带 id；带 id 的是「这一条变了」，订阅方据此认领，不必为别人的进度空转。
 - 取消：worker 在单元间隙查 `cancelled()`，命中即中断并以 `Cancelled` 收尾，下载类一并 abort 在途任务；前端置位标志后调 `cancel_task`，`await` 返回复查标志——取消与成功擦身而过时按取消处理，结果丢弃。
 - 暂停：任务暴露暂停位，经状态查询读取、不进事件通道；worker 在单元间隙查暂停，暂停期间让出等待，取消可随时打断这段等待；暂停位在任务结束与重置时清除，残留的暂停位会让下一轮任务停在下一条目。
 - 持 `Progress` 跨 `await` 时，trait 须标 `Sync`：引用它的 future 要满足 `Send`，否则检查失败只在异步 handler 边界报出。

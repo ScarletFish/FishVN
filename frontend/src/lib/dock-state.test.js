@@ -44,19 +44,41 @@ test('阶段标记被跟踪，且不污染全局 done/total（仅 backfill 更�
   expect(s.total).toBe(10);
 });
 
-test('failed / unmatched / rate 的报错文本进 errors 列表', () => {
+test('failed / unmatched 的报错文本进 errors 列表', () => {
   let s = createDockState();
   s = reduce(s, { phase: 'unmatched', run_id: 1, error: '「B」未匹配' });
   s = reduce(s, { phase: 'failed', run_id: 1, error: '「C」异常' });
+  expect(s.errors.map((e) => e.message)).toEqual(['「B」未匹配', '「C」异常']);
+  expect(s.errorCount).toBe(2);
+});
+
+test('限流只置位不进列表：面板有独立徽标，同一句会刷满列表', () => {
+  let s = createDockState();
   s = reduce(s, { phase: 'rate', run_id: 1, error: '限流冻结' });
-  expect(s.errors.map((e) => e.message)).toEqual(['「B」未匹配', '「C」异常', '限流冻结']);
+  s = reduce(s, { phase: 'rate-limited', run_id: 1, error: '限流冻结' });
+  expect(s.errors).toHaveLength(0);
   expect(s.rateLimited).toBe(true);
 });
 
-test('无 error 的 rate-limited 事件只置位不进列表', () => {
+test('同文案报错合并计数，不再堆重复行', () => {
   let s = createDockState();
-  s = reduce(s, { phase: 'rate-limited', run_id: 1 });
-  expect(s.errors).toHaveLength(0);
+  for (let i = 0; i < 5; i++) {
+    s = reduce(s, { phase: 'failed', run_id: 1, error: '「A」网络错误' });
+  }
+  s = reduce(s, { phase: 'failed', run_id: 1, error: '「B」网络错误' });
+  expect(s.errors).toHaveLength(2);
+  expect(s.errors[0]).toMatchObject({ message: '「A」网络错误', times: 5 });
+  expect(s.errorCount).toBe(6);
+});
+
+test('错误列表封顶 20 条，超出的只记数', () => {
+  let s = createDockState();
+  for (let i = 0; i < 23; i++) {
+    s = reduce(s, { phase: 'failed', run_id: 1, error: `「${i}」失败` });
+  }
+  expect(s.errors).toHaveLength(20);
+  expect(s.overflow).toBe(3);
+  expect(s.errorCount).toBe(23);
 });
 
 test('currentIndex 取 done+1，封顶 total', () => {
@@ -121,4 +143,34 @@ test('seedFromStatus 用快照回填 running / finished，不丢 run_id', () => 
   expect(s.runId).toBe(7);
   expect(s.finished).toEqual(status.finished);
   expect(dockView(s, { collapsedRun: 0, closedRun: 0, hidden: false }).variant).toBe('summary');
+});
+
+test('暂停先显示 pausing，收到后端 paused 事件才算真停', () => {
+  let s = reduce(createDockState(), ev('backfill', { done: 3, total: 62 }));
+  s = { ...s, paused: true, pausedIdle: false };
+  expect(dockView(s, { collapsedRun: 0, closedRun: 0, hidden: false }).variant).toBe('pausing');
+
+  s = reduce(s, ev('paused'));
+  expect(s.pausedIdle).toBe(true);
+  expect(dockView(s, { collapsedRun: 0, closedRun: 0, hidden: false }).variant).toBe('paused');
+});
+
+test('暂停期间有进度推进说明还在收尾，回到 pausing', () => {
+  let s = reduce(createDockState(), ev('backfill', { done: 3, total: 62 }));
+  s = reduce({ ...s, paused: true, pausedIdle: false }, ev('paused'));
+  s = reduce(s, ev('backfill', { done: 4, total: 62 }));
+  expect(s.pausedIdle).toBe(false);
+});
+
+test('seedFromStatus 按后端 paused_idle 决定是否还在收尾', () => {
+  const s = seedFromStatus(createDockState(), {
+    running: true,
+    paused: true,
+    paused_idle: false,
+    run_id: 3,
+    done: 2,
+    total: 9,
+  });
+  expect(s.pausedIdle).toBe(false);
+  expect(dockView(s, { collapsedRun: 0, closedRun: 0, hidden: false }).variant).toBe('pausing');
 });
