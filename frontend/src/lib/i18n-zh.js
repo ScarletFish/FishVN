@@ -8,6 +8,8 @@ export const DICT_ZH = {
     searchEmpty: '没有匹配的结果',
     searchGroupGames: '游戏',
     searchGroupSettings: '设置',
+    searchGroupTags: '标签',
+    tagSearchEmpty: '没有匹配的标签',
     searchCount: '{count} 条',
   },
   nav: {
@@ -159,6 +161,7 @@ export const DICT_ZH = {
     charBloodType: '血型',
     charBwh: '三围',
     charVoice: '声优',
+    charSearchVa: '搜索该声优',
     charSectionFacts: '基本资料',
     charSectionDesc: '简介',
     charSectionTraits: '角色特征',

@@ -418,6 +418,37 @@
   line-height: 1.3;
 }
 
+.detail-char-cv--link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.detail-char-vas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.detail-tag--link {
+  margin: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.detail-char-va {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--text-sm);
+  color: var(--fg-default);
+  cursor: pointer;
+}
+
 .detail-char-panel {
   padding: var(--space-5);
   background: var(--bg-floating);

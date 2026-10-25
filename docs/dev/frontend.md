@@ -127,12 +127,15 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 
 ## 滚动条
 
-按容器选一种：
+滚动条只有两大族，按容器选其一：
+
+- **OverlayScrollbars 族**（详情页/主区/面板，由 `lib/scrollbars.js` 驱动）：内容区、浮层、分栏统一用它，手柄尺寸与色值走 token，别处不再手写滚动条样式
+- **`.scroll-thin` 族**（小表单/文本，纯 `::-webkit-scrollbar-*`）：只给 textarea、合并面板单元格这类纯文本滚动区
 
 | 容器 | 用法 |
 |---|---|
 | 主滚动区 `.shell__main` | `useScrollbars(el)`，`autoHide: 'never'`，指针进入右边缘时手柄加粗到 12px |
-| 弹窗面板、侧栏、标签框、详情页分栏 | `use:panelScrollbars`，手柄 8px，指针离开 400ms 后淡出 |
+| 弹窗面板、侧栏、标签框、详情页分栏、搜索下拉 | `use:panelScrollbars`，手柄 8px，指针离开 400ms 后淡出 |
 | textarea、合并面板的单元格文本 | 类 `.scroll-thin` |
 
 `panelScrollbars` 的宿主写法：
@@ -144,6 +147,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 细则：
 
 - `clickScroll` 插件显式注册
+- overlay 滚动条浮在内容之上、不占布局位：右对齐的元素（数量、徽标）右内距要写成 `calc(<原内距> + var(--scrollbar-size))`，否则被手柄压住
 - 主视图的 `autoHide` 取 `'never'`，显隐由 `.is-visible` 控制，淡出时长在 CSS；`opacity: 0` 的初始态只写在 `.shell__main` 下
 - `watchRightEdge` 只挂主视图
 - 实例只记主视图，`MyList` 靠它还原列表滚动位置

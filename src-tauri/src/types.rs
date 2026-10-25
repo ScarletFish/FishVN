@@ -83,7 +83,6 @@ impl MagpieMode {
         }
     }
 
-    /// 对应 Magpie `ShortcutAction` 枚举序号：0 = Scale（全屏），1 = WindowedModeScale（窗口化）。
     pub fn hotkey_action(self) -> Option<i32> {
         match self {
             Self::Off => None,
@@ -134,6 +133,8 @@ pub struct GameListItem {
     pub cover_path: Option<String>,
     pub cover_focal_x: Option<i64>,
     pub cover_focal_y: Option<i64>,
+    pub va_names: Option<String>,
+    pub tag_names: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]

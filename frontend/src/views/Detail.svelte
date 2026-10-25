@@ -151,6 +151,12 @@
     return parts.join(' | ');
   });
 
+  function searchTag(tag) {
+    const label = tagLabel(tag);
+    if (!label) return;
+    document.dispatchEvent(new CustomEvent('search-set-query', { detail: label }));
+  }
+
   $effect(() => {
     loading = true;
     failed = false;
@@ -336,7 +342,11 @@
         <div class="detail-tags detail-rise" style="animation-delay: 0.19s">
           <div class="detail-tags-list">
             {#each shownTags as tag (tag.id ?? tag.name)}
-              <span class="pill pill--tag">{tagLabel(tag)}</span>
+              <button
+                type="button"
+                class="pill pill--tag detail-tag--link"
+                onclick={() => searchTag(tag)}
+              >{tagLabel(tag)}</button>
             {/each}
             {#if tagsHiddenCount > 0}
               <button

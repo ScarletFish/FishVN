@@ -156,7 +156,10 @@ handler!(dashboard_tag_cloud, |c, _a| {
     let config = settings::current();
     dashboard::tag_cloud(c, 40, config.hide_r18_tags, config.spoiler_level, &config.excluded_tags)
 });
-handler!(library_tags, |c, _a| dashboard::library_tags(c));
+handler!(library_tags, |c, _a| {
+    let config = settings::current();
+    dashboard::library_tags(c, config.hide_r18_tags, config.spoiler_level, &config.excluded_tags)
+});
 handler!(dashboard_monthly_activity, |c, a| {
     dashboard::monthly_activity(c, a.months.unwrap_or(12))
 });

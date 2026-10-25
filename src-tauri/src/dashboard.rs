@@ -141,17 +141,33 @@ struct TagAgg {
 
 const CLOUD_MIN_COUNT: i64 = 2;
 
-pub fn library_tags(conn: &Connection) -> Result<Vec<LibraryTag>> {
-    let mut out: Vec<LibraryTag> = count_tags(conn, |_| true)?
+fn keep_tag(tag: &MetadataTag, hide_r18_tags: bool, spoiler_level: SpoilerLevel) -> bool {
+    let groups = tagdict::dictionary().tag_groups;
+    let hidden = tag.lie.unwrap_or(false)
+        || spoiler_level.hides(tag.spoiler.unwrap_or(0))
+        || (hide_r18_tags && tag.category.as_deref() == Some("ero"))
+        || groups.scope(tag.id.as_deref()) != TagScope::Full;
+    !hidden
+}
+
+pub fn library_tags(
+    conn: &Connection,
+    hide_r18_tags: bool,
+    spoiler_level: SpoilerLevel,
+    excluded: &[String],
+) -> Result<Vec<LibraryTag>> {
+    let counts = count_tags(conn, |tag| keep_tag(tag, hide_r18_tags, spoiler_level))?;
+    let mut pool: Vec<LibraryTag> = counts
         .into_values()
+        .filter(|a| !is_excluded(a.id.as_deref(), &a.name, excluded))
         .map(|a| LibraryTag {
             id: a.id,
             tag: a.name,
             count: a.count,
         })
         .collect();
-    out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
-    Ok(out)
+    pool.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
+    Ok(pool)
 }
 
 pub fn tag_cloud(
@@ -161,14 +177,7 @@ pub fn tag_cloud(
     spoiler_level: SpoilerLevel,
     excluded: &[String],
 ) -> Result<TagCloudView> {
-    let groups = tagdict::dictionary().tag_groups;
-    let counts = count_tags(conn, |tag| {
-        let hidden = tag.lie.unwrap_or(false)
-            || spoiler_level.hides(tag.spoiler.unwrap_or(0))
-            || (hide_r18_tags && tag.category.as_deref() == Some("ero"))
-            || groups.scope(tag.id.as_deref()) != TagScope::Full;
-        !hidden
-    })?;
+    let counts = count_tags(conn, |tag| keep_tag(tag, hide_r18_tags, spoiler_level))?;
     let mut pool: Vec<TagAgg> = counts
         .into_values()
         .filter(|a| a.count >= CLOUD_MIN_COUNT)
@@ -673,19 +682,35 @@ mod tests {
         set_tags(
             &conn,
             &a,
-            r#"[{"id":"g2","name":"奇幻","spoiler":2,"lie":false},{"id":"g145","name":"无分支","spoiler":0,"lie":false},{"name":"手输标签","spoiler":0,"lie":false}]"#,
+            r#"[{"id":"g2","name":"奇幻","spoiler":2,"lie":false},{"name":"支线","spoiler":0,"lie":false},{"name":"手输标签","spoiler":0,"lie":false}]"#,
         );
         let b = make_game(&conn, "乙");
         set_tags(&conn, &b, r#"[{"id":"g2","name":"奇幻","spoiler":0,"lie":false}]"#);
 
-        let all = library_tags(&conn).unwrap();
+        let all = library_tags(&conn, false, SpoilerLevel::ShowAll, &[]).unwrap();
         assert_eq!(
             all.iter().map(|t| (t.tag.as_str(), t.count)).collect::<Vec<_>>(),
-            vec![("奇幻", 2), ("手输标签", 1), ("无分支", 1)]
+            vec![("奇幻", 2), ("手输标签", 1), ("支线", 1)]
         );
         assert_eq!(all[0].id.as_deref(), Some("g2"));
         assert_eq!(all[1].id, None);
-        assert_eq!(all[2].id.as_deref(), Some("g145"));
+        assert_eq!(all[2].id, None);
+    }
+
+    #[test]
+    fn 库内标签查询遵循排除配置() {
+        let conn = db();
+        let id = make_game(&conn, "甲");
+        set_tags(
+            &conn,
+            &id,
+            r#"[{"id":"g2","name":"奇幻","spoiler":0,"lie":false},{"id":"g32","name":"ADV","spoiler":0,"lie":false},{"id":"g96","name":"恋爱","spoiler":0,"lie":false}]"#,
+        );
+        let out = library_tags(&conn, false, SpoilerLevel::ShowAll, &["g96".to_owned()]).unwrap();
+        let got: Vec<&str> = out.iter().map(|t| t.tag.as_str()).collect();
+        assert!(got.contains(&"奇幻"), "正常标签应保留: {:?}", got);
+        assert!(!got.contains(&"ADV"), "分组排除标签应隐藏: {:?}", got);
+        assert!(!got.contains(&"恋爱"), "排除池标签应隐藏: {:?}", got);
     }
 
     #[test]

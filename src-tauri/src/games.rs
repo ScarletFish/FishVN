@@ -1,9 +1,14 @@
+use std::collections::HashMap;
+
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Row};
 
 use crate::error::{write_conflict, AppError, Result};
 use crate::metadata;
-use crate::types::{Game, GameListItem, GamePatch, NewGame, StatePatch, Status, UserGameState};
+use crate::tagdict;
+use crate::types::{
+    Game, GameListItem, GamePatch, MetadataTag, NewGame, StatePatch, Status, UserGameState,
+};
 use crate::{new_id, now};
 
 const DEFAULT_STATUS: Status = Status::Wishlist;
@@ -17,7 +22,11 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
                 m.image_path AS cover_path,
                 m.cover_focal_x AS cover_focal_x,
                 m.cover_focal_y AS cover_focal_y,
-                m.alias AS alias
+                m.alias AS alias,
+                (SELECT GROUP_CONCAT(DISTINCT TRIM(s.name || ' ' || COALESCE(s.original, '')))
+                 FROM character_va cv
+                 JOIN staffs s ON s.id = cv.staff_id
+                 WHERE cv.game_id = g.id AND s.name IS NOT NULL) AS va_names
          FROM games g
          JOIN user_game_state s ON s.game_id = g.id
          LEFT JOIN installations i ON i.game_id = g.id
@@ -39,6 +48,8 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
             cover_path: row.get("cover_path")?,
             cover_focal_x: row.get("cover_focal_x")?,
             cover_focal_y: row.get("cover_focal_y")?,
+            va_names: row.get("va_names")?,
+            tag_names: None,
         })
     })?;
 
@@ -46,7 +57,44 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
     for row in rows {
         out.push(row?);
     }
+    attach_tag_names(conn, &mut out)?;
     Ok(out)
+}
+
+fn attach_tag_names(conn: &Connection, items: &mut [GameListItem]) -> Result<()> {
+    let dict = tagdict::dictionary();
+    let mut stmt = conn.prepare("SELECT game_id, tags FROM game_metadata WHERE tags IS NOT NULL")?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+    })?;
+    let mut by_game: HashMap<String, String> = HashMap::new();
+    for (game_id, raw) in rows.flatten() {
+        let Some(text) = raw else { continue };
+        let Ok(tags) = serde_json::from_str::<Vec<MetadataTag>>(&text) else {
+            continue;
+        };
+        let names: Vec<String> = tags
+            .iter()
+            .filter_map(|t| {
+                let label = t
+                    .id
+                    .as_ref()
+                    .and_then(|id| dict.tags.get(id))
+                    .cloned()
+                    .or_else(|| Some(t.name.clone()));
+                label.filter(|s| !s.trim().is_empty())
+            })
+            .collect();
+        if !names.is_empty() {
+            by_game.insert(game_id, names.join(" "));
+        }
+    }
+    for item in items.iter_mut() {
+        if let Some(names) = by_game.get(&item.id) {
+            item.tag_names = Some(names.clone());
+        }
+    }
+    Ok(())
 }
 
 pub fn get_game(conn: &Connection, id: &str) -> Result<Game> {

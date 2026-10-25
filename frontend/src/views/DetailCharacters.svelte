@@ -96,6 +96,12 @@
   };
   const vaName = (v) => v?.original || v?.name || '';
 
+  function searchVa(va) {
+    const name = vaName(va);
+    if (!name) return;
+    document.dispatchEvent(new CustomEvent('search-set-query', { detail: name }));
+  }
+
   const expanded = $derived(characters.find((c) => c.id === expandedId) ?? null);
 
   $effect(() => {
@@ -159,10 +165,6 @@
         label: t('detail.charBwh'),
         value: `${expanded.bust} / ${expanded.waist} / ${expanded.hips}`,
       },
-      expanded?.va?.length && {
-        label: t('detail.charVoice'),
-        value: expanded.va.map(vaName).filter(Boolean).join(' / '),
-      },
     ].filter(Boolean)
   );
 
@@ -197,7 +199,7 @@
               <div class="detail-char-portrait-ph">
                 <span class="detail-char-ph-name">{displayName(c)}</span>
                 {#if vaName(c.va?.[0])}
-                  <span class="detail-char-ph-cv">CV：{vaName(c.va[0])}</span>
+                  <button type="button" class="detail-char-ph-cv detail-char-cv--link" onclick={() => searchVa(c.va?.[0])} data-tooltip={t('detail.charSearchVa')}>CV：{vaName(c.va?.[0])}</button>
                 {/if}
               </div>
             {/if}
@@ -206,7 +208,7 @@
             <div class="detail-char-foot">
               <span class="detail-char-name">{displayName(c)}</span>
               {#if vaName(c.va?.[0])}
-                <span class="detail-char-cv">CV：{vaName(c.va[0])}</span>
+                <button type="button" class="detail-char-cv detail-char-cv--link" onclick={() => searchVa(c.va?.[0])} data-tooltip={t('detail.charSearchVa')}>CV：{vaName(c.va?.[0])}</button>
               {/if}
             </div>
           {/if}
@@ -235,6 +237,22 @@
                   </div>
                 {/each}
               </dl>
+            </div>
+          {/if}
+
+          {#if expanded?.va?.length}
+            <div class="detail-char-section">
+              <p class="detail-char-section-label">{t('detail.charVoice')}</p>
+              <div class="detail-char-vas">
+                {#each expanded.va as v (v.staff_id)}
+                  <button
+                    type="button"
+                    class="detail-char-va"
+                    onclick={() => searchVa(v)}
+                    data-tooltip={t('detail.charSearchVa')}
+                  >{vaName(v)}</button>
+                {/each}
+              </div>
             </div>
           {/if}
 
