@@ -32,8 +32,8 @@ echo ========================================
 echo.
 echo  1.  Dev Mode             (tauri dev)
 echo  2.  Backend check        (clippy + test)
-echo  3.  Package              (tauri build -^> nsis)
-echo  4.  Deploy In-place      (覆盖热更, 免重装)
+echo  3.  Package              (发版档: 开 LTO, 出 NSIS 安装包)
+echo  4.  Deploy In-place      (只编 exe, 覆盖热更, 免重装)
 echo.
 echo  Q.  Quit
 echo ========================================
@@ -87,6 +87,7 @@ echo   Package
 echo ========================================
 echo.
 echo  Output: src-tauri\target\release\bundle\nsis\
+echo  Profile: LTO on, codegen-units 1 (this run only)
 echo  Requires Rust toolchain, ~5-10 min
 echo ========================================
 echo.
@@ -104,8 +105,13 @@ if exist "src-tauri\target\release\build" (
 echo.
 echo Press any key to start build, or close window to cancel...
 pause >nul
+set "CARGO_PROFILE_RELEASE_LTO=true"
+set "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1"
 call npx tauri build
-if %errorlevel% equ 0 (
+set "BUILD_RC=%errorlevel%"
+set "CARGO_PROFILE_RELEASE_LTO="
+set "CARGO_PROFILE_RELEASE_CODEGEN_UNITS="
+if %BUILD_RC% equ 0 (
     echo.
     echo ========================================
     echo  Build successful!
@@ -115,7 +121,7 @@ if %errorlevel% equ 0 (
     )
 ) else (
     echo.
-    echo Build failed, error code: %errorlevel%
+    echo Build failed, error code: %BUILD_RC%
 )
 echo.
 pause
@@ -133,12 +139,31 @@ if not defined INSTALL_DIR (
     pause
     goto MENU
 )
-if not exist "src-tauri\target\release\fishvn.exe" (
-    echo src-tauri\target\release\fishvn.exe not found.
-    echo Run Package first via menu 3.
+set "NEED_BUILD="
+if not exist "src-tauri\target\release\fishvn.exe" set "NEED_BUILD=1"
+if not defined NEED_BUILD (
+    powershell -NoProfile -Command "$s=(Get-ChildItem -Recurse -File 'frontend\src','frontend\index.html','src-tauri\src','src-tauri\build.rs','src-tauri\tauri.conf.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1).LastWriteTime; if($s -gt (Get-Item 'src-tauri\target\release\fishvn.exe').LastWriteTime){exit 1}"
+    if errorlevel 1 set "NEED_BUILD=1"
+)
+if defined NEED_BUILD (
+    echo target\release\fishvn.exe is missing or older than the sources.
+    set /p BUILD_NOW="Build exe only - skip NSIS - then deploy? (Y/N): "
+    if /i not "!BUILD_NOW!"=="Y" goto MENU
     echo.
-    pause
-    goto MENU
+    call npx tauri build --no-bundle
+    if !errorlevel! neq 0 (
+        echo Build failed, error code: !errorlevel!
+        echo.
+        pause
+        goto MENU
+    )
+    echo.
+    if not exist "src-tauri\target\release\fishvn.exe" (
+        echo Build finished but the exe is missing, check the output above.
+        echo.
+        pause
+        goto MENU
+    )
 )
 cls
 echo ========================================
@@ -154,7 +179,7 @@ if not errorlevel 1 (
     set /p KILL_APP="fishvn.exe is running. Kill it now? (Y/N): "
     if /i "!KILL_APP!"=="Y" (
         taskkill /im fishvn.exe /f >nul 2>&1
-        timeout /t 1 /nobreak >nul
+        set "KILLED_PID=1"
         echo Killed.
     ) else (
         echo Aborted. Close the app window first.
@@ -164,6 +189,16 @@ if not errorlevel 1 (
     )
     echo.
 )
+if not defined KILLED_PID goto AFTER_KILL
+set "KILL_WAIT=0"
+:WAITKILL
+timeout /t 1 /nobreak >nul
+tasklist /fi "imagename eq fishvn.exe" 2>nul | findstr /i "fishvn.exe" >nul
+if errorlevel 1 goto AFTER_KILL
+set /a KILL_WAIT+=1
+if %KILL_WAIT% lss 5 goto WAITKILL
+echo WARNING: fishvn.exe still running, deploy may fail.
+:AFTER_KILL
 echo Press any key to deploy, or close window to cancel...
 pause >nul
 if not exist "%INSTALL_DIR%\backup" md "%INSTALL_DIR%\backup"

@@ -1,0 +1,7 @@
+# 链接器换成 rust-lld：debug 增量构建和 release 链接都明显更快。
+# rust-lld 随 Rust 工具链分发，但不在 PATH 上，这里写绝对路径。
+# 换工具链或换机器后路径会失效（报 linker not found），删掉本文件即可回退到 link.exe。
+# 重新取路径：rustc --print sysroot
+
+[target.x86_64-pc-windows-msvc]
+linker = "C:/Users/Scarletfish/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/x86_64-pc-windows-msvc/bin/rust-lld.exe"
