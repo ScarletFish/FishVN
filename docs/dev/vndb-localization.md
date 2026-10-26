@@ -37,5 +37,5 @@
 
 - **改翻译的唯一入口是 `community/gap-fill.json`**（英文名 → 中文，优先级高于社区表，也是修正社区表译法的通道），改完重跑 `python community/build_tag_zh.py`。产物 `tags_zh.json` 入 git。
 - **纯英文值的放行条件是 `build_tag_zh.py` 的 `ASCII_TERMS` 白名单**（BDSM、NEET、DJ、Vocaloid 等公认可直接用英文的术语）。公认术语可写纯英文值，白名单外的新术语先登记再写；`tagdict.rs` 的测试持同名白名单守门，纯英文伪值（社区表未翻译条目）会被拒收。
-- **覆盖率现状**（重跑脚本时打印，应与此同量级）：tags 约 98.7%、traits 约 99.2%（applicable 条目口径）。残余缺口是刻意跳过的敏感词条，补齐时走 `gap-fill.json`。
+- **覆盖率现状**（重跑脚本时打印，应与此同量级）：tags 2866/2866、traits 3172/3172（applicable 条目口径，100%）。此前刻意跳过的成人向词条已于 gap-fill 补齐；官方 dump 更新后若出现新条目，重跑脚本会打印缺口，按同样方式补 gap-fill。
 - **官方 dump 随官方发布更新即可**：重跑生成脚本，已同步的游戏数据不受影响（同步侧存的是 id，显示时才查表）。

@@ -76,7 +76,7 @@ mod tests {
     const ASCII_TERMS: &[&str] = &[
         "BDSM", "NEET", "DJ", "Vocaloid", "ADHD", "PTSD", "OCD", "CG", "SD", "DC", "Marvel",
         "Free!", "BL", "GL", "Yaoi", "LGBT", "LGBTQ", "JK", "JD", "FPS", "TPS", "RPG", "MMORPG",
-        "VR", "D&D",
+        "VR", "D&D", "NTR", "NTL", "Cosplay",
     ];
 
     #[test]

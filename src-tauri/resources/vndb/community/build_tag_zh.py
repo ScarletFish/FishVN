@@ -29,6 +29,7 @@ ASCII_TERMS = {
     "bdsm", "neet", "dj", "vocaloid", "adhd", "ptsd", "ocd",
     "cg", "sd", "dc", "marvel", "free!",
     "bl", "gl", "yaoi", "lgbt", "lgbtq", "jk", "jd",
+    "ntr", "ntl", "cosplay",
     "fps", "tps", "rpg", "mmorpg", "vr", "d&d",
 }
 
