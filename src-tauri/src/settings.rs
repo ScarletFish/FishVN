@@ -43,6 +43,16 @@ pub enum VndbSyncMode {
     Both,
 }
 
+impl VndbSyncMode {
+    pub fn downloads(self) -> bool {
+        matches!(self, Self::Download | Self::Both)
+    }
+
+    pub fn uploads(self) -> bool {
+        matches!(self, Self::Upload | Self::Both)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuitBehavior {
@@ -99,6 +109,10 @@ pub fn default_dashboard_include_uninstalled() -> bool {
     true
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
@@ -120,7 +134,9 @@ pub struct AppConfig {
     #[serde(default)]
     pub vndb_sync_mode: VndbSyncMode,
     #[serde(default)]
-    pub vndb_sync_import_wishlist: bool,
+    pub vndb_sync_wishlist: bool,
+    #[serde(default = "default_true")]
+    pub vndb_sync_rating: bool,
     #[serde(default)]
     pub vndb_token_obf: Option<String>,
     #[serde(default)]
@@ -142,7 +158,8 @@ pub struct ConfigPatch {
     pub spoiler_level: Option<SpoilerLevel>,
     pub excluded_tags: Option<Vec<String>>,
     pub vndb_sync_mode: Option<VndbSyncMode>,
-    pub vndb_sync_import_wishlist: Option<bool>,
+    pub vndb_sync_wishlist: Option<bool>,
+    pub vndb_sync_rating: Option<bool>,
     pub vndb_token: Option<String>,
     pub magpie_path: Option<String>,
     pub le_path: Option<String>,
@@ -160,7 +177,8 @@ pub struct ConfigView {
     pub spoiler_level: SpoilerLevel,
     pub excluded_tags: Vec<String>,
     pub vndb_sync_mode: VndbSyncMode,
-    pub vndb_sync_import_wishlist: bool,
+    pub vndb_sync_wishlist: bool,
+    pub vndb_sync_rating: bool,
     pub has_vndb_token: bool,
     pub magpie_path: Option<String>,
     pub le_path: Option<String>,
@@ -223,7 +241,8 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
         config.excluded_tags = value;
     }
     if patch.vndb_sync_mode.is_some()
-        || patch.vndb_sync_import_wishlist.is_some()
+        || patch.vndb_sync_wishlist.is_some()
+        || patch.vndb_sync_rating.is_some()
         || patch.vndb_token.is_some()
     {
         crate::sync::invalidate_plan();
@@ -231,8 +250,11 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     if let Some(value) = patch.vndb_sync_mode {
         config.vndb_sync_mode = value;
     }
-    if let Some(value) = patch.vndb_sync_import_wishlist {
-        config.vndb_sync_import_wishlist = value;
+    if let Some(value) = patch.vndb_sync_wishlist {
+        config.vndb_sync_wishlist = value;
+    }
+    if let Some(value) = patch.vndb_sync_rating {
+        config.vndb_sync_rating = value;
     }
     if let Some(raw) = patch.vndb_token {
         config.vndb_token_obf = obfuscate_token(&raw);
@@ -300,7 +322,8 @@ pub fn view() -> ConfigView {
         spoiler_level: config.spoiler_level,
         excluded_tags: config.excluded_tags,
         vndb_sync_mode: config.vndb_sync_mode,
-        vndb_sync_import_wishlist: config.vndb_sync_import_wishlist,
+        vndb_sync_wishlist: config.vndb_sync_wishlist,
+        vndb_sync_rating: config.vndb_sync_rating,
         has_vndb_token: token_set,
         magpie_path: config.magpie_path.clone(),
         le_path: config.le_path.clone(),
@@ -441,7 +464,8 @@ mod tests {
                 spoiler_level: None,
                 excluded_tags: None,
                 vndb_sync_mode: None,
-                vndb_sync_import_wishlist: None,
+                vndb_sync_wishlist: None,
+                vndb_sync_rating: None,
                 vndb_token: None,
                 magpie_path: None,
                 le_path: None,
@@ -642,27 +666,49 @@ mod tests {
     }
 
     #[test]
-    fn vndb_sync_import_wishlist_默认不导入且补丁可改() {
+    fn vndb_sync_wishlist_默认不同步且补丁可改() {
         let _guard = exclusive();
         let tmp = tempfile::tempdir().unwrap();
         init(tmp.path());
-        assert!(!current().vndb_sync_import_wishlist);
+        assert!(!current().vndb_sync_wishlist);
 
         let config = patch(
             tmp.path(),
             ConfigPatch {
-                vndb_sync_import_wishlist: Some(true),
+                vndb_sync_wishlist: Some(true),
                 ..Default::default()
             },
         )
         .unwrap();
-        assert!(config.vndb_sync_import_wishlist);
-        assert!(view().vndb_sync_import_wishlist);
+        assert!(config.vndb_sync_wishlist);
+        assert!(view().vndb_sync_wishlist);
 
         init(tmp.path());
-        assert!(current().vndb_sync_import_wishlist);
+        assert!(current().vndb_sync_wishlist);
         let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
-        assert!(text.contains("vndb_sync_import_wishlist"));
+        assert!(text.contains("vndb_sync_wishlist"));
+    }
+
+    #[test]
+    fn vndb_sync_rating_默认同步且补丁可关() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        assert!(current().vndb_sync_rating);
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch {
+                vndb_sync_rating: Some(false),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(!config.vndb_sync_rating);
+        assert!(!view().vndb_sync_rating);
+
+        init(tmp.path());
+        assert!(!current().vndb_sync_rating);
     }
 
     #[test]

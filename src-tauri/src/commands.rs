@@ -389,12 +389,62 @@ pub async fn sync_vndb(
 }
 
 #[tauri::command]
-pub fn apply_sync_plan(
+pub async fn apply_sync_plan(
+    app: tauri::AppHandle,
+    log: State<'_, Arc<Mutex<EventLog>>>,
     shared: State<'_, Arc<Mutex<Connection>>>,
+    rate: State<'_, Arc<RateLimiter>>,
     decision: sync::PlanDecision,
 ) -> Result<sync::ApplyReport> {
-    let conn = lock(&shared)?;
-    sync::apply(&conn, &decision)
+    let pushes = decision.pushes.clone();
+    let mut upload = None;
+    if !pushes.is_empty() {
+        let config = crate::settings::current();
+        let token = config
+            .vndb_token_obf
+            .as_deref()
+            .and_then(crate::settings::deobfuscate_token)
+            .ok_or_else(|| AppError::BadRequest("还没有保存 VNDB 令牌".into()))?;
+        let http = crate::vndb::http();
+        if !crate::vndb::has_listwrite(http, &token).await? {
+            return Err(AppError::BadRequest(
+                "Token 没有写入权限，无法上传到 VNDB".into(),
+            ));
+        }
+        let labels = crate::vndb::fetch_label_map(http, &token).await?;
+        upload = Some((token, labels));
+    }
+    let conn = shared.inner().clone();
+    let apply_conn = conn.clone();
+    let mut report = tauri::async_runtime::spawn_blocking(move || {
+        let guard = crate::db::lock(&apply_conn)?;
+        sync::apply(&guard, &decision)
+    })
+    .await
+    .map_err(|e| AppError::Upstream(format!("同步应用失败：{e}")))??;
+
+    let Some((token, labels)) = upload else {
+        return Ok(report);
+    };
+    let http = crate::vndb::http();
+    report.pushed = sync::push(conn, http, &token, &labels, &pushes, rate.inner(), |done, total| {
+        let event = TaskEvent {
+            phase: "push".to_owned(),
+            done: Some(done as i64),
+            total: Some(total as i64),
+            error: None,
+            run_id: 0,
+            game_id: None,
+        };
+        let logged = match log.inner().lock() {
+            Ok(mut log) => log.push(SYNC_PROGRESS, event),
+            Err(_) => return,
+        };
+        let _ = app.emit(SYNC_PROGRESS, logged.event);
+    })
+    .await
+    .map_err(|e| AppError::Upstream(format!("本地更改已应用，但写入 VNDB 时中断：{e}")))?;
+    Ok(report)
 }
 
 #[tauri::command]

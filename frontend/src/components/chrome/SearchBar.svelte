@@ -50,7 +50,7 @@
     { label: t('settings.tools.magpie'), keywords: 'magpie 放大 超分 缩放 画质 工具 路径' },
     { label: t('settings.tools.le'), keywords: '转区 locale emulator leproc 日文 乱码 工具 路径' },
     { label: t('settings.vndb.mode'), keywords: 'vndb 同步 模式 上传 下载 sync' },
-    { label: t('settings.vndb.importWishlist'), keywords: 'vndb 同步 想玩 愿望单 导入 wishlist' },
+    { label: t('settings.vndb.syncWishlist'), keywords: 'vndb 同步 想玩 愿望单 导入 wishlist' },
     { label: t('settings.vndb.token'), keywords: 'vndb token 令牌 凭证 连接 授权' },
     { label: t('settings.vndb.syncNow'), keywords: 'vndb 同步 立即 sync now' },
   ];

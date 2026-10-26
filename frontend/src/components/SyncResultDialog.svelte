@@ -19,6 +19,11 @@
 
   let choices = $state({});
   let picked = $state({});
+  let pushedOn = $state({});
+  let step = $state('apply');
+  let applying = $state(false);
+  let pushDone = $state(0);
+  let pushTotal = $state(0);
   let phase = $state('fetch');
   let fetched = $state(null);
   let total = $state(null);
@@ -50,13 +55,39 @@
     if (!open || !plan) return;
     const next = {};
     for (const c of plan.conflicts) {
-      if (c.status) next[`${c.game_id}:status`] = 'local';
-      if (c.rating) next[`${c.game_id}:rating`] = 'local';
+      const side = c.prefer === 'remote' ? 'remote' : 'local';
+      if (c.status) next[`${c.game_id}:status`] = side;
+      if (c.rating) next[`${c.game_id}:rating`] = side;
     }
     choices = next;
     const pickedNext = {};
     for (const c of plan.creates) pickedNext[c.vndb_id] = true;
     picked = pickedNext;
+    const pushNext = {};
+    for (const p of plan.pushes) pushNext[p.game_id] = true;
+    pushedOn = pushNext;
+    step = plan.conflicts.length > 0 ? 'conflicts' : 'apply';
+    applying = false;
+    pushDone = 0;
+    pushTotal = 0;
+  });
+
+  $effect(() => {
+    if (!open || !applying) return;
+    let alive = true;
+    let unsub = null;
+    subscribe('vndb-sync-progress', (e) => {
+      if (!alive || e.phase !== 'push') return;
+      pushDone = e.done ?? 0;
+      pushTotal = e.total ?? 0;
+    }).then((u) => {
+      if (alive) unsub = u;
+      else u();
+    });
+    return () => {
+      alive = false;
+      unsub?.();
+    };
   });
 
   $effect(() => {
@@ -134,13 +165,43 @@
     return plan.creates.filter((c) => picked[c.vndb_id]);
   }
 
+  function pushedPushes() {
+    return (plan?.pushes ?? []).filter((p) => pushedOn[p.game_id] !== false);
+  }
+
+  function togglePush(gameId) {
+    pushedOn = { ...pushedOn, [gameId]: pushedOn[gameId] === false };
+  }
+
+  function uploads() {
+    return plan?.mode === 'upload' || plan?.mode === 'both';
+  }
+
+  function conflictPushes() {
+    if (!plan || !uploads()) return [];
+    return plan.conflicts.filter((c) => {
+      const status = c.status && choices[`${c.game_id}:status`] !== 'remote';
+      const rating = c.rating && choices[`${c.game_id}:rating`] !== 'remote';
+      return status || rating;
+    });
+  }
+
+  function uploadCount() {
+    return pushedPushes().length + conflictPushes().length;
+  }
+
+  function willUpload() {
+    return uploadCount() > 0;
+  }
+
   function hasApplicable() {
     if (!plan) return false;
     return (
       pickedCreates().length > 0 ||
       plan.updates.length > 0 ||
       plan.aligns.length > 0 ||
-      plan.conflicts.length > 0
+      plan.conflicts.length > 0 ||
+      pushedPushes().length > 0
     );
   }
 
@@ -152,28 +213,91 @@
     return v == null ? t('settings.vndb.unrated') : String(Number(v.toFixed(2)));
   }
 
-  function apply() {
+  function ratingNote(p) {
+    if (p.remote_status == null) {
+      return `${t('settings.vndb.ratingField')} ${ratingText(p.rating)}`;
+    }
+    return `${ratingText(p.remote_rating)} → ${ratingText(p.rating)}`;
+  }
+
+  function pushSections() {
+    const fresh = new Map();
+    const changed = new Map();
+    const rated = [];
+    const bucket = (map, key, item) => {
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(item);
+    };
+    for (const p of plan.pushes) {
+      if (p.remote_status == null) bucket(fresh, p.status, p);
+      else if (p.status) bucket(changed, p.remote_status, p);
+      else if (p.rating !== undefined) rated.push(p);
+    }
+    const ordered = (buckets) =>
+      GROUP_ORDER.filter((key) => buckets.get(key)?.length).map((key) => ({
+        status: key,
+        items: buckets.get(key),
+      }));
+    return { fresh: ordered(fresh), changed: ordered(changed), rated };
+  }
+
+  function when(ts) {
+    if (!ts) return '—';
+    const d = new Date(ts * 1000);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  async function apply() {
+    if (applying) return;
     const statuses = [];
     const ratings = [];
+    const pushes = [...pushedPushes()];
     for (const c of plan.conflicts) {
+      const statusSide = choices[`${c.game_id}:status`];
+      const ratingSide = choices[`${c.game_id}:rating`];
       if (c.status) {
-        const pickedSide =
-          choices[`${c.game_id}:status`] === 'remote' ? c.status.remote : c.status.local;
-        statuses.push({ game_id: c.game_id, status: pickedSide, synced: c.status.remote });
+        if (statusSide === 'remote') {
+          statuses.push({ game_id: c.game_id, status: c.status.remote, synced: c.status.remote });
+        } else if (!uploads()) {
+          statuses.push({ game_id: c.game_id, status: c.status.local, synced: c.status.remote });
+        }
       }
       if (c.rating) {
-        const pickedSide =
-          choices[`${c.game_id}:rating`] === 'remote' ? c.rating.remote : c.rating.local;
-        ratings.push({ game_id: c.game_id, rating: pickedSide, synced: c.rating.remote });
+        if (ratingSide === 'remote') {
+          ratings.push({ game_id: c.game_id, rating: c.rating.remote, synced: c.rating.remote });
+        } else if (!uploads()) {
+          ratings.push({ game_id: c.game_id, rating: c.rating.local, synced: c.rating.remote });
+        }
       }
+      if (!uploads()) continue;
+      const push = { game_id: c.game_id, vndb_id: c.vndb_id, name: c.name };
+      let any = false;
+      if (c.status && statusSide !== 'remote') {
+        push.status = c.status.local;
+        any = true;
+      }
+      if (c.rating && ratingSide !== 'remote') {
+        push.rating = c.rating.local;
+        any = true;
+      }
+      if (any) pushes.push(push);
     }
-    onapply?.({
-      creates: pickedCreates(),
-      updates: plan.updates,
-      aligns: plan.aligns,
-      statuses,
-      ratings,
-    });
+    applying = true;
+    pushDone = 0;
+    pushTotal = pushes.length;
+    try {
+      await onapply?.({
+        creates: pickedCreates(),
+        updates: plan.updates,
+        aligns: plan.aligns,
+        statuses,
+        ratings,
+        pushes,
+      });
+    } finally {
+      applying = false;
+    }
   }
 
   function summaryParts() {
@@ -193,6 +317,9 @@
     if (plan.updates.length > 0) {
       parts.push(t('settings.vndb.resultUpdated', { count: plan.updates.length }));
     }
+    if (willUpload()) {
+      parts.push(t('settings.vndb.resultPushed', { count: uploadCount() }));
+    }
     if (plan.skipped > 0) {
       parts.push(t('settings.vndb.resultSkipped', { count: plan.skipped }));
     }
@@ -200,7 +327,7 @@
   }
 </script>
 
-<Modal {open} {title} variant="modal--result" onclose={oncancel}>
+<Modal {open} {title} variant="modal--result" onclose={applying ? () => false : oncancel}>
   {#if loading && !plan && !error && !empty}
     <div class="sync-progress">
       <div class="sync-progress__spinner" aria-hidden="true"></div>
@@ -223,11 +350,18 @@
     {@const parts = summaryParts()}
     <div class="sync-result sync-result--enter" use:panelScrollbars>
       <div class="sync-result__head">
+        {#if plan.conflicts.length > 0}
+          <p class="sync-result__step">
+            {t('settings.vndb.stepOf', { current: step === 'conflicts' ? 1 : 2, total: 2 })}
+          </p>
+        {/if}
         <p class="sync-result__summary">{parts.join(' | ')}</p>
-        <p class="form-hint">{t('settings.vndb.resultPlanHint')}</p>
+        <p class="form-hint">
+          {t(step === 'conflicts' ? 'settings.vndb.stepConflicts' : 'settings.vndb.stepApply')}
+        </p>
       </div>
 
-      {#if plan.conflicts.length > 0}
+      {#if step === 'conflicts'}
         <section class="sync-result__section">
           <div class="form-label">
             {t('settings.vndb.resultConflicts', { count: plan.conflicts.length })}
@@ -245,6 +379,12 @@
             {#each plan.conflicts as c (c.game_id)}
               <div class="sync-conflict__game">
                 <div class="sync-conflict__name">{c.name}</div>
+                <p class="sync-conflict__when">
+                  {t('settings.vndb.conflictWhen', {
+                    local: when(c.local_at),
+                    remote: when(c.remote_at),
+                  })}
+                </p>
                 {#if c.status}
                   <div class="sync-conflict__field">
                     <span class="sync-conflict__label">{t('settings.vndb.statusField')}</span>
@@ -297,7 +437,86 @@
         </section>
       {/if}
 
-      {#if plan.creates.length > 0}
+      {#if step === 'apply' && plan.conflicts.length > 0}
+        <section class="sync-result__section">
+          <p class="form-hint">
+            {t('settings.vndb.conflictsSettled', { count: plan.conflicts.length })}
+          </p>
+        </section>
+      {/if}
+
+      {#if step === 'apply' && plan.pushes.length > 0}
+        {@const sections = pushSections()}
+        <section class="sync-result__section">
+          <div class="form-label">
+            {t('settings.vndb.resultPushed', { count: plan.pushes.length })}
+          </div>
+          <p class="form-hint">{t('settings.vndb.pushHint')}</p>
+
+          {#if sections.fresh.length > 0}
+            <div class="sync-result__sub">{t('settings.vndb.pushFresh')}</div>
+            {#each sections.fresh as group (group.status)}
+              <div class="sync-result__group">
+                <div class="sync-result__group-head">
+                  <span class="sync-result__group-name">{statusText(group.status)}</span>
+                  <span class="sync-result__group-num">{group.items.length}</span>
+                </div>
+                <ul class="sync-result__chips">
+                  {#each group.items as p (p.game_id)}
+                    <li>{@render pushChip(p)}</li>
+                  {/each}
+                </ul>
+              </div>
+            {/each}
+          {/if}
+
+          {#if sections.changed.length > 0}
+            <div class="sync-result__sub">{t('settings.vndb.pushChanged')}</div>
+            {#each sections.changed as group (group.status)}
+              <div class="sync-result__group">
+                <div class="sync-result__group-head">
+                  <span class="sync-result__group-name">{statusText(group.status)}</span>
+                  <span class="sync-result__group-num">{group.items.length}</span>
+                </div>
+                <ul class="sync-result__chips">
+                  {#each group.items as p (p.game_id)}
+                    <li>{@render pushChip(p)}</li>
+                  {/each}
+                </ul>
+              </div>
+            {/each}
+          {/if}
+
+          {#if sections.rated.length > 0}
+            <div class="sync-result__sub">{t('settings.vndb.pushRating')}</div>
+            <ul class="sync-result__chips">
+              {#each sections.rated as p (p.game_id)}
+                <li>{@render pushChip(p)}</li>
+              {/each}
+            </ul>
+          {/if}
+        </section>
+      {/if}
+
+      {#snippet pushChip(p)}
+        <button
+          type="button"
+          class="tag-pill tag-pill--pick sync-chip"
+          class:sync-chip--ghost={pushedOn[p.game_id] === false}
+          aria-pressed={pushedOn[p.game_id] !== false}
+          onclick={() => togglePush(p.game_id)}
+        >
+          {p.name}
+          {#if p.status && p.remote_status != null}
+            <span class="sync-chip__diff">→ {statusText(p.status)}</span>
+          {/if}
+          {#if p.rating !== undefined}
+            <span class="sync-chip__diff">{ratingNote(p)}</span>
+          {/if}
+        </button>
+      {/snippet}
+
+      {#if step === 'apply' && plan.creates.length > 0}
         {@const groups = groupedCreates()}
         <section class="sync-result__section">
           <div class="form-label">
@@ -340,7 +559,7 @@
         </section>
       {/if}
 
-      {#if plan.warnings.length > 0}
+      {#if step === 'apply' && plan.warnings.length > 0}
         <section class="sync-result__section">
           {#each plan.warnings as w, i (i)}
             <p class="form-hint">{w}</p>
@@ -364,17 +583,40 @@
   {/if}
 
   <div class="modal-actions">
-    {#if loading && !plan && !error && !empty}
+    {#if applying}
+      <button type="button" class="btn btn-primary" disabled>
+        {#if pushTotal > 0}
+          {t('settings.vndb.applyingPush', { done: pushDone, total: pushTotal })}
+        {:else}
+          {t('settings.vndb.applying')}
+        {/if}
+      </button>
+    {:else if loading && !plan && !error && !empty}
       <button type="button" class="btn" onclick={oncancel}>
         {t('common.cancel')}
       </button>
     {:else if plan && hasApplicable()}
-      <button type="button" class="btn" onclick={oncancel}>
-        {t('common.cancel')}
-      </button>
-      <button type="button" class="btn btn-primary" onclick={apply}>
-        {t('settings.vndb.applyPlan')}
-      </button>
+      {#if step === 'conflicts'}
+        <button type="button" class="btn" onclick={oncancel}>
+          {t('common.cancel')}
+        </button>
+        <button type="button" class="btn btn-primary" onclick={() => (step = 'apply')}>
+          {t('settings.vndb.next')}
+        </button>
+      {:else}
+        {#if plan.conflicts.length > 0}
+          <button type="button" class="btn" onclick={() => (step = 'conflicts')}>
+            {t('settings.vndb.back')}
+          </button>
+        {:else}
+          <button type="button" class="btn" onclick={oncancel}>
+            {t('common.cancel')}
+          </button>
+        {/if}
+        <button type="button" class="btn btn-primary" onclick={apply}>
+          {willUpload() ? t('settings.vndb.applyPlanUpload') : t('settings.vndb.applyPlan')}
+        </button>
+      {/if}
     {:else if error}
       <button type="button" class="btn" onclick={oncancel}>
         {t('common.close')}

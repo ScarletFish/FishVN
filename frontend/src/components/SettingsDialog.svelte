@@ -50,7 +50,8 @@
   let lePathError = $state('');
 
   let vndbSyncMode = $state('download');
-  let vndbImportWishlist = $state(false);
+  let vndbSyncWishlist = $state(false);
+  let vndbSyncRating = $state(true);
   let hasVndbToken = $state(false);
   let vndbTokenInput = $state('');
   let vndbTesting = $state(false);
@@ -103,7 +104,8 @@
         vndbSyncMode = config.vndb_sync_mode === 'upload' || config.vndb_sync_mode === 'both'
           ? config.vndb_sync_mode
           : 'download';
-        vndbImportWishlist = !!config.vndb_sync_import_wishlist;
+        vndbSyncWishlist = !!config.vndb_sync_wishlist;
+        vndbSyncRating = config.vndb_sync_rating !== false;
         hasVndbToken = !!config.has_vndb_token;
         vndbTokenInput = '';
         vndbTestResult = null;
@@ -284,11 +286,20 @@
       .catch((err) => toast(err.message, 'error'));
   }
 
-  function onVndbImportWishlistChange(e) {
+  function onVndbSyncWishlistChange(e) {
     const value = e.target.checked;
-    vndbImportWishlist = value;
+    vndbSyncWishlist = value;
     api
-      .updateConfig({ vndb_sync_import_wishlist: value })
+      .updateConfig({ vndb_sync_wishlist: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  function onVndbSyncRatingChange(e) {
+    const value = e.target.checked;
+    vndbSyncRating = value;
+    api
+      .updateConfig({ vndb_sync_rating: value })
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
   }
@@ -812,19 +823,36 @@
 
       <div class="form-group form-group--flat">
         <div class="form-row">
-          <label class="toggle-switch" for="settings-import-wishlist">
+          <label class="toggle-switch" for="settings-sync-wishlist">
             <input
-              id="settings-import-wishlist"
+              id="settings-sync-wishlist"
               type="checkbox"
-              aria-label={t('settings.vndb.importWishlist')}
-              checked={vndbImportWishlist}
-              onchange={onVndbImportWishlistChange}
+              aria-label={t('settings.vndb.syncWishlist')}
+              checked={vndbSyncWishlist}
+              onchange={onVndbSyncWishlistChange}
             />
             <span class="toggle-slider"></span>
           </label>
-          <span class="form-row-label">{t('settings.vndb.importWishlist')}</span>
+          <span class="form-row-label">{t('settings.vndb.syncWishlist')}</span>
         </div>
-        <p class="form-hint">{t('settings.vndb.importWishlistHint')}</p>
+        <p class="form-hint">{t('settings.vndb.syncWishlistHint')}</p>
+      </div>
+
+      <div class="form-group form-group--flat">
+        <div class="form-row">
+          <label class="toggle-switch" for="settings-sync-rating">
+            <input
+              id="settings-sync-rating"
+              type="checkbox"
+              aria-label={t('settings.vndb.syncRating')}
+              checked={vndbSyncRating}
+              onchange={onVndbSyncRatingChange}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="form-row-label">{t('settings.vndb.syncRating')}</span>
+        </div>
+        <p class="form-hint">{t('settings.vndb.syncRatingHint')}</p>
       </div>
 
       <div class="form-group">

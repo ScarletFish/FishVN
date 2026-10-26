@@ -201,8 +201,11 @@ va{character{id},staff{id,name,original},note}
 翻页用 `results`（上限 100）+ `page`，响应 `more` 为 true 就续页；结果默认按 `id` 排序。
 列表条目的标题随 `vn.title` 内联返回，建壳不需要再按 id 批量查 `/vn` 补名称。
 
-写操作（`PATCH /ulist/<id>` 带 `labels_set` / `labels_unset` / `vote`，删条目用 `DELETE`）属
-仅上传与双向同步力度，设计见 [vndb-sync.md](./vndb-sync.md)，首版（仅下载）不实现。
+写操作用 `PATCH /ulist/<id>`：`labels_set` / `labels_unset` 是标签 id 数组，`vote` 取 10..100 的整数、传 `null` 清空；条目不在列表里时 PATCH 会顺带新建。删条目用 `DELETE`，本项目不做删除。
+
+标签 id 不能硬编码。`GET /ulist_labels` 返回 `{labels:[{id,label,private,count}]}`，不带 `user` 参数时取当前认证用户；按 `label` 名称映射到本地状态，上传前取一次。预定义标签 id 小于 10，但用户可以设为私有，私有标签只在请求带 `listread` 时返回。PATCH **不校验 id 是否存在**，写错会静默挂上一个不存在的标签，所以映射必须来自这个接口而不是常量表。
+
+写入需要 token 带 `listwrite` 权限。`GET /authinfo` 返回 `{id,username,permissions}`，同步开始前用它判断，缺权限时直接报错而不是等 PATCH 失败；PATCH 缺权限返回 401 或 403，与 token 无效的 401 文案要分开。
 
 ### 封面与图片
 

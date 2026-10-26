@@ -112,6 +112,38 @@ pub(super) async fn post<T: for<'de> Deserialize<'de>>(
     if let Some(token) = token {
         builder = builder.header("Authorization", format!("token {token}"));
     }
+    let (status, text) = send(builder).await?;
+    decode(status, &text)
+}
+
+pub(super) async fn get<T: for<'de> Deserialize<'de>>(
+    http: &reqwest::Client,
+    endpoint: &str,
+    token: Option<&str>,
+) -> Result<T> {
+    let mut builder = http.get(format!("{API_BASE}/{endpoint}"));
+    if let Some(token) = token {
+        builder = builder.header("Authorization", format!("token {token}"));
+    }
+    let (status, text) = send(builder).await?;
+    decode(status, &text)
+}
+
+pub(super) async fn patch(
+    http: &reqwest::Client,
+    endpoint: &str,
+    body: Value,
+    token: &str,
+) -> Result<()> {
+    let builder = http
+        .patch(format!("{API_BASE}/{endpoint}"))
+        .header("Authorization", format!("token {token}"))
+        .json(&body);
+    let (status, text) = send(builder).await?;
+    check_write(status, &text)
+}
+
+async fn send(builder: reqwest::RequestBuilder) -> Result<(u16, String)> {
     let resp = builder.send().await.map_err(|e| {
         if e.is_timeout() {
             AppError::Upstream(format!("VNDB 请求超时：{e}"))
@@ -120,7 +152,7 @@ pub(super) async fn post<T: for<'de> Deserialize<'de>>(
         }
     })?;
 
-    let status = resp.status();
+    let status = resp.status().as_u16();
     let text = resp.text().await.map_err(|e| {
         if e.is_timeout() {
             AppError::Upstream(format!("VNDB 响应超时：{e}"))
@@ -128,14 +160,34 @@ pub(super) async fn post<T: for<'de> Deserialize<'de>>(
             AppError::Upstream(format!("VNDB 响应读不出：{e}"))
         }
     })?;
+    Ok((status, text))
+}
 
-    match status.as_u16() {
-        200 => serde_json::from_str(&text)
+fn decode<T: for<'de> Deserialize<'de>>(status: u16, text: &str) -> Result<T> {
+    match status {
+        200 => serde_json::from_str(text)
             .map_err(|e| AppError::Upstream(format!("VNDB 响应不是预期 JSON：{e}"))),
         400 => Err(AppError::BadRequest(format!(
             "VNDB 拒绝请求（400）：{text}"
         ))),
         401 => Err(AppError::BadRequest("VNDB 鉴权失败（401）：token 可能无效".into())),
+        429 => Err(AppError::RateLimited),
+        _ => Err(AppError::Upstream(format!("VNDB 返回 {status}"))),
+    }
+}
+
+fn check_write(status: u16, text: &str) -> Result<()> {
+    match status {
+        200 | 204 => Ok(()),
+        400 => Err(AppError::BadRequest(format!(
+            "VNDB 拒绝写入（400）：{text}"
+        ))),
+        401 => Err(AppError::BadRequest(
+            "VNDB 鉴权失败（401）：token 可能无效，或没有勾选 listwrite 权限".into(),
+        )),
+        403 => Err(AppError::BadRequest(
+            "VNDB 拒绝写入（403）：token 缺少 listwrite 权限".into(),
+        )),
         429 => Err(AppError::RateLimited),
         _ => Err(AppError::Upstream(format!("VNDB 返回 {status}"))),
     }

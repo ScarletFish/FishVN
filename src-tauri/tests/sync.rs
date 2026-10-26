@@ -5,6 +5,7 @@ mod common;
 
 use common::Db;
 use fishvn::games::{create_game, delete_game, update_game, update_game_state};
+use fishvn::settings::VndbSyncMode;
 use fishvn::sync::{
     apply, cached_plan_at, invalidate_plan, plan_ulist, store_plan, PlanAlign, PlanCreate,
     PlanDecision, PlanUpdate, RatingDecision, StatusDecision, SyncPlan,
@@ -136,7 +137,7 @@ fn 仅_vndb_改过时计划采纳远端但不落库() {
     let id = new_game(&db, "甲", "v1");
     set_synced(&db, &id, Some(Status::Wishlist), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.updates.len(), 1);
     assert_eq!(plan.updates[0].status, Some(Status::Playing));
@@ -152,7 +153,7 @@ fn 仅本地改过时保留本地状态() {
     set_state(&db, &id, Some(Status::Playing), None);
     set_synced(&db, &id, Some(Status::Wishlist), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", None)], true).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", None)], true, VndbSyncMode::Download, true).unwrap();
 
     assert!(plan.updates.is_empty());
     assert!(plan.conflicts.is_empty());
@@ -167,7 +168,7 @@ fn 两边都改过时状态进冲突且本地不动() {
     set_state(&db, &id, Some(Status::Finished), None);
     set_synced(&db, &id, Some(Status::Playing), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Dropped", None)], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Dropped", None)], false, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.conflicts.len(), 1);
     let conflict = &plan.conflicts[0];
@@ -182,7 +183,7 @@ fn 从未同步过的初始值直接采纳远端() {
     let db = Db::new();
     new_game(&db, "甲", "v1");
 
-    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.updates.len(), 1);
     assert!(plan.conflicts.is_empty());
@@ -194,7 +195,7 @@ fn 从未同步但本地手改过则判冲突() {
     let id = new_game(&db, "甲", "v1");
     set_state(&db, &id, Some(Status::Finished), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.conflicts.len(), 1);
     assert!(plan.conflicts[0].status.is_some());
@@ -207,7 +208,7 @@ fn 两边改成同一值时计划只刷基快照() {
     set_state(&db, &id, Some(Status::Playing), None);
     set_synced(&db, &id, Some(Status::Wishlist), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false, VndbSyncMode::Download, true).unwrap();
 
     assert!(plan.updates.is_empty());
     assert_eq!(plan.aligns.len(), 1);
@@ -220,7 +221,7 @@ fn 两边改成同一值时计划只刷基快照() {
 fn 新_vndb_id_进创建计划并带齐字段() {
     let db = Db::new();
 
-    let plan = plan_ulist(&db, &[entry("v9", "Playing", Some(85))], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v9", "Playing", Some(85))], false, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.creates.len(), 1);
     let created = &plan.creates[0];
@@ -237,7 +238,7 @@ fn 新_vndb_id_查不到标题时用_id_兜底() {
     let mut item = entry("v7", "Finished", None);
     item.vn.title = None;
 
-    let plan = plan_ulist(&db, &[item], false).unwrap();
+    let plan = plan_ulist(&db, &[item], false, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.creates.len(), 1);
     assert_eq!(plan.creates[0].name, "v7");
@@ -249,7 +250,7 @@ fn 评分仅_vndb_改过时计划采纳远端() {
     let id = new_game(&db, "甲", "v1");
     set_synced(&db, &id, Some(Status::Wishlist), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", Some(85))], true).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", Some(85))], true, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.updates.len(), 1);
     assert_eq!(plan.updates[0].rating, Some(Some(85.0)));
@@ -264,7 +265,7 @@ fn 评分仅本地改过时保留本地() {
     set_state(&db, &id, None, Some(Some(85.0)));
     set_synced(&db, &id, Some(Status::Wishlist), Some(90.0));
 
-    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", Some(90))], true).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", Some(90))], true, VndbSyncMode::Download, true).unwrap();
 
     assert!(plan.updates.is_empty());
     let (_, rating, ..) = state_of(&db, &id);
@@ -278,7 +279,7 @@ fn 评分两边都改过时进冲突() {
     set_state(&db, &id, None, Some(Some(70.0)));
     set_synced(&db, &id, Some(Status::Wishlist), Some(85.0));
 
-    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", Some(90))], true).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", Some(90))], true, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.conflicts.len(), 1);
     let rating = plan.conflicts[0].rating.as_ref().unwrap();
@@ -294,7 +295,7 @@ fn 本地显式清零评分与远端有分判冲突() {
     let id = new_game(&db, "甲", "v1");
     set_state(&db, &id, None, Some(Some(0.0)));
 
-    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", Some(85))], true).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", Some(85))], true, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.conflicts.len(), 1);
     assert!(plan.conflicts[0].rating.is_some());
@@ -306,7 +307,7 @@ fn 两端都未评分时无事发生() {
     let id = new_game(&db, "甲", "v1");
     set_synced(&db, &id, Some(Status::Wishlist), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", None)], true).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", None)], true, VndbSyncMode::Download, true).unwrap();
 
     assert!(plan.updates.is_empty());
     assert!(plan.conflicts.is_empty());
@@ -318,7 +319,7 @@ fn 两端都未评分时无事发生() {
 fn 未知_vndb_状态跳过并警告不建壳() {
     let db = Db::new();
 
-    let plan = plan_ulist(&db, &[entry("v1", "Weird", None)], true).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Weird", None)], true, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.skipped, 1);
     assert_eq!(plan.warnings.len(), 1);
@@ -335,10 +336,10 @@ fn 未解决的冲突再次计划仍判冲突() {
     set_state(&db, &id, Some(Status::Finished), None);
     set_synced(&db, &id, Some(Status::Playing), None);
 
-    let first = plan_ulist(&db, &[entry("v1", "Dropped", None)], false).unwrap();
+    let first = plan_ulist(&db, &[entry("v1", "Dropped", None)], false, VndbSyncMode::Download, true).unwrap();
     assert_eq!(first.conflicts.len(), 1);
 
-    let second = plan_ulist(&db, &[entry("v1", "Dropped", None)], false).unwrap();
+    let second = plan_ulist(&db, &[entry("v1", "Dropped", None)], false, VndbSyncMode::Download, true).unwrap();
     assert_eq!(second.conflicts.len(), 1);
 }
 
@@ -346,7 +347,7 @@ fn 未解决的冲突再次计划仍判冲突() {
 fn 心愿单开关关闭时跳过新条目且不建壳() {
     let db = Db::new();
 
-    let plan = plan_ulist(&db, &[entry("v9", "Wishlist", None)], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v9", "Wishlist", None)], false, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.skipped, 1);
     assert!(plan.creates.is_empty());
@@ -362,7 +363,7 @@ fn 心愿单开关关闭时跳过已存在条目的更新() {
     set_state(&db, &id, Some(Status::Playing), None);
     set_synced(&db, &id, Some(Status::Playing), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", None)], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Wishlist", None)], false, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.skipped, 1);
     assert!(plan.updates.is_empty());
@@ -375,7 +376,7 @@ fn 心愿单开关关闭时跳过已存在条目的更新() {
 fn 心愿单开关打开时新条目进创建计划() {
     let db = Db::new();
 
-    let plan = plan_ulist(&db, &[entry("v9", "Wishlist", Some(80))], true).unwrap();
+    let plan = plan_ulist(&db, &[entry("v9", "Wishlist", Some(80))], true, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.skipped, 0);
     assert_eq!(plan.creates.len(), 1);
@@ -387,7 +388,7 @@ fn 心愿单开关打开时新条目进创建计划() {
 fn 心愿单标签名为_planning_时同样识别() {
     let db = Db::new();
 
-    let plan = plan_ulist(&db, &[entry("v1", "Planning", None)], true).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Planning", None)], true, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.skipped, 0);
     assert_eq!(plan.creates.len(), 1);
@@ -399,7 +400,7 @@ fn 心愿单标签名为_planning_时同样识别() {
 fn 纯投票条目恒跳过且不警告() {
     let db = Db::new();
 
-    let plan = plan_ulist(&db, &[voted_entry("v9", Some(90))], true).unwrap();
+    let plan = plan_ulist(&db, &[voted_entry("v9", Some(90))], true, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.skipped, 1);
     assert!(plan.warnings.is_empty());
@@ -414,7 +415,7 @@ fn 纯投票条目不覆盖本地已有状态与评分() {
     set_state(&db, &id, Some(Status::Playing), Some(Some(70.0)));
     set_synced(&db, &id, Some(Status::Playing), Some(70.0));
 
-    let plan = plan_ulist(&db, &[voted_entry("v1", Some(90))], true).unwrap();
+    let plan = plan_ulist(&db, &[voted_entry("v1", Some(90))], true, VndbSyncMode::Download, true).unwrap();
 
     assert_eq!(plan.skipped, 1);
     assert!(plan.updates.is_empty());
@@ -430,12 +431,12 @@ fn 跳过心愿单后打开开关_本地未再改则计划采纳远端() {
     set_state(&db, &id, Some(Status::Playing), None);
     set_synced(&db, &id, Some(Status::Playing), None);
 
-    let first = plan_ulist(&db, &[entry("v1", "Wishlist", None)], false).unwrap();
+    let first = plan_ulist(&db, &[entry("v1", "Wishlist", None)], false, VndbSyncMode::Download, true).unwrap();
     assert_eq!(first.skipped, 1);
     let (status, ..) = state_of(&db, &id);
     assert_eq!(status, Status::Playing);
 
-    let second = plan_ulist(&db, &[entry("v1", "Wishlist", None)], true).unwrap();
+    let second = plan_ulist(&db, &[entry("v1", "Wishlist", None)], true, VndbSyncMode::Download, true).unwrap();
     assert_eq!(second.skipped, 0);
     assert_eq!(second.updates.len(), 1);
     let (status, ..) = state_of(&db, &id);
@@ -449,11 +450,11 @@ fn 跳过心愿单后打开开关_本地改过则判冲突() {
     set_state(&db, &id, Some(Status::Playing), None);
     set_synced(&db, &id, Some(Status::Playing), None);
 
-    let first = plan_ulist(&db, &[entry("v1", "Wishlist", None)], false).unwrap();
+    let first = plan_ulist(&db, &[entry("v1", "Wishlist", None)], false, VndbSyncMode::Download, true).unwrap();
     assert_eq!(first.skipped, 1);
 
     set_state(&db, &id, Some(Status::Finished), None);
-    let second = plan_ulist(&db, &[entry("v1", "Wishlist", None)], true).unwrap();
+    let second = plan_ulist(&db, &[entry("v1", "Wishlist", None)], true, VndbSyncMode::Download, true).unwrap();
     assert_eq!(second.conflicts.len(), 1);
     let (status, ..) = state_of(&db, &id);
     assert_eq!(status, Status::Finished);
@@ -479,8 +480,7 @@ fn plan_全程不写库() {
             entry("v3", "Wishlist", None),    // 开关关 → 跳过
             voted_entry("v4", Some(50)),      // 纯投票 → 跳过
         ],
-        false,
-    )
+        false, VndbSyncMode::Download, true)
     .unwrap();
 
     assert_eq!(plan.total, 4);
@@ -499,8 +499,7 @@ fn apply_只建勾选的壳() {
     let plan = plan_ulist(
         &db,
         &[entry("v9", "Playing", Some(85)), entry("v10", "Finished", None)],
-        false,
-    )
+        false, VndbSyncMode::Download, true)
     .unwrap();
     assert_eq!(plan.creates.len(), 2);
 
@@ -551,7 +550,7 @@ fn apply_采纳更新会写值并回写基快照() {
     let id = new_game(&db, "甲", "v1");
     set_synced(&db, &id, Some(Status::Wishlist), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Playing", Some(85))], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Playing", Some(85))], false, VndbSyncMode::Download, true).unwrap();
     assert_eq!(plan.updates.len(), 1);
 
     apply(
@@ -607,7 +606,7 @@ fn apply_刷基快照不动本地值() {
     set_state(&db, &id, Some(Status::Playing), None);
     set_synced(&db, &id, Some(Status::Wishlist), None);
 
-    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false).unwrap();
+    let plan = plan_ulist(&db, &[entry("v1", "Playing", None)], false, VndbSyncMode::Download, true).unwrap();
     assert_eq!(plan.aligns.len(), 1);
 
     apply(
@@ -705,7 +704,7 @@ fn apply_解决后的冲突不再重复出现() {
     set_state(&db, &id, Some(Status::Finished), None);
     set_synced(&db, &id, Some(Status::Playing), None);
 
-    let first = plan_ulist(&db, &[entry("v1", "Dropped", None)], false).unwrap();
+    let first = plan_ulist(&db, &[entry("v1", "Dropped", None)], false, VndbSyncMode::Download, true).unwrap();
     assert_eq!(first.conflicts.len(), 1);
 
     apply(
@@ -721,7 +720,7 @@ fn apply_解决后的冲突不再重复出现() {
     )
     .unwrap();
 
-    let second = plan_ulist(&db, &[entry("v1", "Dropped", None)], false).unwrap();
+    let second = plan_ulist(&db, &[entry("v1", "Dropped", None)], false, VndbSyncMode::Download, true).unwrap();
     assert!(second.conflicts.is_empty());
     assert!(second.updates.is_empty());
     let (status, ..) = state_of(&db, &id);
@@ -736,7 +735,7 @@ fn 拒绝后_vndb_真改了才再判冲突() {
     set_state(&db, &id, Some(Status::Finished), None);
     set_synced(&db, &id, Some(Status::Playing), None);
 
-    let first = plan_ulist(&db, &[entry("v1", "Dropped", None)], false).unwrap();
+    let first = plan_ulist(&db, &[entry("v1", "Dropped", None)], false, VndbSyncMode::Download, true).unwrap();
     assert_eq!(first.conflicts.len(), 1);
 
     apply(
@@ -752,7 +751,7 @@ fn 拒绝后_vndb_真改了才再判冲突() {
     )
     .unwrap();
 
-    let second = plan_ulist(&db, &[entry("v1", "Playing", None)], false).unwrap();
+    let second = plan_ulist(&db, &[entry("v1", "Playing", None)], false, VndbSyncMode::Download, true).unwrap();
     assert_eq!(second.conflicts.len(), 1);
     let (status, ..) = state_of(&db, &id);
     assert_eq!(status, Status::Finished);
@@ -898,6 +897,7 @@ fn 应用计划后缓存失效() {
             synced: Status::Finished,
         }],
         ratings: vec![],
+        pushes: vec![],
     };
     apply(&db, &decision).unwrap();
 

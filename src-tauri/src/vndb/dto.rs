@@ -32,6 +32,18 @@ pub struct UlistEntry {
     pub lastmod: Option<i64>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct LabelList {
+    pub labels: Vec<UlistLabel>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct AuthInfo {
+    pub permissions: Vec<String>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct VnImage {

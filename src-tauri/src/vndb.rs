@@ -2,6 +2,7 @@ use serde_json::json;
 
 use crate::error::{AppError, Result};
 use crate::tasks::Progress;
+use crate::types::Status;
 
 mod characters;
 mod client;
@@ -14,8 +15,7 @@ pub use dto::{
     CharVn, UlistEntry, UlistLabel, UlistVn, VnDeveloper, VnEnvelope, VnImage, VnMetadata, VnSearchHit,
     VnSync, VnTag, VnTitle, VnVa, VnVaCharacter, VnVaStaff,
 };
-
-use dto::CharRow;
+use dto::{AuthInfo, CharRow, LabelList};
 
 const SEARCH_FIELDS: &str = "id,title,alttitle,released,olang,image{id,thumbnail,thumbnail_dims}";
 
@@ -192,4 +192,112 @@ pub async fn fetch_ulist(
         page += 1;
     }
     Ok(entries)
+}
+
+pub fn status_of_label(name: &str) -> Option<Status> {
+    match name.to_ascii_lowercase().as_str() {
+        "playing" => Some(Status::Playing),
+        "finished" => Some(Status::Finished),
+        "stalled" => Some(Status::Stalled),
+        "dropped" => Some(Status::Dropped),
+        "wishlist" | "planning" | "plan to play" => Some(Status::Wishlist),
+        _ => None,
+    }
+}
+
+fn status_zh(status: Status) -> &'static str {
+    match status {
+        Status::Wishlist => "计划中",
+        Status::Playing => "游玩中",
+        Status::Finished => "已完成",
+        Status::Stalled => "搁置",
+        Status::Dropped => "已弃坑",
+    }
+}
+
+pub struct LabelMap {
+    pairs: Vec<(i64, Status)>,
+}
+
+impl LabelMap {
+    pub fn id_for(&self, status: Status) -> Option<i64> {
+        self.pairs
+            .iter()
+            .find(|(_, s)| *s == status)
+            .map(|(id, _)| *id)
+    }
+
+    fn other_ids(&self, status: Status) -> Vec<i64> {
+        self.pairs
+            .iter()
+            .filter(|(_, s)| *s != status)
+            .map(|(id, _)| *id)
+            .collect()
+    }
+}
+
+pub async fn fetch_label_map(http: &reqwest::Client, token: &str) -> Result<LabelMap> {
+    let list: LabelList = client::get(http, "ulist_labels", Some(token)).await?;
+    let pairs: Vec<(i64, Status)> = list
+        .labels
+        .iter()
+        .filter_map(|l| status_of_label(&l.label).map(|s| (l.id, s)))
+        .collect();
+    if pairs.is_empty() {
+        return Err(AppError::BadRequest(
+            "VNDB 没有返回可用的状态标签，检查 Token 是否带 listread 权限".into(),
+        ));
+    }
+    Ok(LabelMap { pairs })
+}
+
+pub async fn has_listwrite(http: &reqwest::Client, token: &str) -> Result<bool> {
+    let info: AuthInfo = client::get(http, "authinfo", Some(token)).await?;
+    Ok(info
+        .permissions
+        .iter()
+        .any(|p| p.eq_ignore_ascii_case("listwrite")))
+}
+
+pub async fn set_ulist(
+    http: &reqwest::Client,
+    token: &str,
+    vndb_id: &str,
+    labels: &LabelMap,
+    status: Option<Status>,
+    rating: Option<Option<f64>>,
+) -> Result<()> {
+    let mut body = serde_json::Map::new();
+    if let Some(status) = status {
+        let id = labels.id_for(status).ok_or_else(|| {
+            AppError::BadRequest(format!(
+                "VNDB 上找不到「{}」对应的状态标签，这次没有写入",
+                status_zh(status)
+            ))
+        })?;
+        body.insert("labels_set".into(), json!([id]));
+        let others = labels.other_ids(status);
+        if !others.is_empty() {
+            body.insert("labels_unset".into(), json!(others));
+        }
+    }
+    if let Some(rating) = rating {
+        body.insert(
+            "vote".into(),
+            match rating {
+                Some(v) => json!(v.round().clamp(10.0, 100.0) as i64),
+                None => serde_json::Value::Null,
+            },
+        );
+    }
+    if body.is_empty() {
+        return Ok(());
+    }
+    client::patch(
+        http,
+        &format!("ulist/{vndb_id}"),
+        serde_json::Value::Object(body),
+        token,
+    )
+    .await
 }
