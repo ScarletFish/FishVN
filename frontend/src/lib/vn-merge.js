@@ -93,7 +93,7 @@ const FIELDS = [
     same: (a, b) => Number(a) === Number(b),
   },
   {
-    key: 'length_minutes',
+    key: 'lengthMinutes',
     read: (vn) => asString(vn.length_minutes),
     empty: (v) => !v?.trim(),
     same: (a, b) => Number(a) === Number(b),

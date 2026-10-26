@@ -132,7 +132,18 @@
   }
 </script>
 
-<div class="focal-root" bind:this={rootEl} tabindex="0" onkeydown={onKeyDown}>
+<div
+  class="focal-root"
+  bind:this={rootEl}
+  role="slider"
+  aria-label={t('gameForm.coverFocal.title')}
+  aria-valuemin="0"
+  aria-valuemax="100"
+  aria-valuenow={Math.round(draftX)}
+  aria-valuetext="{Math.round(draftX)}%, {Math.round(draftY)}%"
+  tabindex="0"
+  onkeydown={onKeyDown}
+>
   <Modal {open} variant="modal--focal" title={t('gameForm.coverFocal.title')} onclose={() => onclose?.()}>
     <div class="focal-body">
       <ImageViewer
@@ -158,6 +169,8 @@
             ></div>
             <div
               class="focal-frame"
+              role="application"
+              aria-label={t('gameForm.coverFocal.title')}
               style:left="{tl.x}px"
               style:top="{tl.y}px"
               style:width="{w}px"

@@ -38,7 +38,7 @@ function form(over = {}) {
     released: '',
     rating: '',
     votecount: '',
-    length_minutes: '',
+    lengthMinutes: '',
     description: '',
     tags: [],
     developers: '',
@@ -104,7 +104,7 @@ const ALL_KEYS = [
   'released',
   'rating',
   'votecount',
-  'length_minutes',
+  'lengthMinutes',
   'description',
   'tags',
   'developers',
@@ -158,15 +158,15 @@ test('非中文非日文的原作沿用主标题', () => {
 });
 
 test('平均时长本地为空进面板，有值且不同也进冲突', () => {
-  expect(conflictRows(form(), VN).map((r) => r.key)).toContain('length_minutes');
-  expect(applyIncoming(form(), VN, new Set(['length_minutes'])).length_minutes).toBe('1820');
-  expect(applyIncoming(form(), VN, new Set()).length_minutes).toBe('');
+  expect(conflictRows(form(), VN).map((r) => r.key)).toContain('lengthMinutes');
+  expect(applyIncoming(form(), VN, new Set(['lengthMinutes'])).lengthMinutes).toBe('1820');
+  expect(applyIncoming(form(), VN, new Set()).lengthMinutes).toBe('');
 
-  const current = sameForm({ length_minutes: '1800' });
+  const current = sameForm({ lengthMinutes: '1800' });
   const rows = conflictRows(current, VN);
-  expect(rows.map((r) => r.key)).toEqual(['length_minutes']);
-  expect(applyIncoming(current, VN, new Set(['length_minutes'])).length_minutes).toBe('1820');
-  expect(applyIncoming(current, VN, new Set()).length_minutes).toBe('1800');
+  expect(rows.map((r) => r.key)).toEqual(['lengthMinutes']);
+  expect(applyIncoming(current, VN, new Set(['lengthMinutes'])).lengthMinutes).toBe('1820');
+  expect(applyIncoming(current, VN, new Set()).lengthMinutes).toBe('1800');
 });
 
 test('本地空封面也进面板，勾选才采用', () => {

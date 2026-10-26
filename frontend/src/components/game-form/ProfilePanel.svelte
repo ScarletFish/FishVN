@@ -75,7 +75,7 @@
   </div>
 
   <div class="form-group">
-    <label for="game-form-meta-length">{t('gameForm.field.length_minutes')}</label>
+    <label for="game-form-meta-length">{t('gameForm.field.lengthMinutes')}</label>
     <input
       id="game-form-meta-length"
       type="text"

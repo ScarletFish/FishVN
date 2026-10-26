@@ -1,5 +1,5 @@
 <script>
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import Modal from './Modal.svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
@@ -184,9 +184,9 @@
       const drafts = prefill.installations.map(toInstallationDraft);
       installations = drafts;
       defaultInstallKey = drafts[0]?.key ?? null;
-      baseline = formSnapshot();
+      baseline = untrack(formSnapshot);
     } else {
-      baseline = formSnapshot();
+      baseline = untrack(formSnapshot);
     }
     tick().then(() => input?.focus());
   });

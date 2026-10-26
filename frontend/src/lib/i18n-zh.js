@@ -380,7 +380,7 @@ export const DICT_ZH = {
       released: '发行日期',
       rating: '评分',
       votecount: '评分人数',
-      length_minutes: '平均时长',
+      lengthMinutes: '平均时长',
       description: '简介',
       developers: '开发商',
       tags: '标签',
