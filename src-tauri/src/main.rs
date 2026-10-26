@@ -6,7 +6,9 @@ use fishvn::commands;
 use fishvn::db;
 use fishvn::tasks::{EventLog, Tasks};
 use fishvn::vndb::RateLimiter;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
 use tauri_plugin_log::log;
 
 #[cfg(debug_assertions)]
@@ -108,6 +110,54 @@ fn main() {
                 spawn_dev_channel(conn, rate, events, tasks, app.handle().clone());
             }
             log::info!(target: "startup", "后端就绪：{} ms", started.elapsed().as_millis());
+
+            let handle = app.handle().clone();
+            if let Some(window) = app.get_webview_window("main") {
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        match fishvn::settings::current().quit_behavior {
+                            fishvn::settings::QuitBehavior::MinimizeToTray => {
+                                let _ = handle.get_webview_window("main").map(|w| w.hide());
+                            }
+                            fishvn::settings::QuitBehavior::Quit => {
+                                let _ = handle.emit("app-quit-requested", ());
+                            }
+                        }
+                    }
+                });
+            }
+            if let Some(icon) = app.default_window_icon() {
+                let icon = icon.clone();
+                let show_item = MenuItem::with_id(app, "show", "显示", true, None::<&str>)?;
+                let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+                let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+                let tray = TrayIconBuilder::new()
+                    .icon(icon)
+                    .menu(&menu)
+                    .show_menu_on_left_click(false)
+                    .on_menu_event(|app, event| match event.id().as_ref() {
+                        "show" => {
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.unminimize();
+                                let _ = w.set_focus();
+                            }
+                        }
+                        "quit" => {
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.unminimize();
+                                let _ = w.set_focus();
+                            }
+                            let _ = app.emit("app-quit-requested", ());
+                        }
+                        _ => {}
+                    })
+                    .build(app)?;
+                let _ = app.manage(tray);
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -145,6 +195,7 @@ fn main() {
             commands::tag_dictionary,
             commands::get_config,
             commands::update_config,
+            commands::resolve_app_quit,
             commands::test_vndb_token,
             commands::sync_vndb,
             commands::apply_sync_plan,

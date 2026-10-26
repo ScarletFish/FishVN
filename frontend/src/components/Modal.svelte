@@ -21,8 +21,9 @@
     };
   });
 
-  function close() {
-    if (onclose?.() === false) return;
+  async function close() {
+    const result = await onclose?.();
+    if (result === false) return;
     open = false;
   }
 

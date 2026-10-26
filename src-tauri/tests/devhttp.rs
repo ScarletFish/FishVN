@@ -111,7 +111,7 @@ fn declared_commands() -> BTreeSet<String> {
 }
 
 /// 浏览器会话的前端异常直接看 devtools，前端日志命令不经 devhttp
-const DEVHTTP_EXEMPT: &[&str] = &["log_frontend"];
+const DEVHTTP_EXEMPT: &[&str] = &["log_frontend", "resolve_app_quit"];
 
 #[test]
 fn 路由表覆盖全部命令() {

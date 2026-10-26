@@ -212,6 +212,12 @@ export const DICT_ZH = {
       confirm: '开始下载',
       cancel: '稍后',
     },
+    discardChanges: {
+      title: '未保存的修改',
+      message: '有修改尚未保存，确定要放弃吗？',
+      confirm: '放弃修改',
+      cancel: '继续编辑',
+    },
   },
   settings: {
     title: '设置',
@@ -221,6 +227,10 @@ export const DICT_ZH = {
       tools: '工具',
     },
     theme: '主题',
+    quitBehavior: '退出时行为',
+    quitQuit: '直接退出',
+    quitTray: '最小化到托盘',
+    quitBehaviorHint: '选“最小化到托盘”后，关闭窗口会收起到系统托盘而非退出；右键系统托盘图标可退出',
     theme_light: '浅色',
     theme_dark: '深色',
     theme_system: '跟随系统',
@@ -523,6 +533,7 @@ export const DICT_ZH = {
   toast: {
     copied: '已复制',
     copyFailed: '复制失败',
+    sessionEnded: '本次游玩时间：{duration}',
   },
   status: {
     playing: '游玩中',

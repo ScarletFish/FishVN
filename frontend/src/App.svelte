@@ -1,7 +1,15 @@
 <script>
   import './lib/tooltip.js';
   import { t } from './lib/i18n.js';
+  import { durationText } from './lib/playtime.js';
   import { api } from './lib/api.js';
+  import { listen } from '@tauri-apps/api/event';
+  import { invoke } from '@tauri-apps/api/core';
+  import { confirm } from './lib/confirm.svelte.js';
+  import { quitGuard } from './lib/quit-guard.svelte.js';
+  import { toast } from './lib/toast.svelte.js';
+  import { notifyLibraryChanged } from './lib/library-events.js';
+  import { subscribe } from './lib/events.js';
   import { loadTagDict } from './lib/tag-label.svelte.js';
   import { loadConfig } from './lib/config-store.svelte.js';
   import { syncTheme, syncAccent, syncFontScale } from './lib/theme.js';
@@ -30,6 +38,41 @@
         syncAccent(config.accent);
       })
       .catch(() => {});
+  });
+
+  async function onAppQuitRequested() {
+    if (quitGuard.dirty) {
+      let ok = false;
+      try {
+        ok = await confirm('discardChanges');
+      } catch {
+        return;
+      }
+      if (!ok) return;
+    }
+    await invoke('resolve_app_quit');
+  }
+
+  $effect(() => {
+    let unlisten = null;
+    listen('app-quit-requested', () => {
+      onAppQuitRequested();
+    })
+      .then((fn) => (unlisten = fn))
+      .catch(() => {});
+    return () => unlisten?.();
+  });
+
+  $effect(() => {
+    let unlisten = null;
+    subscribe('session-ended', (payload) => {
+      notifyLibraryChanged();
+      const seconds = Number(payload?.seconds ?? 0);
+      toast(t('toast.sessionEnded', { duration: durationText(t, seconds) }), 'success');
+    })
+      .then((fn) => (unlisten = fn))
+      .catch(() => {});
+    return () => unlisten?.();
   });
 
   const NAV = [

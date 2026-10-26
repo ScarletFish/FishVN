@@ -26,6 +26,8 @@
   import { applyCharacters, planCharacters } from '../lib/char-merge.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
+  import { confirm } from '../lib/confirm.svelte.js';
+  import { quitGuard } from '../lib/quit-guard.svelte.js';
   import { notifyLibraryChanged, notifyLibraryTagsChanged } from '../lib/library-events.js';
   import { tagKey } from '../lib/tag-label.svelte.js';
   import BasicPanel from './game-form/BasicPanel.svelte';
@@ -92,9 +94,35 @@
 
   let asideOpen = $state(false);
   let asideMode = $state('search');
+  let baseline = $state('');
   const search = createVndbSearch();
 
   const customTagNames = $derived(tags.filter((tag) => !tag.id).map((tag) => tag.name));
+
+  function formSnapshot() {
+    return JSON.stringify({
+      name,
+      vndbId,
+      status,
+      userRating,
+      notes,
+      alias,
+      released,
+      rating,
+      votecount,
+      lengthMinutes,
+      description,
+      developers,
+      tags,
+      staff,
+      coverPath,
+      coverFocalX,
+      coverFocalY,
+      characters,
+      installations,
+      defaultInstallKey,
+    });
+  }
 
   function toggleTag(key, item) {
     if (tags.some((tag) => tagKey(tag) === key)) {
@@ -106,6 +134,7 @@
 
   $effect(() => {
     if (!open || saving) return;
+    baseline = '';
     name = '';
     vndbId = null;
     status = 'wishlist';
@@ -155,6 +184,9 @@
       const drafts = prefill.installations.map(toInstallationDraft);
       installations = drafts;
       defaultInstallKey = drafts[0]?.key ?? null;
+      baseline = formSnapshot();
+    } else {
+      baseline = formSnapshot();
     }
     tick().then(() => input?.focus());
   });
@@ -194,6 +226,7 @@
       toast(err.message, 'error');
     } finally {
       loading = false;
+      baseline = formSnapshot();
     }
   }
 
@@ -287,9 +320,25 @@
     incomingCharacters = [];
   }
 
-  function close() {
+  const isDirty = $derived(baseline !== '' && formSnapshot() !== baseline);
+
+  $effect(() => {
+    quitGuard.dirty = isDirty;
+  });
+
+  async function close() {
     if (saving) return false;
+    if (isDirty) {
+      let ok = false;
+      try {
+        ok = await confirm('discardChanges');
+      } catch {
+        return false;
+      }
+      if (!ok) return false;
+    }
     open = false;
+    return true;
   }
 
   function validateRanges() {

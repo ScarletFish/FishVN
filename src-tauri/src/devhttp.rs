@@ -209,7 +209,7 @@ handler!(save_game_characters, |c, a| {
 });
 handler!(list_active_sessions, |c, _a| sessions::list_active(c));
 async fn launch_game(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
-    finish(sessions::launch(dev.conn.clone(), a.id()?))
+    finish(sessions::launch(dev.conn.clone(), a.id()?, Some(dev.app.clone())))
 }
 
 async fn search_vndb(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {

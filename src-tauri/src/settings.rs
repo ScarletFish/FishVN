@@ -44,6 +44,14 @@ pub enum VndbSyncMode {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuitBehavior {
+    #[default]
+    Quit,
+    MinimizeToTray,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Theme {
     #[default]
@@ -119,6 +127,8 @@ pub struct AppConfig {
     pub magpie_path: Option<String>,
     #[serde(default)]
     pub le_path: Option<String>,
+    #[serde(default)]
+    pub quit_behavior: QuitBehavior,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -136,6 +146,7 @@ pub struct ConfigPatch {
     pub vndb_token: Option<String>,
     pub magpie_path: Option<String>,
     pub le_path: Option<String>,
+    pub quit_behavior: Option<QuitBehavior>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -153,6 +164,7 @@ pub struct ConfigView {
     pub has_vndb_token: bool,
     pub magpie_path: Option<String>,
     pub le_path: Option<String>,
+    pub quit_behavior: QuitBehavior,
 }
 
 static CACHE: OnceLock<RwLock<Option<AppConfig>>> = OnceLock::new();
@@ -231,6 +243,9 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     if let Some(raw) = patch.le_path {
         config.le_path = clean_tool_path(&raw);
     }
+    if let Some(value) = patch.quit_behavior {
+        config.quit_behavior = value;
+    }
     update(dir, config)?;
     Ok(current())
 }
@@ -289,6 +304,7 @@ pub fn view() -> ConfigView {
         has_vndb_token: token_set,
         magpie_path: config.magpie_path.clone(),
         le_path: config.le_path.clone(),
+        quit_behavior: config.quit_behavior,
     }
 }
 
@@ -429,6 +445,7 @@ mod tests {
                 vndb_token: None,
                 magpie_path: None,
                 le_path: None,
+                quit_behavior: None,
             },
         )
         .unwrap();

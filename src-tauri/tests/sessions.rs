@@ -149,7 +149,7 @@ fn 没有启动文件的安装不能启动() {
         })
         .expect("建安装失败");
 
-    let err = sessions::launch(shared.conn.clone(), &game).unwrap_err();
+    let err = sessions::launch(shared.conn.clone(), &game, None).unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
     assert_eq!(message(&err), "这个游戏还没有指定启动文件");
 }
@@ -164,7 +164,7 @@ fn 启动文件不在时拒绝启动() {
     set_default(&shared, &game, installation);
     fs::remove_file(dir.join("gone.exe")).expect("删入口失败");
 
-    let err = sessions::launch(shared.conn.clone(), &game).unwrap_err();
+    let err = sessions::launch(shared.conn.clone(), &game, None).unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
     assert!(
         message(&err).starts_with("启动文件不存在："),
@@ -176,6 +176,6 @@ fn 启动文件不在时拒绝启动() {
 #[test]
 fn 启动不存在的作品返回_not_found() {
     let shared = Shared::new();
-    let err = sessions::launch(shared.conn.clone(), common::ghost()).unwrap_err();
+    let err = sessions::launch(shared.conn.clone(), common::ghost(), None).unwrap_err();
     assert_eq!(variant(&err), "NotFound");
 }

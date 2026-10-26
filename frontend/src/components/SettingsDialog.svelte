@@ -62,6 +62,7 @@
   let syncSeq = 0;
   let syncActive = 0;
   let resultOpen = $state(false);
+  let quitBehavior = $state('quit');
 
   let tokenStatus = $derived.by(() => {
     if (vndbTesting) return { kind: 'checking', text: t('settings.vndb.testing') };
@@ -110,6 +111,7 @@
         lePath = config.le_path ?? '';
         magpiePathError = '';
         lePathError = '';
+        quitBehavior = config.quit_behavior === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
       })
       .catch(() => {});
   });
@@ -251,6 +253,15 @@
     hideR18 = value;
     api
       .updateConfig({ hide_r18_tags: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  function onQuitBehaviorChange(e) {
+    const value = e.target.value === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
+    quitBehavior = value;
+    api
+      .updateConfig({ quit_behavior: value })
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
   }
@@ -612,6 +623,33 @@
             <p class="form-hint">{t('settings.layoutEmpty')}</p>
           {/if}
         </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.quitBehavior')}</div>
+        <div class="seg-radio-group" role="radiogroup" aria-label={t('settings.quitBehavior')}>
+          <label class="seg-radio-item">
+            <input
+              type="radio"
+              name="quit-behavior"
+              value="quit"
+              checked={quitBehavior === 'quit'}
+              onchange={onQuitBehaviorChange}
+            />
+            {t('settings.quitQuit')}
+          </label>
+          <label class="seg-radio-item">
+            <input
+              type="radio"
+              name="quit-behavior"
+              value="minimize_to_tray"
+              checked={quitBehavior === 'minimize_to_tray'}
+              onchange={onQuitBehaviorChange}
+            />
+            {t('settings.quitTray')}
+          </label>
+        </div>
+        <p class="form-hint">{t('settings.quitBehaviorHint')}</p>
       </div>
     </div>
 

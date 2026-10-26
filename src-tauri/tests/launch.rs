@@ -40,12 +40,12 @@ fn 启动一条后记会话并按进程退出收尾() {
     let installation = add_launch(&shared, &game, &dir, "fake.bat");
     set_default(&shared, &game, installation);
 
-    let session = sessions::launch(shared.conn.clone(), &game).expect("启动失败");
+    let session = sessions::launch(shared.conn.clone(), &game, None).expect("启动失败");
     assert_eq!(session.ended_at, None);
     assert_eq!(session.game_id, game);
     assert_eq!(shared.with(sessions::list_active).unwrap().len(), 1);
 
-    let again = sessions::launch(shared.conn.clone(), &game).unwrap_err();
+    let again = sessions::launch(shared.conn.clone(), &game, None).unwrap_err();
     assert_eq!(message(&again), "这个游戏已经在游玩中");
 
     wait_until_settled(&shared);
@@ -90,7 +90,7 @@ fn 已通的作品不会被启动改写状态() {
         })
         .expect("标已通失败");
 
-    sessions::launch(shared.conn.clone(), &game).expect("启动失败");
+    sessions::launch(shared.conn.clone(), &game, None).expect("启动失败");
     wait_until_settled(&shared);
 
     assert_eq!(

@@ -29,6 +29,7 @@ use crate::installations;
 use crate::settings::{self, AppConfig, TimeMetric};
 use crate::types::{Installation, MagpieMode, PlaySession, Status};
 use crate::{new_id, now};
+use tauri::{AppHandle, Emitter};
 
 const TICK: Duration = Duration::from_millis(1000);
 const SETTLE_TICKS: u32 = 3;
@@ -42,6 +43,11 @@ const MAGPIE_HOTKEY_CLASS: &str = "Magpie_Hotkey";
 
 const COLUMNS: &str = "id, game_id, installation_id, started_at, last_seen_at, ended_at,
                        foreground_seconds, COALESCE(ended_at, last_seen_at) - started_at AS alive_seconds";
+
+#[derive(Clone, serde::Serialize)]
+struct SessionEnded {
+    seconds: i64,
+}
 
 struct Job(HANDLE);
 
@@ -113,7 +119,7 @@ impl Drop for Job {
     }
 }
 
-pub fn launch(shared: Arc<Mutex<Connection>>, game_id: &str) -> Result<PlaySession> {
+pub fn launch(shared: Arc<Mutex<Connection>>, game_id: &str, app: Option<AppHandle>) -> Result<PlaySession> {
     let conn = lock(&shared)?;
     games::get_game(&conn, game_id)?;
     if active(&conn, game_id)?.is_some() {
@@ -170,7 +176,7 @@ pub fn launch(shared: Arc<Mutex<Connection>>, game_id: &str) -> Result<PlaySessi
 
     let watch_id = session.id.clone();
     let watch_game = game_id.to_owned();
-    thread::spawn(move || watch(job, shared, watch_id, watch_game, started_at));
+    thread::spawn(move || watch(job, shared, watch_id, watch_game, started_at, app));
     if let (Some(path), Some(magpie_job)) = (magpie_path, magpie_job) {
         thread::spawn(move || trigger_magpie(&path, magpie_job, magpie_mode));
     }
@@ -213,6 +219,7 @@ fn watch(
     session_id: String,
     game_id: String,
     started_at: i64,
+    app: Option<AppHandle>,
 ) {
     let mut foreground = 0i64;
     let mut alive_at = started_at;
@@ -253,6 +260,11 @@ fn watch(
             TimeMetric::Alive => alive_at - started_at,
         };
         let _ = add_play_time(&conn, &game_id, seconds);
+        if seconds > 0 {
+            if let Some(app) = &app {
+                let _ = app.emit("session-ended", SessionEnded { seconds });
+            }
+        }
     }
 }
 

@@ -64,7 +64,7 @@ fn 转区开着但没登记路径时拦住启动且不起进程() {
     let installation = add_launch(&shared, &game, &dir, "game.exe");
     patch_install(&shared, &installation, flags(true, MagpieMode::Off));
 
-    let err = sessions::launch(shared.conn.clone(), &game).unwrap_err();
+    let err = sessions::launch(shared.conn.clone(), &game, None).unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
     assert!(message(&err).contains("Locale Emulator"));
     assert!(shared.with(sessions::list_active).unwrap().is_empty());
@@ -81,7 +81,7 @@ fn 放大开着但没登记路径时拦住启动且不起进程() {
     let installation = add_launch(&shared, &game, &dir, "game.exe");
     patch_install(&shared, &installation, flags(false, MagpieMode::Full));
 
-    let err = sessions::launch(shared.conn.clone(), &game).unwrap_err();
+    let err = sessions::launch(shared.conn.clone(), &game, None).unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
     assert!(message(&err).contains("Magpie"));
     assert!(shared.with(sessions::list_active).unwrap().is_empty());
@@ -98,7 +98,7 @@ fn 窗口化缩放开着但没登记路径时拦住启动且不起进程() {
     let installation = add_launch(&shared, &game, &dir, "game.exe");
     patch_install(&shared, &installation, flags(false, MagpieMode::Window));
 
-    let err = sessions::launch(shared.conn.clone(), &game).unwrap_err();
+    let err = sessions::launch(shared.conn.clone(), &game, None).unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
     assert!(message(&err).contains("Magpie"));
     assert!(shared.with(sessions::list_active).unwrap().is_empty());
@@ -116,7 +116,7 @@ fn 转区启动只收exe入口() {
     let installation = add_launch(&shared, &game, &dir, "start.bat");
     patch_install(&shared, &installation, flags(true, MagpieMode::Off));
 
-    let err = sessions::launch(shared.conn.clone(), &game).unwrap_err();
+    let err = sessions::launch(shared.conn.clone(), &game, None).unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
     assert!(message(&err).contains("转区启动仅支持 exe 入口"));
     assert!(shared.with(sessions::list_active).unwrap().is_empty());
@@ -138,7 +138,7 @@ fn 转区启动把入口路径原样交给登记的程序() {
     patch_install(&shared, &installation, flags(true, MagpieMode::Off));
     set_default(&shared, &game, installation);
 
-    sessions::launch(shared.conn.clone(), &game).expect("启动失败");
+    sessions::launch(shared.conn.clone(), &game, None).expect("启动失败");
     wait_until_settled(&shared);
 
     let received = fs::read_to_string(dir.join("le-args.txt")).expect("假转区程序没收到参数");
@@ -168,7 +168,7 @@ fn 附加参数按空格与引号拆开原样进进程() {
     );
     set_default(&shared, &game, installation);
 
-    sessions::launch(shared.conn.clone(), &game).expect("启动失败");
+    sessions::launch(shared.conn.clone(), &game, None).expect("启动失败");
     wait_until_settled(&shared);
 
     let received = fs::read_to_string(dir.join("args.txt")).expect("进程没收到参数");
@@ -196,7 +196,7 @@ fn 附加参数留空时按直接启动处理() {
     );
     set_default(&shared, &game, installation);
 
-    sessions::launch(shared.conn.clone(), &game).expect("启动失败");
+    sessions::launch(shared.conn.clone(), &game, None).expect("启动失败");
     wait_until_settled(&shared);
 
     let received = fs::read_to_string(dir.join("args.txt")).expect("进程没收到参数");

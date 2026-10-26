@@ -165,8 +165,8 @@ pub fn save_installations(
 }
 
 #[tauri::command]
-pub fn launch_game(shared: Shared<'_>, id: String) -> Result<PlaySession> {
-    sessions::launch(shared.inner().clone(), &id)
+pub fn launch_game(shared: Shared<'_>, id: String, app: tauri::AppHandle) -> Result<PlaySession> {
+    sessions::launch(shared.inner().clone(), &id, Some(app))
 }
 
 #[tauri::command]
@@ -339,6 +339,11 @@ pub fn get_config(_app: tauri::AppHandle) -> Result<settings::ConfigView> {
 #[tauri::command]
 pub fn update_config(app: tauri::AppHandle, patch: ConfigPatch) -> Result<AppConfig> {
     settings::patch(&data_dir_or_err(&app)?, patch)
+}
+
+#[tauri::command]
+pub fn resolve_app_quit(app: tauri::AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]
