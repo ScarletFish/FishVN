@@ -737,11 +737,10 @@
 
 .seg-radio-group {
   display: flex;
-  gap: var(--space-1);
-  padding: var(--space-1);
   background: var(--bg-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 .seg-radio-item {
@@ -752,15 +751,31 @@
   gap: var(--space-1);
   flex: 1;
   min-width: 0;
-  padding: var(--space-150) var(--space-3);
+  padding: var(--space-250) var(--space-3);
   font-size: var(--text-sm);
   color: var(--fg-secondary);
   white-space: nowrap;
-  border-radius: var(--radius-xs);
   cursor: pointer;
   transition:
     background var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
+}
+
+.seg-radio-item + .seg-radio-item::before {
+  content: '';
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 0;
+  width: 1px;
+  background: var(--border-default);
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.seg-radio-item:has(input:checked)::before,
+.seg-radio-item:has(input:checked) + .seg-radio-item::before {
+  opacity: 0;
 }
 
 .seg-radio-item input[type='radio'] {
@@ -778,7 +793,7 @@
 .seg-radio-item:has(input:checked) {
   font-weight: var(--fw-semibold);
   color: var(--fg-default);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--bg-selected);
 }
 
 .seg-radio-item:has(input:focus-visible) {
@@ -849,8 +864,10 @@
 }
 
 .accent-swatch.active {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-md);
+  border-color: transparent;
+  box-shadow:
+    0 0 0 2px var(--fg-default),
+    var(--shadow-md);
   transform: scale(1.12);
 }
 
