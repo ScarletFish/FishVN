@@ -22,6 +22,7 @@
 | 后端栈特有事实、数据模型、上游实测 | `docs/dev/backend.md`、`docs/dev/vndb-api.md` |
 | 前端惯例、样式坑集、布局契约、构建配置 | `docs/dev/frontend.md`；卡宽与列数见 `docs/dev/grid-layout.md` |
 | 视图的数据契约与字段归属 | `docs/dev/view-contracts.md` |
+| 界面文案的用词、量词、标点与语气 | `docs/dev/wording.md` |
 | 类名、动效与视觉对齐 | `docs/dev/visual-ref.md` |
 
 改哪块先读哪份：`backend.md` 与 `frontend.md` 各有一张路由表。
