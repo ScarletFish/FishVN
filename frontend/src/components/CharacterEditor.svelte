@@ -91,11 +91,85 @@
     return artUrls[path.trim()] ?? null;
   }
 
+  let moving = false;
+  const SCROLL_SECONDS = 0.3;
+  const CARD_SECONDS = 0.3;
+
+  const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const stripCards = () => scrollEl?.querySelectorAll('.char-card:not(.char-card--add)');
+
+  const layoutLeft = (node) => node.offsetLeft;
+
+  function tweenScroll(target) {
+    const gsap = globalThis.gsap;
+    const to = Math.max(0, target);
+    if (!gsap || reduceMotion()) {
+      scrollEl.scrollLeft = to;
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      gsap.to(scrollEl, {
+        scrollLeft: to,
+        duration: SCROLL_SECONDS,
+        ease: 'power2.out',
+        overwrite: true,
+        onInterrupt: resolve,
+        onComplete: resolve,
+      });
+    });
+  }
+
+  function flipCards(before) {
+    const gsap = globalThis.gsap;
+    if (!gsap || reduceMotion()) return Promise.resolve();
+    const running = [];
+    for (const [card, from] of before) {
+      const delta = from - layoutLeft(card);
+      if (Math.abs(delta) < 1) continue;
+      running.push(
+        new Promise((resolve) => {
+          gsap.fromTo(card, { x: delta }, {
+            x: 0,
+            duration: CARD_SECONDS,
+            ease: 'power2.out',
+            overwrite: true,
+            onInterrupt: resolve,
+            onComplete: () => {
+              gsap.set(card, { clearProps: 'transform' });
+              resolve();
+            },
+          });
+        })
+      );
+    }
+    return Promise.all(running);
+  }
+
+  function stepIntoView(index) {
+    const cards = stripCards();
+    const card = cards?.[index];
+    if (!card || !scrollEl) return;
+    const gap = parseFloat(getComputedStyle(scrollEl).columnGap) || 0;
+    const step = card.offsetWidth + gap;
+    if (!step) return;
+    const visible = Math.max(1, Math.floor((scrollEl.clientWidth + gap) / step));
+    const slack = visible > 2 ? 1 : 0;
+    const first = Math.round(scrollEl.scrollLeft / step);
+    let next = first;
+    if (index - first < slack) next = index - slack;
+    else if (index - first > visible - 1 - slack) next = index - (visible - 1 - slack);
+    next = Math.max(0, Math.min(next, cards.length - 1));
+    const target = layoutLeft(cards[next]) - layoutLeft(cards[0]);
+    if (Math.abs(target - scrollEl.scrollLeft) < 1) return;
+    return tweenScroll(target);
+  }
+
   async function addCharacter() {
     const created = blankCharacter();
     characters = [...characters, created];
     selectedId = created.id;
     await tick();
+    globalThis.gsap?.killTweensOf(scrollEl);
     scrollEl?.scrollTo({ left: scrollEl.scrollWidth, behavior: 'smooth' });
   }
 
@@ -105,9 +179,22 @@
     selectedId = null;
   }
 
-  function moveSelected(delta) {
-    if (selectedIndex < 0) return;
+  async function moveSelected(delta) {
+    if (moving || !scrollEl || selectedIndex < 0) return;
+    const target = selectedIndex + delta;
+    if (target < 0 || target >= characters.length) return;
+    moving = true;
+    const before = new Map();
+    for (const card of stripCards() ?? []) before.set(card, layoutLeft(card));
+    scrollEl.style.scrollSnapType = 'none';
     characters = moveCharacters(characters, selectedIndex, delta);
+    try {
+      await tick();
+      await Promise.all([flipCards(before), stepIntoView(target)]);
+    } finally {
+      scrollEl.style.scrollSnapType = '';
+      moving = false;
+    }
   }
 
   async function browsePortrait() {
@@ -303,6 +390,7 @@
               {#each selected.va as entry (entry.key)}
                 <span class="tag-pill">
                   {entry.original || entry.name}
+                  {#if entry.note}<span class="tag-pill__note">· {entry.note}</span>{/if}
                   <button
                     type="button"
                     class="tag-pill__remove"

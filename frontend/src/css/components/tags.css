@@ -142,6 +142,11 @@
   border-color: var(--border-strong);
 }
 
+.tag-pill__note {
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+
 .tag-pill__remove {
   display: flex;
   align-items: center;
