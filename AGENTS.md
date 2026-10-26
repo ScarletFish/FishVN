@@ -33,7 +33,7 @@ Svelte 5 SPA + Rust 后端的 Tauri v2 桌面应用
 - **数据库**: rusqlite（单文件，建表走 `ensure_schema()`）
 - **桌面壳**: Tauri v2；前后端同一进程
 - **元数据源**: VNDB API（唯一）
-- **构建档位**: 日常一切为了快——release 用 `lto = false`、`codegen-units = 16`，dev 用 `debug = 1`，链接器换 rust-lld（`.cargo/config.toml`，路径写死，换工具链或换机器删掉该文件即回退）。`Cargo.toml` 始终保持这个快速档，不要为发版改它：发版走 `start.bat` 菜单 3，它在打包那一次用 `CARGO_PROFILE_RELEASE_LTO` / `CARGO_PROFILE_RELEASE_CODEGEN_UNITS` 临时打开优化（产物约小 10%），参数变化会让 cargo 全量重编一次，之后日常构建再重编回快速档
+- **构建档位**: 日常一切为了快——release 用 `lto = false`、`codegen-units = 16`，dev 用 `debug = 1`，链接器换 rust-lld（`.cargo/config.toml`，路径写死，换工具链或换机器删掉该文件即回退）。`Cargo.toml` 始终保持这个快速档，不要为发版改它：发版走 `start.bat` 菜单 3，它在打包那一次用 `CARGO_PROFILE_RELEASE_LTO` / `CARGO_PROFILE_RELEASE_CODEGEN_UNITS` / `CARGO_PROFILE_RELEASE_OPT_LEVEL` 临时打开优化（产物约小 10%；`opt-level` 从日常的 `s` 提到 `3`，会让产物变大、单次编译变慢，但与前两项同在全量重编的那一轮里，不额外增加重编轮次），参数变化会让 cargo 全量重编一次，之后日常构建再重编回快速档；菜单 4（就地部署）不设这几个变量，出的 exe 是日常快速档
 
 ## Commands
 

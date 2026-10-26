@@ -179,8 +179,8 @@ body {
   );
   --fg-on-image: color-mix(in srgb, var(--ink-white) 78%, transparent);
 
-  /* 滚动条手柄；由 components/scrollbars.css 喂给 overlayscrollbars */
-  --scrollbar-thumb: color-mix(in srgb, var(--fg-muted) 45%, transparent);
+  /* 滚动条手柄：不透明，混入卡片底色定明度，任何底色上观感一致；由 components/scrollbars.css 喂给 overlayscrollbars */
+  --scrollbar-thumb: color-mix(in srgb, var(--fg-muted) 60%, var(--bg-surface));
 
   /* 高度 */
   --shadow-sm: 0 1px 2px color-mix(in srgb, var(--ink-black) 4%, transparent);

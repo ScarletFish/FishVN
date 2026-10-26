@@ -15,11 +15,11 @@
     left var(--duration-fast) var(--ease-out);
 }
 
-.shell__main .os-scrollbar {
+.os-scrollbar.is-main {
   opacity: 0;
 }
 
-.shell__main .os-scrollbar.is-visible {
+.os-scrollbar.is-main.is-visible {
   opacity: 1;
 }
 

@@ -87,7 +87,7 @@ echo   Package
 echo ========================================
 echo.
 echo  Output: src-tauri\target\release\bundle\nsis\
-echo  Profile: LTO on, codegen-units 1 (this run only)
+echo  Profile: LTO on, codegen-units 1, opt-level 3 (this run only)
 echo  Requires Rust toolchain, ~5-10 min
 echo ========================================
 echo.
@@ -107,10 +107,12 @@ echo Press any key to start build, or close window to cancel...
 pause >nul
 set "CARGO_PROFILE_RELEASE_LTO=true"
 set "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1"
+set "CARGO_PROFILE_RELEASE_OPT_LEVEL=3"
 call npx tauri build
 set "BUILD_RC=%errorlevel%"
 set "CARGO_PROFILE_RELEASE_LTO="
 set "CARGO_PROFILE_RELEASE_CODEGEN_UNITS="
+set "CARGO_PROFILE_RELEASE_OPT_LEVEL="
 if %BUILD_RC% equ 0 (
     echo.
     echo ========================================

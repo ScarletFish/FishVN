@@ -148,7 +148,8 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 
 - `clickScroll` 插件显式注册
 - overlay 滚动条浮在内容之上、不占布局位：右对齐的元素（数量、徽标）右内距要写成 `calc(<原内距> + var(--scrollbar-size))`，否则被手柄压住
-- 主视图的 `autoHide` 取 `'never'`，显隐由 `.is-visible` 控制，淡出时长在 CSS；`opacity: 0` 的初始态只写在 `.shell__main` 下
+- 主视图的 `autoHide` 取 `'never'`，显隐由 `.is-visible` 控制，淡出时长在 CSS；`opacity: 0` 的初始态只写在主视图自己的滚动条上（初始化时打 `.is-main`），不可用 `.shell__main .os-scrollbar` 这类后代选择器——会连面板滚动条一起压成透明
+- `watchRightEdge` 取竖滚动条走 `instance.elements().scrollbarVertical.scrollbar`，不用 `querySelector`——面板滚动条在文档序里更靠前，会被先选中
 - `watchRightEdge` 只挂主视图
 - 实例只记主视图，`MyList` 靠它还原列表滚动位置
 - 命中判定按坐标做，取竖带右缘到容器右缘；首次移动指针前先算一次位置
@@ -157,6 +158,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 外观（`components/scrollbars.css`）：
 
 - `theme` 只给结构，尺寸与色值走 token：竖带、手柄、拉伸位宽度写死，`transition` 列全位置项
+- 手柄色值只有一个来源 `--scrollbar-thumb`，overlay 族与 `.scroll-thin` 族共用；它必须是不透明色（混入 `--bg-surface` 定明度）——带透明度会让手柄跟着所在容器的底色走，主区与面板滚出深浅差
 - `.scroll-thin` 用 `::-webkit-scrollbar-*`：`width` 取 `--scrollbar-size`，`::-webkit-scrollbar-button` 置 `none`，轨道与角落透明，手柄悬停时取 `--scrollbar-thumb`；同一元素不写 `scrollbar-width` / `scrollbar-color`
 
 ## 水平分页

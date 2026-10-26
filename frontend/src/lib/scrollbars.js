@@ -28,6 +28,9 @@ let mainInstance = null;
 export function useScrollbars(target) {
   if (!target) return;
   mainInstance = OverlayScrollbars(target, MAIN_OPTIONS);
+  const { scrollbarHorizontal, scrollbarVertical } = mainInstance.elements();
+  scrollbarHorizontal.scrollbar.classList.add('is-main');
+  scrollbarVertical.scrollbar.classList.add('is-main');
   watchRightEdge(target, mainInstance);
 }
 
@@ -59,7 +62,7 @@ function watchRightEdge(target, instance) {
   const engaged = () => inside || dragging || lingering;
 
   const sync = () => {
-    scrollbar = target.querySelector('.os-scrollbar-vertical');
+    scrollbar = instance.elements().scrollbarVertical.scrollbar;
     const right = target.getBoundingClientRect().right;
     edge = scrollbar ? Math.min(scrollbar.getBoundingClientRect().left, right - EDGE_TOLERANCE) : 0;
   };
