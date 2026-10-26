@@ -449,6 +449,12 @@
   cursor: pointer;
 }
 
+.detail-char-va-note {
+  margin-left: var(--space-1);
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+
 .detail-char-panel {
   padding: var(--space-5);
   background: var(--bg-floating);

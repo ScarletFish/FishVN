@@ -102,6 +102,7 @@
     return name === displayName(c) ? '' : name;
   };
   const vaName = (v) => v?.original || v?.name || '';
+  const vaKey = (v) => `${v?.staff_id ?? ''}|${v?.note ?? ''}`;
 
   function searchVa(va) {
     const name = vaName(va);
@@ -251,13 +252,13 @@
             <div class="detail-char-section">
               <p class="detail-char-section-label">{t('detail.charVoice')}</p>
               <div class="detail-char-vas">
-                {#each expanded.va as v (v.staff_id)}
+                {#each expanded.va as v (vaKey(v))}
                   <button
                     type="button"
                     class="detail-char-va"
                     onclick={() => searchVa(v)}
                     data-tooltip={t('detail.charSearchVa')}
-                  >{vaName(v)}</button>
+                  >{vaName(v)}{#if v.note}<span class="detail-char-va-note">· {v.note}</span>{/if}</button>
                 {/each}
               </div>
             </div>
