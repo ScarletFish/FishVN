@@ -396,7 +396,7 @@
     try {
       await api.createBackup();
       await loadBackups();
-      toast(t('settings.backup.create'), 'success');
+      toast(t('settings.backup.created'), 'success');
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -411,7 +411,7 @@
       await api.restoreBackup(meta.id);
       await loadBackups();
       notifyLibraryChanged();
-      toast(t('settings.backup.restore'), 'success');
+      toast(t('settings.backup.restored'), 'success');
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -423,7 +423,7 @@
     try {
       await api.deleteBackup(meta.id);
       await loadBackups();
-      toast(t('settings.backup.delete'), 'success');
+      toast(t('settings.backup.deleted'), 'success');
     } catch (err) {
       toast(err.message, 'error');
     }
