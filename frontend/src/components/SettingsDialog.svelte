@@ -25,6 +25,7 @@
   import { tagKeyLabel } from '../lib/tag-label.svelte.js';
   import TagPicker from './game-form/TagPicker.svelte';
   import SyncResultDialog from './SyncResultDialog.svelte';
+  import SelectDd from './SelectDd.svelte';
   import { confirm } from '../lib/confirm.svelte.js';
   import { notifyBackfillRefresh } from '../lib/task-events.js';
   import { notifyLibraryChanged } from '../lib/library-events.js';
@@ -64,6 +65,19 @@
   let syncActive = 0;
   let resultOpen = $state(false);
   let quitBehavior = $state('quit');
+
+  let backupRetentionMode = $state('off');
+  let backupRetentionOpen = $state(false);
+  let backups = $state([]);
+  let backupBusy = $state(false);
+
+  const RETENTION_OPTIONS = [
+    { value: 'off', label: t('settings.backup.retentionOff') },
+    { value: '7', label: t('settings.backup.retentionDays', { days: 7 }) },
+    { value: '30', label: t('settings.backup.retentionDays', { days: 30 }) },
+    { value: '90', label: t('settings.backup.retentionDays', { days: 90 }) },
+    { value: '180', label: t('settings.backup.retentionDays', { days: 180 }) },
+  ];
 
   let tokenStatus = $derived.by(() => {
     if (vndbTesting) return { kind: 'checking', text: t('settings.vndb.testing') };
@@ -114,6 +128,10 @@
         magpiePathError = '';
         lePathError = '';
         quitBehavior = config.quit_behavior === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
+        backupRetentionMode = (config.backup_retention_days ?? null) == null
+          ? 'off'
+          : String(config.backup_retention_days);
+        loadBackups();
       })
       .catch(() => {});
   });
@@ -346,6 +364,71 @@
     }
   }
 
+  function formatBackupTime(createdAt) {
+    return new Date(createdAt * 1000).toLocaleString();
+  }
+
+  function formatBackupSize(bytes) {
+    if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${bytes} B`;
+  }
+
+  async function loadBackups() {
+    try {
+      backups = await api.listBackups();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  function onBackupRetentionChange(raw) {
+    const value = raw === 'off' || raw == null ? null : Number(raw);
+    api
+      .updateConfig({ backup_retention_days: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  async function onCreateBackup() {
+    if (backupBusy) return;
+    backupBusy = true;
+    try {
+      await api.createBackup();
+      await loadBackups();
+      toast(t('settings.backup.create'), 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      backupBusy = false;
+    }
+  }
+
+  async function onRestoreBackup(meta) {
+    const ok = await confirm('restoreBackup', { time: formatBackupTime(meta.created_at) });
+    if (!ok) return;
+    try {
+      await api.restoreBackup(meta.id);
+      await loadBackups();
+      notifyLibraryChanged();
+      toast(t('settings.backup.restore'), 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  async function onDeleteBackup(meta) {
+    const ok = await confirm('deleteBackup', { time: formatBackupTime(meta.created_at) });
+    if (!ok) return;
+    try {
+      await api.deleteBackup(meta.id);
+      await loadBackups();
+      toast(t('settings.backup.delete'), 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
   async function onVndbSync() {
     if (!hasVndbToken) {
       toast(t('settings.vndb.syncNeedToken'), 'warn');
@@ -464,6 +547,16 @@
       onclick={() => (tab = 'vndb')}
     >
       {t('settings.vndb.tab')}
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="modal-tab"
+      class:active={tab === 'backup'}
+      aria-selected={tab === 'backup'}
+      onclick={() => (tab = 'backup')}
+    >
+      {t('settings.tab.backup')}
     </button>
   </div>
 
@@ -923,6 +1016,78 @@
           {#if vndbSyncing}<span class="btn-spinner" aria-hidden="true"></span>{/if}
           {vndbSyncing ? t('settings.vndb.syncing') : t('settings.vndb.syncNow')}
         </button>
+      </div>
+    </div>
+
+    <div class="modal-panel" class:active={tab === 'backup'}>
+      <div class="form-group">
+        <div class="form-label">{t('settings.backup.retention')}</div>
+        <SelectDd
+          id="backup-retention"
+          options={RETENTION_OPTIONS}
+          value={backupRetentionMode}
+          open={backupRetentionOpen}
+          onopenchange={(v) => (backupRetentionOpen = v)}
+          onchange={(v) => {
+            backupRetentionMode = v;
+            onBackupRetentionChange(v);
+          }}
+          ariaLabel={t('settings.backup.retention')}
+        />
+        <p class="form-hint">{t('settings.backup.retentionHint')}</p>
+      </div>
+
+      <div class="form-group form-group--flat">
+        <div class="form-row">
+          <div class="form-row-text">
+            <div class="form-row-title">{t('settings.backup.createTitle')}</div>
+            <div class="form-row-desc">{t('settings.backup.createDesc')}</div>
+          </div>
+          <button
+            type="button"
+            class="btn btn-primary"
+            disabled={backupBusy}
+            onclick={onCreateBackup}
+          >
+            {#if backupBusy}<span class="btn-spinner" aria-hidden="true"></span>{/if}
+            {backupBusy ? t('settings.backup.creating') : t('settings.backup.create')}
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        {#if backups.length > 0}
+          <div class="backup-list">
+            {#each backups as meta (meta.id)}
+              <div class="backup-row">
+                <div class="backup-meta">
+                  <div class="backup-time">{formatBackupTime(meta.created_at)}</div>
+                  <div class="backup-sub">
+                    {t('settings.backup.size')} {formatBackupSize(meta.size_bytes)} · {t('settings.backup.covers', { count: meta.cover_count })}
+                  </div>
+                </div>
+                <div class="backup-actions">
+                  <button
+                    type="button"
+                    class="btn btn-ghost"
+                    onclick={() => onRestoreBackup(meta)}
+                  >
+                    {t('settings.backup.restore')}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost"
+                    onclick={() => onDeleteBackup(meta)}
+                  >
+                    {t('settings.backup.delete')}
+                  </button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <p class="form-hint">{t('settings.backup.listEmpty')}</p>
+        {/if}
       </div>
     </div>
   </div>

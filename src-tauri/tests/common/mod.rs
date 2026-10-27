@@ -67,6 +67,10 @@ impl Shared {
         let guard: MutexGuard<'_, Connection> = self.conn.lock().expect("库锁被毒化");
         f(guard.deref())
     }
+
+    pub fn dir(&self) -> &Path {
+        self.dir.path()
+    }
 }
 
 pub fn new_game(shared: &Shared, name: &str) -> String {

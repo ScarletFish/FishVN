@@ -1,4 +1,5 @@
 pub mod backfill;
+pub mod backup;
 pub mod characters;
 pub mod commands;
 pub mod dashboard;

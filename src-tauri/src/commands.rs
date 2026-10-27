@@ -5,6 +5,7 @@ use rusqlite::Connection;
 use tauri::{Emitter, Manager, State};
 
 use crate::backfill;
+use crate::backup;
 use crate::characters;
 use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, LibraryTag, PlaytimeRank, RecentPlay, TagCloudView};
 use crate::db;
@@ -517,4 +518,32 @@ pub fn path_exists(path: String) -> Result<bool> {
         return Ok(false);
     }
     Ok(Path::new(trimmed).is_file())
+}
+
+#[tauri::command]
+pub fn create_backup(shared: Shared<'_>, app: tauri::AppHandle) -> Result<backup::BackupMeta> {
+    let dir =
+        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    backup::create_backup(shared.inner(), &dir)
+}
+
+#[tauri::command]
+pub fn list_backups(app: tauri::AppHandle) -> Result<Vec<backup::BackupMeta>> {
+    let dir =
+        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    backup::list_backups(&dir)
+}
+
+#[tauri::command]
+pub fn restore_backup(shared: Shared<'_>, app: tauri::AppHandle, id: String) -> Result<()> {
+    let dir =
+        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    backup::restore_backup(shared.inner(), &dir, &id)
+}
+
+#[tauri::command]
+pub fn delete_backup(app: tauri::AppHandle, id: String) -> Result<()> {
+    let dir =
+        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    backup::delete_backup(&dir, &id)
 }

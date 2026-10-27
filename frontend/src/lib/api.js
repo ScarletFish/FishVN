@@ -80,4 +80,8 @@ export const api = {
   saveGameCharacters: (id, characters) => call('save_game_characters', { id, characters }),
   allowLocalFile: (path) => call('allow_local_file', { path }),
   thumbnail: (src) => call('thumbnail', { src }),
+  createBackup: () => call('create_backup'),
+  listBackups: () => call('list_backups'),
+  restoreBackup: (id) => call('restore_backup', { id }),
+  deleteBackup: (id) => call('delete_backup', { id }),
 };

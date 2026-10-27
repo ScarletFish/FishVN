@@ -26,6 +26,7 @@ src-tauri/
 ├── tagdict.rs       # 标签词典（tag/trait 中文译名）
 ├── sync.rs          # VNDB 账户同步（计划-应用两段式）
 ├── backfill.rs      # 资料补全（批量拉 VNDB 元数据填空白列）
+├── backup.rs        # 整库备份、列表、还原与删除（data/backups/，VACUUM INTO 备库）
 ├── tasks.rs         # 长任务进度事件与取消
 ├── thumbs.rs        # 封面派生图与缓存
 ├── vndb/            # VNDB 上游客户端（入口 + client/dto/characters/images）

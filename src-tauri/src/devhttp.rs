@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -18,7 +19,7 @@ use crate::error::{AppError, Result};
 use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
 use crate::types::{GameCharacter, InstallationInput, TaskEvent};
 use crate::vndb::RateLimiter;
-use crate::{characters, commands, backfill, dashboard, games, installations, metadata, sessions, settings, vndb};
+use crate::{characters, commands, backfill, backup, dashboard, games, installations, metadata, sessions, settings, vndb};
 
 pub const PORT: u16 = 4546;
 
@@ -356,6 +357,50 @@ async fn path_exists(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -> Re
     finish(a.path().and_then(|p| commands::path_exists(p.to_owned())))
 }
 
+fn dev_data_dir(dev: &Dev) -> std::result::Result<PathBuf, Fail> {
+    crate::data_dir(&dev.app).map_err(|e| Fail(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
+async fn create_backup(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
+    let dir = match dev_data_dir(&dev) {
+        Ok(d) => d,
+        Err(e) => return Err(e),
+    };
+    finish(backup::create_backup(&dev.conn, &dir))
+}
+
+async fn list_backups(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
+    let dir = match dev_data_dir(&dev) {
+        Ok(d) => d,
+        Err(e) => return Err(e),
+    };
+    finish(backup::list_backups(&dir))
+}
+
+async fn restore_backup(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let dir = match dev_data_dir(&dev) {
+        Ok(d) => d,
+        Err(e) => return Err(e),
+    };
+    let id = match a.id() {
+        Ok(i) => i.to_owned(),
+        Err(e) => return Err(Fail(StatusCode::BAD_REQUEST, e.to_string())),
+    };
+    finish(backup::restore_backup(&dev.conn, &dir, &id))
+}
+
+async fn delete_backup(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let dir = match dev_data_dir(&dev) {
+        Ok(d) => d,
+        Err(e) => return Err(e),
+    };
+    let id = match a.id() {
+        Ok(i) => i.to_owned(),
+        Err(e) => return Err(Fail(StatusCode::BAD_REQUEST, e.to_string())),
+    };
+    finish(backup::delete_backup(&dir, &id))
+}
+
 async fn get_config(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
     finish(Ok(settings::view()))
 }
@@ -504,6 +549,10 @@ pub fn router(dev: Dev) -> Router {
         .route("/scan_dir", post(scan_dir))
         .route("/allow_local_file", post(allow_local_file))
         .route("/path_exists", post(path_exists))
+        .route("/create_backup", post(create_backup))
+        .route("/list_backups", post(list_backups))
+        .route("/restore_backup", post(restore_backup))
+        .route("/delete_backup", post(delete_backup))
         .route("/thumbnail", post(thumbnail))
         .route("/get_config", post(get_config))
         .route("/tag_dictionary", post(tag_dictionary))
@@ -553,6 +602,10 @@ pub const COMMANDS: &[&str] = &[
     "scan_dir",
     "allow_local_file",
     "path_exists",
+    "create_backup",
+    "list_backups",
+    "restore_backup",
+    "delete_backup",
     "thumbnail",
     "get_config",
     "update_config",

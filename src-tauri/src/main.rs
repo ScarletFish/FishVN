@@ -207,6 +207,10 @@ fn main() {
             commands::scan_dir,
             commands::log_frontend,
             commands::path_exists,
+            commands::create_backup,
+            commands::list_backups,
+            commands::restore_backup,
+            commands::delete_backup,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 启动失败");

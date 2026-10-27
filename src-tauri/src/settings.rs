@@ -145,6 +145,8 @@ pub struct AppConfig {
     pub le_path: Option<String>,
     #[serde(default)]
     pub quit_behavior: QuitBehavior,
+    #[serde(default)]
+    pub backup_retention_days: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -164,6 +166,7 @@ pub struct ConfigPatch {
     pub magpie_path: Option<String>,
     pub le_path: Option<String>,
     pub quit_behavior: Option<QuitBehavior>,
+    pub backup_retention_days: Option<Option<u64>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -183,6 +186,7 @@ pub struct ConfigView {
     pub magpie_path: Option<String>,
     pub le_path: Option<String>,
     pub quit_behavior: QuitBehavior,
+    pub backup_retention_days: Option<u64>,
 }
 
 static CACHE: OnceLock<RwLock<Option<AppConfig>>> = OnceLock::new();
@@ -268,6 +272,9 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     if let Some(value) = patch.quit_behavior {
         config.quit_behavior = value;
     }
+    if let Some(value) = patch.backup_retention_days {
+        config.backup_retention_days = value;
+    }
     update(dir, config)?;
     Ok(current())
 }
@@ -328,6 +335,7 @@ pub fn view() -> ConfigView {
         magpie_path: config.magpie_path.clone(),
         le_path: config.le_path.clone(),
         quit_behavior: config.quit_behavior,
+        backup_retention_days: config.backup_retention_days,
     }
 }
 
@@ -447,6 +455,7 @@ mod tests {
                 time_metric: TimeMetric::Alive,
                 theme: Theme::Dark,
                 accent: Accent::Default,
+                backup_retention_days: Some(30),
                 ..Default::default()
             },
         )
@@ -470,6 +479,7 @@ mod tests {
                 magpie_path: None,
                 le_path: None,
                 quit_behavior: None,
+                ..Default::default()
             },
         )
         .unwrap();
@@ -477,7 +487,18 @@ mod tests {
         assert_eq!(config.time_metric, TimeMetric::Alive);
         assert_eq!(config.theme, Theme::Light);
         assert_eq!(config.accent, Accent::Amber);
+        assert_eq!(config.backup_retention_days, Some(30));
         assert_eq!(current().time_metric, TimeMetric::Alive);
+
+        let off = patch(
+            tmp.path(),
+            ConfigPatch {
+                backup_retention_days: Some(None),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(off.backup_retention_days, None);
     }
 
     #[test]
