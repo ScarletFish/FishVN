@@ -50,6 +50,11 @@
 
   const cloud = $derived(layoutCloud(ranked, boxW, boxH));
 
+  function searchTag(word) {
+    if (!word.label) return;
+    document.dispatchEvent(new CustomEvent('search-set-query', { detail: word.label }));
+  }
+
   function layoutCloud(words, W, H) {
     if (words.length === 0 || W <= 0 || H <= 0) return [];
     const ctx = document.createElement('canvas').getContext('2d');
@@ -107,13 +112,15 @@
       <span
         class="tag-cloud-word"
         style:transform="translate(-50%, -50%) translate({word.x.toFixed(1)}px, {word.y.toFixed(1)}px)"
+        style:font-size="{word.px}px"
       >
-        <span
+        <button
+          type="button"
           class="tag-cloud-word-inner"
-          style:font-size="{word.px}px"
           style:font-weight={word.bold ? 'var(--fw-semibold)' : 'var(--fw-normal)'}
           style:color="color-mix(in srgb, var(--accent) {word.weight}%, var(--fg-muted))"
-        >{word.label}</span>
+          onclick={() => searchTag(word)}
+        >{word.label}</button>
       </span>
     {/each}
   </div>
@@ -138,11 +145,15 @@
 
   .tag-cloud-word-inner {
     display: inline-block;
-    cursor: default;
-    transition: transform var(--duration-fast) var(--ease-out);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    font-size: 100%;
+    transition: font-size var(--duration-fast) var(--ease-out);
   }
 
   .tag-cloud-word-inner:hover {
-    transform: translateY(-2px) scale(1.08);
+    font-size: 108%;
   }
 </style>

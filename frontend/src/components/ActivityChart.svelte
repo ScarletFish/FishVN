@@ -58,8 +58,9 @@
   );
 
   const axisText = (seconds) => {
-    const minutes = Math.round(seconds / 60);
-    if (minutes <= 0) return '0';
+    const s = Math.round(seconds);
+    if (s < 60) return `${s}s`;
+    const minutes = Math.round(s / 60);
     if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
     const rest = minutes % 60;
