@@ -48,8 +48,7 @@ pub fn dashboard_stats(shared: Shared<'_>) -> Result<DashboardStats> {
 
 #[tauri::command]
 pub fn dashboard_recent(shared: Shared<'_>) -> Result<Vec<RecentPlay>> {
-    let config = settings::current();
-    dashboard::recent(&*lock(&shared)?, config.time_metric, 6)
+    dashboard::recent(&*lock(&shared)?, 6)
 }
 
 #[tauri::command]

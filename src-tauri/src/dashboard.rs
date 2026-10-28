@@ -71,19 +71,16 @@ pub struct RecentPlay {
     pub cover_focal_x: Option<i64>,
     pub cover_focal_y: Option<i64>,
     pub last_played_at: i64,
-    pub play_seconds: i64,
+    pub total_seconds: i64,
 }
 
-pub fn recent(conn: &Connection, metric: TimeMetric, limit: i64) -> Result<Vec<RecentPlay>> {
+pub fn recent(conn: &Connection, limit: i64) -> Result<Vec<RecentPlay>> {
     let mut stmt = conn.prepare(
         "SELECT g.id, g.name, m.image_path AS cover_path,
                 m.cover_focal_x AS cover_focal_x,
                 m.cover_focal_y AS cover_focal_y,
                 MAX(p.started_at) AS last_played_at,
-                CASE WHEN ?2 = 'alive'
-                    THEN COALESCE(SUM(COALESCE(p.ended_at, p.last_seen_at) - p.started_at), 0)
-                    ELSE COALESCE(SUM(p.foreground_seconds), 0)
-                END AS play_seconds
+                s.play_seconds AS total_seconds
          FROM games g
          JOIN user_game_state s ON s.game_id = g.id
          JOIN play_sessions p ON p.game_id = g.id
@@ -97,8 +94,7 @@ pub fn recent(conn: &Connection, metric: TimeMetric, limit: i64) -> Result<Vec<R
          ORDER BY last_played_at DESC
          LIMIT ?1",
     )?;
-    let metric_text = metric_text(metric);
-    let rows = stmt.query_map(rusqlite::params![limit, metric_text], |row| {
+    let rows = stmt.query_map(rusqlite::params![limit], |row| {
         Ok(RecentPlay {
             id: row.get("id")?,
             name: row.get("name")?,
@@ -106,7 +102,7 @@ pub fn recent(conn: &Connection, metric: TimeMetric, limit: i64) -> Result<Vec<R
             cover_focal_x: row.get("cover_focal_x")?,
             cover_focal_y: row.get("cover_focal_y")?,
             last_played_at: row.get("last_played_at")?,
-            play_seconds: row.get("play_seconds")?,
+            total_seconds: row.get("total_seconds")?,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -457,24 +453,27 @@ mod tests {
             set_status(&conn, id, "playing");
         }
         set_status(&conn, &d, "finished");
+        set_play_seconds(&conn, &a, 2_400);
+        set_play_seconds(&conn, &b, 99);
 
-        let recent = recent(&conn, TimeMetric::Foreground, 6).unwrap();
+        let recent = recent(&conn, 6).unwrap();
         assert_eq!(
             recent.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
             vec![b.as_str(), a.as_str()]
         );
-        assert_eq!(recent[0].play_seconds, 180);
-        assert_eq!(recent[1].play_seconds, 2_400);
+        assert_eq!(recent[0].total_seconds, 99);
+        assert_eq!(recent[1].total_seconds, 2_400);
         assert_eq!(recent[1].last_played_at, now - 60);
     }
 
     #[test]
-    fn 继续游玩受限数量并按口径取时长() {
+    fn 继续游玩取用户可改的总时长而非按口径聚合会话() {
         let conn = db();
         let now = crate::now();
         let a = make_game(&conn, "甲");
         add_installation(&conn, &a, true);
         set_status(&conn, &a, "playing");
+        set_play_seconds(&conn, &a, 777);
         add_session(&conn, &a, "a1", now - 120, 1_800);
         conn.execute(
             "UPDATE play_sessions SET ended_at = ?1, last_seen_at = ?1 WHERE id = 'p-a1'",
@@ -482,11 +481,9 @@ mod tests {
         )
         .unwrap();
 
-        let items = recent(&conn, TimeMetric::Alive, 1).unwrap();
+        let items = recent(&conn, 1).unwrap();
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].play_seconds, 120);
-        let items = recent(&conn, TimeMetric::Foreground, 1).unwrap();
-        assert_eq!(items[0].play_seconds, 1_800);
+        assert_eq!(items[0].total_seconds, 777);
     }
 
     fn set_tags(conn: &Connection, game_id: &str, json: &str) {

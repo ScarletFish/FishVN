@@ -185,8 +185,8 @@
                   <span class="continue-eyebrow">{moduleLabel(module.id)}</span>
                   <span class="continue-title">{item.name}</span>
                 </div>
-                {#if item.play_seconds > 0}
-                  <span class="continue-meta">{durationText(t, item.play_seconds)}</span>
+                {#if item.total_seconds > 0}
+                  <span class="continue-meta">{durationText(t, item.total_seconds)}</span>
                 {/if}
                 <button
                   type="button"

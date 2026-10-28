@@ -150,8 +150,7 @@ handler!(dashboard_stats, |c, _a| {
     dashboard::stats(c, config.time_metric, week_start)
 });
 handler!(dashboard_recent, |c, _a| {
-    let config = settings::current();
-    dashboard::recent(c, config.time_metric, 6)
+    dashboard::recent(c, 6)
 });
 handler!(dashboard_tag_cloud, |c, _a| {
     let config = settings::current();
