@@ -233,6 +233,11 @@
     return known ? t(known.label) : id;
   }
 
+  function selectTab(next) {
+    tab = next;
+    poolOpen = false;
+  }
+
   function onThemeChange(e) {
     const next = THEMES.includes(e.target.value) ? e.target.value : 'light';
     if (next === themeMode) return;
@@ -514,7 +519,7 @@
       class="modal-tab"
       class:active={tab === 'appearance'}
       aria-selected={tab === 'appearance'}
-      onclick={() => (tab = 'appearance')}
+      onclick={() => selectTab('appearance')}
     >
       {t('settings.tab.appearance')}
     </button>
@@ -524,7 +529,7 @@
       class="modal-tab"
       class:active={tab === 'content'}
       aria-selected={tab === 'content'}
-      onclick={() => (tab = 'content')}
+      onclick={() => selectTab('content')}
     >
       {t('settings.tab.content')}
     </button>
@@ -534,7 +539,7 @@
       class="modal-tab"
       class:active={tab === 'tools'}
       aria-selected={tab === 'tools'}
-      onclick={() => (tab = 'tools')}
+      onclick={() => selectTab('tools')}
     >
       {t('settings.tab.tools')}
     </button>
@@ -544,7 +549,7 @@
       class="modal-tab"
       class:active={tab === 'vndb'}
       aria-selected={tab === 'vndb'}
-      onclick={() => (tab = 'vndb')}
+      onclick={() => selectTab('vndb')}
     >
       {t('settings.vndb.tab')}
     </button>
@@ -554,7 +559,7 @@
       class="modal-tab"
       class:active={tab === 'backup'}
       aria-selected={tab === 'backup'}
-      onclick={() => (tab = 'backup')}
+      onclick={() => selectTab('backup')}
     >
       {t('settings.tab.backup')}
     </button>

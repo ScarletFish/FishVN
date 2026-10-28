@@ -144,11 +144,12 @@ if not defined INSTALL_DIR (
 set "NEED_BUILD="
 if not exist "src-tauri\target\release\fishvn.exe" set "NEED_BUILD=1"
 if not defined NEED_BUILD (
-    powershell -NoProfile -Command "$s=(Get-ChildItem -Recurse -File 'frontend\src','frontend\index.html','src-tauri\src','src-tauri\build.rs','src-tauri\tauri.conf.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1).LastWriteTime; if($s -gt (Get-Item 'src-tauri\target\release\fishvn.exe').LastWriteTime){exit 1}"
+    echo Checking sources against the built exe...
+    powershell -NoProfile -Command "$p='frontend\src','frontend\index.html','frontend\public','frontend\package.json','frontend\vite.config.js','src-tauri\src','src-tauri\build.rs','src-tauri\Cargo.toml','src-tauri\Cargo.lock','src-tauri\tauri.conf.json','src-tauri\capabilities','src-tauri\icons','src-tauri\resources','src-tauri\common-controls.manifest','package.json','package-lock.json'; $exe=(Get-Item 'src-tauri\target\release\fishvn.exe').LastWriteTime; $n=Get-ChildItem -Recurse -File $p -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1; Write-Output ('  exe    : ' + $exe.ToString('yyyy-MM-dd HH:mm:ss')); if($n){Write-Output ('  newest : ' + $n.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss') + '  ' + $n.FullName.Replace((Get-Location).Path + '\','')); if($n.LastWriteTime -gt $exe){exit 1}}"
     if errorlevel 1 set "NEED_BUILD=1"
 )
 if defined NEED_BUILD (
-    echo target\release\fishvn.exe is missing or older than the sources.
+    echo The built exe is missing or older than the sources.
     set /p BUILD_NOW="Build exe only - skip NSIS - then deploy? (Y/N): "
     if /i not "!BUILD_NOW!"=="Y" goto MENU
     echo.

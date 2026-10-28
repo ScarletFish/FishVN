@@ -99,6 +99,11 @@
 
   const customTagNames = $derived(tags.filter((tag) => !tag.id).map((tag) => tag.name));
 
+  function selectTab(next) {
+    tab = next;
+    asideOpen = false;
+  }
+
   function formSnapshot() {
     return JSON.stringify({
       name,
@@ -362,12 +367,12 @@
 
     const rangeError = validateRanges();
     if (rangeError) {
-      tab = 'profile';
+      selectTab('profile');
       return;
     }
 
     if (installations.some(installPathInvalid)) {
-      tab = 'installations';
+      selectTab('installations');
       return;
     }
 
@@ -447,7 +452,7 @@
           class="modal-tab"
           class:active={tab === key}
           aria-selected={tab === key}
-          onclick={() => (tab = key)}
+          onclick={() => selectTab(key)}
         >
           {t(`gameForm.tab.${key}`)}
         </button>
