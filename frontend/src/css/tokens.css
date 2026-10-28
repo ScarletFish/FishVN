@@ -136,7 +136,7 @@ body {
   --bg-raised: var(--gray-25); /* 按钮、下拉、tooltip */
   --bg-floating: var(--gray-10); /* Toast：压页面或弹窗，靠阴影与边框分层 */
   --bg-hover: color-mix(in srgb, var(--ink-black) 6%, transparent);
-  --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
+  --bg-selected: color-mix(in srgb, var(--accent) 18%, transparent);
 
   /* 前景 */
   --fg-default: var(--sand-950);
@@ -200,7 +200,7 @@ body {
   --bg-modal: var(--gray-800);
   --bg-floating: var(--gray-750);
   --bg-hover: color-mix(in srgb, var(--ink-white) 6%, transparent);
-  --bg-selected: color-mix(in srgb, var(--accent) 12%, transparent);
+  --bg-selected: color-mix(in srgb, var(--accent) 18%, transparent);
 
   --fg-default: var(--sand-100);
   --fg-secondary: var(--sand-300);
