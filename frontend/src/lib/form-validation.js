@@ -47,6 +47,18 @@ function firstErrorField(errors) {
   return FIELD_ORDER.find((field) => errors[field]) ?? null;
 }
 
+/**
+ * 什么时候把错误说出来：这个字段离开过（touched），或用户点过保存。
+ * 聚焦就报错、边敲边报错都属于提前指责；离开字段才是「他认为自己填完了」的那一刻。
+ */
+export function shownErrors(errors, { submitAttempted = false, touched = {} } = {}) {
+  const shown = {};
+  for (const [field, key] of Object.entries(errors)) {
+    if (submitAttempted || touched[field]) shown[field] = key;
+  }
+  return shown;
+}
+
 /** 出错字段所在的 tab；多个 tab 出错时取最靠前的那个 */
 export function errorTab(errors) {
   const field = firstErrorField(errors);

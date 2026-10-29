@@ -6,7 +6,7 @@
   import { subscribe } from '../lib/events.js';
   import { createVndbSearch } from '../lib/vndb-search.svelte.js';
   import { buildMetadataPatch, buildStatePatch, clampRating } from '../lib/form-metadata.js';
-  import { errorFieldId, errorTab, validateGameForm } from '../lib/form-validation.js';
+  import { errorFieldId, errorTab, shownErrors, validateGameForm } from '../lib/form-validation.js';
   import { DEFAULT_STATUS } from '../lib/status.js';
   import { applyIncoming, conflictRows } from '../lib/vn-merge.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
@@ -67,6 +67,7 @@
   let loading = $state(false);
   let input = $state(null);
   let submitAttempted = $state(false);
+  let touched = $state({});
 
   let alias = $state('');
   let released = $state('');
@@ -107,13 +108,17 @@
   let baseline = $state('');
   const search = createVndbSearch();
 
-  // 提交过一次之后才开始报错，之后随输入实时消退
+  // 校验始终在算，只是「什么时候说」分两级：
+  // 字段离开过（touched）或点过保存之后才显示，之后随输入实时消退。
   const formErrors = $derived(
-    submitAttempted
-      ? validateGameForm({ name, rating, votecount, lengthMinutes, installations })
-      : {}
+    validateGameForm({ name, rating, votecount, lengthMinutes, installations })
   );
-  const fieldError = (field) => (formErrors[field] ? t(formErrors[field]) : '');
+  const shown = $derived(shownErrors(formErrors, { submitAttempted, touched }));
+  const visibleError = (field) => (shown[field] ? t(shown[field]) : '');
+  function touch(field) {
+    if (touched[field]) return;
+    touched = { ...touched, [field]: true };
+  }
 
   const customTagNames = $derived(tags.filter((tag) => !tag.id).map((tag) => tag.name));
 
@@ -199,6 +204,7 @@
     playSecondsLoaded = 0;
     notes = '';
     submitAttempted = false;
+    touched = {};
     released = '';
     alias = '';
     rating = '';
@@ -515,7 +521,8 @@
           bind:notes
           bind:description
           bind:inputEl={input}
-          nameError={fieldError('name')}
+          nameError={visibleError('name')}
+          ontouch={touch}
           {saving}
           {gameId}
         />
@@ -529,9 +536,10 @@
           bind:votecount
           bind:lengthMinutes
           bind:developers
-          ratingError={fieldError('rating')}
-          votecountError={fieldError('votecount')}
-          lengthMinutesError={fieldError('lengthMinutes')}
+          ratingError={visibleError('rating')}
+          votecountError={visibleError('votecount')}
+          lengthMinutesError={visibleError('lengthMinutes')}
+          ontouch={touch}
           {saving}
         />
       </div>
@@ -564,6 +572,7 @@
         <InstallationList
           bind:items={installations}
           bind:defaultKey={defaultInstallKey}
+          revealAll={submitAttempted}
           disabled={saving}
         />
       </div>

@@ -15,6 +15,7 @@
     description = $bindable(''),
     playSeconds = $bindable(0),
     nameError = '',
+    ontouch = () => {},
     saving = false,
     gameId = null,
     inputEl = $bindable(null),
@@ -61,6 +62,7 @@
       bind:this={inputEl}
       placeholder={t('gameForm.namePlaceholder')}
       disabled={saving}
+      onblur={() => ontouch('name')}
     />
     {#if nameError}
       <p class="form-hint form-hint--error">{nameError}</p>

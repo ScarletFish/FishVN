@@ -9,9 +9,26 @@
     newInstallation,
   } from '../lib/installations.js';
 
-  let { items = $bindable([]), defaultKey = $bindable(null), disabled = false } = $props();
+  let {
+    items = $bindable([]),
+    defaultKey = $bindable(null),
+    revealAll = false,
+    disabled = false,
+  } = $props();
 
   let picking = $state(false);
+  // 逐行记住「离开过这个路径框」；点过保存（revealAll）就直接全报
+  let touched = $state({});
+
+  function pathError(item) {
+    if (!(revealAll || touched[item.key])) return '';
+    return installPathInvalid(item) ? t('gameForm.install.pathInvalid') : '';
+  }
+
+  function markTouched(key) {
+    if (touched[key]) return;
+    touched = { ...touched, [key]: true };
+  }
 
   function taken(path, ignoreKey = null) {
     return hasInstallation(items, newInstallation(path), ignoreKey);
@@ -74,9 +91,10 @@
             picker={pickExecutable}
             pickerTitle={t('gameForm.install.pickTitle')}
             onPick={(picked) => acceptPick(item, picked)}
+            oncommit={() => markTouched(item.key)}
             placeholder={t('gameForm.install.pathPlaceholder')}
             ariaLabel={t('gameForm.install.pathAria')}
-            error={installPathInvalid(item) ? t('gameForm.install.pathInvalid') : ''}
+            error={pathError(item)}
             {disabled}
           />
 

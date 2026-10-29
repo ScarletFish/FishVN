@@ -11,6 +11,7 @@
     ratingError = '',
     votecountError = '',
     lengthMinutesError = '',
+    ontouch = () => {},
     saving = false,
   } = $props();
 </script>
@@ -47,6 +48,7 @@
     </label>
     <input
       id="game-form-meta-rating"
+      onblur={() => ontouch('rating')}
       type="text"
       inputmode="decimal"
       bind:value={rating}
@@ -63,6 +65,7 @@
     <label for="game-form-meta-votecount">{t('gameForm.field.votecount')}</label>
     <input
       id="game-form-meta-votecount"
+      onblur={() => ontouch('votecount')}
       type="text"
       inputmode="numeric"
       bind:value={votecount}
@@ -78,6 +81,7 @@
     <label for="game-form-meta-length">{t('gameForm.field.lengthMinutes')}</label>
     <input
       id="game-form-meta-length"
+      onblur={() => ontouch('lengthMinutes')}
       type="text"
       inputmode="numeric"
       bind:value={lengthMinutes}

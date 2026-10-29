@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorFieldId, errorTab, validateGameForm } from './form-validation.js';
+import { errorFieldId, errorTab, shownErrors, validateGameForm } from './form-validation.js';
 import { newInstallation } from './installations.js';
 
 const base = {
@@ -83,5 +83,26 @@ describe('错误定位', () => {
     expect(errorFieldId({ name: 'x' })).toBe('game-form-name');
     expect(errorFieldId({ rating: 'y', votecount: 'z' })).toBe('game-form-meta-rating');
     expect(errorFieldId({})).toBeNull();
+  });
+});
+
+describe('shownErrors', () => {
+  const errors = { name: 'a', rating: 'b' };
+
+  it('没离开过、也没保存过时一个都不说', () => {
+    expect(shownErrors(errors)).toEqual({});
+    expect(shownErrors(errors, { touched: {} })).toEqual({});
+  });
+
+  it('离开过的字段才说', () => {
+    expect(shownErrors(errors, { touched: { rating: true } })).toEqual({ rating: 'b' });
+  });
+
+  it('点过保存就全说，跟 touched 无关', () => {
+    expect(shownErrors(errors, { submitAttempted: true })).toEqual(errors);
+  });
+
+  it('修好之后从入参里消失，自然就不再显示', () => {
+    expect(shownErrors({}, { submitAttempted: true })).toEqual({});
   });
 });
