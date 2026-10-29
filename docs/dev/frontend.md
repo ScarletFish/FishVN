@@ -274,7 +274,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - `dropdowns`：开合用 `is-open` 类切换、不做 portal —— 菜单与触发器同处一个层叠上下文，走 portal 会与弹窗遮罩的 `z-index` 打架
 - `menus`：菜单留在触发器的层叠上下文里，不移出 DOM；`.btn svg` 是按描边线性图标定的，实心点要自己定尺；裸图标变体浮在内容图上，必须自带底色
 - `sidebar`：`stroke-width` 与尺寸绑定，图标放大后线条会相对变细；`.active:hover` 必须与 `.active` 一起清，否则悬停时半透明底色会回来
-- `buttons`：`.btn-primary:hover` 用 `brightness` 提亮（不过滤会瞬间跳变）；覆盖 `.btn:hover` 的规则与它特异性相同，要逐项写全才不会漏掉被按顺序冲掉的属性
+- `buttons`：`.btn-primary` 常态纯色 `--accent`、hover 换 `--accent-soft`（扁平风，不用渐变与 brightness 滤镜）；覆盖 `.btn:hover` 的规则与它特异性相同，要逐项写全才不会漏掉被按顺序冲掉的属性
 
 **表面层级与交互态**
 

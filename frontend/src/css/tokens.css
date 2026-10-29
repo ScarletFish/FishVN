@@ -91,13 +91,13 @@ body {
 
   /* 红：仅 accent 一族 */
   --red-300: #dd6079;
-  --red-400: #ff2d55;
   --red-500: #e04560;
   --red-600: #e13a5a;
   --red-700: #c92a4a;
 
-  /* 强调色系：与红同构，深色取 600/300（个别族按现值就近取名），浅色取 700/500 */
+  /* 强调色系：与红同构，深色取 600/300（个别族按现值就近取名），浅色取 700/500（琥珀 700 压得过暗，取 600/400） */
   --amber-300: #f0c040;
+  --amber-400: #e0ac1c;
   --amber-500: #c4a030;
   --amber-600: #d4a017;
   --amber-700: #967a0e;
@@ -147,7 +147,6 @@ body {
   /* accent */
   --accent: var(--red-700);
   --accent-soft: var(--red-500);
-  --accent-gradient: linear-gradient(135deg, var(--red-700), var(--red-500));
   --accent-faint: color-mix(in srgb, var(--accent) 6%, transparent);
   --accent-bg: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 25%, transparent);
@@ -209,7 +208,6 @@ body {
 
   --accent: var(--red-600);
   --accent-soft: var(--red-300);
-  --accent-gradient: linear-gradient(135deg, var(--red-600), var(--red-400));
   --accent-bg: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 16%, transparent);
   /* 深色主题的 --accent-soft 已是浅色变体，直接沿用 */
@@ -233,73 +231,63 @@ body {
  * 深色用双属性选择器压过浅色块。faint/bg/border/selected 等派生槽
  * 引用 --accent，随色系自动跟随，无需逐色系重写。 */
 [data-accent="amber"] {
-  --accent: var(--amber-700);
-  --accent-soft: var(--amber-500);
-  --accent-gradient: linear-gradient(135deg, var(--amber-700), var(--amber-500));
+  --accent: var(--amber-600);
+  --accent-soft: var(--amber-400);
 }
 
 [data-theme="dark"][data-accent="amber"] {
   --accent: var(--amber-600);
   --accent-soft: var(--amber-300);
-  --accent-gradient: linear-gradient(135deg, var(--amber-600), var(--amber-300));
 }
 
 [data-accent="ocean"] {
   --accent: var(--ocean-700);
   --accent-soft: var(--ocean-500);
-  --accent-gradient: linear-gradient(135deg, var(--ocean-700), var(--ocean-500));
 }
 
 [data-theme="dark"][data-accent="ocean"] {
   --accent: var(--ocean-600);
   --accent-soft: var(--ocean-300);
-  --accent-gradient: linear-gradient(135deg, var(--ocean-600), var(--ocean-300));
 }
 
 [data-accent="sakura"] {
   --accent: var(--sakura-600);
   --accent-soft: var(--sakura-500);
-  --accent-gradient: linear-gradient(135deg, var(--sakura-600), var(--sakura-500));
 }
 
 [data-theme="dark"][data-accent="sakura"] {
   --accent: var(--sakura-500);
   --accent-soft: var(--sakura-300);
-  --accent-gradient: linear-gradient(135deg, var(--sakura-500), var(--sakura-300));
 }
 
 [data-accent="emerald"] {
   --accent: var(--emerald-700);
   --accent-soft: var(--emerald-600);
-  --accent-gradient: linear-gradient(135deg, var(--emerald-700), var(--emerald-600));
 }
 
 [data-theme="dark"][data-accent="emerald"] {
   --accent: var(--emerald-600);
   --accent-soft: var(--emerald-400);
-  --accent-gradient: linear-gradient(135deg, var(--emerald-600), var(--emerald-400));
 }
 
 [data-accent="violet"] {
   --accent: var(--violet-700);
   --accent-soft: var(--violet-600);
-  --accent-gradient: linear-gradient(135deg, var(--violet-700), var(--violet-600));
 }
 
 [data-theme="dark"][data-accent="violet"] {
   --accent: var(--violet-600);
   --accent-soft: var(--violet-300);
-  --accent-gradient: linear-gradient(135deg, var(--violet-600), var(--violet-300));
 }
 
 /* 设置面板里的色块预览：组件经此层取色，不直连上面的 L1 原值 */
 :root {
-  --swatch-default: linear-gradient(135deg, var(--red-700), var(--red-500));
-  --swatch-amber: linear-gradient(135deg, var(--amber-600), var(--amber-300));
-  --swatch-ocean: linear-gradient(135deg, var(--ocean-600), var(--ocean-300));
-  --swatch-sakura: linear-gradient(135deg, var(--sakura-600), var(--sakura-300));
-  --swatch-emerald: linear-gradient(135deg, var(--emerald-700), var(--emerald-400));
-  --swatch-violet: linear-gradient(135deg, var(--violet-700), var(--violet-300));
+  --swatch-default: var(--red-700);
+  --swatch-amber: var(--amber-600);
+  --swatch-ocean: var(--ocean-700);
+  --swatch-sakura: var(--sakura-600);
+  --swatch-emerald: var(--emerald-700);
+  --swatch-violet: var(--violet-700);
 }
 
 /* === L3 scales · 间距 === */

@@ -42,7 +42,6 @@ MAD 的默认主题是深色：`tokens.css` 的 `:root` 是深色值，`[data-th
 | `--fg-muted` | `--fg-muted` |
 | `--accent` | `--accent` |
 | `--accent-soft` | `--accent-soft` |
-| `--accent-gradient` | `--accent-gradient` |
 
 ### 表面
 

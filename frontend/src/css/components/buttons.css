@@ -18,8 +18,7 @@
     color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out),
-    filter var(--duration-fast) var(--ease-out);
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .btn svg {
@@ -66,7 +65,7 @@
 
 .btn-primary {
   color: var(--fg-on-accent);
-  background: var(--accent-gradient);
+  background: var(--accent);
   border-color: transparent;
   font-weight: var(--fw-semibold);
 }
@@ -97,9 +96,8 @@
 
 .btn-primary:hover {
   color: var(--fg-on-accent);
-  background: var(--accent-gradient);
+  background: var(--accent-soft);
   border-color: transparent;
-  filter: brightness(1.12);
   box-shadow:
     var(--shadow-sm),
     0 0 0 var(--space-050) var(--accent-bg),

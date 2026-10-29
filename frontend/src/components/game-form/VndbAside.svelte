@@ -129,7 +129,7 @@
     position: absolute;
     inset-block: 0;
     width: 40%;
-    background: var(--accent-gradient);
+    background: var(--accent);
     border-radius: var(--radius-pill);
     animation: vndb-sweep 1.1s var(--ease-out) infinite;
   }
