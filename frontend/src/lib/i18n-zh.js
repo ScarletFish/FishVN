@@ -176,6 +176,7 @@ export const DICT_ZH = {
     charVndbLink: '在 VNDB 查看完整资料',
     unitCm: 'cm',
     unitKg: 'kg',
+    unitAge: '岁',
     bloodType: {
       a: 'A',
       b: 'B',

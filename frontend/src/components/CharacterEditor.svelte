@@ -442,47 +442,71 @@
           </div>
           <div class="form-group">
             <label for="char-age">{t('gameForm.field.charAge')}</label>
-            <input id="char-age" type="text" inputmode="numeric" bind:value={selected.age} {disabled} />
-          </div>
-          <div class="form-group">
-            <label for="char-height">{t('gameForm.field.charHeight')}</label>
-            <input id="char-height" type="text" inputmode="numeric" bind:value={selected.height} {disabled} />
-          </div>
-          <div class="form-group">
-            <label for="char-weight">{t('gameForm.field.charWeight')}</label>
-            <input id="char-weight" type="text" inputmode="numeric" bind:value={selected.weight} {disabled} />
-          </div>
-          <div class="form-group">
-            <label for="char-blood">{t('gameForm.field.charBloodType')}</label>
-            <SelectDd
-              id="char-blood"
-              options={BLOOD_OPTIONS}
-              value={selected.bloodType}
-              open={bloodOpen}
-              onopenchange={(v) => (bloodOpen = v)}
-              onchange={(v) => (selected.bloodType = v)}
-              {disabled}
-            />
-          </div>
-          <div class="form-group">
-            <label for="char-bust">{t('gameForm.field.charBust')}</label>
-            <input id="char-bust" type="text" inputmode="numeric" bind:value={selected.bust} {disabled} />
-          </div>
-          <div class="form-group">
-            <label for="char-waist">{t('gameForm.field.charWaist')}</label>
-            <input id="char-waist" type="text" inputmode="numeric" bind:value={selected.waist} {disabled} />
-          </div>
-          <div class="form-group">
-            <label for="char-hips">{t('gameForm.field.charHips')}</label>
-            <input id="char-hips" type="text" inputmode="numeric" bind:value={selected.hips} {disabled} />
-          </div>
-          <div class="form-group">
-            <label for="char-cup">{t('gameForm.field.charCup')}</label>
-            <input id="char-cup" type="text" bind:value={selected.cup} {disabled} />
+            <div class="unit-field">
+              <input id="char-age" type="text" inputmode="numeric" bind:value={selected.age} {disabled} />
+              <span class="unit-field__suffix">{t('detail.unitAge')}</span>
+            </div>
           </div>
           <div class="form-group">
             <label for="char-birthday">{t('gameForm.field.charBirthday')}</label>
             <input id="char-birthday" type="text" bind:value={selected.birthday} {disabled} />
+          </div>
+
+          <div class="panel-grid__sub panel-grid__sub--3">
+            <div class="form-group">
+              <label for="char-height">{t('gameForm.field.charHeight')}</label>
+              <div class="unit-field">
+                <input id="char-height" type="text" inputmode="numeric" bind:value={selected.height} {disabled} />
+                <span class="unit-field__suffix">{t('detail.unitCm')}</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="char-weight">{t('gameForm.field.charWeight')}</label>
+              <div class="unit-field">
+                <input id="char-weight" type="text" inputmode="numeric" bind:value={selected.weight} {disabled} />
+                <span class="unit-field__suffix">{t('detail.unitKg')}</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="char-blood">{t('gameForm.field.charBloodType')}</label>
+              <SelectDd
+                id="char-blood"
+                options={BLOOD_OPTIONS}
+                value={selected.bloodType}
+                open={bloodOpen}
+                onopenchange={(v) => (bloodOpen = v)}
+                onchange={(v) => (selected.bloodType = v)}
+                {disabled}
+              />
+            </div>
+          </div>
+
+          <div class="panel-grid__sub panel-grid__sub--4">
+            <div class="form-group">
+              <label for="char-bust">{t('gameForm.field.charBust')}</label>
+              <div class="unit-field">
+                <input id="char-bust" type="text" inputmode="numeric" bind:value={selected.bust} {disabled} />
+                <span class="unit-field__suffix">{t('detail.unitCm')}</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="char-waist">{t('gameForm.field.charWaist')}</label>
+              <div class="unit-field">
+                <input id="char-waist" type="text" inputmode="numeric" bind:value={selected.waist} {disabled} />
+                <span class="unit-field__suffix">{t('detail.unitCm')}</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="char-hips">{t('gameForm.field.charHips')}</label>
+              <div class="unit-field">
+                <input id="char-hips" type="text" inputmode="numeric" bind:value={selected.hips} {disabled} />
+                <span class="unit-field__suffix">{t('detail.unitCm')}</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="char-cup">{t('gameForm.field.charCup')}</label>
+              <input id="char-cup" type="text" bind:value={selected.cup} {disabled} />
+            </div>
           </div>
         </div>
 
