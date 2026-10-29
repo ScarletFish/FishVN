@@ -13,21 +13,18 @@ export function toInteger(raw) {
   return value === null ? null : Math.trunc(value);
 }
 
-/** 只留数字；整数位超过 maxIntDigits 的部分直接丢掉，长串粘贴进不来 */
 export function cleanInteger(raw, maxIntDigits = 6) {
   return String(raw ?? '')
     .replace(/\D/g, '')
     .slice(0, maxIntDigits);
 }
 
-/** 失焦规整：空的仍是空（字段可留空），有值就钳进 [min, max] */
 export function normalizeInteger(raw, { min = 0, max = Number.MAX_SAFE_INTEGER, maxIntDigits = 6 } = {}) {
   const digits = cleanInteger(raw, maxIntDigits);
   if (!digits) return '';
   return String(Math.min(max, Math.max(min, Number(digits))));
 }
 
-/** 评分离焦规整：先清字符，再钳到 0–100 并保留一位小数 */
 export function normalizeRating(raw) {
   const cleaned = cleanRating(raw);
   if (!cleaned || cleaned === '.') return '';
@@ -44,7 +41,6 @@ export function cleanRating(raw) {
     const [int, dec] = cleaned.split('.');
     cleaned = `${int}.${dec.slice(0, 1)}`;
   }
-  // 整数位最多三位：满分 100，第四位开始必然是误粘
   const [int, dec] = cleaned.split('.');
   return dec === undefined ? int.slice(0, 3) : `${int.slice(0, 3)}.${dec}`;
 }
@@ -68,12 +64,6 @@ export function lengthMinutesRejected(raw) {
   return Boolean(raw.trim()) && (minutes === null || minutes < 0);
 }
 
-/**
- * 状态补丁：写入前的最后一次归一化。
- * 评分的钳制不能只靠输入框失焦——回车提交时焦点还在框里，blur 不会触发。
- * `playSeconds` 缺省表示「这次不动总时长」：进行中的游玩结算会自己往上加，
- * 用户没改过就别把表单打开时的旧值写回去。
- */
 export function buildStatePatch({ status, userRating, notes, playSeconds }) {
   const patch = {
     status,

@@ -108,8 +108,6 @@
   let baseline = $state('');
   const search = createVndbSearch();
 
-  // 校验始终在算，只是「什么时候说」分两级：
-  // 字段离开过（touched）或点过保存之后才显示，之后随输入实时消退。
   const formErrors = $derived(
     validateGameForm({ name, rating, votecount, lengthMinutes, installations })
   );
@@ -410,7 +408,6 @@
     submitAttempted = true;
     const errors = validateGameForm({ name, rating, votecount, lengthMinutes, installations });
     if (Object.keys(errors).length) {
-      // 一次把所有问题标出来，跳到最靠前的出错页并聚焦该字段
       const tabWithError = errorTab(errors);
       if (tabWithError) selectTab(tabWithError);
       await tick();
@@ -421,7 +418,6 @@
 
     saving = true;
     const value = name.trim();
-    // 回车提交时焦点还在评分框里，失焦钳制没触发过：这里补一次，输入框也跟着回正
     if (userRating !== null && clampRating(userRating) !== userRating) {
       userRating = clampRating(userRating);
       userRatingDraft = String(userRating);
@@ -445,7 +441,6 @@
         status,
         userRating,
         notes,
-        // 只有用户真改过才写总时长，免得把进行中游玩刚结算掉的时间盖回旧值
         playSeconds: playSeconds === playSecondsLoaded ? undefined : playSeconds,
       });
       const entries = installations.map(toInstallationPayload);

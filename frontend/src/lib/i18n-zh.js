@@ -461,6 +461,7 @@ export const DICT_ZH = {
       charWaist: '腰围',
       charHips: '臀围',
       charCup: '罩杯',
+      charMeasure: '三围',
       charBirthday: '生日',
       charAliases: '别名',
       charTraits: '角色特征',

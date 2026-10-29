@@ -15,7 +15,6 @@
     return typed == null ? '' : `${typed} ${t('common.unitSecond')}`;
   });
 
-  // 值从外面来（打开表单时异步载入），正在输入时不去动用户的手
   $effect(() => {
     const next = durationInput(seconds);
     if (!focused) draft = next;
@@ -37,7 +36,6 @@
     };
   });
 
-  /** 只写进表单草稿，随「保存」一起提交；认不出来的输入还原成原值 */
   function commit() {
     if (disabled) return;
     const wanted = parseDuration(draft);

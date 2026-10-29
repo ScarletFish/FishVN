@@ -17,7 +17,6 @@
   } = $props();
 
   let picking = $state(false);
-  // 逐行记住「离开过这个路径框」；点过保存（revealAll）就直接全报
   let touched = $state({});
 
   function pathError(item) {

@@ -1,9 +1,12 @@
 import { expect, test } from 'vitest';
 import {
   blankCharacter,
+  cleanCharNumber,
+  cleanCup,
   displayName,
   moveCharacters,
   namedOnly,
+  normalizeCharNumber,
   toDraft,
   toPayload,
 } from './characters.js';
@@ -124,4 +127,26 @@ test('无名角色被滤掉，有名的按原顺序留下', () => {
   ];
 
   expect(namedOnly(list).map((c) => c.id)).toEqual(['n', 'o', 'm']);
+});
+
+test('数值字段键入时只收数字，位数按字段量级截断', () => {
+  expect(cleanCharNumber('age', '1a2b3')).toBe('12');
+  expect(cleanCharNumber('height', '1650')).toBe('165');
+  expect(cleanCharNumber('bust', '8 8c m')).toBe('88');
+  expect(cleanCharNumber('height', '')).toBe('');
+});
+
+test('数值字段失焦才钳进范围，空值仍留空', () => {
+  expect(normalizeCharNumber('age', '999')).toBe('99');
+  expect(normalizeCharNumber('height', '999')).toBe('300');
+  expect(normalizeCharNumber('weight', '0')).toBe('0');
+  expect(normalizeCharNumber('waist', '')).toBe('');
+});
+
+test('罩杯只留字母、最多两位、统一大写', () => {
+  expect(cleanCup('c')).toBe('C');
+  expect(cleanCup('b ')).toBe('B');
+  expect(cleanCup('abc')).toBe('AB');
+  expect(cleanCup('杯C')).toBe('C');
+  expect(cleanCup('')).toBe('');
 });

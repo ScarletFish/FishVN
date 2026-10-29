@@ -21,7 +21,6 @@
     saving = false,
   } = $props();
 
-  /** 键入时就只放数字进来；离焦才规整格式与范围，免得边打字边跳 */
   function onNumberInput(e, field, clean) {
     const cleaned = clean(e.currentTarget.value);
     e.currentTarget.value = cleaned;

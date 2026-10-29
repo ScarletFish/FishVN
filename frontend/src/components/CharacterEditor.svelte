@@ -8,8 +8,11 @@
   import {
     blankCharacter,
     blankVa,
+    cleanCharNumber,
+    cleanCup,
     displayName,
     moveCharacters,
+    normalizeCharNumber,
   } from '../lib/characters.js';
   import SelectDd from './SelectDd.svelte';
   import TagField from './TagField.svelte';
@@ -62,6 +65,22 @@
 
   const selected = $derived(characters.find((c) => c.id === selectedId) ?? null);
   const selectedIndex = $derived(characters.findIndex((c) => c.id === selectedId));
+
+  function onNumberInput(field, event) {
+    const cleaned = cleanCharNumber(field, event.currentTarget.value);
+    if (cleaned !== event.currentTarget.value) event.currentTarget.value = cleaned;
+    selected[field] = cleaned;
+  }
+
+  function onNumberBlur(field) {
+    selected[field] = normalizeCharNumber(field, selected[field]);
+  }
+
+  function onCupInput(event) {
+    const cleaned = cleanCup(event.currentTarget.value);
+    if (cleaned !== event.currentTarget.value) event.currentTarget.value = cleaned;
+    selected.cup = cleaned;
+  }
 
   const TRAIT_GROUP_ORDER = [
     'Hair',
@@ -443,7 +462,15 @@
           <div class="form-group">
             <label for="char-age">{t('gameForm.field.charAge')}</label>
             <div class="unit-field">
-              <input id="char-age" type="text" inputmode="numeric" bind:value={selected.age} {disabled} />
+              <input
+                id="char-age"
+                type="text"
+                inputmode="numeric"
+                value={selected.age}
+                oninput={(e) => onNumberInput('age', e)}
+                onblur={() => onNumberBlur('age')}
+                {disabled}
+              />
               <span class="unit-field__suffix">{t('detail.unitAge')}</span>
             </div>
           </div>
@@ -456,14 +483,30 @@
             <div class="form-group">
               <label for="char-height">{t('gameForm.field.charHeight')}</label>
               <div class="unit-field">
-                <input id="char-height" type="text" inputmode="numeric" bind:value={selected.height} {disabled} />
+                <input
+                  id="char-height"
+                  type="text"
+                  inputmode="numeric"
+                  value={selected.height}
+                  oninput={(e) => onNumberInput('height', e)}
+                  onblur={() => onNumberBlur('height')}
+                  {disabled}
+                />
                 <span class="unit-field__suffix">{t('detail.unitCm')}</span>
               </div>
             </div>
             <div class="form-group">
               <label for="char-weight">{t('gameForm.field.charWeight')}</label>
               <div class="unit-field">
-                <input id="char-weight" type="text" inputmode="numeric" bind:value={selected.weight} {disabled} />
+                <input
+                  id="char-weight"
+                  type="text"
+                  inputmode="numeric"
+                  value={selected.weight}
+                  oninput={(e) => onNumberInput('weight', e)}
+                  onblur={() => onNumberBlur('weight')}
+                  {disabled}
+                />
                 <span class="unit-field__suffix">{t('detail.unitKg')}</span>
               </div>
             </div>
@@ -481,31 +524,56 @@
             </div>
           </div>
 
-          <div class="panel-grid__sub panel-grid__sub--4">
-            <div class="form-group">
-              <label for="char-bust">{t('gameForm.field.charBust')}</label>
-              <div class="unit-field">
-                <input id="char-bust" type="text" inputmode="numeric" bind:value={selected.bust} {disabled} />
-                <span class="unit-field__suffix">{t('detail.unitCm')}</span>
-              </div>
+          <div
+            class="measure-group panel-grid__full"
+            role="group"
+            aria-label={t('gameForm.field.charMeasure')}
+          >
+            <div class="measure-group__field">
+              <label class="measure-group__tag" for="char-bust">B<span class="sr-only"> {t('gameForm.field.charBust')}</span></label>
+              <input
+                id="char-bust"
+                type="text"
+                inputmode="numeric"
+                value={selected.bust}
+                oninput={(e) => onNumberInput('bust', e)}
+                onblur={() => onNumberBlur('bust')}
+                {disabled}
+              />
             </div>
-            <div class="form-group">
-              <label for="char-waist">{t('gameForm.field.charWaist')}</label>
-              <div class="unit-field">
-                <input id="char-waist" type="text" inputmode="numeric" bind:value={selected.waist} {disabled} />
-                <span class="unit-field__suffix">{t('detail.unitCm')}</span>
-              </div>
+            <div class="measure-group__field">
+              <label class="measure-group__tag" for="char-waist">W<span class="sr-only"> {t('gameForm.field.charWaist')}</span></label>
+              <input
+                id="char-waist"
+                type="text"
+                inputmode="numeric"
+                value={selected.waist}
+                oninput={(e) => onNumberInput('waist', e)}
+                onblur={() => onNumberBlur('waist')}
+                {disabled}
+              />
             </div>
-            <div class="form-group">
-              <label for="char-hips">{t('gameForm.field.charHips')}</label>
-              <div class="unit-field">
-                <input id="char-hips" type="text" inputmode="numeric" bind:value={selected.hips} {disabled} />
-                <span class="unit-field__suffix">{t('detail.unitCm')}</span>
-              </div>
+            <div class="measure-group__field">
+              <label class="measure-group__tag" for="char-hips">H<span class="sr-only"> {t('gameForm.field.charHips')}</span></label>
+              <input
+                id="char-hips"
+                type="text"
+                inputmode="numeric"
+                value={selected.hips}
+                oninput={(e) => onNumberInput('hips', e)}
+                onblur={() => onNumberBlur('hips')}
+                {disabled}
+              />
             </div>
-            <div class="form-group">
-              <label for="char-cup">{t('gameForm.field.charCup')}</label>
-              <input id="char-cup" type="text" bind:value={selected.cup} {disabled} />
+            <div class="measure-group__field">
+              <label class="measure-group__tag" for="char-cup">{t('gameForm.field.charCup')}</label>
+              <input
+                id="char-cup"
+                type="text"
+                value={selected.cup}
+                oninput={onCupInput}
+                {disabled}
+              />
             </div>
           </div>
         </div>
@@ -791,6 +859,14 @@
     background: var(--bg-modal);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
+  }
+
+  .char-panel-body > .panel-grid {
+    margin-bottom: var(--space-5);
+  }
+
+  .char-panel-body > .form-group--desc {
+    margin-bottom: 0;
   }
 
   .char-panel-toolbar {
