@@ -48,13 +48,17 @@ export function lengthMinutesRejected(raw) {
 /**
  * 状态补丁：写入前的最后一次归一化。
  * 评分的钳制不能只靠输入框失焦——回车提交时焦点还在框里，blur 不会触发。
+ * `playSeconds` 缺省表示「这次不动总时长」：进行中的游玩结算会自己往上加，
+ * 用户没改过就别把表单打开时的旧值写回去。
  */
-export function buildStatePatch({ status, userRating, notes }) {
-  return {
+export function buildStatePatch({ status, userRating, notes, playSeconds }) {
+  const patch = {
     status,
     user_rating: userRating === null ? null : clampRating(userRating),
     notes: (notes ?? '').trim() || null,
   };
+  if (playSeconds !== undefined) patch.play_seconds = Math.max(0, Math.round(playSeconds));
+  return patch;
 }
 
 export function buildMetadataPatch(fields) {

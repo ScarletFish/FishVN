@@ -169,3 +169,15 @@ test('状态补丁去空白，空笔记归 null', () => {
   });
   expect(buildStatePatch({ status: 'wishlist', userRating: 1, notes: '   ' }).notes).toBeNull();
 });
+
+/** 没传 total 时不能带 play_seconds：进行中的游玩结算会自己往上加，写回旧值等于倒退 */
+test('总时长只在用户改过时才写', () => {
+  expect(Object.keys(buildStatePatch({ status: 'playing', userRating: null, notes: '' }))).not.toContain(
+    'play_seconds'
+  );
+  expect(buildStatePatch({ status: 'playing', userRating: null, notes: '', playSeconds: 4500 })).toMatchObject(
+    { play_seconds: 4500 }
+  );
+  expect(buildStatePatch({ status: 'playing', playSeconds: -60 }).play_seconds).toBe(0);
+  expect(buildStatePatch({ status: 'playing', playSeconds: 12.6 }).play_seconds).toBe(13);
+});

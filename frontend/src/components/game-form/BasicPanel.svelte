@@ -13,6 +13,7 @@
     userRatingDraft = $bindable(''),
     notes = $bindable(''),
     description = $bindable(''),
+    playSeconds = $bindable(0),
     nameError = '',
     saving = false,
     gameId = null,
@@ -136,7 +137,7 @@
 
   {#if gameId}
     <div class="panel-grid__full">
-      <PlaytimeField {gameId} disabled={saving} />
+      <PlaytimeField bind:seconds={playSeconds} {gameId} disabled={saving} />
     </div>
   {/if}
 </div>

@@ -4,11 +4,10 @@
   import { toast } from '../lib/toast.svelte.js';
   import { durationInput, parseDuration } from '../lib/playtime.js';
 
-  let { gameId, disabled = false } = $props();
+  let { gameId = null, seconds = $bindable(0), disabled = false } = $props();
 
-  let seconds = $state(0);
-  let draft = $state('');
-  let busy = $state(false);
+  let draft = $state(durationInput(seconds));
+  let focused = $state(false);
   let playing = $state(false);
 
   const readout = $derived.by(() => {
@@ -16,19 +15,19 @@
     return typed == null ? '' : `${typed} ${t('common.unitSecond')}`;
   });
 
-  async function load() {
-    const [state, active] = await Promise.all([api.getGameState(gameId), api.listActiveSessions()]);
-    playing = active.some((session) => session.game_id === gameId);
-    return state.play_seconds;
-  }
+  // 值从外面来（打开表单时异步载入），正在输入时不去动用户的手
+  $effect(() => {
+    const next = durationInput(seconds);
+    if (!focused) draft = next;
+  });
 
   $effect(() => {
+    if (!gameId) return;
     let live = true;
-    load()
-      .then((value) => {
-        if (!live) return;
-        seconds = value;
-        draft = durationInput(value);
+    api
+      .listActiveSessions()
+      .then((active) => {
+        if (live) playing = active.some((session) => session.game_id === gameId);
       })
       .catch((err) => {
         if (live) toast(err.message, 'error');
@@ -38,26 +37,16 @@
     };
   });
 
-  async function save() {
-    if (disabled || busy) return;
+  /** 只写进表单草稿，随「保存」一起提交；认不出来的输入还原成原值 */
+  function commit() {
+    if (disabled) return;
     const wanted = parseDuration(draft);
-    if (wanted == null || wanted === seconds) {
+    if (wanted == null) {
       draft = durationInput(seconds);
       return;
     }
-
-    const submitted = draft;
-    busy = true;
-    try {
-      const state = await api.updateGameState(gameId, { play_seconds: wanted });
-      seconds = state.play_seconds;
-      if (draft === submitted) draft = durationInput(seconds);
-    } catch (err) {
-      toast(err.message, 'error');
-      draft = durationInput(seconds);
-    } finally {
-      busy = false;
-    }
+    seconds = wanted;
+    draft = durationInput(seconds);
   }
 </script>
 
@@ -72,9 +61,13 @@
       value={draft}
       placeholder={t('gameForm.playtime.placeholder')}
       aria-label={t('gameForm.playtime.label')}
-      disabled={disabled || busy}
+      {disabled}
       oninput={(e) => (draft = e.currentTarget.value)}
-      onblur={save}
+      onfocus={() => (focused = true)}
+      onblur={() => {
+        focused = false;
+        commit();
+      }}
       onkeydown={(e) => {
         if (e.key !== 'Enter') return;
         e.preventDefault();

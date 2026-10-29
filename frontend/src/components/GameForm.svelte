@@ -60,6 +60,8 @@
   let status = $state(DEFAULT_STATUS);
   let userRating = $state(null);
   let userRatingDraft = $state('');
+  let playSeconds = $state(0);
+  let playSecondsLoaded = $state(0);
   let notes = $state('');
   let saving = $state(false);
   let loading = $state(false);
@@ -135,6 +137,7 @@
       vndbId,
       status,
       userRating,
+      playSeconds,
       notes,
       alias,
       released,
@@ -192,6 +195,8 @@
     status = DEFAULT_STATUS;
     userRating = null;
     userRatingDraft = '';
+    playSeconds = 0;
+    playSecondsLoaded = 0;
     notes = '';
     submitAttempted = false;
     released = '';
@@ -256,6 +261,8 @@
       status = state.status;
       userRating = state.user_rating;
       userRatingDraft = state.user_rating == null ? '' : String(state.user_rating);
+      playSeconds = state.play_seconds ?? 0;
+      playSecondsLoaded = playSeconds;
       notes = state.notes ?? '';
       released = meta?.released ?? '';
       alias = meta?.alias ?? '';
@@ -428,7 +435,13 @@
       staff,
     });
     try {
-      const base = buildStatePatch({ status, userRating, notes });
+      const base = buildStatePatch({
+        status,
+        userRating,
+        notes,
+        // 只有用户真改过才写总时长，免得把进行中游玩刚结算掉的时间盖回旧值
+        playSeconds: playSeconds === playSecondsLoaded ? undefined : playSeconds,
+      });
       const entries = installations.map(toInstallationPayload);
       if (gameId) {
         await api.updateGame(gameId, { name: value });
@@ -498,6 +511,7 @@
           bind:statusOpen
           bind:userRating
           bind:userRatingDraft
+          bind:playSeconds
           bind:notes
           bind:description
           bind:inputEl={input}
