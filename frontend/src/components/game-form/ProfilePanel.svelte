@@ -1,5 +1,11 @@
 <script>
   import { t } from '../../lib/i18n.js';
+  import {
+    cleanInteger,
+    cleanRating,
+    normalizeInteger,
+    normalizeRating,
+  } from '../../lib/form-metadata.js';
 
   let {
     alias = $bindable(''),
@@ -14,6 +20,15 @@
     ontouch = () => {},
     saving = false,
   } = $props();
+
+  /** 键入时就只放数字进来；离焦才规整格式与范围，免得边打字边跳 */
+  function onNumberInput(e, field, clean) {
+    const cleaned = clean(e.currentTarget.value);
+    e.currentTarget.value = cleaned;
+    if (field === 'rating') rating = cleaned;
+    else if (field === 'votecount') votecount = cleaned;
+    else lengthMinutes = cleaned;
+  }
 </script>
 
 <div class="panel-grid">
@@ -48,12 +63,16 @@
     </label>
     <input
       id="game-form-meta-rating"
-      onblur={() => ontouch('rating')}
       type="text"
       inputmode="decimal"
-      bind:value={rating}
+      value={rating}
       placeholder={t('gameForm.placeholder.rating')}
       disabled={saving}
+      oninput={(e) => onNumberInput(e, 'rating', cleanRating)}
+      onblur={() => {
+        rating = normalizeRating(rating);
+        ontouch('rating');
+      }}
     />
     <p class="form-hint">{t('gameForm.hint.ratingScale')}</p>
     {#if ratingError}
@@ -65,12 +84,16 @@
     <label for="game-form-meta-votecount">{t('gameForm.field.votecount')}</label>
     <input
       id="game-form-meta-votecount"
-      onblur={() => ontouch('votecount')}
       type="text"
       inputmode="numeric"
-      bind:value={votecount}
+      value={votecount}
       placeholder={t('gameForm.placeholder.votecount')}
       disabled={saving}
+      oninput={(e) => onNumberInput(e, 'votecount', (raw) => cleanInteger(raw, 7))}
+      onblur={() => {
+        votecount = normalizeInteger(votecount, { max: 9999999, maxIntDigits: 7 });
+        ontouch('votecount');
+      }}
     />
     {#if votecountError}
       <p class="form-hint form-hint--error">{votecountError}</p>
@@ -81,12 +104,16 @@
     <label for="game-form-meta-length">{t('gameForm.field.lengthMinutes')}</label>
     <input
       id="game-form-meta-length"
-      onblur={() => ontouch('lengthMinutes')}
       type="text"
       inputmode="numeric"
-      bind:value={lengthMinutes}
+      value={lengthMinutes}
       placeholder={t('gameForm.placeholder.lengthMinutes')}
       disabled={saving}
+      oninput={(e) => onNumberInput(e, 'lengthMinutes', (raw) => cleanInteger(raw, 5))}
+      onblur={() => {
+        lengthMinutes = normalizeInteger(lengthMinutes, { max: 99999, maxIntDigits: 5 });
+        ontouch('lengthMinutes');
+      }}
     />
     {#if lengthMinutesError}
       <p class="form-hint form-hint--error">{lengthMinutesError}</p>

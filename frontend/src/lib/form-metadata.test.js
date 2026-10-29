@@ -3,8 +3,11 @@ import {
   buildMetadataPatch,
   buildStatePatch,
   clampRating,
+  cleanInteger,
   cleanRating,
   lengthMinutesRejected,
+  normalizeInteger,
+  normalizeRating,
   ratingRejected,
   toInteger,
   toNumber,
@@ -47,6 +50,35 @@ test('评分输入只留数字与一位小数，输入阶段不夹范围', () =>
   expect(cleanRating('10.99')).toBe('10.9');
   expect(cleanRating('10')).toBe('10');
   expect(cleanRating('abc')).toBe('');
+});
+
+test('评分整数位最多三位，第四位进不来', () => {
+  expect(cleanRating('9999')).toBe('999');
+  expect(cleanRating('1234.5')).toBe('123.5');
+  expect(cleanRating('100')).toBe('100');
+});
+
+test('整数框只留数字且限位数', () => {
+  expect(cleanInteger('19,334')).toBe('19334');
+  expect(cleanInteger(' 1820 分钟 ')).toBe('1820');
+  expect(cleanInteger('12345678901', 7)).toBe('1234567');
+  expect(cleanInteger('')).toBe('');
+});
+
+test('整数框离焦才钳范围，空着仍算空', () => {
+  expect(normalizeInteger('')).toBe('');
+  expect(normalizeInteger('  ')).toBe('');
+  expect(normalizeInteger('1820', { max: 99999 })).toBe('1820');
+  expect(normalizeInteger('999999999', { max: 99999, maxIntDigits: 9 })).toBe('99999');
+  expect(normalizeInteger('-5')).toBe('5');
+});
+
+test('评分离焦规整：钳到 0–100，空着仍算空', () => {
+  expect(normalizeRating('')).toBe('');
+  expect(normalizeRating('.')).toBe('');
+  expect(normalizeRating('8.65')).toBe('8.6');
+  expect(normalizeRating('9999')).toBe('100');
+  expect(normalizeRating('0')).toBe('0');
 });
 
 test('失焦才夹到 0..100 并保留一位小数', () => {
