@@ -5,12 +5,9 @@
   import { t } from '../lib/i18n.js';
   import { subscribe } from '../lib/events.js';
   import { createVndbSearch } from '../lib/vndb-search.svelte.js';
-  import {
-    buildMetadataPatch,
-    lengthMinutesRejected,
-    ratingRejected,
-    votecountRejected,
-  } from '../lib/form-metadata.js';
+  import { buildMetadataPatch, buildStatePatch, clampRating } from '../lib/form-metadata.js';
+  import { errorFieldId, errorTab, validateGameForm } from '../lib/form-validation.js';
+  import { DEFAULT_STATUS } from '../lib/status.js';
   import { applyIncoming, conflictRows } from '../lib/vn-merge.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
   import CharacterEditor from './CharacterEditor.svelte';
@@ -18,7 +15,6 @@
   import { namedOnly, toDraft, toPayload } from '../lib/characters.js';
   import {
     defaultKeyOf,
-    installPathInvalid,
     resolveDefaultId,
     toInstallationDraft,
     toInstallationPayload,
@@ -61,23 +57,20 @@
 
   let name = $state('');
   let vndbId = $state(null);
-  let status = $state('wishlist');
+  let status = $state(DEFAULT_STATUS);
   let userRating = $state(null);
   let userRatingDraft = $state('');
   let notes = $state('');
-  let error = $state('');
   let saving = $state(false);
   let loading = $state(false);
   let input = $state(null);
+  let submitAttempted = $state(false);
 
   let alias = $state('');
   let released = $state('');
   let rating = $state('');
   let votecount = $state('');
   let lengthMinutes = $state('');
-  let ratingError = $state('');
-  let votecountError = $state('');
-  let lengthMinutesError = $state('');
   let description = $state('');
   let developers = $state('');
   let tags = $state([]);
@@ -111,6 +104,14 @@
   const TAG_GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
   let baseline = $state('');
   const search = createVndbSearch();
+
+  // 提交过一次之后才开始报错，之后随输入实时消退
+  const formErrors = $derived(
+    submitAttempted
+      ? validateGameForm({ name, rating, votecount, lengthMinutes, installations })
+      : {}
+  );
+  const fieldError = (field) => (formErrors[field] ? t(formErrors[field]) : '');
 
   const customTagNames = $derived(tags.filter((tag) => !tag.id).map((tag) => tag.name));
 
@@ -188,19 +189,16 @@
     baseline = '';
     name = '';
     vndbId = null;
-    status = 'wishlist';
+    status = DEFAULT_STATUS;
     userRating = null;
     userRatingDraft = '';
     notes = '';
-    error = '';
+    submitAttempted = false;
     released = '';
     alias = '';
     rating = '';
     votecount = '';
     lengthMinutes = '';
-    ratingError = '';
-    votecountError = '';
-    lengthMinutesError = '';
     description = '';
     developers = '';
     tags = [];
@@ -304,7 +302,6 @@
     syncProgress = null;
     syncCancelled = false;
     syncNotice = '';
-    error = '';
     let off = null;
     try {
       const games = await api.listGames();
@@ -393,38 +390,29 @@
     return true;
   }
 
-  function validateRanges() {
-    ratingError = ratingRejected(rating) ? t('gameForm.error.ratingRange') : '';
-    votecountError = votecountRejected(votecount) ? t('gameForm.error.votecountRange') : '';
-    lengthMinutesError = lengthMinutesRejected(lengthMinutes)
-      ? t('gameForm.error.lengthMinutesRange')
-      : '';
-    return ratingError || votecountError || lengthMinutesError;
-  }
-
   async function submit(e) {
     e.preventDefault();
     if (saving || loading) return;
 
-    const value = name.trim();
-    if (!value) {
-      error = t('gameForm.error.nameRequired');
-      return;
-    }
-
-    const rangeError = validateRanges();
-    if (rangeError) {
-      selectTab('profile');
-      return;
-    }
-
-    if (installations.some(installPathInvalid)) {
-      selectTab('installations');
+    submitAttempted = true;
+    const errors = validateGameForm({ name, rating, votecount, lengthMinutes, installations });
+    if (Object.keys(errors).length) {
+      // 一次把所有问题标出来，跳到最靠前的出错页并聚焦该字段
+      const tabWithError = errorTab(errors);
+      if (tabWithError) selectTab(tabWithError);
+      await tick();
+      const id = errorFieldId(errors);
+      if (id) document.getElementById(id)?.focus();
       return;
     }
 
     saving = true;
-    error = '';
+    const value = name.trim();
+    // 回车提交时焦点还在评分框里，失焦钳制没触发过：这里补一次，输入框也跟着回正
+    if (userRating !== null && clampRating(userRating) !== userRating) {
+      userRating = clampRating(userRating);
+      userRatingDraft = String(userRating);
+    }
     const patch = buildMetadataPatch({
       alias,
       released,
@@ -440,11 +428,7 @@
       staff,
     });
     try {
-      const base = {
-        status,
-        user_rating: userRating,
-        notes: notes.trim() || null,
-      };
+      const base = buildStatePatch({ status, userRating, notes });
       const entries = installations.map(toInstallationPayload);
       if (gameId) {
         await api.updateGame(gameId, { name: value });
@@ -517,7 +501,7 @@
           bind:notes
           bind:description
           bind:inputEl={input}
-          {error}
+          nameError={fieldError('name')}
           {saving}
           {gameId}
         />
@@ -531,9 +515,9 @@
           bind:votecount
           bind:lengthMinutes
           bind:developers
-          {ratingError}
-          {votecountError}
-          {lengthMinutesError}
+          ratingError={fieldError('rating')}
+          votecountError={fieldError('votecount')}
+          lengthMinutesError={fieldError('lengthMinutes')}
           {saving}
         />
       </div>

@@ -1,6 +1,7 @@
 <script>
   import Modal from './Modal.svelte';
   import { t } from '../lib/i18n.js';
+  import { REPORT_STATUS_KEYS, statusLabel } from '../lib/status.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
   import { subscribe } from '../lib/events.js';
 
@@ -15,7 +16,6 @@
     onretry,
   } = $props();
 
-  const GROUP_ORDER = ['playing', 'finished', 'stalled', 'dropped', 'wishlist'];
 
   let choices = $state({});
   let picked = $state({});
@@ -140,12 +140,12 @@
 
   function groupedCreates() {
     if (!plan) return [];
-    const buckets = new Map(GROUP_ORDER.map((key) => [key, []]));
+    const buckets = new Map(REPORT_STATUS_KEYS.map((key) => [key, []]));
     for (const c of plan.creates) {
       if (!buckets.has(c.status)) buckets.set(c.status, []);
       buckets.get(c.status).push(c);
     }
-    return GROUP_ORDER.filter((key) => buckets.get(key).length).map((key) => ({
+    return REPORT_STATUS_KEYS.filter((key) => buckets.get(key).length).map((key) => ({
       status: key,
       items: buckets.get(key),
     }));
@@ -206,7 +206,7 @@
   }
 
   function statusText(s) {
-    return s ? t(`status.${s}`) : '—';
+    return s ? statusLabel(s) : '—';
   }
 
   function ratingText(v) {
@@ -234,7 +234,7 @@
       else if (p.rating !== undefined) rated.push(p);
     }
     const ordered = (buckets) =>
-      GROUP_ORDER.filter((key) => buckets.get(key)?.length).map((key) => ({
+      REPORT_STATUS_KEYS.filter((key) => buckets.get(key)?.length).map((key) => ({
         status: key,
         items: buckets.get(key),
       }));

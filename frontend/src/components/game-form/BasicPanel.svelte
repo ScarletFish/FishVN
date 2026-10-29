@@ -1,25 +1,25 @@
 <script>
   import { t } from '../../lib/i18n.js';
   import { clampRating, cleanRating, toNumber } from '../../lib/form-metadata.js';
+  import { DEFAULT_STATUS, statusOptions } from '../../lib/status.js';
   import PlaytimeField from '../PlaytimeField.svelte';
   import SelectDd from '../SelectDd.svelte';
 
   let {
     name = $bindable(''),
-    status = $bindable('wishlist'),
+    status = $bindable(DEFAULT_STATUS),
     statusOpen = $bindable(false),
     userRating = $bindable(null),
     userRatingDraft = $bindable(''),
     notes = $bindable(''),
     description = $bindable(''),
-    error = '',
+    nameError = '',
     saving = false,
     gameId = null,
     inputEl = $bindable(null),
   } = $props();
 
-  const STATUS_KEYS = ['playing', 'wishlist', 'finished', 'stalled', 'dropped'];
-  const STATUS_OPTIONS = STATUS_KEYS.map((key) => ({ value: key, label: t(`status.${key}`) }));
+  const STATUS_OPTIONS = statusOptions();
 
   function stepRating(delta) {
     const current = userRating ?? 0;
@@ -61,8 +61,8 @@
       placeholder={t('gameForm.namePlaceholder')}
       disabled={saving}
     />
-    {#if error}
-      <p class="form-hint form-hint--error">{error}</p>
+    {#if nameError}
+      <p class="form-hint form-hint--error">{nameError}</p>
     {/if}
   </div>
 

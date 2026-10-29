@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
+  import { HOME_STATUS_KEYS, statusLabel } from '../lib/status.js';
   import { confirm } from '../lib/confirm.svelte.js';
   import { durationText } from '../lib/playtime.js';
   import { coverSrc } from '../lib/cover-src.js';
@@ -21,7 +22,6 @@
 
   let { onopen, scroll = 0 } = $props();
 
-  const LOCAL_STATUSES = ['playing', 'wishlist', 'finished'];
 
   let layout = $state([]);
   let stats = $state(null);
@@ -44,9 +44,9 @@
   const byName = (a, b) => a.name.localeCompare(b.name, 'zh-CN');
 
   const localSections = $derived(
-    LOCAL_STATUSES.map((status) => ({
+    HOME_STATUS_KEYS.map((status) => ({
       status,
-      label: t(`status.${status}`),
+      label: statusLabel(status),
       items: games
         .filter(
           (game) => game.status === status && (includeUninstalled || game.installation_count > 0)

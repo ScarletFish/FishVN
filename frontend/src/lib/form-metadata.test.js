@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   buildMetadataPatch,
+  buildStatePatch,
   clampRating,
   cleanRating,
   lengthMinutesRejected,
@@ -148,4 +149,23 @@ test('只有空白与全角空格的字段算空', () => {
   const patch = buildMetadataPatch(fields);
   expect(patch.alias).toBeNull();
   expect(patch.description).toBeNull();
+});
+
+/** 回车提交时输入框未失焦，blur 的钳制不会触发，所以写库前必须再钳一次 */
+test('状态补丁钳制越界评分', () => {
+  const base = { status: 'playing', notes: ' ' };
+  expect(buildStatePatch({ ...base, userRating: 9999 }).user_rating).toBe(100);
+  expect(buildStatePatch({ ...base, userRating: -3 }).user_rating).toBe(0);
+  expect(buildStatePatch({ ...base, userRating: 87.64 }).user_rating).toBe(87.6);
+  expect(buildStatePatch({ ...base, userRating: null }).user_rating).toBeNull();
+  expect(buildStatePatch({ ...base, userRating: 0 }).user_rating).toBe(0);
+});
+
+test('状态补丁去空白，空笔记归 null', () => {
+  expect(buildStatePatch({ status: 'wishlist', userRating: null, notes: ' 好 ' })).toEqual({
+    status: 'wishlist',
+    user_rating: null,
+    notes: '好',
+  });
+  expect(buildStatePatch({ status: 'wishlist', userRating: 1, notes: '   ' }).notes).toBeNull();
 });

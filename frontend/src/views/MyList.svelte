@@ -2,6 +2,7 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
+  import { STATUS_KEYS, statusLabel } from '../lib/status.js';
   import { getScrollViewport } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { confirm } from '../lib/confirm.svelte.js';
@@ -22,7 +23,6 @@
 
   let { onopen, scroll = 0, filter = $bindable('all') } = $props();
 
-  const STATUS_ORDER = ['playing', 'wishlist', 'finished', 'stalled', 'dropped'];
 
   let games = $state([]);
   let loading = $state(true);
@@ -150,7 +150,7 @@
 
   const counts = $derived.by(() => {
     const all = { all: games.length };
-    for (const s of STATUS_ORDER) all[s] = 0;
+    for (const s of STATUS_KEYS) all[s] = 0;
     for (const g of games) if (all[g.status] != null) all[g.status]++;
     return all;
   });
@@ -160,9 +160,9 @@
   );
 
   const sections = $derived(
-    STATUS_ORDER.map((status) => ({
+    STATUS_KEYS.map((status) => ({
       status,
-      label: t(`status.${status}`),
+      label: statusLabel(status),
       items: filtered.filter((g) => g.status === status),
     })).filter((s) => s.items.length > 0)
   );
@@ -203,13 +203,13 @@
         class:active={filter === 'all'}
         onclick={() => (filter = 'all')}
       ><b>{counts.all}</b>{t('mylist.filter.all')}</button>
-      {#each STATUS_ORDER as status (status)}
+      {#each STATUS_KEYS as status (status)}
         <button
           type="button"
           class="mylist-status-item"
           class:active={filter === status}
           onclick={() => (filter = status)}
-        ><b>{counts[status]}</b>{t(`status.${status}`)}</button>
+        ><b>{counts[status]}</b>{statusLabel(status)}</button>
       {/each}
     </div>
   {/if}
@@ -278,7 +278,7 @@
     </div>
   {:else if filtered.length === 0}
     <div class="mylist-empty">
-      <p>{t('mylist.emptyFiltered', { label: t(`status.${filter}`) })}</p>
+      <p>{t('mylist.emptyFiltered', { label: filter === 'all' ? t('mylist.filter.all') : statusLabel(filter) })}</p>
     </div>
   {:else}
     {#each sections as section (section.status)}

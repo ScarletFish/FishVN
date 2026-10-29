@@ -45,6 +45,18 @@ export function lengthMinutesRejected(raw) {
   return Boolean(raw.trim()) && (minutes === null || minutes < 0);
 }
 
+/**
+ * 状态补丁：写入前的最后一次归一化。
+ * 评分的钳制不能只靠输入框失焦——回车提交时焦点还在框里，blur 不会触发。
+ */
+export function buildStatePatch({ status, userRating, notes }) {
+  return {
+    status,
+    user_rating: userRating === null ? null : clampRating(userRating),
+    notes: (notes ?? '').trim() || null,
+  };
+}
+
 export function buildMetadataPatch(fields) {
   return {
     alias: fields.alias.trim() || null,
