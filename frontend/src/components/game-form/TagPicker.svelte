@@ -4,6 +4,8 @@
 
   let {
     items = [],
+    libraryItems = null,
+    allItems = null,
     selected = [],
     groupOrder = [],
     allowCustom = false,
@@ -19,12 +21,17 @@
 
   let query = $state('');
   let searchEl = $state(null);
+  let scope = $state('library');
+
+  const swappable = $derived(Boolean(libraryItems && allItems));
+  const source = $derived(scope === 'all' && allItems ? allItems : (libraryItems ?? items));
+  const scopeCount = $derived(source.length);
 
   const selectedKeys = $derived(new Set(selected));
 
   const matches = $derived.by(() => {
     const q = query.trim().toLowerCase();
-    return items
+    return source
       .filter((item) => !q || item.label.toLowerCase().includes(q))
       .sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || a.label.localeCompare(b.label));
   });
@@ -46,7 +53,15 @@
     allowCustom &&
       Boolean(freeName) &&
       !selectedKeys.has(freeName) &&
-      !items.some((item) => item.label.toLowerCase() === freeName.toLowerCase())
+      !source.some((item) => item.label.toLowerCase() === freeName.toLowerCase())
+  );
+
+  const emptyNote = $derived(
+    freeName
+      ? t('tagPicker.noMatch')
+      : swappable && scope === 'library'
+        ? t('tagPicker.emptyLibrary')
+        : emptyText || t('tagPicker.empty')
   );
 
   $effect(() => {
@@ -78,6 +93,23 @@
           autocomplete="off"
           disabled={saving}
         />
+        {#if swappable}
+          <div class="tag-picker__scope">
+            <span class="tag-picker__scope-count">
+              {scope === 'all'
+                ? t('tagPicker.scopeAll', { n: scopeCount })
+                : t('tagPicker.scopeLibrary', { n: scopeCount })}
+            </span>
+            <button
+              type="button"
+              class="tag-picker__scope-switch"
+              onclick={() => (scope = scope === 'all' ? 'library' : 'all')}
+              disabled={saving}
+            >
+              {scope === 'all' ? t('tagPicker.switchLibrary') : t('tagPicker.switchAll')}
+            </button>
+          </div>
+        {/if}
       </div>
 
       <div class="tag-picker__body" use:panelScrollbars>
@@ -89,9 +121,7 @@
           {/if}
 
           {#if groups.length === 0}
-            <p class="tag-picker__note">
-              {freeName ? t('tagPicker.noMatch') : emptyText || t('tagPicker.empty')}
-            </p>
+            <p class="tag-picker__note">{emptyNote}</p>
           {:else}
             {#each groups as group (group[0] ?? '__all__')}
               <section class="tag-picker__group">

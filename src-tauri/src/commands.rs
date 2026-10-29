@@ -7,7 +7,7 @@ use tauri::{Emitter, Manager, State};
 use crate::backfill;
 use crate::backup;
 use crate::characters;
-use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, LibraryTag, PlaytimeRank, RecentPlay, TagCloudView};
+use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, LibraryTag, LibraryTrait, PlaytimeRank, RecentPlay, TagCloudView};
 use crate::db;
 use crate::error::{AppError, Result};
 use crate::games;
@@ -72,6 +72,11 @@ pub fn library_tags(shared: Shared<'_>) -> Result<Vec<LibraryTag>> {
         config.spoiler_level,
         &config.excluded_tags,
     )
+}
+
+#[tauri::command]
+pub fn library_traits(shared: Shared<'_>) -> Result<Vec<LibraryTrait>> {
+    dashboard::library_traits(&*lock(&shared)?)
 }
 
 #[tauri::command]

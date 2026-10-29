@@ -8,7 +8,6 @@
     label,
     browseText,
     placeholder,
-    addText,
     emptyText,
     removeText,
     resolve,
@@ -62,10 +61,6 @@
       e.currentTarget.blur();
       return;
     }
-    if (e.key === 'Backspace' && !draft && items.length) {
-      e.preventDefault();
-      removeItem(items[items.length - 1]);
-    }
   }
 
   function removeItem(item) {
@@ -117,23 +112,13 @@
       {/each}
     </div>
   </div>
-  <div class="tag-field__foot">
-    <input
-      class="tag-input__new"
-      type="text"
-      bind:value={draft}
-      onkeydown={onKeydown}
-      {placeholder}
-      aria-label={label}
-      {disabled}
-    />
-    <button
-      type="button"
-      class="btn btn-ghost"
-      onclick={addItem}
-      disabled={disabled || !draft.trim()}
-    >
-      {addText}
-    </button>
-  </div>
+  <input
+    class="tag-input__new"
+    type="text"
+    bind:value={draft}
+    onkeydown={onKeydown}
+    {placeholder}
+    aria-label={label}
+    {disabled}
+  />
 </div>

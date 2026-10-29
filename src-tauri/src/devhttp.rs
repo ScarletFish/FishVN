@@ -160,6 +160,7 @@ handler!(library_tags, |c, _a| {
     let config = settings::current();
     dashboard::library_tags(c, config.hide_r18_tags, config.spoiler_level, &config.excluded_tags)
 });
+handler!(library_traits, |c, _a| dashboard::library_traits(c));
 handler!(dashboard_monthly_activity, |c, a| {
     dashboard::monthly_activity(c, a.months.unwrap_or(12))
 });
@@ -520,6 +521,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/dashboard_recent", post(dashboard_recent))
         .route("/dashboard_tag_cloud", post(dashboard_tag_cloud))
         .route("/library_tags", post(library_tags))
+        .route("/library_traits", post(library_traits))
         .route("/dashboard_monthly_activity", post(dashboard_monthly_activity))
         .route("/dashboard_playtime_top", post(dashboard_playtime_top))
         .route("/dashboard_release_eras", post(dashboard_release_eras))
@@ -573,6 +575,7 @@ pub const COMMANDS: &[&str] = &[
     "dashboard_recent",
     "dashboard_tag_cloud",
     "library_tags",
+    "library_traits",
     "dashboard_monthly_activity",
     "dashboard_playtime_top",
     "dashboard_release_eras",

@@ -55,12 +55,16 @@
   let artUrls = $state({});
   let vaDraft = $state('');
   let vaOpen = $state(false);
+  let vaField = $state(null);
+  let vaEntry = $state(null);
   let portraitError = $state('');
   let genderOpen = $state(false);
   let roleOpen = $state(false);
   let bloodOpen = $state(false);
   let aliasDraft = $state('');
   let aliasOpen = $state(false);
+  let aliasField = $state(null);
+  let aliasEntry = $state(null);
   let traitDraft = $state('');
 
   const selected = $derived(characters.find((c) => c.id === selectedId) ?? null);
@@ -264,6 +268,30 @@
     const next = [...characters[selectedIndex].va, { ...blankVa(), name: value }];
     characters = characters.map((c, i) => (i === selectedIndex ? { ...c, va: next } : c));
     vaDraft = '';
+    vaField?.focus();
+  }
+
+  async function openVoice() {
+    vaOpen = true;
+    await tick();
+    vaField?.focus();
+  }
+
+  async function closeVoice() {
+    vaOpen = false;
+    vaDraft = '';
+    await tick();
+    vaEntry?.focus();
+  }
+
+  function onVoiceBlur() {
+    if (!vaDraft.trim()) vaOpen = false;
+  }
+
+  function revealVoice(e) {
+    if (e.target.closest('button, input, .tag-pill')) return;
+    if (vaOpen) vaField?.focus();
+    else openVoice();
   }
 
   function onVaKeydown(e) {
@@ -274,8 +302,7 @@
     }
     if (e.key === 'Escape') {
       e.preventDefault();
-      vaDraft = '';
-      vaOpen = false;
+      closeVoice();
     }
   }
 
@@ -293,15 +320,39 @@
       characters = characters.map((c, i) => (i === selectedIndex ? { ...c, aliases: next } : c));
     }
     aliasDraft = '';
+    aliasField?.focus();
   }
+
+  async function openAlias() {
+    aliasOpen = true;
+    await tick();
+    aliasField?.focus();
+  }
+
+  async function closeAlias() {
+    aliasOpen = false;
+    aliasDraft = '';
+    await tick();
+    aliasEntry?.focus();
+  }
+
+  function onAliasBlur() {
+    if (!aliasDraft.trim()) aliasOpen = false;
+  }
+
+  function revealAlias(e) {
+    if (e.target.closest('button, input, .tag-pill')) return;
+    if (aliasOpen) aliasField?.focus();
+    else openAlias();
+  }
+
   function onAliasKeydown(e) {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       addAlias();
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      aliasDraft = '';
-      aliasOpen = false;
+      closeAlias();
     }
   }
   function removeAlias(name) {
@@ -579,8 +630,9 @@
         </div>
 
         <div class="form-group">
-          <label for="char-va">{t('gameForm.field.charVoice')}</label>
-          <div class="tag-input" use:panelScrollbars>
+          <div class="form-label">{t('gameForm.field.charVoice')}</div>
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="tag-input" use:panelScrollbars onpointerdown={revealVoice}>
             <div class="tag-input__flow">
               {#each selected.va as entry (entry.key)}
                 <span class="tag-pill">
@@ -601,37 +653,41 @@
                   </button>
                 </span>
               {/each}
-              <button
-                type="button"
-                class="tag-input__add"
-                aria-expanded={vaOpen}
-                aria-label={t('gameForm.action.addVoice')}
-                onclick={() => (vaOpen = !vaOpen)}
-                {disabled}
-              >
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
+              {#if vaOpen}
+                <input
+                  bind:this={vaField}
+                  class="tag-input__field"
+                  type="text"
+                  bind:value={vaDraft}
+                  onkeydown={onVaKeydown}
+                  onblur={onVoiceBlur}
+                  placeholder={t('gameForm.placeholder.charVoice')}
+                  aria-label={t('gameForm.field.charVoice')}
+                  {disabled}
+                />
+              {:else}
+                <button
+                  type="button"
+                  class="tag-input__entry"
+                  bind:this={vaEntry}
+                  onclick={openVoice}
+                  {disabled}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  {t('gameForm.action.addVoice')}
+                </button>
+              {/if}
             </div>
           </div>
-          {#if vaOpen}
-            <input
-              id="char-va"
-              class="tag-input__new"
-              type="text"
-              bind:value={vaDraft}
-              onkeydown={onVaKeydown}
-              placeholder={t('gameForm.placeholder.charVoice')}
-              {disabled}
-            />
-          {/if}
         </div>
 
         <div class="form-group">
-          <label for="char-aliases">{t('gameForm.field.charAliases')}</label>
-          <div class="tag-input" use:panelScrollbars>
+          <div class="form-label">{t('gameForm.field.charAliases')}</div>
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="tag-input" use:panelScrollbars onpointerdown={revealAlias}>
             <div class="tag-input__flow">
               {#each selected.aliases as name (name)}
                 <span class="tag-pill">
@@ -651,32 +707,35 @@
                   </button>
                 </span>
               {/each}
-              <button
-                type="button"
-                class="tag-input__add"
-                aria-expanded={aliasOpen}
-                aria-label={t('gameForm.action.addAlias')}
-                onclick={() => (aliasOpen = !aliasOpen)}
-                {disabled}
-              >
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
+              {#if aliasOpen}
+                <input
+                  bind:this={aliasField}
+                  class="tag-input__field"
+                  type="text"
+                  bind:value={aliasDraft}
+                  onkeydown={onAliasKeydown}
+                  onblur={onAliasBlur}
+                  placeholder={t('gameForm.placeholder.charAliases')}
+                  aria-label={t('gameForm.field.charAliases')}
+                  {disabled}
+                />
+              {:else}
+                <button
+                  type="button"
+                  class="tag-input__entry"
+                  bind:this={aliasEntry}
+                  onclick={openAlias}
+                  {disabled}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  {t('gameForm.action.addAlias')}
+                </button>
+              {/if}
             </div>
           </div>
-          {#if aliasOpen}
-            <input
-              id="char-aliases"
-              class="tag-input__new"
-              type="text"
-              bind:value={aliasDraft}
-              onkeydown={onAliasKeydown}
-              placeholder={t('gameForm.placeholder.charAliases')}
-              {disabled}
-            />
-          {/if}
         </div>
 
         <TagField
@@ -690,7 +749,6 @@
           label={t('gameForm.field.charTraits')}
           browseText={t('gameForm.action.browseTraits')}
           placeholder={t('gameForm.placeholder.charTraits')}
-          addText={t('gameForm.action.addTrait')}
           emptyText={t('gameForm.placeholder.noTraits')}
           removeText={t('gameForm.action.removeTrait')}
           resolve={resolveTrait}

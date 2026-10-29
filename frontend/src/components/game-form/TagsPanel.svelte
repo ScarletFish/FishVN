@@ -109,7 +109,6 @@
   label={t('gameForm.field.tags')}
   browseText={t('gameForm.action.browseTags')}
   placeholder={t('gameForm.placeholder.tags')}
-  addText={t('gameForm.action.addTag')}
   emptyText={t('gameForm.placeholder.noTags')}
   removeText={t('gameForm.action.removeTag')}
   resolve={resolveTag}

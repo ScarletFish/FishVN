@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::error::Result;
 use crate::settings::{SpoilerLevel, TimeMetric};
 use crate::tagdict::{self, TagScope};
-use crate::types::MetadataTag;
+use crate::types::{CharacterTrait, MetadataTag};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -164,6 +164,48 @@ pub fn library_tags(
         .collect();
     pool.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
     Ok(pool)
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LibraryTrait {
+    pub id: Option<String>,
+    pub name: String,
+    pub group: Option<String>,
+    pub count: i64,
+}
+
+pub fn library_traits(conn: &Connection) -> Result<Vec<LibraryTrait>> {
+    let mut counts: HashMap<String, LibraryTrait> = HashMap::new();
+    for traits in iter_character_traits(conn)? {
+        for tr in traits {
+            let Some(key) = tr.id.clone().or_else(|| tr.name.clone()).filter(|k| !k.is_empty()) else {
+                continue;
+            };
+            let entry = counts.entry(key).or_insert_with(|| LibraryTrait {
+                id: tr.id.clone(),
+                name: tr.name.clone().unwrap_or_default(),
+                group: tr.group_name.clone(),
+                count: 0,
+            });
+            entry.count += 1;
+        }
+    }
+    let mut out: Vec<LibraryTrait> = counts.into_values().collect();
+    out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
+    Ok(out)
+}
+
+fn iter_character_traits(conn: &Connection) -> Result<Vec<Vec<CharacterTrait>>> {
+    let mut stmt = conn.prepare("SELECT traits FROM characters WHERE traits IS NOT NULL")?;
+    let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
+    let mut out = Vec::new();
+    for row in rows {
+        let Some(text) = row? else { continue };
+        if let Ok(traits) = serde_json::from_str::<Vec<CharacterTrait>>(&text) {
+            out.push(traits);
+        }
+    }
+    Ok(out)
 }
 
 pub fn tag_cloud(
@@ -789,5 +831,50 @@ mod tests {
         set_released(&conn, &a, "abcd");
         let eras = release_eras(&conn).unwrap();
         assert_eq!(eras.iter().map(|e| e.count).sum::<i64>(), 0);
+    }
+
+    fn add_character_traits(conn: &Connection, game: &str, id: &str, traits: &str) {
+        conn.execute(
+            "INSERT INTO characters (game_id, id, name, traits) VALUES (?1, ?2, ?2, ?3)",
+            rusqlite::params![game, id, traits],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn 库内特征按出现次数聚合() {
+        let conn = db();
+        let game = make_game(&conn, "测试");
+        add_character_traits(
+            &conn,
+            &game,
+            "c1",
+            r#"[{"id":"i4","name":"黑色","group_name":"头发"},{"id":"i2","name":"长发","group_name":"头发"}]"#,
+        );
+        add_character_traits(
+            &conn,
+            &game,
+            "c2",
+            r#"[{"id":"i4","name":"黑色","group_name":"头发"},{"name":"自定义"}]"#,
+        );
+
+        let out = library_traits(&conn).unwrap();
+        assert_eq!(out.len(), 3);
+        assert_eq!(
+            out.iter().map(|t| (t.name.as_str(), t.count)).collect::<Vec<_>>(),
+            vec![("黑色", 2), ("自定义", 1), ("长发", 1)]
+        );
+        assert_eq!(out[0].group.as_deref(), Some("头发"));
+        assert_eq!(out[0].id.as_deref(), Some("i4"));
+        assert_eq!(out[1].id, None);
+    }
+
+    #[test]
+    fn 库内特征跳过无法解析的条目() {
+        let conn = db();
+        let game = make_game(&conn, "测试");
+        add_character_traits(&conn, &game, "c1", "坏数据");
+        add_character_traits(&conn, &game, "c2", r#"[{"name":""}]"#);
+        assert!(library_traits(&conn).unwrap().is_empty());
     }
 }

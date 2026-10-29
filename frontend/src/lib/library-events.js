@@ -1,11 +1,17 @@
 export const LIBRARY_TAGS_CHANGED = 'fishvn:library-tags-changed';
 
+export const LIBRARY_TRAITS_CHANGED = 'fishvn:library-traits-changed';
+
 export const LIBRARY_ITEM_UPDATED = 'fishvn:library-item-updated';
 
 export const LIBRARY_CHANGED = 'fishvn:library-changed';
 
 export function notifyLibraryTagsChanged() {
   window.dispatchEvent(new CustomEvent(LIBRARY_TAGS_CHANGED));
+}
+
+export function notifyLibraryTraitsChanged() {
+  window.dispatchEvent(new CustomEvent(LIBRARY_TRAITS_CHANGED));
 }
 
 export function notifyLibraryItemUpdated(gameId) {

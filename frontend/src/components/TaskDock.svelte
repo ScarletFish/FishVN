@@ -5,7 +5,12 @@
   import { api } from '../lib/api.js';
   import { subscribe } from '../lib/events.js';
   import { t } from '../lib/i18n.js';
-  import { notifyLibraryChanged, notifyLibraryItemUpdated, notifyLibraryTagsChanged } from '../lib/library-events.js';
+  import {
+    notifyLibraryChanged,
+    notifyLibraryItemUpdated,
+    notifyLibraryTagsChanged,
+    notifyLibraryTraitsChanged,
+  } from '../lib/library-events.js';
   import { portal } from '../lib/portal.js';
   import { BACKFILL_REFRESH } from '../lib/task-events.js';
   import { backfillSummaryText } from '../lib/backfill-summary.js';
@@ -74,6 +79,7 @@
         dock = markFinished(dock, s.finished);
         notifyLibraryChanged();
         notifyLibraryTagsChanged();
+        notifyLibraryTraitsChanged();
         if (hidden) toast(backfillSummaryText(s.finished), 'success');
         else if (closedRun !== dock.runId) armHideTimer();
       }

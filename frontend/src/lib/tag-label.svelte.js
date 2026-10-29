@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { setTagGroups } from './tag-order.svelte.js';
+import { setTagGroups, tagCategory } from './tag-order.svelte.js';
 import { getLibraryTags } from './library-tags.svelte.js';
 
 let tags = $state({});
@@ -43,6 +43,16 @@ export function tagKeyLabel(key) {
 
 export function traitLabel(trait) {
   return labelOf(traits, trait);
+}
+
+export function allTagItems() {
+  return Object.entries(tags).map(([id, name]) => ({
+    key: id,
+    label: name,
+    group: tagCategory(id),
+    count: null,
+    raw: { id, tag: name },
+  }));
 }
 
 export function getTraitDict() {

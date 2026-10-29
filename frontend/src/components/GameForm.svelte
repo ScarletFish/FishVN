@@ -24,8 +24,8 @@
   import { toast } from '../lib/toast.svelte.js';
   import { confirm } from '../lib/confirm.svelte.js';
   import { quitGuard } from '../lib/quit-guard.svelte.js';
-  import { notifyLibraryChanged, notifyLibraryTagsChanged } from '../lib/library-events.js';
-  import { tagKey, loadTagDict, traitItems } from '../lib/tag-label.svelte.js';
+  import { notifyLibraryChanged, notifyLibraryTagsChanged, notifyLibraryTraitsChanged } from '../lib/library-events.js';
+  import { tagKey, allTagItems, loadTagDict, traitItems } from '../lib/tag-label.svelte.js';
 
   const TRAIT_GROUP_ORDER = [
     'Hair',
@@ -39,6 +39,7 @@
     'Subject of',
   ];
   import { toTagItems, loadLibraryTags } from '../lib/library-tags.svelte.js';
+  import { toTraitItems, loadLibraryTraits } from '../lib/library-traits.svelte.js';
   import BasicPanel from './game-form/BasicPanel.svelte';
   import ProfilePanel from './game-form/ProfilePanel.svelte';
   import TagsPanel from './game-form/TagsPanel.svelte';
@@ -119,6 +120,10 @@
   }
 
   const customTagNames = $derived(tags.filter((tag) => !tag.id).map((tag) => tag.name));
+
+  const customTagItems = $derived(
+    customTagNames.map((name) => ({ key: name, label: name, group: null, count: null, raw: { name } }))
+  );
 
   const selectedTraits = $derived(
     characters.find((c) => c.id === selectedCharId)?.traits ?? []
@@ -472,6 +477,7 @@
       open = false;
       notifyLibraryChanged();
       notifyLibraryTagsChanged();
+      notifyLibraryTraitsChanged();
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -553,6 +559,7 @@
           {saving}
           onbrowse={() => {
             loadLibraryTags();
+            loadTagDict();
             asideMode = 'tags';
             asideOpen = true;
           }}
@@ -579,6 +586,7 @@
           disabled={saving}
           onTraitBrowse={() => {
             loadTagDict();
+            loadLibraryTraits();
             asideMode = 'traits';
             asideOpen = true;
           }}
@@ -611,10 +619,8 @@
   {#snippet aside()}
     {#if asideMode === 'tags'}
       <TagPicker
-        items={[
-          ...toTagItems(),
-          ...customTagNames.map((name) => ({ key: name, label: name, group: null, raw: { name } })),
-        ]}
+        libraryItems={[...customTagItems, ...toTagItems()]}
+        allItems={[...customTagItems, ...allTagItems()]}
         selected={tags.map(tagKey)}
         groupOrder={TAG_GROUP_ORDER}
         hiddenGroups={['tech']}
@@ -626,7 +632,8 @@
       />
     {:else if asideMode === 'traits'}
       <TagPicker
-        items={[...customTraitItems, ...traitItems()]}
+        libraryItems={[...customTraitItems, ...toTraitItems()]}
+        allItems={[...customTraitItems, ...traitItems()]}
         selected={selectedTraits.map((tr) => tr.id ?? tr.name)}
         groupOrder={TRAIT_GROUP_ORDER}
         groupLabel={(g) => t('detail.traitGroups.' + g)}
