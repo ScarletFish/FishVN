@@ -47,6 +47,20 @@ def accepted(zh):
     return zh.strip().lower() in ASCII_TERMS
 
 
+def root_group(it, byid):
+    """沿 parents 走到顶层根分组，返回其英文名（与 VNDB 同步的 group_name 一致）。"""
+    cur = it
+    for _ in range(12):
+        parents = cur.get("parents") or []
+        if not parents:
+            return cur["name"]
+        nxt = parents[0]
+        if nxt not in byid or nxt == cur["id"]:
+            return cur["name"]
+        cur = byid[nxt]
+    return cur["name"]
+
+
 def build(items, gap, trans, label, prefix):
     out = {}
     name_hit = alias_hit = gap_hit = ascii_hit = 0
@@ -80,9 +94,43 @@ def build(items, gap, trans, label, prefix):
     return out
 
 
+def build_traits(items, gap, trans, byid):
+    out = {}
+    name_hit = alias_hit = gap_hit = ascii_hit = 0
+    for it in items:
+        if not it.get("applicable"):
+            continue
+        name = it.get("name", "")
+        aliases = it.get("aliases") or []
+        if name in gap:
+            zh = gap[name]
+            gap_hit += 1
+        elif name in trans:
+            zh = trans[name]
+            name_hit += 1
+        else:
+            hit = next((a for a in aliases if a in trans), None)
+            if hit is None:
+                continue
+            zh = trans[hit]
+            alias_hit += 1
+        if not accepted(zh):
+            continue
+        if all(ord(ch) <= 127 for ch in zh):
+            ascii_hit += 1
+        out[f"i{it['id']}"] = {"name": zh, "group": root_group(it, byid)}
+    print(
+        f"traits: {len(out)}/{sum(1 for x in items if x.get('applicable'))} applicable "
+        f"(gap-fill {gap_hit} / name {name_hit} / alias {alias_hit}"
+        f"{f', ascii-term {ascii_hit}' if ascii_hit else ''})"
+    )
+    return out
+
+
 def main():
     tags = load_gz(os.path.join(PROJ, "tags.json.gz"))
     traits = load_gz(os.path.join(PROJ, "traits.json.gz"))
+    byid = {it["id"]: it for it in traits}
     trans = json.load(open(TRANS, encoding="utf-8"))
     gap = json.load(open(GAP, encoding="utf-8")) if os.path.exists(GAP) else {}
     if gap:
@@ -90,7 +138,7 @@ def main():
 
     result = {
         "tags": build(tags, gap, trans, "tags", "g"),
-        "traits": build(traits, gap, trans, "traits", "i"),
+        "traits": build_traits(traits, gap, trans, byid),
     }
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, separators=(",", ":"))

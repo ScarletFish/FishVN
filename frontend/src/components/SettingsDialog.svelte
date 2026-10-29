@@ -21,7 +21,7 @@
   import { DASHBOARD_MODULES, moveModule, setModuleEnabled, reorderModule } from '../lib/dashboard-layout.js';
   import { notifyConfigChanged } from '../lib/config-events.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
-  import { loadLibraryTags } from '../lib/library-tags.svelte.js';
+  import { loadLibraryTags, toTagItems } from '../lib/library-tags.svelte.js';
   import { tagKeyLabel } from '../lib/tag-label.svelte.js';
   import TagPicker from './game-form/TagPicker.svelte';
   import SyncResultDialog from './SyncResultDialog.svelte';
@@ -42,6 +42,7 @@
   let spoilerLevel = $state('hide_all');
   let excludedTags = $state([]);
   let poolOpen = $state(false);
+  const TAG_GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
   let layout = $state([]);
   let includeUninstalled = $state(true);
 
@@ -504,11 +505,13 @@
 >
   {#snippet aside()}
     <TagPicker
+      items={toTagItems()}
       selected={excludedTags}
-      includeHidden={false}
+      groupOrder={TAG_GROUP_ORDER}
+      hiddenGroups={['tech']}
       emptyText={t('settings.excludedPoolEmpty')}
-      ontoggle={toggleExcludedTag}
-      onclose={() => (poolOpen = false)}
+      onToggle={toggleExcludedTag}
+      onClose={() => (poolOpen = false)}
     />
   {/snippet}
 
@@ -823,7 +826,10 @@
           <button
             type="button"
             class="btn tag-field__browse"
-            onclick={() => (poolOpen = true)}
+            onclick={() => {
+              loadLibraryTags();
+              poolOpen = true;
+            }}
           >
             {t('settings.excludedBrowse')}
           </button>

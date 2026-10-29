@@ -12,8 +12,10 @@
     moveCharacters,
   } from '../lib/characters.js';
   import SelectDd from './SelectDd.svelte';
+  import TagField from './TagField.svelte';
+  import { traitLabel, getTraitDict } from '../lib/tag-label.svelte.js';
 
-  let { characters = $bindable([]), disabled = false } = $props();
+  let { characters = $bindable([]), disabled = false, onTraitBrowse, selectedId = $bindable(null) } = $props();
 
   const GENDERS = ['f', 'm', 't', 'i'];
   const ROLES = ['main', 'primary', 'side', 'appears'];
@@ -34,18 +36,45 @@
     ...ROLES.map((key) => ({ value: key, label: roleLabel(key) })),
   ];
 
+  const BLOOD_TYPES = ['A', 'B', 'AB', 'O'];
+  function bloodLabel(value) {
+    return value
+      ? t(`detail.bloodType.${String(value).toLowerCase()}`)
+      : t('gameForm.placeholder.charBloodTypeEmpty');
+  }
+  const BLOOD_OPTIONS = [
+    { value: '', label: bloodLabel('') },
+    ...BLOOD_TYPES.map((key) => ({ value: key, label: bloodLabel(key) })),
+  ];
+
   let scrollEl = $state(null);
   let dotsHostEl = $state(null);
-  let selectedId = $state(null);
   let artUrls = $state({});
   let vaDraft = $state('');
   let vaOpen = $state(false);
   let portraitError = $state('');
   let genderOpen = $state(false);
   let roleOpen = $state(false);
+  let bloodOpen = $state(false);
+  let aliasDraft = $state('');
+  let aliasOpen = $state(false);
+  let traitDraft = $state('');
 
   const selected = $derived(characters.find((c) => c.id === selectedId) ?? null);
   const selectedIndex = $derived(characters.findIndex((c) => c.id === selectedId));
+
+  const TRAIT_GROUP_ORDER = [
+    'Hair',
+    'Eyes',
+    'Body',
+    'Clothes',
+    'Items',
+    'Personality',
+    'Role',
+    'Engages in',
+    'Subject of',
+    'uncategorized',
+  ];
 
   $effect(() => {
     const ids = characters.map((c) => c.id);
@@ -198,11 +227,13 @@
   }
 
   async function browsePortrait() {
-    if (!selected) return;
+    if (selectedIndex < 0) return;
     portraitError = '';
     try {
       const picked = await pickImage(t('gameForm.field.charPortrait'));
-      if (picked) selected.imagePath = picked;
+      if (picked) {
+        characters = characters.map((c, i) => (i === selectedIndex ? { ...c, imagePath: picked } : c));
+      }
     } catch (err) {
       portraitError = err.message;
     }
@@ -210,8 +241,9 @@
 
   function addVa() {
     const value = vaDraft.trim();
-    if (!value || !selected) return;
-    selected.va = [...selected.va, { ...blankVa(), name: value }];
+    if (!value || selectedIndex < 0) return;
+    const next = [...characters[selectedIndex].va, { ...blankVa(), name: value }];
+    characters = characters.map((c, i) => (i === selectedIndex ? { ...c, va: next } : c));
     vaDraft = '';
   }
 
@@ -229,8 +261,47 @@
   }
 
   function removeVa(key) {
-    if (!selected) return;
-    selected.va = selected.va.filter((entry) => entry.key !== key);
+    if (selectedIndex < 0) return;
+    const next = characters[selectedIndex].va.filter((entry) => entry.key !== key);
+    characters = characters.map((c, i) => (i === selectedIndex ? { ...c, va: next } : c));
+  }
+
+  function addAlias() {
+    const value = aliasDraft.trim();
+    if (!value || selectedIndex < 0) return;
+    if (!characters[selectedIndex].aliases.includes(value)) {
+      const next = [...characters[selectedIndex].aliases, value];
+      characters = characters.map((c, i) => (i === selectedIndex ? { ...c, aliases: next } : c));
+    }
+    aliasDraft = '';
+  }
+  function onAliasKeydown(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addAlias();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      aliasDraft = '';
+      aliasOpen = false;
+    }
+  }
+  function removeAlias(name) {
+    if (selectedIndex < 0) return;
+    const next = characters[selectedIndex].aliases.filter((a) => a !== name);
+    characters = characters.map((c, i) => (i === selectedIndex ? { ...c, aliases: next } : c));
+  }
+
+  function resolveTrait(text) {
+    const q = text.toLowerCase();
+    const dict = getTraitDict();
+    const hit = Object.entries(dict).find(
+      ([id, entry]) => entry?.name?.toLowerCase() === q || id.toLowerCase() === q,
+    );
+    if (hit) {
+      const [id, entry] = hit;
+      return { id, name: entry.name, group_name: entry.group ?? null, spoiler: 0, lie: false };
+    }
+    return { id: null, name: text, group_name: null, spoiler: 0, lie: false };
   }
 
   function toggle(id) {
@@ -381,6 +452,38 @@
             <label for="char-weight">{t('gameForm.field.charWeight')}</label>
             <input id="char-weight" type="text" inputmode="numeric" bind:value={selected.weight} {disabled} />
           </div>
+          <div class="form-group">
+            <label for="char-blood">{t('gameForm.field.charBloodType')}</label>
+            <SelectDd
+              id="char-blood"
+              options={BLOOD_OPTIONS}
+              value={selected.bloodType}
+              open={bloodOpen}
+              onopenchange={(v) => (bloodOpen = v)}
+              onchange={(v) => (selected.bloodType = v)}
+              {disabled}
+            />
+          </div>
+          <div class="form-group">
+            <label for="char-bust">{t('gameForm.field.charBust')}</label>
+            <input id="char-bust" type="text" inputmode="numeric" bind:value={selected.bust} {disabled} />
+          </div>
+          <div class="form-group">
+            <label for="char-waist">{t('gameForm.field.charWaist')}</label>
+            <input id="char-waist" type="text" inputmode="numeric" bind:value={selected.waist} {disabled} />
+          </div>
+          <div class="form-group">
+            <label for="char-hips">{t('gameForm.field.charHips')}</label>
+            <input id="char-hips" type="text" inputmode="numeric" bind:value={selected.hips} {disabled} />
+          </div>
+          <div class="form-group">
+            <label for="char-cup">{t('gameForm.field.charCup')}</label>
+            <input id="char-cup" type="text" bind:value={selected.cup} {disabled} />
+          </div>
+          <div class="form-group">
+            <label for="char-birthday">{t('gameForm.field.charBirthday')}</label>
+            <input id="char-birthday" type="text" bind:value={selected.birthday} {disabled} />
+          </div>
         </div>
 
         <div class="form-group">
@@ -433,6 +536,80 @@
             />
           {/if}
         </div>
+
+        <div class="form-group">
+          <label for="char-aliases">{t('gameForm.field.charAliases')}</label>
+          <div class="tag-input" use:panelScrollbars>
+            <div class="tag-input__flow">
+              {#each selected.aliases as name (name)}
+                <span class="tag-pill">
+                  {name}
+                  <button
+                    type="button"
+                    class="tag-pill__remove"
+                    aria-label={t('gameForm.action.removeAlias')}
+                    onmousedown={(e) => e.preventDefault()}
+                    onclick={() => removeAlias(name)}
+                    {disabled}
+                  >
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </span>
+              {/each}
+              <button
+                type="button"
+                class="tag-input__add"
+                aria-expanded={aliasOpen}
+                aria-label={t('gameForm.action.addAlias')}
+                onclick={() => (aliasOpen = !aliasOpen)}
+                {disabled}
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          {#if aliasOpen}
+            <input
+              id="char-aliases"
+              class="tag-input__new"
+              type="text"
+              bind:value={aliasDraft}
+              onkeydown={onAliasKeydown}
+              placeholder={t('gameForm.placeholder.charAliases')}
+              {disabled}
+            />
+          {/if}
+        </div>
+
+        <TagField
+          items={selected.traits ?? []}
+          onItemsChange={(v) => {
+            if (selectedIndex >= 0) {
+              characters = characters.map((c, i) => (i === selectedIndex ? { ...c, traits: v } : c));
+            }
+          }}
+          bind:draft={traitDraft}
+          label={t('gameForm.field.charTraits')}
+          browseText={t('gameForm.action.browseTraits')}
+          placeholder={t('gameForm.placeholder.charTraits')}
+          addText={t('gameForm.action.addTrait')}
+          emptyText={t('gameForm.placeholder.noTraits')}
+          removeText={t('gameForm.action.removeTrait')}
+          resolve={resolveTrait}
+          keyOf={(tr) => tr.id ?? tr.name}
+          labelOf={traitLabel}
+          groupOf={(tr) => tr.group_name || 'uncategorized'}
+          groupOrder={TRAIT_GROUP_ORDER}
+          groupLabel={(key) => t('detail.traitGroups.' + key)}
+          onbrowse={() => onTraitBrowse?.()}
+          {disabled}
+        />
 
         <div class="form-group form-group--desc">
           <label for="char-description">{t('gameForm.field.charDescription')}</label>
@@ -587,7 +764,7 @@
     flex-direction: column;
     gap: var(--space-4);
     padding: var(--space-4);
-    background: var(--bg-page);
+    background: var(--bg-modal);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
   }

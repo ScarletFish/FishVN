@@ -29,7 +29,20 @@
   import { confirm } from '../lib/confirm.svelte.js';
   import { quitGuard } from '../lib/quit-guard.svelte.js';
   import { notifyLibraryChanged, notifyLibraryTagsChanged } from '../lib/library-events.js';
-  import { tagKey } from '../lib/tag-label.svelte.js';
+  import { tagKey, loadTagDict, traitItems } from '../lib/tag-label.svelte.js';
+
+  const TRAIT_GROUP_ORDER = [
+    'Hair',
+    'Eyes',
+    'Body',
+    'Clothes',
+    'Items',
+    'Personality',
+    'Role',
+    'Engages in',
+    'Subject of',
+  ];
+  import { toTagItems, loadLibraryTags } from '../lib/library-tags.svelte.js';
   import BasicPanel from './game-form/BasicPanel.svelte';
   import ProfilePanel from './game-form/ProfilePanel.svelte';
   import TagsPanel from './game-form/TagsPanel.svelte';
@@ -94,10 +107,21 @@
 
   let asideOpen = $state(false);
   let asideMode = $state('search');
+  let selectedCharId = $state(null);
+  const TAG_GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
   let baseline = $state('');
   const search = createVndbSearch();
 
   const customTagNames = $derived(tags.filter((tag) => !tag.id).map((tag) => tag.name));
+
+  const selectedTraits = $derived(
+    characters.find((c) => c.id === selectedCharId)?.traits ?? []
+  );
+  const customTraitItems = $derived(
+    selectedTraits
+      .filter((tr) => !tr.id)
+      .map((tr) => ({ key: tr.name, label: tr.name, group: null, raw: { id: null, name: tr.name, group: null } }))
+  );
 
   function selectTab(next) {
     tab = next;
@@ -137,6 +161,28 @@
     tags = [...tags, item.id ? { id: item.id, name: item.tag } : { name: item.tag }];
   }
 
+  function toggleTrait(key, raw) {
+    const idx = characters.findIndex((c) => c.id === selectedCharId);
+    if (idx < 0) return;
+    const list = characters[idx].traits ?? [];
+    const next = list.some((tr) => (tr.id ?? tr.name) === key)
+      ? list.filter((tr) => (tr.id ?? tr.name) !== key)
+      : [
+          ...list,
+          { id: raw?.id ?? null, name: raw?.name ?? key, group_name: raw?.group ?? null, spoiler: 0, lie: false },
+        ];
+    characters = characters.map((c, i) => (i === idx ? { ...c, traits: next } : c));
+  }
+
+  function addTraitName(name) {
+    const idx = characters.findIndex((c) => c.id === selectedCharId);
+    if (idx < 0) return;
+    const list = characters[idx].traits ?? [];
+    if (list.some((tr) => (tr.name ?? '').toLowerCase() === name.toLowerCase())) return;
+    const next = [...list, { id: null, name, group_name: null, spoiler: 0, lie: false }];
+    characters = characters.map((c, i) => (i === idx ? { ...c, traits: next } : c));
+  }
+
   $effect(() => {
     if (!open || saving) return;
     baseline = '';
@@ -171,6 +217,7 @@
     staffRoleOpen = null;
     asideOpen = false;
     asideMode = 'search';
+    selectedCharId = null;
     mergeOpen = false;
     mergeRows = [];
     charMergeRows = [];
@@ -440,7 +487,7 @@
   bind:asideOpen
   title={gameId ? t('common.actionEdit') : t('gameForm.title')}
   variant="modal--form"
-  asideTitle={asideMode === 'tags' ? t('tagPicker.title') : t('gameForm.search.title')}
+  asideTitle={asideMode === 'tags' ? t('tagPicker.title') : asideMode === 'traits' ? t('tagPicker.titleTraits') : t('gameForm.search.title')}
   onclose={close}
 >
   <form class="form-panel" onsubmit={submit}>
@@ -504,6 +551,7 @@
           }}
           {saving}
           onbrowse={() => {
+            loadLibraryTags();
             asideMode = 'tags';
             asideOpen = true;
           }}
@@ -523,7 +571,16 @@
       </div>
 
       <div class="modal-panel" class:active={tab === 'characters'}>
-        <CharacterEditor bind:characters disabled={saving} />
+        <CharacterEditor
+          bind:characters
+          bind:selectedId={selectedCharId}
+          disabled={saving}
+          onTraitBrowse={() => {
+            loadTagDict();
+            asideMode = 'traits';
+            asideOpen = true;
+          }}
+        />
       </div>
     </div>
 
@@ -552,13 +609,31 @@
   {#snippet aside()}
     {#if asideMode === 'tags'}
       <TagPicker
+        items={[
+          ...toTagItems(),
+          ...customTagNames.map((name) => ({ key: name, label: name, group: null, raw: { name } })),
+        ]}
         selected={tags.map(tagKey)}
-        extraNames={customTagNames}
+        groupOrder={TAG_GROUP_ORDER}
+        hiddenGroups={['tech']}
         allowCustom
         {saving}
-        ontoggle={toggleTag}
-        onadd={(name) => (tags = [...tags, { name }])}
-        onclose={() => (asideOpen = false)}
+        onToggle={toggleTag}
+        onAdd={(name) => (tags = [...tags, { name }])}
+        onClose={() => (asideOpen = false)}
+      />
+    {:else if asideMode === 'traits'}
+      <TagPicker
+        items={[...customTraitItems, ...traitItems()]}
+        selected={selectedTraits.map((tr) => tr.id ?? tr.name)}
+        groupOrder={TRAIT_GROUP_ORDER}
+        groupLabel={(g) => t('detail.traitGroups.' + g)}
+        allowCustom
+        searchPlaceholder={t('tagPicker.searchTraits')}
+        {saving}
+        onToggle={(key, raw) => toggleTrait(key, raw)}
+        onAdd={(name) => addTraitName(name)}
+        onClose={() => (asideOpen = false)}
       />
     {:else}
       <VndbAside

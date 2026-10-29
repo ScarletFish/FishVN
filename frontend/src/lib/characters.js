@@ -27,6 +27,14 @@ export function blankCharacter() {
     role: '',
     imagePath: '',
     description: '',
+    bloodType: '',
+    birthday: '',
+    cup: '',
+    bust: '',
+    waist: '',
+    hips: '',
+    aliases: [],
+    traits: [],
     va: [],
   };
 }
@@ -44,6 +52,19 @@ export function toDraft(row = {}) {
     role: row.role ?? '',
     imagePath: row.image_path ?? '',
     description: row.description ?? '',
+    bloodType: row.blood_type ?? '',
+    birthday: row.birthday ?? '',
+    cup: row.cup ?? '',
+    bust: numToText(row.bust),
+    waist: numToText(row.waist),
+    hips: numToText(row.hips),
+    aliases: (row.aliases ?? []).slice(),
+    traits: (row.traits ?? []).map((tr) => ({
+      ...tr,
+      id: tr.id ?? null,
+      name: tr.name ?? '',
+      group_name: tr.group_name ?? null,
+    })),
     va: (row.va ?? []).map((entry) => ({
       key: newLocalId(),
       staffId: entry.staff_id ?? '',
@@ -67,6 +88,21 @@ export function toPayload(draft) {
     role: trimToNull(draft.role),
     image_path: trimToNull(draft.imagePath),
     description: trimToNull(draft.description),
+    blood_type: trimToNull(draft.bloodType),
+    birthday: trimToNull(draft.birthday),
+    cup: trimToNull(draft.cup),
+    bust: toInteger(draft.bust),
+    waist: toInteger(draft.waist),
+    hips: toInteger(draft.hips),
+    aliases: (draft.aliases ?? []).map((a) => (a ?? '').trim()).filter(Boolean),
+    traits: (draft.traits ?? [])
+      .filter((tr) => (tr?.name ?? '').trim())
+      .map((tr) => ({
+        ...tr,
+        id: tr.id || null,
+        name: tr.name.trim(),
+        group_name: tr.group_name || null,
+      })),
     va: draft.va.map((entry) => ({
       staff_id: entry.staffId || newLocalId(),
       name: trimToNull(entry.name),

@@ -1,56 +1,44 @@
 <script>
   import { t } from '../../lib/i18n.js';
-  import { getLibraryTags, loadLibraryTags } from '../../lib/library-tags.svelte.js';
-  import { tagKey, tagLabel } from '../../lib/tag-label.svelte.js';
-  import { tagCategory } from '../../lib/tag-order.svelte.js';
   import { panelScrollbars } from '../../lib/scrollbars.js';
 
   let {
+    items = [],
     selected = [],
-    extraNames = [],
-    saving = false,
+    groupOrder = [],
     allowCustom = false,
-    includeHidden = true,
+    hiddenGroups = [],
     emptyText = '',
-    ontoggle,
-    onadd,
-    onclose,
+    saving = false,
+    searchPlaceholder = t('tagPicker.search'),
+    groupLabel = (g) => t('tagPicker.group.' + g),
+    onToggle,
+    onAdd,
+    onClose,
   } = $props();
-
-  const GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
 
   let query = $state('');
   let searchEl = $state(null);
-
-  loadLibraryTags();
 
   const selectedKeys = $derived(new Set(selected));
 
   const matches = $derived.by(() => {
     const q = query.trim().toLowerCase();
-    const hit = (item) =>
-      !q ||
-      tagLabel(item).toLowerCase().includes(q) ||
-      String(item.tag ?? '').toLowerCase().includes(q);
-    const library = getLibraryTags().filter(
-      (item) => includeHidden || tagCategory(item) !== 'tech'
-    );
-    const live = library.filter(hit).sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
-    const owned = new Set(library.flatMap((item) => [tagKey(item), item.tag]).filter(Boolean));
-    const mine = extraNames
-      .filter((name) => !owned.has(name))
-      .map((name) => ({ tag: name, count: null }))
-      .filter(hit);
-    return [...live, ...mine];
+    return items
+      .filter((item) => !q || item.label.toLowerCase().includes(q))
+      .sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || a.label.localeCompare(b.label));
   });
 
   const groups = $derived.by(() => {
-    const buckets = new Map(GROUP_ORDER.map((key) => [key, []]));
-    for (const item of matches) buckets.get(tagCategory(item)).push(item);
-    return GROUP_ORDER.filter((key) => buckets.get(key).length).map((key) => ({
-      key,
-      items: buckets.get(key),
-    }));
+    const order = groupOrder.length ? groupOrder : [null];
+    const buckets = new Map(order.map((key) => [key, []]));
+    for (const item of matches) {
+      if (hiddenGroups.includes(item.group)) continue;
+      const g = item.group ?? null;
+      if (!buckets.has(g)) buckets.set(g, []);
+      buckets.get(g).push(item);
+    }
+    return [...buckets.entries()].filter(([, list]) => list.length);
   });
 
   const freeName = $derived(query.trim());
@@ -58,7 +46,7 @@
     allowCustom &&
       Boolean(freeName) &&
       !selectedKeys.has(freeName) &&
-      !matches.some((item) => String(item.tag ?? '').toLowerCase() === freeName.toLowerCase())
+      !items.some((item) => item.label.toLowerCase() === freeName.toLowerCase())
   );
 
   $effect(() => {
@@ -66,13 +54,12 @@
   });
 
   function toggle(item) {
-    if (saving) return;
-    ontoggle?.(tagKey(item), item);
+    onToggle?.(item.key, item.raw ?? item);
   }
 
   function addFree() {
-    if (saving || !canAddFree) return;
-    onadd?.(freeName);
+    if (!canAddFree) return;
+    onAdd?.(freeName);
     query = '';
   }
 </script>
@@ -86,14 +73,11 @@
           class="tag-picker__search"
           type="text"
           bind:value={query}
-          placeholder={t('tagPicker.search')}
-          aria-label={t('tagPicker.search')}
+          placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
           autocomplete="off"
           disabled={saving}
         />
-        {#if !includeHidden}
-          <p class="tag-picker__note">{t('tagPicker.techNote')}</p>
-        {/if}
       </div>
 
       <div class="tag-picker__body" use:panelScrollbars>
@@ -109,24 +93,26 @@
               {freeName ? t('tagPicker.noMatch') : emptyText || t('tagPicker.empty')}
             </p>
           {:else}
-            {#each groups as group (group.key)}
+            {#each groups as group (group[0] ?? '__all__')}
               <section class="tag-picker__group">
-                <h3 class="tag-picker__title">
-                  {t(`tagPicker.group.${group.key}`)}
-                  <span class="tag-picker__num">{group.items.length}</span>
-                </h3>
+                {#if group[0] != null}
+                  <h3 class="tag-picker__title">
+                    {groupLabel(group[0])}
+                    <span class="tag-picker__num">{group[1].length}</span>
+                  </h3>
+                {/if}
                 <ul class="tag-picker__list">
-                  {#each group.items as item (tagKey(item))}
+                  {#each group[1] as item (item.key)}
                     <li>
                       <button
                         type="button"
                         class="tag-pill tag-pill--pick"
-                        class:tag-pill--on={selectedKeys.has(tagKey(item))}
-                        aria-pressed={selectedKeys.has(tagKey(item))}
+                        class:tag-pill--on={selectedKeys.has(item.key)}
+                        aria-pressed={selectedKeys.has(item.key)}
                         onclick={() => toggle(item)}
                         disabled={saving}
                       >
-                        {tagLabel(item)}
+                        {item.label}
                         {#if item.count != null}
                           <span class="tag-pill__count">×{item.count}</span>
                         {/if}
@@ -144,5 +130,5 @@
 </div>
 
 <div class="modal-actions">
-  <button type="button" class="btn" onclick={onclose}>{t('tagPicker.done')}</button>
+  <button type="button" class="btn" onclick={onClose}>{t('tagPicker.done')}</button>
 </div>

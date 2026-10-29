@@ -8,7 +8,9 @@ let pending = null;
 
 const labelOf = (table, item) => {
   const id = item?.id;
-  return (id && table[id]) || item?.name || item?.tag || '';
+  const hit = id && table[id];
+  if (hit) return typeof hit === 'string' ? hit : hit.name;
+  return item?.name || item?.tag || '';
 };
 
 export function loadTagDict() {
@@ -41,4 +43,17 @@ export function tagKeyLabel(key) {
 
 export function traitLabel(trait) {
   return labelOf(traits, trait);
+}
+
+export function getTraitDict() {
+  return traits;
+}
+
+export function traitItems() {
+  return Object.entries(traits).map(([id, entry]) => ({
+    key: id,
+    label: entry.name,
+    group: entry.group || null,
+    raw: { id, name: entry.name, group: entry.group || null },
+  }));
 }

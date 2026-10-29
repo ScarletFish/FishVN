@@ -132,13 +132,14 @@
       const threshold = spoilerThreshold(getSpoilerLevel());
       let spoilerCount = 0;
       for (const tr of expanded?.traits ?? []) {
-        if (tr.group_name.includes('Sexual')) continue;
+        const group = tr.group_name || 'uncategorized';
+        if (group.includes('Sexual')) continue;
         if ((tr.spoiler ?? 0) >= threshold) {
           spoilerCount += 1;
           if (!showSpoilers) continue;
         }
-        if (!map.has(tr.group_name)) map.set(tr.group_name, []);
-        map.get(tr.group_name).push(tr);
+        if (!map.has(group)) map.set(group, []);
+        map.get(group).push(tr);
       }
       const groups = [...map.entries()]
         .sort((a, b) => groupRank(a[0]) - groupRank(b[0]))
@@ -169,9 +170,20 @@
         label: t('detail.charBloodType'),
         value: localized(`detail.bloodType.${expanded.blood_type}`, expanded.blood_type.toUpperCase()),
       },
-      expanded?.bust && expanded?.waist && expanded?.hips && {
+      (expanded?.bust != null || expanded?.waist != null || expanded?.hips != null || expanded?.cup?.length) && {
         label: t('detail.charBwh'),
-        value: `${expanded.bust} / ${expanded.waist} / ${expanded.hips}`,
+        value: [
+          expanded?.bust != null && `${expanded.bust}`,
+          expanded?.waist != null && `${expanded.waist}`,
+          expanded?.hips != null && `${expanded.hips}`,
+          expanded?.cup?.length && `(${expanded.cup})`,
+        ]
+          .filter(Boolean)
+          .join(' / '),
+      },
+      expanded?.birthday?.length && {
+        label: t('detail.charBirthday'),
+        value: expanded.birthday,
       },
     ].filter(Boolean)
   );
@@ -231,6 +243,9 @@
             <h4>{displayName(expanded)}</h4>
             {#if altName(expanded)}
               <span class="detail-char-original">{altName(expanded)}</span>
+            {/if}
+            {#if expanded?.aliases?.length}
+              <span class="detail-char-aliases">{expanded.aliases.join(' / ')}</span>
             {/if}
           </div>
 

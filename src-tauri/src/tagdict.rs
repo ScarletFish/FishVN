@@ -3,10 +3,16 @@ use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TraitEntry {
+    pub name: String,
+    pub group: String,
+}
+
 #[derive(Debug, Deserialize)]
 struct Dictionary {
     tags: HashMap<String, String>,
-    traits: HashMap<String, String>,
+    traits: HashMap<String, TraitEntry>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -40,7 +46,7 @@ impl TagGroups {
 #[derive(Debug, Serialize)]
 pub struct TagDictionary {
     pub tags: &'static HashMap<String, String>,
-    pub traits: &'static HashMap<String, String>,
+    pub traits: &'static HashMap<String, TraitEntry>,
     pub tag_groups: &'static TagGroups,
 }
 
@@ -82,23 +88,46 @@ mod tests {
     #[test]
     fn 词典所有值均为中文或公认英文术语() {
         let d = dictionary();
-        for (kind, map) in [("tags", d.tags), ("traits", d.traits)] {
-            let bad: Vec<_> = map
+        let check = |kind: &str, entries: Vec<(&str, &str)>| {
+            let bad: Vec<_> = entries
                 .iter()
-                .filter(|(_, v)| v.is_ascii() && !ASCII_TERMS.contains(&v.as_str()))
-                .map(|(k, v)| format!("{kind}/{k}={v}"))
+                .filter(|(_, name)| name.is_ascii() && !ASCII_TERMS.contains(name))
+                .map(|(k, name)| format!("{kind}/{k}={name}"))
                 .collect();
             assert!(bad.is_empty(), "存在非中文且非公认术语的译名：{bad:?}");
-        }
+        };
+        check(
+            "tags",
+            d.tags.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect(),
+        );
+        check(
+            "traits",
+            d.traits
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.name.as_str()))
+                .collect(),
+        );
     }
 
     #[test]
     fn 代表性词条与分表隔离() {
         let d = dictionary();
         assert_eq!(d.tags.get("g2").map(String::as_str), Some("奇幻"));
-        assert_ne!(d.traits.get("i2").map(String::as_str), Some("奇幻"));
+        assert_ne!(d.traits.get("i2").map(|e| e.name.as_str()), Some("奇幻"));
         assert_eq!(d.tags.get("g4").map(String::as_str), Some("魔法"));
-        assert_eq!(d.traits.get("i4").map(String::as_str), Some("黑色"));
+        assert_eq!(d.traits.get("i4").map(|e| e.name.as_str()), Some("黑色"));
+    }
+
+    #[test]
+    fn 特征均带顶层分组() {
+        let d = dictionary();
+        let missing: Vec<_> = d
+            .traits
+            .iter()
+            .filter(|(_, e)| e.group.trim().is_empty())
+            .map(|(k, _)| k.clone())
+            .collect();
+        assert!(missing.is_empty(), "存在未带分组的特征：{missing:?}");
     }
 
     #[test]
