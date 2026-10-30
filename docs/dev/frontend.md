@@ -103,7 +103,9 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 
 `splash` 是纯 HTML/CSS，JS 不执行也照样显示 —— 前端整体挂掉时 Rust 兜底 show 出来的是静态加载页，不是空窗。判定落在 `index.html` 的内联脚本里：内容在该阈值内就绪则窗口跳过加载页，否则窗口与加载页同时出现。加载页有最短可见时长，避免出现即被撤走。
 
-启动页图标与 `frontend/public/favicon.svg` 是同源副本，换品牌图标要同步两处。
+品牌鱼形只有一份 `path`：`index.html` 的 `#fishvn-fish` 精灵。启动页大图标与标题栏单色鱼都靠 `<use>` 引用它，换鱼形只改这一处。同一份 path 有两种用法：启动页是负形（`--splash-accent` 底色、鱼挖成白），标题栏是正形（`color: var(--accent)`），不另画一套。
+
+`frontend/public/favicon.svg` 与 `src-tauri/icons/*` 是构建期资源，拿不到运行时 token，因此是品牌的独立拷贝：底色写死浅色默认 `--accent`，鱼写死 `--fg-on-accent`，不跟主题或色系联动——外部识别锚定默认品牌色是有意为之。改图标用 `npx tauri icon frontend/public/favicon.svg -o src-tauri/icons` 重生成，多出来的 `android/`、`ios/` 删掉；鱼占方块宽度的比例写了两遍（favicon 的 `transform`、启动页 `#splash .brand-mark svg` 的 `width`），改一处要两处一起改。
 
 ## 构建与开发服务器
 
