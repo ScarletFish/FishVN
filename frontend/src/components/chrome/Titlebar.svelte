@@ -64,7 +64,12 @@
       </button>
       <span class="titlebar__title">{title}</span>
     {:else}
-      <span class="titlebar__brand">FishVN</span>
+      <span class="titlebar__mark">
+        <svg viewBox="18 18 547 307"><use href="#fishvn-fish"></use></svg>
+      </span>
+      <span class="titlebar__brand"
+        ><span class="titlebar__brand-fish">Fish</span><span class="titlebar__brand-vn">VN</span></span
+      >
     {/if}
   </div>
 

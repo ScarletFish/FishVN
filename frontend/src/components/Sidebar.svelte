@@ -1,17 +1,10 @@
 <script>
-  import BrandMark from './BrandMark.svelte';
   import { sideTip } from '../lib/side-tip.js';
 
   let { items = [], bottom = [], current = $bindable(), onnavigate } = $props();
 </script>
 
 <aside class="sidebar">
-  <div class="sidebar-brand">
-    <div class="sidebar-brand-icon" data-tip="FishVN" use:sideTip>
-      <BrandMark />
-    </div>
-  </div>
-
   <nav class="sidebar-nav">
     {#each items as item (item.id)}
       <button

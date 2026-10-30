@@ -25,13 +25,35 @@
   overflow: hidden;
 }
 
+.titlebar__mark {
+  display: block;
+  height: 22px;
+  aspect-ratio: 547 / 307;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.titlebar__mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .titlebar__brand {
+  display: flex;
   font-size: var(--text-sm);
   font-weight: var(--fw-bold);
   letter-spacing: 0.03em;
-  color: var(--fg-muted);
   line-height: 1;
   white-space: nowrap;
+}
+
+.titlebar__brand-fish {
+  color: var(--fg-default);
+}
+
+.titlebar__brand-vn {
+  color: var(--accent);
 }
 
 .titlebar__back {
