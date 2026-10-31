@@ -30,6 +30,8 @@
 
 拉丁走 DM Sans：可变字体拉丁子集打包在 `assets/fonts/dm-sans-latin.woff2`（OFL 许可文本同目录存放），`fonts.css` 声明 `@font-face`，字重轴 100–1000 全覆盖，新字重直接取用。CJK 走 `@fontsource-variable/noto-sans-sc`（OFL，族名 `Noto Sans SC Variable`）：101 个按 `unicode-range` 切片的可变字体，在 `fonts.css` 里 `@import`，构建时进 `dist`，浏览器按用到的字符取片；升级换版本即换包。`--font-sans` 中 CJK 族排在系统字体之前；两族之外的字符（斜体、扩展区汉字）回落字体栈里的系统字体。
 
+这份 DM Sans 子集不带 `tnum` 特性，`font-variant-numeric: tabular-nums` 对它无效——写了不报错，数字宽度仍随字形变（「1」明显窄于「0」）。需要数字定宽的地方（详情页评分这类会随数据整条切换的数值）逐字符渲染，每个字符给 `width: 1ch` 的格子，等于手工补等宽；不要改用固定 `rem` 的列宽兜——那只会把差额堆到列尾，表现为数字与后面标注之间偶尔多出一截空隙，切换时更像抖动。
+
 #### 字号阶层
 
 字号一律引用 `--text-*` token；SVG 内文字与 DOM 文字同样适用（SVG 按 1:1 渲染时 rem 即屏幕像素）。阶层与用途：

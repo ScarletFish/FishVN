@@ -139,11 +139,49 @@
 
   let alias = $derived(meta?.alias ?? '');
 
-  function trimScore(value) {
-    return String(Number(value.toFixed(2)));
+  function formatScore(value) {
+    return value.toFixed(2);
   }
 
-  let ratingScore = $derived(meta?.rating != null ? trimScore(meta.rating / 10) : '');
+  let ratingMineChosen = $state(true);
+
+  let mineRating = $derived(
+    gameState?.user_rating != null && gameState.user_rating > 0 ? gameState.user_rating : null,
+  );
+  let vndbRating = $derived(meta?.rating ?? null);
+  let ratingShown = $derived(mineRating != null || vndbRating != null);
+  let ratingSwitchable = $derived(mineRating != null && vndbRating != null);
+  let ratingIsMine = $derived(ratingSwitchable ? ratingMineChosen : mineRating != null);
+  let ratingValue = $derived(ratingIsMine ? mineRating : vndbRating);
+  let ratingScore = $derived(ratingValue != null ? formatScore(ratingValue / 10) : '');
+  let ratingSub = $derived(
+    ratingIsMine ? t('detail.ratingMine') : t('detail.voteCount', { count: meta?.votecount ?? 0 }),
+  );
+  let ratingTip = $derived(
+    ratingSwitchable
+      ? t(ratingIsMine ? 'detail.ratingSwitchToVndb' : 'detail.ratingSwitchToMine')
+      : undefined,
+  );
+
+  let lengthEl = $state(null);
+
+  async function toggleRating() {
+    if (!lengthEl) {
+      ratingMineChosen = !ratingMineChosen;
+      return;
+    }
+    const before = lengthEl.getBoundingClientRect().left;
+    lengthEl.style.transition = 'none';
+    lengthEl.style.transform = '';
+    ratingMineChosen = !ratingMineChosen;
+    await tick();
+    const shift = before - lengthEl.getBoundingClientRect().left;
+    if (shift) lengthEl.style.transform = `translateX(${shift}px)`;
+    void lengthEl.offsetWidth;
+    lengthEl.style.transition = '';
+    lengthEl.style.transform = '';
+  }
+
   let lengthText = $derived(meta?.length_minutes != null ? compactDuration(meta.length_minutes) : '');
   let releaseYear = $derived(meta?.released?.slice(0, 4) ?? '');
   let developer = $derived(meta?.developers?.[0] ?? '');
@@ -277,6 +315,16 @@
 
 <svelte:window onmouseup={handleSideMouse} />
 
+{#snippet ratingFace()}
+  <span class="info-rating-mark" aria-hidden="true">{ratingIsMine ? '★' : '☆'}</span>
+  <span class="info-rating-num">
+    {#each ratingScore.split('') as char, index (index)}
+      <span class="info-rating-digit" class:info-rating-dot={char === '.'}>{char}</span>
+    {/each}
+  </span>
+  <span class="info-rating-sub">{ratingSub}</span>
+{/snippet}
+
 <section class="detail">
   {#if loading}
     <p class="detail-note">{t('common.loading')}</p>
@@ -346,16 +394,35 @@
         {#if alias}
           <p class="detail-alias detail-rise" style="animation-delay: 0.09s">{alias}</p>
         {/if}
-        {#if meta?.rating != null || lengthText || releaseYear || developer}
+        {#if ratingShown || lengthText || releaseYear || developer}
           <div class="detail-info-line detail-rise" style="animation-delay: 0.14s">
-            {#if meta?.rating != null || lengthText}
+            {#if ratingShown || lengthText}
               <span class="info-left">
-                {#if meta?.rating != null}
-                  <span class="info-rating-num">★ {ratingScore}</span>
-                  <span class="info-rating-sub">{t('detail.voteCount', { count: meta.votecount ?? 0 })}</span>
+                {#if ratingShown}
+                  {#if ratingSwitchable}
+                    <button
+                      type="button"
+                      class="info-rating"
+                      class:info-rating--mine={ratingIsMine}
+                      class:info-rating--vndb={!ratingIsMine}
+                      aria-label={`${ratingScore} ${ratingSub}`}
+                      data-tooltip={ratingTip}
+                      onclick={toggleRating}
+                    >
+                      {@render ratingFace()}
+                    </button>
+                  {:else}
+                    <span
+                      class="info-rating"
+                      class:info-rating--mine={ratingIsMine}
+                      class:info-rating--vndb={!ratingIsMine}
+                    >
+                      {@render ratingFace()}
+                    </span>
+                  {/if}
                 {/if}
                 {#if lengthText}
-                  <span class="info-length" data-tooltip={t('detail.lengthHint')}>
+                  <span class="info-length" data-tooltip={t('detail.lengthHint')} bind:this={lengthEl}>
                     <span class="info-length-mark">#</span>{lengthText}
                   </span>
                 {/if}
@@ -363,10 +430,10 @@
             {/if}
             <span class="info-tags">
               {#if releaseYear}
-                <span class="pill pill--info">{releaseYear}</span>
+                <span class="pill pill--tag">{releaseYear}</span>
               {/if}
               {#if developer}
-                <span class="pill pill--info">{developer}</span>
+                <span class="pill pill--tag">{developer}</span>
               {/if}
             </span>
           </div>

@@ -142,6 +142,9 @@ export const DICT_ZH = {
   detail: {
     notFound: '游戏不存在',
     voteCount: '{count} 人',
+    ratingMine: '我的评分',
+    ratingSwitchToVndb: '切换为 VNDB 评分',
+    ratingSwitchToMine: '切换为我的评分',
     lengthHint: 'VNDB 平均通关时长',
     error: '读取游戏失败',
     moreTags: '+{count}',
