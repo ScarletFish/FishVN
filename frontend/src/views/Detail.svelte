@@ -11,6 +11,7 @@
   import { compactDuration, durationText } from '../lib/playtime.js';
   import { playHero, discardHero } from '../lib/hero-transition.js';
   import { tagLabel } from '../lib/tag-label.svelte.js';
+  import { requestSearchQuery } from '../lib/search-query.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
   import { classifyTags } from '../lib/tag-order.svelte.js';
   import { LIBRARY_CHANGED, notifyLibraryTagsChanged, onLibraryItemUpdated } from '../lib/library-events.js';
@@ -182,6 +183,154 @@
     lengthEl.style.transform = '';
   }
 
+  let tagsEl = $state(null);
+  let heightAnim = null;
+  let heightAnimEl = null;
+  let heightAnimDone = null;
+
+  function finishHeightAnim() {
+    if (heightAnimEl) {
+      heightAnimEl.style.height = '';
+      heightAnimEl.style.overflow = '';
+    }
+    const done = heightAnimDone;
+    heightAnim = null;
+    heightAnimEl = null;
+    heightAnimDone = null;
+    done?.();
+  }
+
+  function stopHeightAnim() {
+    if (!heightAnim) return;
+    heightAnim.cancel();
+    finishHeightAnim();
+  }
+
+  function runHeightAnim(el, from, to, done) {
+    const style = getComputedStyle(el);
+    const duration = parseFloat(style.getPropertyValue('--duration-normal')) || 240;
+    const easing = style.getPropertyValue('--ease-out').trim() || 'ease-out';
+    el.style.overflow = 'hidden';
+    el.style.height = `${from}px`;
+    void el.offsetHeight;
+    const anim = el.animate([{ height: `${from}px` }, { height: `${to}px` }], {
+      duration,
+      easing,
+    });
+    heightAnim = anim;
+    heightAnimEl = el;
+    heightAnimDone = done ?? null;
+    anim.finished
+      .then(() => {
+        if (heightAnim !== anim) return;
+        finishHeightAnim();
+      })
+      .catch(() => {});
+  }
+
+  async function animateHeight(el, mutate) {
+    if (!el) {
+      mutate();
+      return;
+    }
+    stopHeightAnim();
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      mutate();
+      return;
+    }
+    const before = el.offsetHeight;
+    mutate();
+    await tick();
+    const after = el.offsetHeight;
+    if (before === after) return;
+    runHeightAnim(el, before, after);
+  }
+
+  function toggleTags() {
+    void animateHeight(tagsEl, () => {
+      tagsExpanded = !tagsExpanded;
+    });
+  }
+
+  function toggleSpoilers() {
+    void animateHeight(tagsEl, () => {
+      spoilersRevealed = !spoilersRevealed;
+    });
+  }
+
+  let summaryEl = $state(null);
+  let summaryOpen = $state(false);
+  let summaryFolding = $state(false);
+  let summaryClamped = $state(false);
+
+  function summaryOverflows() {
+    const el = summaryEl;
+    if (!el) return false;
+    el.classList.add('detail-summary--open');
+    const full = el.offsetHeight;
+    el.classList.remove('detail-summary--open');
+    const folded = el.offsetHeight;
+    return full > folded + 1;
+  }
+
+  function toggleSummary() {
+    if (!summaryOpen) {
+      summaryFolding = false;
+      void animateHeight(summaryEl, () => {
+        summaryOpen = true;
+      });
+      return;
+    }
+    void foldSummary();
+  }
+
+  async function foldSummary() {
+    const el = summaryEl;
+    if (!el) {
+      summaryOpen = false;
+      return;
+    }
+    stopHeightAnim();
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      summaryOpen = false;
+      return;
+    }
+    const full = el.offsetHeight;
+    el.classList.remove('detail-summary--open');
+    const folded = el.offsetHeight;
+    el.classList.add('detail-summary--open');
+    if (full <= folded + 1) {
+      summaryOpen = false;
+      return;
+    }
+    summaryOpen = false;
+    summaryFolding = true;
+    await tick();
+    runHeightAnim(el, full, folded, () => {
+      summaryFolding = false;
+    });
+  }
+
+  $effect(() => {
+    const el = summaryEl;
+    void meta?.description;
+    summaryOpen = false;
+    summaryFolding = false;
+    summaryClamped = false;
+    if (!el) return;
+    let width = -1;
+    const measure = () => {
+      if (summaryOpen || summaryFolding) return;
+      const current = el.clientWidth;
+      if (current === width) return;
+      width = current;
+      summaryClamped = summaryOverflows();
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
+
   let lengthText = $derived(meta?.length_minutes != null ? compactDuration(meta.length_minutes) : '');
   let releaseYear = $derived(meta?.released?.slice(0, 4) ?? '');
   let developer = $derived(meta?.developers?.[0] ?? '');
@@ -195,32 +344,16 @@
       revealSpoilers,
     }),
   );
-  let spoilersHiddenCount = $derived(tagView.spoilers.length);
+  let spoilerCount = $derived(tagView.spoilers.length);
   let shownTags = $derived(
     tagsExpanded ? tagView.shown : tagView.shown.slice(0, TAGS_PREVIEW),
   );
   let tagsHiddenCount = $derived(
-    Math.max(tagView.shown.length - TAGS_PREVIEW, 0) + (revealSpoilers ? 0 : spoilersHiddenCount),
+    Math.max(tagView.shown.length - TAGS_PREVIEW, 0) + (revealSpoilers ? 0 : spoilerCount),
   );
-  let hiddenSummary = $derived.by(() => {
-    const parts = [];
-    if (spoilersHiddenCount > 0) {
-      parts.push(
-        revealSpoilers
-          ? t('detail.tagSpoilersShown')
-          : t('detail.tagSpoilersHidden', { count: spoilersHiddenCount }),
-      );
-    }
-    if (tagView.poolCount > 0) {
-      parts.push(t('detail.tagsExcluded', { count: tagView.poolCount }));
-    }
-    return parts.join(' | ');
-  });
 
   function searchTag(tag) {
-    const label = tagLabel(tag);
-    if (!label) return;
-    document.dispatchEvent(new CustomEvent('search-set-query', { detail: label }));
+    requestSearchQuery(tagLabel(tag));
   }
 
   $effect(() => {
@@ -438,43 +571,67 @@
             </span>
           </div>
         {/if}
-        <div class="detail-tags detail-rise" style="animation-delay: 0.19s">
+        <div class="detail-tags detail-rise" style="animation-delay: 0.19s" bind:this={tagsEl}>
           <div class="detail-tags-list">
             {#each shownTags as tag (tag.id ?? tag.name)}
               <button
                 type="button"
-                class="pill pill--tag detail-tag--link"
+                class="pill pill--tag pill--link"
+                aria-label={t('detail.tagSearch', { tag: tagLabel(tag) })}
                 onclick={() => searchTag(tag)}
               >{tagLabel(tag)}</button>
             {/each}
-            {#if tagsHiddenCount > 0}
+            {#if tagsHiddenCount > 0 || tagsExpanded}
               <button
                 type="button"
                 class="pill pill--more"
                 aria-expanded={tagsExpanded}
-                onclick={() => (tagsExpanded = !tagsExpanded)}
+                onclick={toggleTags}
               >
                 {tagsExpanded ? t('detail.fewerTags') : t('detail.moreTags', { count: tagsHiddenCount })}
               </button>
             {/if}
           </div>
-          {#if tagsExpanded && hiddenSummary}
-            <div class="detail-tags-hidden">
-              <span>{hiddenSummary}</span>
-              {#if spoilersHiddenCount > 0}
+          {#if tagsExpanded && (spoilerCount > 0 || tagView.poolCount > 0)}
+            <div class="toggle-row">
+              {#if spoilerCount > 0}
+                <span>{t('detail.tagSpoilersCount', { count: spoilerCount })}</span>
                 <label class="toggle-switch">
                   <input
                     type="checkbox"
-                    bind:checked={spoilersRevealed}
-                    aria-label={t('detail.tagSpoilersShown')}
+                    checked={spoilersRevealed}
+                    aria-label={t('detail.tagSpoilersToggle')}
+                    onchange={toggleSpoilers}
                   />
                   <span class="toggle-slider"></span>
                 </label>
               {/if}
+              {#if tagView.poolCount > 0}
+                <span class="detail-tags-excluded"
+                  >{t('detail.tagsExcluded', { count: tagView.poolCount })}</span
+                >
+              {/if}
+            </div>
+          {/if}
+          {#if revealSpoilers && spoilerCount > 0}
+            <div class="detail-tags-list detail-tags-spoiler">
+              {#each tagView.spoilers as tag (tag.id ?? tag.name)}
+                <button
+                  type="button"
+                  class="pill pill--tag pill--link"
+                  aria-label={t('detail.tagSearch', { tag: tagLabel(tag) })}
+                  onclick={() => searchTag(tag)}
+                >{tagLabel(tag)}</button>
+              {/each}
             </div>
           {/if}
         </div>
-        <div class="detail-summary detail-rise" style="animation-delay: 0.24s">
+        <div
+          class="detail-summary detail-rise"
+          class:detail-summary--open={summaryOpen || summaryFolding}
+          style="animation-delay: 0.24s"
+          bind:this={summaryEl}
+        >
           {#each summaryParas as para, i (i)}
             <p>{#each para as seg, j (j)}{#if seg.type === 'link'}<a
                 href={seg.href}
@@ -485,6 +642,16 @@
               >{:else}{seg.text}{/if}{/each}</p>
           {/each}
         </div>
+        {#if summaryClamped}
+          <button
+            type="button"
+            class="detail-summary-toggle"
+            aria-expanded={summaryOpen}
+            onclick={toggleSummary}
+          >
+            {summaryOpen ? t('detail.summaryLess') : t('detail.summaryMore')}
+          </button>
+        {/if}
       </div>
       {#if launchPath}
         <button

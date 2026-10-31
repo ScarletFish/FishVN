@@ -52,7 +52,16 @@ test('BBCode 被剥掉，spoiler 与 raw 整块丢弃', () => {
   expect(stripBbcode('[spoiler]结局[/spoiler]正文')).toBe('正文');
   expect(stripBbcode('[url=https://a.b]链接文字[/url]')).toBe('链接文字');
   expect(stripBbcode('尾巴[hr]')).toBe('尾巴');
+  expect(stripBbcode('[quote=来源]引用[/quote]正文')).toBe('引用正文');
   expect(stripBbcode(null)).toBe('');
+});
+
+test('出处署名的方括号保留，内部链接照常拆出', () => {
+  expect(bbcodeSegments('[From [url=http://a.b] MangaGamer[/url]]')).toEqual([
+    { type: 'text', text: '[From ' },
+    { type: 'link', text: 'MangaGamer', href: 'http://a.b' },
+    { type: 'text', text: ']' },
+  ]);
 });
 
 test('url 带标签与网址时拆成文本与链接段', () => {
@@ -92,9 +101,9 @@ test('段落按空行拆分，空段与纯 BBCode 段丢弃', () => {
   expect(bbcodeParagraphs(null)).toEqual([]);
 });
 
-test('简介里的 BBCode 在读入时就已剥掉', () => {
+test('简介按原文读入，BBCode 交给渲染层处理', () => {
   expect(applyIncoming(form(), VN, new Set(['description'])).description).toBe(
-    'In Fuyuki, a secret battle rages. See more.'
+    'In Fuyuki, a secret battle rages. See [url=https://x.jp]more[/url].'
   );
 });
 

@@ -1,13 +1,16 @@
 
 import { tagLabel } from './tag-label.svelte.js';
 
-export function stripBbcode(text) {
-  if (!text) return '';
+function stripTags(text) {
   return text
     .replace(/\[(spoiler|raw)\][\s\S]*?\[\/\1\]/gi, '')
     .replace(/\[url[^\]]*\]([\s\S]*?)\[\/url\]/gi, '$1')
-    .replace(/\[\/?[a-z]+\]/gi, '')
-    .trim();
+    .replace(/\[\/?[a-z]+(?:=[^\]]*)?\]/gi, '');
+}
+
+export function stripBbcode(text) {
+  if (!text) return '';
+  return stripTags(text).trim();
 }
 
 export function bbcodeSegments(text) {
@@ -17,8 +20,8 @@ export function bbcodeSegments(text) {
   let last = 0;
   let m;
   while ((m = re.exec(text))) {
-    const plain = stripBbcode(text.slice(last, m.index));
-    if (plain) segments.push({ type: 'text', text: plain });
+    const plain = stripTags(text.slice(last, m.index));
+    if (plain.trim()) segments.push({ type: 'text', text: plain });
     const href = (m[1] || m[3] || m[2]).trim();
     const label = stripBbcode(m[2] || m[3]) || href;
     if (/^https?:\/\//i.test(href)) {
@@ -100,7 +103,7 @@ const FIELDS = [
   },
   {
     key: 'description',
-    read: (vn) => stripBbcode(vn.description),
+    read: (vn) => asString(vn.description),
     empty: (v) => !v?.trim(),
     same: (a, b) => a === b,
   },

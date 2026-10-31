@@ -267,11 +267,11 @@ describe('classifyTags 的剧透折叠', () => {
     expect(names(out.shown)).toEqual(['Romance', 'Multiple Endings']);
   });
 
-  it('展开态把折叠标签并入展示顺序', () => {
+  it('揭示剧透不改动展示顺序，剧透标签始终单列', () => {
     const out = classifyTags([THEME_A, MILD_SPOILER, MAJOR_SPOILER], {
       revealSpoilers: true,
     });
-    expect(names(out.shown)).toEqual(['Romance', '轻微剧透', '严重剧透']);
+    expect(names(out.shown)).toEqual(['Romance']);
     expect(names(out.spoilers)).toEqual(['轻微剧透', '严重剧透']);
   });
 });

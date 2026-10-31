@@ -19,15 +19,23 @@
   color: var(--fg-secondary);
 }
 
+.pill--link,
 .pill--more {
   margin: 0;
   border: 0;
-  background: var(--bg-hover);
-  color: var(--fg-muted);
   cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
 
+.pill--more {
+  background: var(--bg-hover);
+  color: var(--fg-muted);
+}
+
+.pill--link:hover,
 .pill--more:hover {
-  background: var(--bg-selected);
-  color: var(--accent-soft);
+  background: var(--bg-hover-strong);
+  color: var(--fg-default);
 }

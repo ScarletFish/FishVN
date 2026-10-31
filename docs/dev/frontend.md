@@ -283,6 +283,11 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - `sidebar`：`stroke-width` 与尺寸绑定，图标放大后线条会相对变细；`.active:hover` 必须与 `.active` 一起清，否则悬停时半透明底色会回来
 - `buttons`：`.btn-primary` 常态纯色 `--accent`、hover 换 `--accent-soft`（扁平风，不用渐变与 brightness 滤镜）；覆盖 `.btn:hover` 的规则与它特异性相同，要逐项写全才不会漏掉被按顺序冲掉的属性
 
+**测量**
+
+- `裁切测量`：`-webkit-line-clamp` 裁掉的不是溢出内容而是布局片段，被裁元素 `scrollHeight` 与 `clientHeight` 相等，判不出「有没有被截断」。只能临时解除裁切、量一次自然高度再还原；解除要用与展开态**同一个**类（`line-clamp: none` 还得配 `overflow: visible`），只改内联 `line-clamp` 不保证等效。还原在同一帧内完成，不会闪。
+- `宽度晚定`：元素宽度会因兄弟内容晚到而变（封面图加载完、右栏才收窄），`window` 的 `resize` 收不到这类变化，依赖宽度的测量要挂在元素自己的 `ResizeObserver` 上；解除裁切也会改自身尺寸，回调里按 `clientWidth` 去重，否则自己触发自己。
+
 **表面层级与交互态**
 
 表面层级只连 L2 的 `--bg-*` token，用途对应：
@@ -304,6 +309,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - 下拉 / 菜单：触发器（按钮）走 `--bg-hover` 压暗，弹出菜单走 `--bg-floating`。
 - 标签页 / 段控选中指示用 accent 下划线或 accent 淡染。
 - 已添加的「内容」类胶囊（tag 芯片）恒定背景用 `--bg-hover`，比容器深一档，hover 时仍保持边界（与只读 `.pill--tag` 同款）。
+- **可点击元素的 hover 分两套，按形态选**：文本流型（正文外链、角色声优名、文字按钮）用下划线——恒有下划线时由 35% 转 `currentColor`，静态不带的用 `text-decoration-color: transparent` 起手、hover 转实，两者都不改布局；块型（标签、特征、`+N` 药丸）用 `--bg-hover-strong` 底 + 字色升 `--fg-default`。别让正文里的链接只靠字色深浅区分，也别给行内文字加底色块。
 
 ## 注释
 

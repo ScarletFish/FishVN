@@ -152,41 +152,6 @@ fn fill<T>(blank: bool, remote: Option<T>) -> Option<Option<T>> {
     (blank && remote.is_some()).then_some(remote)
 }
 
-pub fn strip_bbcode(raw: &str) -> String {
-    let mut out = String::with_capacity(raw.len());
-    let mut rest = raw;
-    while let Some(start) = rest.find('[') {
-        out.push_str(&rest[..start]);
-        let tail = &rest[start..];
-        let Some(end) = tail.find(']') else {
-            out.push_str(tail);
-            break;
-        };
-        let tag = tail[1..end].trim().to_ascii_lowercase();
-        let after = &tail[end + 1..];
-        let name = tag.split(['=', ' ']).next().unwrap_or("");
-        match name {
-            "spoiler" | "raw" => {
-                let close = format!("[/{name}]");
-                match after.to_ascii_lowercase().find(&close) {
-                    Some(c) => rest = &after[c + close.len()..],
-                    None => rest = "",
-                }
-            }
-            "url" => match after.to_ascii_lowercase().find("[/url]") {
-                Some(c) => {
-                    out.push_str(&after[..c]);
-                    rest = &after[c + "[/url]".len()..];
-                }
-                None => rest = "",
-            },
-            _ => rest = after,
-        }
-    }
-    out.push_str(rest);
-    out.trim().to_owned()
-}
-
 fn display_title(vn: &VnMetadata) -> String {
     if let Some(titles) = &vn.titles {
         let zh: Vec<&VnTitle> = titles
@@ -297,10 +262,7 @@ pub fn patch_for(current: Option<&GameMetadata>, sync: &VnSync) -> Option<Metada
         length_minutes: fill(cur.length_minutes.is_none(), vn.length_minutes),
         description: fill(
             blank_str(cur.description.as_deref()),
-            vn.description
-                .as_deref()
-                .map(strip_bbcode)
-                .and_then(|s| clean_text(&s)),
+            vn.description.as_deref().and_then(clean_text),
         ),
         image_path: fill(
             blank_str(cur.image_path.as_deref()),
@@ -620,17 +582,6 @@ mod tests {
     }
 
     #[test]
-    fn bbcode清洗保留链接文字去掉标记() {
-        assert_eq!(
-            strip_bbcode("[spoiler]剧透[/spoiler]正文 [url=https://x.com]链接[/url] [b]粗体[/b]"),
-            "正文 链接 粗体"
-        );
-        assert_eq!(strip_bbcode("[raw]原文[/raw]剩下"), "剩下");
-        assert_eq!(strip_bbcode("纯文本"), "纯文本");
-        assert_eq!(strip_bbcode("[url]裸链[/url]"), "裸链");
-    }
-
-    #[test]
     fn 标题显示优先中文官方别名回落() {
         let v = vn();
         assert_eq!(display_title(&v), "命运之夜");
@@ -657,7 +608,12 @@ mod tests {
         assert_eq!(patch.rating, Some(Some(82.34)));
         assert_eq!(patch.votecount, Some(Some(1200)));
         assert_eq!(patch.length_minutes, Some(Some(360)));
-        assert_eq!(patch.description, Some(Some("正文 链接 粗体".into())));
+        assert_eq!(
+            patch.description,
+            Some(Some(
+                "[spoiler]剧透[/spoiler]正文 [url=https://x.com]链接[/url] [b]粗体[/b]".into()
+            ))
+        );
         assert_eq!(patch.image_path, Some(Some("/covers/v1.jpg".into())));
         assert!(patch.titles.as_ref().unwrap().is_some());
         assert!(patch.tags.as_ref().unwrap().is_some());

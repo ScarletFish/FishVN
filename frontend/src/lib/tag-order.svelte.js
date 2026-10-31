@@ -72,7 +72,7 @@ export function classifyTags(tags, options = {}) {
     else visible.push(tag);
   }
   return {
-    shown: order(revealSpoilers ? [...visible, ...spoilers] : visible),
+    shown: order(visible),
     spoilers: order(spoilers),
     poolCount,
   };

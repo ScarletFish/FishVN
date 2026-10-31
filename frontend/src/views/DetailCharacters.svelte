@@ -8,6 +8,7 @@
   import { stripBbcode, bbcodeSegments } from '../lib/vn-merge.js';
   import { traitLabel } from '../lib/tag-label.svelte.js';
   import { openExternal } from '../lib/open-external.js';
+  import { requestSearchQuery } from '../lib/search-query.js';
   import { getSpoilerLevel } from '../lib/config-store.svelte.js';
   import { spoilerThreshold } from '../lib/tag-order.svelte.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
@@ -105,9 +106,7 @@
   const vaKey = (v) => `${v?.staff_id ?? ''}|${v?.note ?? ''}`;
 
   function searchVa(va) {
-    const name = vaName(va);
-    if (!name) return;
-    document.dispatchEvent(new CustomEvent('search-set-query', { detail: name }));
+    requestSearchQuery(vaName(va));
   }
 
   const expanded = $derived(characters.find((c) => c.id === expandedId) ?? null);
@@ -130,13 +129,13 @@
     (() => {
       const map = new Map();
       const threshold = spoilerThreshold(getSpoilerLevel());
-      let spoilerCount = 0;
+      const spoilers = [];
       for (const tr of expanded?.traits ?? []) {
         const group = tr.group_name || 'uncategorized';
         if (group.includes('Sexual')) continue;
         if ((tr.spoiler ?? 0) >= threshold) {
-          spoilerCount += 1;
-          if (!showSpoilers) continue;
+          spoilers.push(tr);
+          continue;
         }
         if (!map.has(group)) map.set(group, []);
         map.get(group).push(tr);
@@ -147,7 +146,7 @@
           label: localized(`detail.traitGroups.${group}`, group),
           traits,
         }));
-      return { groups, spoilerCount };
+      return { groups, spoilers };
     })()
   );
 
@@ -296,7 +295,7 @@
             </div>
           {/if}
 
-          {#if traitData.groups.length || traitData.spoilerCount}
+          {#if traitData.groups.length || traitData.spoilers.length}
             <div class="detail-char-section">
               <p class="detail-char-section-label">{t('detail.charSectionTraits')}</p>
               {#if traitData.groups.length}
@@ -311,21 +310,24 @@
                   {/each}
                 </dl>
               {/if}
-              {#if traitData.spoilerCount}
-                <div class="detail-char-spoilers">
-                  <span>
-                    {showSpoilers
-                      ? t('detail.charSpoilersShown')
-                      : t('detail.charSpoilersHidden', { count: traitData.spoilerCount })}
-                  </span>
+              {#if traitData.spoilers.length}
+                <div class="toggle-row">
+                  <span>{t('detail.tagSpoilersCount', { count: traitData.spoilers.length })}</span>
                   <label class="toggle-switch">
                     <input
                       type="checkbox"
                       bind:checked={showSpoilers}
-                      aria-label={t('detail.charSpoilersShown')}
+                      aria-label={t('detail.tagSpoilersToggle')}
                     />
                     <span class="toggle-slider"></span>
                   </label>
+                </div>
+              {/if}
+              {#if showSpoilers && traitData.spoilers.length}
+                <div class="detail-char-spoiler-list">
+                  {#each traitData.spoilers as tr (tr.id ?? tr.name)}
+                    <span class="pill pill--tag">{traitLabel(tr)}</span>
+                  {/each}
                 </div>
               {/if}
             </div>

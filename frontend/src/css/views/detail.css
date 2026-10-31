@@ -293,13 +293,12 @@ button.info-rating {
   gap: var(--space-1);
 }
 
-.detail-tags-hidden {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--fg-muted);
+.detail-tags-excluded {
+  margin-left: auto;
+}
+
+.detail-tags-spoiler {
+  margin-top: var(--space-1);
 }
 
 .detail-summary {
@@ -311,6 +310,28 @@ button.info-rating {
   line-height: 1.7;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
+}
+
+.detail-summary--open {
+  -webkit-line-clamp: none;
+  overflow: visible;
+}
+
+.detail-summary-toggle {
+  align-self: end;
+  margin-top: calc(-1 * var(--space-2));
+  padding: 0;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  text-align: right;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.detail-summary-toggle:hover {
+  color: var(--fg-default);
 }
 
 .detail-note {
@@ -378,6 +399,7 @@ button.info-rating {
 
 .detail-char-portrait {
   aspect-ratio: 208 / 300;
+  overflow: hidden;
   background: var(--bg-page);
 }
 
@@ -469,12 +491,6 @@ button.info-rating {
   gap: var(--space-1) var(--space-3);
 }
 
-.detail-tag--link {
-  margin: 0;
-  border: 0;
-  cursor: pointer;
-}
-
 .detail-char-va {
   margin: 0;
   padding: 0;
@@ -482,7 +498,14 @@ button.info-rating {
   background: none;
   font-size: var(--text-sm);
   color: var(--fg-default);
+  text-decoration: underline;
+  text-decoration-color: transparent;
   cursor: pointer;
+  transition: text-decoration-color var(--duration-fast) var(--ease-out);
+}
+
+.detail-char-va:hover {
+  text-decoration-color: currentColor;
 }
 
 .detail-char-va-note {
@@ -585,13 +608,11 @@ button.info-rating {
   user-select: text;
 }
 
-.detail-char-spoilers {
+.detail-char-spoiler-list {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  font-size: var(--text-xs);
-  color: var(--fg-muted);
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
 }
 
 .detail-char-scroll {
