@@ -10,7 +10,9 @@
   let rowH = $state(0);
   let scrollMargin = $state(0);
   let colTemplate = $state('');
-  let virtualizer = $state(null);
+  let virtualizerStore = null;
+  let virtualizer = null;
+  let storeReady = $state(false);
   let vItems = $state([]);
   let vTotal = $state(0);
 
@@ -52,30 +54,30 @@
 
   $effect(() => {
     if (!containerEl || !scrollEl || rowH <= 0) return;
-    if (!virtualizer) {
-      virtualizer = createVirtualizer({
-        count: rows,
+    const options = {
+      count: rows,
+      estimateSize: () => rowH,
+      scrollMargin,
+    };
+    if (!virtualizerStore) {
+      virtualizerStore = createVirtualizer({
+        ...options,
         getScrollElement: () => scrollEl,
-        estimateSize: () => rowH,
         overscan: 3,
         getItemKey: (index) => index,
-        scrollMargin,
       });
-    } else {
-      virtualizer.setOptions({
-        count: rows,
-        estimateSize: () => rowH,
-        scrollMargin,
-      });
+      storeReady = true;
+      return;
     }
+    virtualizer?.setOptions(options);
   });
 
   $effect(() => {
-    const v = virtualizer;
-    if (!v) return;
-    return v.subscribe(() => {
-      vItems = v.getVirtualItems();
-      vTotal = v.getTotalSize();
+    if (!storeReady) return;
+    return virtualizerStore.subscribe((instance) => {
+      virtualizer = instance;
+      vItems = instance.getVirtualItems();
+      vTotal = instance.getTotalSize();
     });
   });
 </script>
