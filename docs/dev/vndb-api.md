@@ -242,7 +242,7 @@ va{character{id},staff{id,name,original},note}
 
 `tags.rating` 是 float32 精度噪声，会出现 `2.46794867515564` 这种值，取整显示即可。
 `dims` / `thumbnail_dims` 是 `[宽, 高]`。
-`tags` 的 `name` / `category` / `vn_count` 随同步整体落库，标签中文显示见 [frontend.md](./frontend.md) 的词典机制。
+`tags` 的 `name` / `category` / `vn_count` 随同步整体落库，标签中文显示见 [i18n.md](./i18n.md) 的词典机制。
 
 ### `released` 的五种形状
 

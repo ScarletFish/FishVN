@@ -1,6 +1,4 @@
 <script>
-  import { sideTip } from '../lib/side-tip.js';
-
   let { items = [], bottom = [], current = $bindable(), onnavigate } = $props();
 </script>
 
@@ -13,7 +11,6 @@
         data-tip={item.label}
         aria-label={item.label}
         aria-current={current === item.id ? 'page' : undefined}
-        use:sideTip
         onclick={() => {
           onnavigate?.();
           current = item.id;
@@ -26,7 +23,7 @@
 
   <div class="sidebar-bottom">
     {#each bottom as item (item.id)}
-      <button class="nav-btn" data-tip={item.label} aria-label={item.label} use:sideTip onclick={item.onclick}>
+      <button class="nav-btn" data-tip={item.label} aria-label={item.label} onclick={item.onclick}>
         {@html item.icon}
       </button>
     {/each}

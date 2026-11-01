@@ -32,9 +32,17 @@ function isDark() {
   return document.documentElement.dataset.theme === 'dark';
 }
 
+const paints = new Set();
+
 function paint(dark) {
   if (dark) document.documentElement.dataset.theme = 'dark';
   else delete document.documentElement.dataset.theme;
+  for (const fn of paints) fn(dark);
+}
+
+export function subscribeTheme(fn) {
+  paints.add(fn);
+  return () => paints.delete(fn);
 }
 
 function paintAccent(accent) {

@@ -44,7 +44,7 @@ src-tauri/
 | `sessions.rs` / 启动与计时 | 本文「启动与游玩记录」 |
 | `sync.rs` / 账户同步 | 本文「外部数据同步：计划-应用两段式」与 [vndb-sync.md](./vndb-sync.md) |
 | `tasks.rs` / 长任务 | 本文「任务事件」 |
-| 前端组件与样式 | [frontend.md](./frontend.md) |
+| 前端组件与样式 | [frontend.md](./frontend.md)（索引）、[components.md](./components.md)、[styles.md](./styles.md) |
 
 ### 调用链
 

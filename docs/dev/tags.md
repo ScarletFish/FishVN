@@ -2,7 +2,7 @@
 
 > 范围：VN 标签在详情页与仪表盘词云的可见性、排序、计数口径与候选列表规则。
 > 本文只写规则。为什么这样定、否掉了哪些替代方案，记在 [fdd-game-library.md](../fdd-game-library.md) 的 1.6 节与各活动集条目里。
-> 译名数据来源与许可证见 [vndb-localization.md](vndb-localization.md)，显示名查表与加载见 [frontend.md](frontend.md)「VNDB 标签/特征中文显示」。
+> 译名数据来源与许可证见 [vndb-localization.md](vndb-localization.md)，显示名查表与加载见 [i18n.md](i18n.md)「VNDB 标签/特征中文显示」。
 
 ## 三层判定
 

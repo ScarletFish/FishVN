@@ -16,6 +16,8 @@ export const DICT_ZH = {
     home: '首页',
     mylist: '我的列表',
     stats: '统计',
+    themeToDark: '切换到夜间模式',
+    themeToLight: '切换到日间模式',
     settings: '设置',
   },
   dashboard: {
