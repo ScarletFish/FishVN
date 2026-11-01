@@ -887,10 +887,16 @@
 
 .seg-radio-group {
   display: flex;
-  background: var(--bg-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
-  overflow: hidden;
+}
+
+.seg-radio-item:first-child {
+  border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px);
+}
+
+.seg-radio-item:last-child {
+  border-radius: 0 calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0;
 }
 
 .seg-radio-item {
@@ -943,7 +949,8 @@
 .seg-radio-item:has(input:checked) {
   font-weight: var(--fw-semibold);
   color: var(--fg-default);
-  background: var(--bg-selected);
+  background: var(--bg-seg-thumb);
+  box-shadow: var(--seg-thumb-shadow);
 }
 
 .seg-radio-item:has(input:focus-visible) {
@@ -1334,9 +1341,9 @@
   padding: 2px 4px 2px 10px;
   border: 1px solid var(--border-default);
   border-radius: 999px;
-  background: var(--bg-surface);
+  background: var(--bg-hover);
   font-size: var(--text-sm);
-  color: var(--fg-muted);
+  color: var(--fg-secondary);
 }
 
 .excluded-chip-remove {

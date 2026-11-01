@@ -199,6 +199,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - **`vndb-search.svelte.js`**：换词重搜先清空，表单每次打开也要清一遍；导出的是 getter 而不是 `$state` 本体（直接 `return` 只会把初始值交出去）。侧栏由 `Modal` 的 `aside` 渲染，关闭时那一段没有挂载，父组件的工具栏按钮因此调不到里面的东西。
 - **`frontend-log.js`**：前端异常、未处理的 Promise 拒绝、启动就绪时刻经 `log_frontend` 落到日志文件，`api.js` 的 IPC 失败也经它上报。直连 `invoke` 而不走 `api.call`，日志上报自身失败不会形成上报循环；非 Tauri 环境（浏览器 dev）整体 no-op，异常看 devtools。
 - **`confirm.svelte.js`**：`action` 必须在 `i18n-zh.js` 有 `confirm.<action>.{title,message,confirm}` 三条词条，缺了不做兜底（`t()` 会回落 key）。
+- **`SettingsDialog`**：打开时的初始化整块包在 `untrack` 里，让 `$effect` 只依赖 `open`。那段初始化读了主题、accent、排除标签等 store，不包的话任何 `notifyConfigChanged`（比如在侧边标签池里加一个标签）都会让 effect 重跑一次：表单字段被重新拉取覆盖，`poolOpen` 也被重置，侧栏当场收起。
 - **`PlaytimeField.svelte`**：总时长单输入框，失焦即 `update_game_state`。输入认 `12:30`、`12h30m` 与纯数字（按秒），右侧读数列显示秒；回填用无损写法（整分 `12:34`，带秒 `12:34:56`），认不出来的输入还原成原值。
 - **输入组**（输入框 + 右侧内嵌按钮）：容器单边框，输入框无框伸缩（`flex:1` + `min-width:0`），按钮坐右侧、中间一条分隔线；容器 `:focus-within` 接管焦点高亮，点输入框或点按钮整个框一起亮；按钮 `min-width` 兜住两种文字宽度，切换时输入框不抖帧；内嵌按钮做成无底无框的附属动作（hover 只变文字色 + 出 `--bg-hover` 底），不与表单行里的主按钮同权重。与 `.num-stepper` 同构，「框 + 附属动作」的组合沿用这一只。
 - **成组输入**：几个短字段同属一个语义组（宽高、三围这类）时并成一条外壳，不要各占一行——外壳只画外框、格间断竖线，组内 input 自身无框；组内标签可以压成单个字母或单位前缀，但 `.sr-only` 要补出全名（可访问名含可见标签，WCAG 2.5.3）。焦点由整格底色加格底内线承担，不套 `--focus-ring`：编辑区的焦点是中性强调（`--bg-raised` / `--border-strong`），accent 只表示选中身份。容器用 `role="group"` + `aria-label`，`fieldset` 的 `legend` 会在上边框留一道缺口；外壳 `overflow: hidden`，方角底色才能沿圆角收口。
@@ -301,6 +302,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 | 浮层（菜单 / 下拉 / 弹窗内容） | `--bg-floating` |
 | hover / 按下蒙版（压暗） | `--bg-hover` |
 | 选中（accent 身份） | `--bg-selected` + `--accent-border` |
+| 段控选中格 | `--bg-seg-thumb` + `--seg-thumb-shadow` |
 
 交互态写法：
 - hover / active 用 `--bg-hover` 蒙版压暗，或只强化 `--border-strong` 边框。
@@ -308,7 +310,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - 选中用 `--bg-selected` 淡染 + `--accent-border` 描边表达身份。
 - 表单字段（输入框、标签输入框等）hover 只动边框，`focus` / `:focus-within` 才升 `--bg-raised` + `--shadow-sm`。
 - 下拉 / 菜单：触发器（按钮）走 `--bg-hover` 压暗，弹出菜单走 `--bg-floating`。
-- 标签页 / 段控选中指示用 accent 下划线或 accent 淡染。
+- 标签页选中指示用 accent 下划线。段控的选中是取值不是身份，不吃 accent；accent 留给侧栏 active、焦点环与 VNDB 选中卡。段控容器不上色 —— 与周围同层，选中格吃 `--bg-seg-thumb` 并投 `--seg-thumb-shadow` 浮起，悬停格走 `--bg-hover`。两套主题的差别只在明度空间：深色底到选中格有 12 个 L\*，浅色只有 3，所以浅色靠阴影补、深色靠明度本身且阴影取 `none`（`--shadow-sm` 在深色是浮层用的 50% 黑，套到一条矮控件上会糊出一圈黑边）。别把容器压暗去做「槽」：那会让整条控件比周围低一层，读作凹槽；也别给选中格加描边，容器已有一圈边框，格内再来一道只有右边会露出来。
 - 已添加的「内容」类胶囊（tag 芯片）恒定背景用 `--bg-hover`，比容器深一档，hover 时仍保持边界（与只读 `.pill--tag` 同款）。
 - **可点击元素的 hover 分两套，按形态选**：文本流型（正文外链、角色声优名、文字按钮）用下划线——恒有下划线时由 35% 转 `currentColor`，静态不带的用 `text-decoration-color: transparent` 起手、hover 转实，两者都不改布局；块型（标签、特征、`+N` 药丸）用 `--bg-hover-strong` 底 + 字色升 `--fg-default`。别让正文里的链接只靠字色深浅区分，也别给行内文字加底色块。
 

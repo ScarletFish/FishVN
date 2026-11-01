@@ -138,6 +138,9 @@ body {
   --bg-hover: color-mix(in srgb, var(--ink-black) 6%, transparent);
   --bg-hover-strong: color-mix(in srgb, var(--ink-black) 12%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 18%, transparent);
+  /* 段控件：容器不上色，与周围同层；选中格提亮并投影，浮起靠阴影补明度 */
+  --bg-seg-thumb: var(--bg-raised);
+  --seg-thumb-shadow: var(--shadow-sm);
 
   /* 前景 */
   --fg-default: var(--sand-950);
@@ -202,6 +205,9 @@ body {
   --bg-hover: color-mix(in srgb, var(--ink-white) 6%, transparent);
   --bg-hover-strong: color-mix(in srgb, var(--ink-white) 12%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 18%, transparent);
+  /* 段控件：容器即弹窗底，选中格提亮一档；暗底上明度空间足够，不吃阴影 */
+  --bg-seg-thumb: var(--bg-hover-strong);
+  --seg-thumb-shadow: none;
 
   --fg-default: var(--sand-100);
   --fg-secondary: var(--sand-300);

@@ -1,5 +1,5 @@
 <script>
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import Modal from './Modal.svelte';
   import PathField from './PathField.svelte';
   import {
@@ -100,41 +100,43 @@
 
   $effect(() => {
     if (!open) return;
-    poolOpen = false;
-    themeMode = getThemeMode();
-    accent = getAccent();
-    fontScale = getFontScale();
-    hideR18 = getHideR18Tags();
-    spoilerLevel = getSpoilerLevel();
-    excludedTags = getExcludedTags();
-    loadLibraryTags();
-    api
-      .getConfig()
-      .then((config) => {
-        timeMetric = config.time_metric === 'alive' ? 'alive' : 'foreground';
-        spoilerLevel = SPOILER_LEVELS.includes(config.spoiler_level) ? config.spoiler_level : 'hide_all';
-        if (Array.isArray(config.excluded_tags)) excludedTags = config.excluded_tags;
-        layout = config.dashboard_layout ?? [];
-        includeUninstalled = config.dashboard_include_uninstalled !== false;
-        vndbSyncMode = config.vndb_sync_mode === 'upload' || config.vndb_sync_mode === 'both'
-          ? config.vndb_sync_mode
-          : 'download';
-        vndbSyncWishlist = !!config.vndb_sync_wishlist;
-        vndbSyncRating = config.vndb_sync_rating !== false;
-        hasVndbToken = !!config.has_vndb_token;
-        vndbTokenInput = '';
-        vndbTestResult = null;
-        magpiePath = config.magpie_path ?? '';
-        lePath = config.le_path ?? '';
-        magpiePathError = '';
-        lePathError = '';
-        quitBehavior = config.quit_behavior === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
-        backupRetentionMode = (config.backup_retention_days ?? null) == null
-          ? 'off'
-          : String(config.backup_retention_days);
-        loadBackups();
-      })
-      .catch(() => {});
+    untrack(() => {
+      poolOpen = false;
+      themeMode = getThemeMode();
+      accent = getAccent();
+      fontScale = getFontScale();
+      hideR18 = getHideR18Tags();
+      spoilerLevel = getSpoilerLevel();
+      excludedTags = getExcludedTags();
+      loadLibraryTags();
+      api
+        .getConfig()
+        .then((config) => {
+          timeMetric = config.time_metric === 'alive' ? 'alive' : 'foreground';
+          spoilerLevel = SPOILER_LEVELS.includes(config.spoiler_level) ? config.spoiler_level : 'hide_all';
+          if (Array.isArray(config.excluded_tags)) excludedTags = config.excluded_tags;
+          layout = config.dashboard_layout ?? [];
+          includeUninstalled = config.dashboard_include_uninstalled !== false;
+          vndbSyncMode = config.vndb_sync_mode === 'upload' || config.vndb_sync_mode === 'both'
+            ? config.vndb_sync_mode
+            : 'download';
+          vndbSyncWishlist = !!config.vndb_sync_wishlist;
+          vndbSyncRating = config.vndb_sync_rating !== false;
+          hasVndbToken = !!config.has_vndb_token;
+          vndbTokenInput = '';
+          vndbTestResult = null;
+          magpiePath = config.magpie_path ?? '';
+          lePath = config.le_path ?? '';
+          magpiePathError = '';
+          lePathError = '';
+          quitBehavior = config.quit_behavior === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
+          backupRetentionMode = (config.backup_retention_days ?? null) == null
+            ? 'off'
+            : String(config.backup_retention_days);
+          loadBackups();
+        })
+        .catch(() => {});
+    });
   });
 
   async function saveExcludedTags(next) {
