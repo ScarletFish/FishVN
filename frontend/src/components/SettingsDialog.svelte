@@ -636,6 +636,7 @@
 
       <div class="form-group">
         <div class="form-row">
+          <span class="form-row-label">{t('settings.cardTitle')}</span>
           <label class="toggle-switch" for="settings-card-title">
             <input
               id="settings-card-title"
@@ -646,9 +647,7 @@
             />
             <span class="toggle-slider"></span>
           </label>
-          <span class="form-row-label">{t('settings.cardTitle')}</span>
         </div>
-        <p class="form-hint">{t('settings.cardTitleHint')}</p>
       </div>
 
       <div class="form-group">
@@ -740,6 +739,7 @@
               {#if module.id === 'local_library'}
                 <div class="layout-subrow" class:disabled={!module.enabled}>
                   <label class="layout-subrow-line">
+                    <span class="layout-subrow-label">{t('settings.dashboardIncludeUninstalled')}</span>
                     <span class="toggle-switch">
                       <input
                         type="checkbox"
@@ -750,9 +750,7 @@
                       />
                       <span class="toggle-slider"></span>
                     </span>
-                    <span class="layout-subrow-label">{t('settings.dashboardIncludeUninstalled')}</span>
                   </label>
-                  <p class="form-hint">{t('settings.dashboardIncludeUninstalledHint')}</p>
                 </div>
               {/if}
             </div>
@@ -794,6 +792,7 @@
     <div class="modal-panel" class:active={tab === 'content'}>
       <div class="form-group">
         <div class="form-row">
+          <span class="form-row-label">{t('settings.hideR18')}</span>
           <label class="toggle-switch" for="settings-hide-r18">
             <input
               id="settings-hide-r18"
@@ -804,7 +803,6 @@
             />
             <span class="toggle-slider"></span>
           </label>
-          <span class="form-row-label">{t('settings.hideR18')}</span>
         </div>
         <p class="form-hint">{t('settings.hideR18Hint')}</p>
       </div>
@@ -953,6 +951,7 @@
 
       <div class="form-group form-group--flat">
         <div class="form-row">
+          <span class="form-row-label">{t('settings.vndb.syncWishlist')}</span>
           <label class="toggle-switch" for="settings-sync-wishlist">
             <input
               id="settings-sync-wishlist"
@@ -963,13 +962,12 @@
             />
             <span class="toggle-slider"></span>
           </label>
-          <span class="form-row-label">{t('settings.vndb.syncWishlist')}</span>
         </div>
-        <p class="form-hint">{t('settings.vndb.syncWishlistHint')}</p>
       </div>
 
       <div class="form-group form-group--flat">
         <div class="form-row">
+          <span class="form-row-label">{t('settings.vndb.syncRating')}</span>
           <label class="toggle-switch" for="settings-sync-rating">
             <input
               id="settings-sync-rating"
@@ -980,9 +978,7 @@
             />
             <span class="toggle-slider"></span>
           </label>
-          <span class="form-row-label">{t('settings.vndb.syncRating')}</span>
         </div>
-        <p class="form-hint">{t('settings.vndb.syncRatingHint')}</p>
       </div>
 
       <div class="form-group">

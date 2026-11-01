@@ -39,6 +39,8 @@
 }
 
 .form-row-label {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: var(--text-md);
   color: var(--fg-secondary);
 }
@@ -887,16 +889,9 @@
 
 .seg-radio-group {
   display: flex;
+  padding: var(--space-050);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
-}
-
-.seg-radio-item:first-child {
-  border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px);
-}
-
-.seg-radio-item:last-child {
-  border-radius: 0 calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0;
 }
 
 .seg-radio-item {
@@ -908,6 +903,7 @@
   flex: 1;
   min-width: 0;
   padding: var(--space-250) var(--space-3);
+  border-radius: calc(var(--radius-sm) - var(--space-050));
   font-size: var(--text-sm);
   color: var(--fg-secondary);
   white-space: nowrap;
@@ -1179,12 +1175,14 @@
 
 .layout-subrow {
   border-top: 1px solid var(--border-default);
-  padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 22px + var(--space-3));
+  padding: var(--space-2) var(--space-3) var(--space-2)
+    calc(var(--space-3) + 22px + var(--space-3) + 40px + var(--space-3));
 }
 
 .layout-subrow-line {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
   cursor: pointer;
 }
@@ -1200,10 +1198,6 @@
 
 .layout-subrow.disabled .layout-subrow-line {
   cursor: default;
-}
-
-.layout-subrow .form-hint {
-  margin-top: var(--space-1);
 }
 
 .form-label-row {
