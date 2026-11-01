@@ -128,6 +128,7 @@ pub struct GameListItem {
     pub created_at: i64,
     pub status: Status,
     pub user_rating: Option<f64>,
+    pub vndb_rating: Option<f64>,
     pub installation_count: i64,
     pub can_launch: bool,
     pub cover_path: Option<String>,

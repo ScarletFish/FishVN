@@ -23,6 +23,7 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
                 m.cover_focal_x AS cover_focal_x,
                 m.cover_focal_y AS cover_focal_y,
                 m.alias AS alias,
+                m.rating AS vndb_rating,
                 (SELECT GROUP_CONCAT(DISTINCT TRIM(s.name || ' ' || COALESCE(s.original, '')))
                  FROM character_va cv
                  JOIN staffs s ON s.id = cv.staff_id
@@ -31,7 +32,7 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
          JOIN user_game_state s ON s.game_id = g.id
          LEFT JOIN installations i ON i.game_id = g.id
          LEFT JOIN game_metadata m ON m.game_id = g.id
-         GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y, m.alias
+         GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y, m.alias, m.rating
          ORDER BY g.created_at DESC, g.id",
     )?;
     let rows = stmt.query_map([], |row| {
@@ -43,6 +44,7 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
             created_at: row.get("created_at")?,
             status: row.get("status")?,
             user_rating: row.get("user_rating")?,
+            vndb_rating: row.get("vndb_rating")?,
             installation_count: row.get("installation_count")?,
             can_launch: row.get::<_, i64>("can_launch")? == 1,
             cover_path: row.get("cover_path")?,

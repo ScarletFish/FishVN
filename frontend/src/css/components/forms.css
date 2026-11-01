@@ -4,7 +4,7 @@
 }
 
 .form-group + .form-group {
-  padding-top: var(--space-1);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--border-default);
 }
 

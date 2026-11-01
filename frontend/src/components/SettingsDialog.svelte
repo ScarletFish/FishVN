@@ -14,6 +14,7 @@
     setFontScale,
   } from '../lib/theme.js';
   import { t } from '../lib/i18n.js';
+  import { getShowCardTitle, setShowCardTitle } from '../lib/card-prefs.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { api } from '../lib/api.js';
@@ -39,6 +40,7 @@
   let fontScale = $state(getFontScale());
   let timeMetric = $state('foreground');
   let hideR18 = $state(false);
+  let showCardTitle = $state(false);
   let spoilerLevel = $state('hide_all');
   let excludedTags = $state([]);
   let poolOpen = $state(false);
@@ -105,6 +107,7 @@
       themeMode = getThemeMode();
       accent = getAccent();
       fontScale = getFontScale();
+      showCardTitle = getShowCardTitle();
       hideR18 = getHideR18Tags();
       spoilerLevel = getSpoilerLevel();
       excludedTags = getExcludedTags();
@@ -283,6 +286,10 @@
       .updateConfig({ hide_r18_tags: value })
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
+  }
+
+  function onShowCardTitleChange(e) {
+    showCardTitle = setShowCardTitle(e.target.checked);
   }
 
   function onQuitBehaviorChange(e) {
@@ -625,6 +632,23 @@
           oninput={(e) => (fontScale = setFontScale(Number(e.currentTarget.value) / 100))}
         />
         <p class="form-hint">{t('settings.fontSizeHint')}</p>
+      </div>
+
+      <div class="form-group">
+        <div class="form-row">
+          <label class="toggle-switch" for="settings-card-title">
+            <input
+              id="settings-card-title"
+              type="checkbox"
+              aria-label={t('settings.cardTitle')}
+              checked={showCardTitle}
+              onchange={onShowCardTitleChange}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="form-row-label">{t('settings.cardTitle')}</span>
+        </div>
+        <p class="form-hint">{t('settings.cardTitleHint')}</p>
       </div>
 
       <div class="form-group">

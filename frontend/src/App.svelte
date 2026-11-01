@@ -13,6 +13,7 @@
   import { loadTagDict } from './lib/tag-label.svelte.js';
   import { loadConfig } from './lib/config-store.svelte.js';
   import { syncTheme, syncAccent, syncFontScale } from './lib/theme.js';
+  import { syncShowCardTitle } from './lib/card-prefs.js';
   import { getScrollViewport } from './lib/scrollbars.js';
   import Sidebar from './components/Sidebar.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
@@ -29,6 +30,7 @@
 
   $effect(() => {
     syncFontScale();
+    syncShowCardTitle();
     loadTagDict();
     loadConfig();
     api

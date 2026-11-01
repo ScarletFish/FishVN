@@ -9,6 +9,7 @@
   import { toast } from '../lib/toast.svelte.js';
   import { confirm } from '../lib/confirm.svelte.js';
   import { compactDuration, durationText } from '../lib/playtime.js';
+  import { formatScore } from '../lib/format.js';
   import { playHero, discardHero } from '../lib/hero-transition.js';
   import { tagLabel } from '../lib/tag-label.svelte.js';
   import { requestSearchQuery } from '../lib/search-query.js';
@@ -143,10 +144,6 @@
 
   let alias = $derived(meta?.alias ?? '');
 
-  function formatScore(value) {
-    return value.toFixed(2);
-  }
-
   let ratingMineChosen = $state(true);
 
   let mineRating = $derived(
@@ -157,7 +154,7 @@
   let ratingSwitchable = $derived(mineRating != null && vndbRating != null);
   let ratingIsMine = $derived(ratingSwitchable ? ratingMineChosen : mineRating != null);
   let ratingValue = $derived(ratingIsMine ? mineRating : vndbRating);
-  let ratingScore = $derived(ratingValue != null ? formatScore(ratingValue / 10) : '');
+  let ratingScore = $derived(ratingValue != null ? formatScore(ratingValue) : '');
   let ratingSub = $derived(
     ratingIsMine ? t('detail.ratingMine') : t('detail.voteCount', { count: meta?.votecount ?? 0 }),
   );

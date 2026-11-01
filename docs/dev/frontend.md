@@ -190,7 +190,9 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - **`tooltip.js` / `side-tip.js`**：`data-tooltip` 的全局气泡替代原生 `title`；`sideTip` 是面向侧栏的变体，定位与外观不同，两者并存互不干扰。提示源被移除（切页、关弹窗）后浏览器不再对它发 `mouseout`，收尾由下一次 `mouseover` 探测 `isConnected` 完成；新增移除提示源的场景不需要额外清理。
 - **`events.js` 的 devhttp 订阅**：共享一条 EventSource，后端重启窗口期代理会以错误状态码应答，EventSource 因此进入 CLOSED 终态；`onerror` 里销毁并按 1 秒间隔重建，重挂全部监听，重建地址带 `?since=` 续传已收到的最大事件 id，避免重放旧事件。
 - **错误文案**：后端与网络错误不走 i18n，原样显示。
+- **`format.js`**：评分在数据层一律是 0–100（VNDB 与本地的原值都如此）。卡片与详情两处精度不同是有意的 —— `formatScore` 出两位（详情要精确），`formatScoreShort` 出最短形式（卡片胶囊，整数不补 `.0`），改精度只改这一个文件；不要在组件里另写 `toFixed`。同步结果弹窗的 `ratingText` 另算一路：它显示的是差异报告，要能与 VNDB 原始数值对齐，所以取两位再去零。
 - **`theme.js`**：首帧由 `index.html` 的内联脚本定，运行时切换只在 `theme.js`；两边判断必须一致 —— 把 `fishvn.theme` 解析成深浅（`system` 看 `prefers-color-scheme`）后，深色加 `data-theme` 属性、浅色删属性。`localStorage` 存的是三态选择本身，不是解析结果。
+- **`card-prefs.js`**：封面卡片的标题常显开关，存 `fishvn.cardTitle`，生效方式是给根元素挂 `data-card-title`，样式只认这个属性。与 `theme.js` 同属本地偏好、不进后端配置——只影响本机展示，不需要跨端同步。关闭时删掉属性而不是写成 `'off'`，与 `theme.js` 浅色删 `data-theme` 同一写法，CSS 里也就只有 `'on'` 一个取值要判断。
 - **`Detail`**：鼠标侧键 3 是后退，4 不接。
 - **`MyList`**：打开表单前先落 `gameId`，`GameForm` 的 `$effect` 与 `open` 在同一帧读到的是最终值。
 - **`DetailCharacters` / `CharacterEditor`**：立绘走封面那条 `coverSrc` 管线 —— 缩图与 asset 协议授权都在那边做过。
@@ -245,10 +247,14 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - `:hover` 的 `transform` 会生成层叠上下文，菜单展开时整卡抬到相邻卡之上
 - 承载弹出菜单的区块要压得过它后面的兄弟：`.detail-banner` 与 `.detail-chars` 同为 `z-index: 1` 时，DOM 靠后的角色区盖住横幅里弹出的 `.menu__list` —— 菜单自己的 `--z-dropdown` 出不了父级的层叠上下文
 - 可见表面与裁切都归 `.cover-card__frame`，菜单是它的兄弟而非子元素才逃得出裁切；卡片 `overflow: hidden` 同时承担浮层的底角，不能去掉
+- **评分两枚胶囊同一时刻只出一枚**：我的评分 `.cover-card__score--mine` 常驻右下，挂在 `.cover-card__frame` 外——要逃出裁切，也才能在悬停时上移让开菜单；社区评分 `.cover-card__score--vndb` 放在 overlay 里、标题上方。有社区分时用 `:has()` 把 mine 隐掉，不引 JS 状态：同一条规则要同时覆盖 `:hover` 与 `:focus-within`，写两遍选择器比维护一个 hovered 变量更不容易漏
+- **社区胶囊按 hover 独立显隐，不靠 overlay 的淡入**：它若跟着 overlay 走，开着「标题常显」时 overlay 常亮，两枚评分就会同时出现。现在它自己吃 `opacity` + `visibility`，只在 `:hover` / `:focus-within` 时可见；`visibility` 而非 `display`，是为了留出那一行的空间，否则悬停时 overlay 向上长一截、遮罩跟着跳
+- **标题常显开关写在根元素上**：`html[data-card-title='on']` 由 `lib/card-prefs.js` 同步，卡片不接 props——它在首页与「我的列表」两处复用，走 props 会让每个调用点都要传一遍
+- **标题固定一行省略**（`nowrap` + `text-overflow`），不按悬停状态改行数：两行会让卡片底部在进出悬停时跳高度。overlay 的 `padding-right` 要把菜单宽度与评分胶囊宽度一起算进去，否则长标题会钻到胶囊底下
 
 **表单分组**
 
-- `.form-group + .form-group` 自带一条分割线，线上 20px、线下 4px：下一块的首元素若是自带边框的卡片（`.form-row`），线会和卡片边框在 4px 内并排成双线；这类 group 加 `.form-group--flat` 去掉线，靠段间距分组
+- `.form-group + .form-group` 自带一条分割线，线上 20px、线下 16px：线下的内边距不能只给 4px，否则线贴住下一块的标签，读作标签的镶边而不是分隔；下一块的首元素若是自带边框的卡片（`.form-row`），线与卡片边框仍会并排成双线，这类 group 加 `.form-group--flat` 去掉线，靠段间距分组
 - **逻辑成组**：同属一个功能的若干项（如「设置项 + 动作 + 列表」）要视作一组、组间不留分割线时，保持首项为普通 `.form-group`，其余项加 `.form-group--flat`；VNDB 标签页的「同步心愿单 / 同步评分」两个开关行即此写法，设置页「数据库」标签页的「保留策略 / 创建备份 / 备份列表」也照此合并。改一组的视觉边界时，只动首项之后的 `--flat`，别给首项也加（那样会和上一组再隔开）
 - **动作行**：组内若某项是「标题 + 描述 + 控件/按钮」的单行卡片，用 `.form-row`——左侧放 `.form-row-text`（`.form-row-title` 标题 + `.form-row-desc` 描述，文本块 `flex: 1` 把控件顶到右侧），右侧放控件或按钮；版式镜像 VNDB 的开关行（左开关、右 `.form-row-label`），只是左侧换成文字块。新增这种行不要手搓 flex + 内联 style，统一走 `.form-row` 家族
 - **下拉**：设置里的选择一律用 `SelectDd`（见「组件与交互惯例」一节，已约定为下拉唯一入口），不要写原生 `<select>`；选项以 `{ value, label }` 数组传入，开合状态由调用方持有

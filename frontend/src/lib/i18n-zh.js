@@ -138,6 +138,8 @@ export const DICT_ZH = {
     unitHour: '小时',
     unitMinute: '分',
     unitSecond: '秒',
+    scoreMine: '我的评分 {score}',
+    scoreVndb: '社区评分 {score}',
   },
   detail: {
     notFound: '游戏不存在',
@@ -290,6 +292,8 @@ export const DICT_ZH = {
     layoutEmpty: '所有模块都已关闭',
     fontSize: '字体大小',
     fontSizeHint: '影响全部界面文字与控件',
+    cardTitle: '封面卡片常显标题',
+    cardTitleHint: '关闭时只在指针悬停时出现',
     hideR18: '隐藏成人向标签',
     hideR18Hint: '仅影响展示，不修改数据',
     spoilerLevel: '剧透标签',

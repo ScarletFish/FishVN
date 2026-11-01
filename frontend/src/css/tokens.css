@@ -173,6 +173,9 @@ body {
   /* 封面文字的压暗渐变；两个主题都用暗色，封面本身明度不定 */
   --cover-scrim: linear-gradient(transparent 20%, color-mix(in srgb, var(--ink-black) 88%, transparent) 80%);
 
+  /* 封面上的中性药丸底；压在照片上，与主题无关 */
+  --cover-score-bg: color-mix(in srgb, var(--ink-black) 62%, transparent);
+
   /* 场景卡（封面满铺的横滚卡）的斜向压暗渐变与图上次级文字；两个主题都用暗色，底下是封面图 */
   --scene-scrim: linear-gradient(
     135deg,
