@@ -320,6 +320,7 @@ body {
   --sidebar-w: 3.75rem;   /* 60px  侧栏图标条 */
   --titlebar-h: 2.125rem; /* 34px  标题栏 */
   --card-w: 17.3125rem;   /* 277px  封面墙卡宽，固定 */
+  --detail-block-h: 20rem; /* 320px  详情页分区内容区高度档，超出在块内滚动 */
   --cover-thumb-w: 5.625rem;
   --menu-plain-size: 1.75rem; /* 28px  裸图标菜单按钮的边长 */
   --text-view-title: clamp(1.3rem, 2.2vw, 1.6rem);

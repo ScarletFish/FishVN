@@ -112,6 +112,8 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 - **状态自动迁移只在越过静默窗后**做一次「计划中 → 游玩中」：spawn 成功不等于游戏真的跑起来了，点一条失效的路径不该改写状态。
 - 依赖 `windows` crate（Job Objects / Threading / WindowsAndMessaging）：版本要与 tauri 的传递依赖对齐，错开会编两遍。裸 `HANDLE` 不是 `Send`，跨线程传作业句柄要包 newtype 并整体传（闭包按字段捕获会绕过包装）；`DuplicateHandle` / `DUPLICATE_SAME_ACCESS` 在 `Win32::Foundation` 不在 Threading。
 
+计时有两个口径（前景 / 存活），取哪个**只由 `settings.time_metric` 决定**，写在 `AppConfig` 里。结算时按它往总时长加数，读取侧同样从 `settings::current()` 取：统计页的本周时长与月度活跃、详情页的游玩记录都走这一处。新增任何按会话聚合的消费方也照此办 —— 漏掉一处，同一屏就会出现两套口径。`alive_seconds` 不是列，是 `COALESCE(ended_at, last_seen_at) - started_at` 算出来的，进行中的会话随 `last_seen_at` 增长。
+
 ### 任务事件
 
 任何单条命令响应容纳不下的耗时操作（网络批量拉取、文件下载、后续库扫描等）都走任务事件通道，不要阻塞命令等结果。任务对外只有三条结果，各走各的通道：

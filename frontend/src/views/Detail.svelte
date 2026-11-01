@@ -17,6 +17,8 @@
   import { LIBRARY_CHANGED, notifyLibraryTagsChanged, onLibraryItemUpdated } from '../lib/library-events.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import DetailStaff from './DetailStaff.svelte';
+  import DetailPlayLog from './DetailPlayLog.svelte';
+  import DetailNotes from './DetailNotes.svelte';
   import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
 
@@ -36,6 +38,7 @@
   let gameState = $state(null);
   let activeSession = $state(null);
   let launching = $state(false);
+  let playLogEl = $state(null);
 
   const launchTarget = $derived(
     dirs.find((dir) => dir.id === defaultDirId && dir.entry_path) ??
@@ -502,9 +505,18 @@
             </button>
           </span>
           <div class="detail-launch-meta">
-            <span class="detail-stat" data-tooltip={t('detail.playtime')}
-              >{playSeconds > 0 ? durationText(t, playSeconds) : '--'}</span
-            >
+            {#if playSeconds > 0}
+              <button
+                type="button"
+                class="detail-stat detail-stat--link"
+                data-tooltip={t('detail.playtimeJump')}
+                onclick={() => playLogEl?.scrollTo()}
+              >
+                {durationText(t, playSeconds)}
+              </button>
+            {:else}
+              <span class="detail-stat" data-tooltip={t('detail.playtime')}>--</span>
+            {/if}
             <Menu
               bind:open={menuOpen}
               label={t('common.actionMore')}
@@ -684,6 +696,8 @@
     </div>
     <DetailCharacters gameId={gameId} />
     <DetailStaff {gameId} />
+    <DetailPlayLog {gameId} bind:this={playLogEl} />
+    <DetailNotes {gameId} />
   {/if}
 </section>
 

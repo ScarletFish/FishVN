@@ -27,7 +27,7 @@ use crate::error::{AppError, Result};
 use crate::games;
 use crate::installations;
 use crate::settings::{self, AppConfig, TimeMetric};
-use crate::types::{Installation, MagpieMode, PlaySession, Status};
+use crate::types::{GamePlayLog, Installation, MagpieMode, PlaySession, Status};
 use crate::{new_id, now};
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_log::log;
@@ -216,6 +216,27 @@ pub fn sweep(conn: &Connection) -> Result<()> {
 pub fn list_active(conn: &Connection) -> Result<Vec<PlaySession>> {
     let sql = format!("SELECT {COLUMNS} FROM play_sessions WHERE ended_at IS NULL ORDER BY started_at");
     collect(conn, &sql, params![])
+}
+
+pub fn play_log(conn: &Connection, game_id: &str, metric: TimeMetric) -> Result<GamePlayLog> {
+    let sql = format!(
+        "SELECT {COLUMNS} FROM play_sessions WHERE game_id = ? ORDER BY started_at, id"
+    );
+    let sessions = collect(conn, &sql, params![game_id])?;
+    let total_seconds = sessions
+        .iter()
+        .map(|session| match metric {
+            TimeMetric::Foreground => session.foreground_seconds,
+            TimeMetric::Alive => session.alive_seconds,
+        })
+        .sum();
+    Ok(GamePlayLog {
+        count: sessions.len() as i64,
+        first_at: sessions.first().map(|session| session.started_at),
+        last_at: sessions.last().map(|session| session.started_at),
+        total_seconds,
+        sessions,
+    })
 }
 
 fn watch(
@@ -646,5 +667,36 @@ mod tests {
     #[test]
     fn 引号内外的字符连成一个参数() {
         assert_eq!(split_command_line("pre\"in mid\"post"), vec!["prein midpost"]);
+    }
+
+    #[test]
+    fn 游玩记录按口径汇总并保留每条会话() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::ensure_schema(&conn).unwrap();
+        let id = games::create_game(
+            &conn,
+            &crate::types::NewGame {
+                name: "甲".into(),
+                vndb_id: None,
+                metadata: None,
+            },
+        )
+        .unwrap()
+        .id;
+        conn.execute(
+            "INSERT INTO play_sessions (id, game_id, started_at, last_seen_at, ended_at, foreground_seconds)
+             VALUES ('s1', ?1, 100, 3600, 3600, 1200)",
+            params![id],
+        )
+        .unwrap();
+
+        let log = play_log(&conn, &id, TimeMetric::Foreground).unwrap();
+        assert_eq!(log.count, 1);
+        assert_eq!(log.total_seconds, 1200);
+        assert_eq!(log.first_at, Some(100));
+        assert_eq!(log.last_at, Some(100));
+        assert_eq!(log.sessions[0].alive_seconds, 3500);
+        assert_eq!(play_log(&conn, &id, TimeMetric::Alive).unwrap().total_seconds, 3500);
+        assert_eq!(play_log(&conn, "无此作品", TimeMetric::Foreground).unwrap().count, 0);
     }
 }

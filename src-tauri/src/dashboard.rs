@@ -352,25 +352,32 @@ pub struct ActivityPoint {
     pub seconds: i64,
 }
 
-pub fn monthly_activity(conn: &Connection, months: i64) -> Result<Vec<ActivityPoint>> {
+pub fn monthly_activity(conn: &Connection, months: i64, metric: TimeMetric) -> Result<Vec<ActivityPoint>> {
     let mut stmt = conn.prepare(
         "WITH RECURSIVE seq(ym) AS (
             SELECT strftime('%Y-%m', ?1, 'unixepoch')
             UNION ALL
             SELECT strftime('%Y-%m', date(ym || '-01', '-1 month')) FROM seq LIMIT ?2
          )
-         SELECT seq.ym AS ym, COALESCE(SUM(p.foreground_seconds), 0) AS s
+         SELECT seq.ym AS ym, COALESCE(SUM(
+                CASE WHEN ?3 = 'alive'
+                    THEN COALESCE(p.ended_at, p.last_seen_at) - p.started_at
+                    ELSE p.foreground_seconds
+                END), 0) AS s
          FROM seq
          LEFT JOIN play_sessions p ON strftime('%Y-%m', p.started_at, 'unixepoch') = seq.ym
          GROUP BY seq.ym
          ORDER BY seq.ym",
     )?;
-    let rows = stmt.query_map(rusqlite::params![crate::now(), months.max(1)], |row| {
-        Ok(ActivityPoint {
-            month: row.get("ym")?,
-            seconds: row.get("s")?,
-        })
-    })?;
+    let rows = stmt.query_map(
+        rusqlite::params![crate::now(), months.max(1), metric_text(metric)],
+        |row| {
+            Ok(ActivityPoint {
+                month: row.get("ym")?,
+                seconds: row.get("s")?,
+            })
+        },
+    )?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
@@ -765,19 +772,32 @@ mod tests {
     }
 
     #[test]
-    fn 月度活跃按月份聚合前景时间并补齐空月() {
+    fn 月度活跃按口径聚合并补齐空月() {
         let conn = db();
         let now = crate::now();
         let a = make_game(&conn, "甲");
         add_session(&conn, &a, "x1", now - 30 * 86400, 3600);
         add_session(&conn, &a, "x2", now - 60 * 86400, 1800);
+        conn.execute(
+            "INSERT INTO play_sessions (id, game_id, started_at, last_seen_at, ended_at, foreground_seconds)
+             VALUES ('p-x3', ?1, ?2, ?3, ?3, 600)",
+            rusqlite::params![a, now - 90 * 86400, now - 90 * 86400 + 2400],
+        )
+        .unwrap();
 
-        let points = monthly_activity(&conn, 12).unwrap();
+        let points = monthly_activity(&conn, 12, TimeMetric::Foreground).unwrap();
         assert_eq!(points.len(), 12);
         let total: i64 = points.iter().map(|p| p.seconds).sum();
-        assert_eq!(total, 5400);
+        assert_eq!(total, 6000);
         assert_eq!(month_index(&points[11].month) - month_index(&points[0].month), 11);
-        assert_eq!(monthly_activity(&conn, 1).unwrap().len(), 1);
+        assert_eq!(monthly_activity(&conn, 1, TimeMetric::Foreground).unwrap().len(), 1);
+
+        let alive: i64 = monthly_activity(&conn, 12, TimeMetric::Alive)
+            .unwrap()
+            .iter()
+            .map(|p| p.seconds)
+            .sum();
+        assert_eq!(alive, 5400 + 2400);
     }
 
     #[test]

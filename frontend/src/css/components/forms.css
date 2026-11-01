@@ -738,11 +738,6 @@
   color: var(--fg-default);
 }
 
-.form-group--notes textarea {
-  height: 120px;
-  min-height: 120px;
-}
-
 .staff-rows {
   display: flex;
   flex-direction: column;

@@ -21,9 +21,9 @@ use crate::sync;
 use crate::tasks::{EventLog, Task, Tasks};
 use crate::thumbs;
 use crate::types::{
-    Game, GameCharacter, GameListItem, GameMetadata, GamePatch, Installation, InstallationInput,
-    InstallationPatch, MetadataPatch, NewGame, NewInstallation, PlaySession, StatePatch,
-    TaskEvent, UserGameState,
+    Game, GameCharacter, GameListItem, GameMetadata, GamePatch, GamePlayLog, Installation,
+    InstallationInput, InstallationPatch, MetadataPatch, NewGame, NewInstallation, PlaySession,
+    StatePatch, TaskEvent, UserGameState,
 };
 use crate::vndb::{self, RateLimiter, VnSearchHit, VnSync};
 use tauri_plugin_log::log;
@@ -106,7 +106,8 @@ pub fn dashboard_release_eras(shared: Shared<'_>) -> Result<Vec<EraPoint>> {
 
 #[tauri::command]
 pub fn dashboard_monthly_activity(shared: Shared<'_>, months: i64) -> Result<Vec<ActivityPoint>> {
-    dashboard::monthly_activity(&*lock(&shared)?, months)
+    let config = settings::current();
+    dashboard::monthly_activity(&*lock(&shared)?, months, config.time_metric)
 }
 
 #[tauri::command]
@@ -208,6 +209,12 @@ pub fn launch_game(shared: Shared<'_>, id: String, app: tauri::AppHandle) -> Res
 #[tauri::command]
 pub fn list_active_sessions(shared: Shared<'_>) -> Result<Vec<PlaySession>> {
     sessions::list_active(&*lock(&shared)?)
+}
+
+#[tauri::command]
+pub fn game_play_log(shared: Shared<'_>, id: String) -> Result<GamePlayLog> {
+    let config = settings::current();
+    sessions::play_log(&*lock(&shared)?, &id, config.time_metric)
 }
 
 #[tauri::command]

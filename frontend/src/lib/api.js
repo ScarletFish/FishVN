@@ -58,6 +58,7 @@ export const api = {
   saveInstallations: (gameId, entries) => call('save_installations', { gameId, entries }),
   launchGame: (id) => call('launch_game', { id }),
   listActiveSessions: () => call('list_active_sessions'),
+  gamePlayLog: (id) => call('game_play_log', { id }),
   searchVndb: (keyword) => call('search_vndb', { keyword }),
   fetchVnMetadata: (vndbId) => call('fetch_vn_metadata', { vndbId }),
   cancelTask: (task) => call('cancel_task', { task }),

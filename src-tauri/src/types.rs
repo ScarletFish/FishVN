@@ -173,6 +173,15 @@ pub struct PlaySession {
     pub alive_seconds: i64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct GamePlayLog {
+    pub count: i64,
+    pub first_at: Option<i64>,
+    pub last_at: Option<i64>,
+    pub total_seconds: i64,
+    pub sessions: Vec<PlaySession>,
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GameMetadata {
     pub game_id: String,

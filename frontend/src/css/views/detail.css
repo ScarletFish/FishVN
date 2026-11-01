@@ -703,7 +703,7 @@ button.info-rating {
   color: var(--fg-default);
 }
 .detail-staff-scroll {
-  max-height: 320px;
+  max-height: var(--detail-block-h);
   overflow-y: auto;
   padding-right: var(--space-1);
 }
@@ -763,12 +763,248 @@ button.info-rating {
   animation: detail-fade-in var(--duration-normal) var(--ease-out) backwards;
 }
 
+.detail-section-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.detail-stat--link {
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.detail-stat--link:hover {
+  color: var(--fg-default);
+}
+
+.detail-playlog-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+
+.detail-playlog-meta b {
+  margin-left: var(--space-1);
+  color: var(--fg-secondary);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-playlog-chart {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  cursor: crosshair;
+}
+
+.detail-playlog-cursor {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.detail-playlog-cursor-dot {
+  fill: var(--accent);
+  stroke: var(--bg-surface);
+  stroke-width: 1.5;
+}
+
+.detail-playlog-hover {
+  fill: var(--fg-secondary);
+  font-size: var(--text-xs);
+}
+
+.detail-playlog-hover-step {
+  fill: var(--fg-default);
+  font-weight: var(--fw-medium);
+}
+
+.detail-playlog-grid {
+  stroke: var(--border-default);
+  stroke-width: 1;
+}
+
+.detail-playlog-axis {
+  fill: var(--fg-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-playlog-metric {
+  fill: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+
+.detail-playlog-area {
+  fill: var(--accent-bg);
+}
+
+.detail-playlog-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.detail-playlog-dot {
+  fill: var(--accent);
+  stroke: var(--bg-surface);
+  stroke-width: 1.5;
+}
+
+.detail-playlog-end {
+  fill: var(--fg-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-notes-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--fg-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.detail-notes-edit:hover {
+  color: var(--fg-default);
+  background: var(--bg-raised);
+}
+
+.detail-notes-edit svg {
+  width: 13px;
+  height: 13px;
+}
+
+.detail-notes-saved {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.detail-notes-body {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--fg-secondary);
+  font-size: var(--text-md);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+}
+
+.detail-notes-body--open {
+  -webkit-line-clamp: none;
+  max-height: var(--detail-block-h);
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.detail-notes-toggle {
+  align-self: end;
+  padding: 0;
+  margin-top: calc(-1 * var(--space-2));
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  text-align: right;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.detail-notes-toggle:hover {
+  color: var(--fg-default);
+}
+
+.detail-notes-input {
+  width: calc(100% + var(--space-3));
+  height: 200px;
+  min-height: 200px;
+  margin-left: calc(-1 * var(--space-3));
+  padding: var(--space-2) var(--space-1) var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: 1.7;
+  color: var(--fg-default);
+  background: var(--bg-surface);
+  border: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 1px var(--border-default);
+  resize: none;
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.detail-notes-input:hover {
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+.detail-notes-input:focus {
+  background: var(--bg-raised);
+  box-shadow: 0 0 0 1px var(--border-strong);
+  outline: none;
+}
+
+.detail-notes-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.detail-notes-empty {
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  text-align: left;
+  background: none;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.detail-notes-empty:hover {
+  color: var(--fg-secondary);
+  border-color: var(--border-strong);
+}
+
 .detail-enter-chars .detail-section-header {
   animation: detail-rise var(--duration-normal) var(--ease-out) 0.12s backwards;
 }
 
 .detail-enter-staff {
   animation: detail-rise var(--duration-normal) var(--ease-out) 0.18s backwards;
+}
+
+.detail-enter-playlog {
+  animation: detail-rise var(--duration-normal) var(--ease-out) 0.24s backwards;
+}
+
+.detail-enter-notes {
+  animation: detail-rise var(--duration-normal) var(--ease-out) 0.3s backwards;
 }
 
 @keyframes detail-rise {
@@ -788,7 +1024,9 @@ button.info-rating {
   .detail-rise,
   .detail-fade,
   .detail-enter-chars .detail-section-header,
-  .detail-enter-staff {
+  .detail-enter-staff,
+  .detail-enter-playlog,
+  .detail-enter-notes {
     animation: none;
   }
 

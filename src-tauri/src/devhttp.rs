@@ -162,7 +162,8 @@ handler!(library_tags, |c, _a| {
 });
 handler!(library_traits, |c, _a| dashboard::library_traits(c));
 handler!(dashboard_monthly_activity, |c, a| {
-    dashboard::monthly_activity(c, a.months.unwrap_or(12))
+    let config = settings::current();
+    dashboard::monthly_activity(c, a.months.unwrap_or(12), config.time_metric)
 });
 handler!(dashboard_playtime_top, |c, _a| dashboard::playtime_top(c, 6));
 handler!(dashboard_release_eras, |c, _a| dashboard::release_eras(c));
@@ -209,6 +210,10 @@ handler!(save_game_characters, |c, a| {
     characters::replace_all(c, a.id()?, &list)
 });
 handler!(list_active_sessions, |c, _a| sessions::list_active(c));
+handler!(game_play_log, |c, a| {
+    let config = settings::current();
+    sessions::play_log(c, a.id()?, config.time_metric)
+});
 async fn launch_game(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     finish(sessions::launch(dev.conn.clone(), a.id()?, Some(dev.app.clone())))
 }
@@ -539,6 +544,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/save_installations", post(save_installations))
         .route("/launch_game", post(launch_game))
         .route("/list_active_sessions", post(list_active_sessions))
+        .route("/game_play_log", post(game_play_log))
         .route("/get_game_metadata", post(get_game_metadata))
         .route("/update_game_metadata", post(update_game_metadata))
         .route("/list_game_characters", post(list_game_characters))
@@ -593,6 +599,7 @@ pub const COMMANDS: &[&str] = &[
     "save_installations",
     "launch_game",
     "list_active_sessions",
+    "game_play_log",
     "get_game_metadata",
     "update_game_metadata",
     "list_game_characters",

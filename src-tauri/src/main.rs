@@ -191,6 +191,7 @@ fn main() {
             commands::save_installations,
             commands::launch_game,
             commands::list_active_sessions,
+            commands::game_play_log,
             commands::get_game_metadata,
             commands::update_game_metadata,
             commands::list_game_characters,
