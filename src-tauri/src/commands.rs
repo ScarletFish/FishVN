@@ -34,6 +34,21 @@ fn lock<'a>(shared: &'a Shared<'_>) -> Result<MutexGuard<'a, Connection>> {
     db::lock(shared.inner())
 }
 
+fn trace<T>(cmd: &str, result: Result<T>) -> Result<T> {
+    if let Err(e) = &result {
+        if e.is_fault() {
+            log::warn!(target: "command", "{cmd} 失败：[{}] {e}", e.kind());
+        } else {
+            log::debug!(target: "command", "{cmd} 返回：[{}] {e}", e.kind());
+        }
+    }
+    result
+}
+
+fn traced<T>(cmd: &str, run: impl FnOnce() -> Result<T>) -> Result<T> {
+    trace(cmd, run())
+}
+
 #[tauri::command]
 pub fn list_games(shared: Shared<'_>) -> Result<Vec<GameListItem>> {
     games::list_games(&*lock(&shared)?)
@@ -101,17 +116,21 @@ pub fn get_game(shared: Shared<'_>, id: String) -> Result<Game> {
 
 #[tauri::command]
 pub fn create_game(shared: Shared<'_>, input: NewGame) -> Result<Game> {
-    games::create_game(&*lock(&shared)?, &input)
+    traced("create_game", || {
+        games::create_game(&*lock(&shared)?, &input)
+    })
 }
 
 #[tauri::command]
 pub fn update_game(shared: Shared<'_>, id: String, patch: GamePatch) -> Result<Game> {
-    games::update_game(&*lock(&shared)?, &id, &patch)
+    traced("update_game", || {
+        games::update_game(&*lock(&shared)?, &id, &patch)
+    })
 }
 
 #[tauri::command]
 pub fn delete_game(shared: Shared<'_>, id: String) -> Result<()> {
-    games::delete_game(&*lock(&shared)?, &id)
+    traced("delete_game", || games::delete_game(&*lock(&shared)?, &id))
 }
 
 #[tauri::command]
@@ -125,7 +144,9 @@ pub fn update_game_state(
     id: String,
     patch: StatePatch,
 ) -> Result<UserGameState> {
-    games::update_game_state(&*lock(&shared)?, &id, &patch)
+    traced("update_game_state", || {
+        games::update_game_state(&*lock(&shared)?, &id, &patch)
+    })
 }
 
 #[tauri::command]
@@ -143,7 +164,9 @@ pub fn get_installation(shared: Shared<'_>, id: String) -> Result<Installation> 
 
 #[tauri::command]
 pub fn create_installation(shared: Shared<'_>, input: NewInstallation) -> Result<Installation> {
-    installations::create_installation(&*lock(&shared)?, &input)
+    traced("create_installation", || {
+        installations::create_installation(&*lock(&shared)?, &input)
+    })
 }
 
 #[tauri::command]
@@ -152,12 +175,16 @@ pub fn update_installation(
     id: String,
     patch: InstallationPatch,
 ) -> Result<Installation> {
-    installations::update_installation(&*lock(&shared)?, &id, &patch)
+    traced("update_installation", || {
+        installations::update_installation(&*lock(&shared)?, &id, &patch)
+    })
 }
 
 #[tauri::command]
 pub fn delete_installation(shared: Shared<'_>, id: String) -> Result<()> {
-    installations::delete_installation(&*lock(&shared)?, &id)
+    traced("delete_installation", || {
+        installations::delete_installation(&*lock(&shared)?, &id)
+    })
 }
 
 #[tauri::command]
@@ -166,12 +193,16 @@ pub fn save_installations(
     game_id: String,
     entries: Vec<InstallationInput>,
 ) -> Result<Vec<Installation>> {
-    installations::save_installations(&*lock(&shared)?, &game_id, &entries)
+    traced("save_installations", || {
+        installations::save_installations(&*lock(&shared)?, &game_id, &entries)
+    })
 }
 
 #[tauri::command]
 pub fn launch_game(shared: Shared<'_>, id: String, app: tauri::AppHandle) -> Result<PlaySession> {
-    sessions::launch(shared.inner().clone(), &id, Some(app))
+    traced("launch_game", || {
+        sessions::launch(shared.inner().clone(), &id, Some(app))
+    })
 }
 
 #[tauri::command]
@@ -190,7 +221,9 @@ pub fn update_game_metadata(
     id: String,
     patch: MetadataPatch,
 ) -> Result<GameMetadata> {
-    metadata::upsert(&*lock(&shared)?, &id, &patch)
+    traced("update_game_metadata", || {
+        metadata::upsert(&*lock(&shared)?, &id, &patch)
+    })
 }
 
 #[tauri::command]
@@ -199,7 +232,9 @@ pub fn save_game_characters(
     id: String,
     characters: Vec<GameCharacter>,
 ) -> Result<Vec<GameCharacter>> {
-    characters::replace_all(&*lock(&shared)?, &id, &characters)
+    traced("save_game_characters", || {
+        characters::replace_all(&*lock(&shared)?, &id, &characters)
+    })
 }
 
 #[tauri::command]
@@ -343,7 +378,9 @@ pub fn get_config(_app: tauri::AppHandle) -> Result<settings::ConfigView> {
 
 #[tauri::command]
 pub fn update_config(app: tauri::AppHandle, patch: ConfigPatch) -> Result<AppConfig> {
-    settings::patch(&data_dir_or_err(&app)?, patch)
+    traced("update_config", || {
+        settings::patch(&data_dir_or_err(&app)?, patch)
+    })
 }
 
 #[tauri::command]
@@ -375,7 +412,7 @@ pub async fn sync_vndb(
     shared: State<'_, Arc<Mutex<Connection>>>,
     rate: State<'_, Arc<RateLimiter>>,
 ) -> Result<sync::SyncPlan> {
-    sync::plan(shared.inner().clone(), rate.inner(), |phase, done, total| {
+    let result = sync::plan(shared.inner().clone(), rate.inner(), |phase, done, total| {
         let event = TaskEvent {
             phase: phase.to_owned(),
             done,
@@ -390,7 +427,8 @@ pub async fn sync_vndb(
         };
         let _ = app.emit(SYNC_PROGRESS, logged.event);
     })
-    .await
+    .await;
+    trace("sync_vndb", result)
 }
 
 #[tauri::command]
@@ -401,55 +439,59 @@ pub async fn apply_sync_plan(
     rate: State<'_, Arc<RateLimiter>>,
     decision: sync::PlanDecision,
 ) -> Result<sync::ApplyReport> {
-    let pushes = decision.pushes.clone();
-    let mut upload = None;
-    if !pushes.is_empty() {
-        let config = crate::settings::current();
-        let token = config
-            .vndb_token_obf
-            .as_deref()
-            .and_then(crate::settings::deobfuscate_token)
-            .ok_or_else(|| AppError::BadRequest("还没有保存 VNDB 令牌".into()))?;
-        let http = crate::vndb::http();
-        if !crate::vndb::has_listwrite(http, &token).await? {
-            return Err(AppError::BadRequest(
-                "Token 没有写入权限，无法上传到 VNDB".into(),
-            ));
+    let result: Result<sync::ApplyReport> = async {
+        let pushes = decision.pushes.clone();
+        let mut upload = None;
+        if !pushes.is_empty() {
+            let config = crate::settings::current();
+            let token = config
+                .vndb_token_obf
+                .as_deref()
+                .and_then(crate::settings::deobfuscate_token)
+                .ok_or_else(|| AppError::BadRequest("还没有保存 VNDB 令牌".into()))?;
+            let http = crate::vndb::http();
+            if !crate::vndb::has_listwrite(http, &token).await? {
+                return Err(AppError::BadRequest(
+                    "Token 没有写入权限，无法上传到 VNDB".into(),
+                ));
+            }
+            let labels = crate::vndb::fetch_label_map(http, &token).await?;
+            upload = Some((token, labels));
         }
-        let labels = crate::vndb::fetch_label_map(http, &token).await?;
-        upload = Some((token, labels));
-    }
-    let conn = shared.inner().clone();
-    let apply_conn = conn.clone();
-    let mut report = tauri::async_runtime::spawn_blocking(move || {
-        let guard = crate::db::lock(&apply_conn)?;
-        sync::apply(&guard, &decision)
-    })
-    .await
-    .map_err(|e| AppError::Upstream(format!("同步应用失败：{e}")))??;
+        let conn = shared.inner().clone();
+        let apply_conn = conn.clone();
+        let mut report = tauri::async_runtime::spawn_blocking(move || {
+            let guard = crate::db::lock(&apply_conn)?;
+            sync::apply(&guard, &decision)
+        })
+        .await
+        .map_err(|e| AppError::Upstream(format!("同步应用失败：{e}")))??;
 
-    let Some((token, labels)) = upload else {
-        return Ok(report);
-    };
-    let http = crate::vndb::http();
-    report.pushed = sync::push(conn, http, &token, &labels, &pushes, rate.inner(), |done, total| {
-        let event = TaskEvent {
-            phase: "push".to_owned(),
-            done: Some(done as i64),
-            total: Some(total as i64),
-            error: None,
-            run_id: 0,
-            game_id: None,
+        let Some((token, labels)) = upload else {
+            return Ok(report);
         };
-        let logged = match log.inner().lock() {
-            Ok(mut log) => log.push(SYNC_PROGRESS, event),
-            Err(_) => return,
-        };
-        let _ = app.emit(SYNC_PROGRESS, logged.event);
-    })
-    .await
-    .map_err(|e| AppError::Upstream(format!("本地更改已应用，但写入 VNDB 时中断：{e}")))?;
-    Ok(report)
+        let http = crate::vndb::http();
+        report.pushed = sync::push(conn, http, &token, &labels, &pushes, rate.inner(), |done, total| {
+            let event = TaskEvent {
+                phase: "push".to_owned(),
+                done: Some(done as i64),
+                total: Some(total as i64),
+                error: None,
+                run_id: 0,
+                game_id: None,
+            };
+            let logged = match log.inner().lock() {
+                Ok(mut log) => log.push(SYNC_PROGRESS, event),
+                Err(_) => return,
+            };
+            let _ = app.emit(SYNC_PROGRESS, logged.event);
+        })
+        .await
+        .map_err(|e| AppError::Upstream(format!("本地更改已应用，但写入 VNDB 时中断：{e}")))?;
+        Ok(report)
+    }
+    .await;
+    trace("apply_sync_plan", result)
 }
 
 #[tauri::command]
@@ -461,30 +503,32 @@ pub async fn start_backfill(
     tasks: State<'_, Arc<Tasks>>,
     game_ids: Option<Vec<String>>,
 ) -> Result<backfill::BackfillReport> {
-    if backfill::status().running {
-        return Err(AppError::Conflict("补全任务正在进行中".into()));
-    }
-    let items = {
-        let guard = lock(&shared)?;
-        match &game_ids {
-            Some(ids) if !ids.is_empty() => backfill::items_by_ids(&guard, ids)?,
-            _ => backfill::scan(&guard)?,
+    traced("start_backfill", || {
+        if backfill::status().running {
+            return Err(AppError::Conflict("补全任务正在进行中".into()));
         }
-    };
-    let total = items.len();
-    let run_id = backfill::reset(total as i64);
-    tauri::async_runtime::spawn(backfill::run(
-        shared.inner().clone(),
-        rate.inner().clone(),
-        app,
-        events.inner().clone(),
-        tasks.inner().clone(),
-        run_id,
-        items,
-    ));
-    Ok(backfill::BackfillReport {
-        total,
-        ..Default::default()
+        let items = {
+            let guard = lock(&shared)?;
+            match &game_ids {
+                Some(ids) if !ids.is_empty() => backfill::items_by_ids(&guard, ids)?,
+                _ => backfill::scan(&guard)?,
+            }
+        };
+        let total = items.len();
+        let run_id = backfill::reset(total as i64);
+        tauri::async_runtime::spawn(backfill::run(
+            shared.inner().clone(),
+            rate.inner().clone(),
+            app,
+            events.inner().clone(),
+            tasks.inner().clone(),
+            run_id,
+            items,
+        ));
+        Ok(backfill::BackfillReport {
+            total,
+            ..Default::default()
+        })
     })
 }
 
@@ -526,28 +570,26 @@ pub fn path_exists(path: String) -> Result<bool> {
 
 #[tauri::command]
 pub fn create_backup(shared: Shared<'_>, app: tauri::AppHandle) -> Result<backup::BackupMeta> {
-    let dir =
-        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
-    backup::create_backup(shared.inner(), &dir)
+    traced("create_backup", || {
+        backup::create_backup(shared.inner(), &data_dir_or_err(&app)?)
+    })
 }
 
 #[tauri::command]
 pub fn list_backups(app: tauri::AppHandle) -> Result<Vec<backup::BackupMeta>> {
-    let dir =
-        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
-    backup::list_backups(&dir)
+    backup::list_backups(&data_dir_or_err(&app)?)
 }
 
 #[tauri::command]
 pub fn restore_backup(shared: Shared<'_>, app: tauri::AppHandle, id: String) -> Result<()> {
-    let dir =
-        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
-    backup::restore_backup(shared.inner(), &dir, &id)
+    traced("restore_backup", || {
+        backup::restore_backup(shared.inner(), &data_dir_or_err(&app)?, &id)
+    })
 }
 
 #[tauri::command]
 pub fn delete_backup(app: tauri::AppHandle, id: String) -> Result<()> {
-    let dir =
-        crate::data_dir(&app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
-    backup::delete_backup(&dir, &id)
+    traced("delete_backup", || {
+        backup::delete_backup(&data_dir_or_err(&app)?, &id)
+    })
 }

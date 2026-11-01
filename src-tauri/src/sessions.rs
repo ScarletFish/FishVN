@@ -30,6 +30,7 @@ use crate::settings::{self, AppConfig, TimeMetric};
 use crate::types::{Installation, MagpieMode, PlaySession, Status};
 use crate::{new_id, now};
 use tauri::{AppHandle, Emitter};
+use tauri_plugin_log::log;
 
 const TICK: Duration = Duration::from_millis(1000);
 const SETTLE_TICKS: u32 = 3;
@@ -180,6 +181,7 @@ pub fn launch(shared: Arc<Mutex<Connection>>, game_id: &str, app: Option<AppHand
     if let (Some(path), Some(magpie_job)) = (magpie_path, magpie_job) {
         thread::spawn(move || trigger_magpie(&path, magpie_job, magpie_mode));
     }
+    log::info!(target: "session", "游玩开始：{game_id} 会话 {}", session.id);
     Ok(session)
 }
 
@@ -198,6 +200,9 @@ pub fn sweep(conn: &Connection) -> Result<()> {
         "UPDATE play_sessions SET ended_at = last_seen_at WHERE ended_at IS NULL",
         [],
     )?;
+    if !orphans.is_empty() {
+        log::info!(target: "session", "启动补账：{} 个未收尾的会话", orphans.len());
+    }
     for (game_id, started_at, last_seen_at, foreground) in orphans {
         let seconds = match settings::current().time_metric {
             TimeMetric::Foreground => foreground,
@@ -255,11 +260,18 @@ fn watch(
     }
     store(&shared, &session_id, alive_at, foreground, Some(alive_at));
     if let Ok(conn) = shared.lock() {
-        let seconds = match settings::current().time_metric {
-            TimeMetric::Foreground => foreground,
-            TimeMetric::Alive => alive_at - started_at,
+        let (seconds, metric) = match settings::current().time_metric {
+            TimeMetric::Foreground => (foreground, "前台"),
+            TimeMetric::Alive => (alive_at - started_at, "存活"),
         };
-        let _ = add_play_time(&conn, &game_id, seconds);
+        log::info!(target: "session", "游玩结束：{game_id} {seconds} s（{metric}）");
+        if let Err(e) = add_play_time(&conn, &game_id, seconds) {
+            log::warn!(
+                target: "session",
+                "游玩时长没记上：{game_id} {seconds} s：[{}] {e}",
+                e.kind()
+            );
+        }
         if seconds > 0 {
             if let Some(app) = &app {
                 let _ = app.emit("session-ended", SessionEnded { seconds });

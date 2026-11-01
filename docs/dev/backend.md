@@ -170,9 +170,11 @@ snake_case，裸 HTTP 没有这层转换。前端日志命令（`log_frontend`�
 
 ### 日志
 
-日志走 `tauri-plugin-log`，写入系统日志目录（Windows 为 `%LOCALAPPDATA%\{bundleIdentifier}\logs`），单文件 5MB 触发轮转并保留一个备份，时间戳用本地时区，级别 `info`。开发与安装版写同一处，排查问题直接看这个目录。
+日志走 `tauri-plugin-log`，写入系统日志目录（Windows 为 `%LOCALAPPDATA%\{bundleIdentifier}\logs`），单文件 5MB 触发轮转并保留一个备份，时间戳用本地时区，级别默认 `info`，可用环境变量 `FISHVN_LOG_LEVEL` 覆盖（`off` / `error` / `warn` / `info` / `debug` / `trace`，写错或留空回落到 `info`）。开发与安装版写同一处，排查问题直接看这个目录。
 
-进日志的内容与各自的 target：启动计时（`startup`，Rust 侧进程到后端就绪、前端侧 webview 导航到列表就绪）、任务生命周期（开始 / 完成 / 取消 / 失败，带耗时，记在 `fetch_vn_metadata` 外壳）、任务 `report_error` 的降级事件（封面单张下载失败这类不中断任务的错误）、图片下载失败、Rust panic（`panic`）、前端异常与 IPC 失败（`webview`，经 `log_frontend` 转发）。成功的 IPC 调用与高频进度事件不进日志；`log_frontend` 把超长消息截断到 2000 字符。
+进日志的内容与各自的 target：启动计时（`startup`，Rust 侧进程到后端就绪、前端侧 webview 导航到列表就绪）、任务生命周期（开始 / 完成 / 取消 / 失败，带耗时，记在 `fetch_vn_metadata` 外壳）、任务 `report_error` 的降级事件（封面单张下载失败这类不中断任务的错误）、图片下载失败、Rust panic（`panic`）、前端异常与 IPC 失败（`webview`，经 `log_frontend` 转发）、副作用命令失败（`command`，写库 / 落盘 / 起进程 / 网络写入这类命令，带错误类别，形如 `restore_backup 失败：[db] ...`）、游玩链路（`session`，开始、结束结算的秒数与计时口径、结算写库失败、启动时补账的孤儿会话）。
+
+`command` 只把意外类（`db` / `io` / `json` / `upstream`）记成 warn；输入非法、找不到、冲突、取消、限流属于用户可预期的结果，默认级别下不进日志，`FISHVN_LOG_LEVEL=debug` 时以 debug 记一条。成功的 IPC 调用与高频进度事件不进日志；纯读命令失败也不进后端日志，靠前端那条 IPC 失败定位；`log_frontend` 把超长消息截断到 2000 字符。
 
 ### 错误与 IPC
 

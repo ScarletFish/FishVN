@@ -45,6 +45,13 @@ fn spawn_dev_channel(
     });
 }
 
+fn log_level() -> log::LevelFilter {
+    std::env::var("FISHVN_LOG_LEVEL")
+        .ok()
+        .and_then(|raw| raw.parse().ok())
+        .unwrap_or(log::LevelFilter::Info)
+}
+
 fn main() {
     let started = std::time::Instant::now();
     tauri::Builder::default()
@@ -52,7 +59,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(
             tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Info)
+                .level(log_level())
                 .max_file_size(5 * 1024 * 1024)
                 .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
                 .build(),
