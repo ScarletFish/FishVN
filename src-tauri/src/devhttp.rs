@@ -19,7 +19,7 @@ use crate::error::{AppError, Result};
 use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
 use crate::types::{GameCharacter, InstallationInput, TaskEvent};
 use crate::vndb::RateLimiter;
-use crate::{characters, commands, backfill, backup, dashboard, games, installations, metadata, sessions, settings, vndb};
+use crate::{characters, commands, backfill, backup, dashboard, games, installations, metadata, query, sessions, settings, vndb};
 
 pub const PORT: u16 = 4546;
 
@@ -88,6 +88,8 @@ pub struct Args {
     pub decision: Option<Value>,
     #[serde(default)]
     pub game_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub spec: Option<Value>,
 }
 
 impl Args {
@@ -144,6 +146,10 @@ macro_rules! handler {
 }
 
 handler!(list_games, |c, _a| games::list_games(c));
+handler!(query_games, |c, a| query::query_games(
+    c,
+    a.parse(a.spec.as_ref(), "spec")?
+));
 handler!(dashboard_stats, |c, _a| {
     let config = settings::current();
     let week_start = crate::now() - 7 * 24 * 3600;
@@ -522,6 +528,7 @@ async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply
 pub fn router(dev: Dev) -> Router {
     Router::new()
         .route("/list_games", post(list_games))
+        .route("/query_games", post(query_games))
         .route("/dashboard_stats", post(dashboard_stats))
         .route("/dashboard_recent", post(dashboard_recent))
         .route("/dashboard_tag_cloud", post(dashboard_tag_cloud))
@@ -577,6 +584,7 @@ pub fn router(dev: Dev) -> Router {
 
 pub const COMMANDS: &[&str] = &[
     "list_games",
+    "query_games",
     "dashboard_stats",
     "dashboard_recent",
     "dashboard_tag_cloud",

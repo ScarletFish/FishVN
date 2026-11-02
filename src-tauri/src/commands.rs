@@ -15,6 +15,7 @@ use crate::installations;
 use crate::inspect;
 use crate::inspect::{PathInspect, ScanCandidate};
 use crate::metadata;
+use crate::query::{self, QuerySpec};
 use crate::sessions;
 use crate::settings::{self, AppConfig, ConfigPatch};
 use crate::sync;
@@ -52,6 +53,11 @@ fn traced<T>(cmd: &str, run: impl FnOnce() -> Result<T>) -> Result<T> {
 #[tauri::command]
 pub fn list_games(shared: Shared<'_>) -> Result<Vec<GameListItem>> {
     games::list_games(&*lock(&shared)?)
+}
+
+#[tauri::command]
+pub fn query_games(shared: Shared<'_>, spec: QuerySpec) -> Result<Vec<GameListItem>> {
+    query::query_games(&*lock(&shared)?, spec)
 }
 
 #[tauri::command]

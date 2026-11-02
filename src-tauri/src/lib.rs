@@ -12,6 +12,7 @@ pub mod games;
 pub mod installations;
 pub mod inspect;
 pub mod metadata;
+pub mod query;
 pub mod sessions;
 pub mod settings;
 pub mod sync;
