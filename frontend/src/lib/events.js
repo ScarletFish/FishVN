@@ -6,7 +6,9 @@ let source = null;
 let lastId = 0;
 const handlers = new Map();
 
-function connect() {
+async function connect() {
+  await ensureBackend();
+  if (handlers.size === 0 || source) return;
   source = new EventSource(
     `${DEV_HTTP_BASE}/events${lastId > 0 ? `?since=${lastId + 1}` : ''}`,
   );

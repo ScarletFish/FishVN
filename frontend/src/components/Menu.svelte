@@ -26,7 +26,7 @@
         {/if}
       {/snippet}
     </DropdownMenu.Trigger>
-    <DropdownMenu.Portal>
+    <DropdownMenu.Portal to="#modal-root">
       <DropdownMenu.Content class="menu__list" align="end" sideOffset={4}>
         {#each items as item (item.label)}
           <DropdownMenu.Item class="menu__item" onSelect={() => item.onclick()}>

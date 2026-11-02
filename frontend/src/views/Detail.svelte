@@ -574,7 +574,7 @@
       {/if}
     </div>
     <ContextMenu.Root>
-      <ContextMenu.Portal>
+      <ContextMenu.Portal to="#modal-root">
         <ContextMenu.Content class="context-menu context-menu--panel" strategy="fixed" sideOffset={2}>
           <div class="context-menu__heading">{t('gameForm.ambience.source')}</div>
           {#key bannerMenuKey}

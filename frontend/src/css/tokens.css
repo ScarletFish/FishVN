@@ -399,9 +399,10 @@ body {
   --z-float:    50;
   --z-sidebar:  100;
   --z-dropdown: 200;
-  --z-dock:     310;
   --z-modal:    250;
+  --z-popover:  260;
   --z-toast:    300;
+  --z-dock:     310;
 }
 
 /* === L3 scales · 动效 === */

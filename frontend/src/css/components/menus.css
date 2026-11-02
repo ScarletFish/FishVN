@@ -31,7 +31,7 @@
 
 .menu__list,
 .context-menu {
-  z-index: var(--z-dropdown);
+  z-index: var(--z-popover);
   min-width: 9rem;
   padding: var(--space-1);
   background: var(--bg-floating);
