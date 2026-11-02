@@ -19,17 +19,20 @@
     hiddenGroups = [],
     onbrowse,
     duplicateText = '',
+    dupKeyOf,
     disabled = false,
   } = $props();
 
   let listEl = $state(null);
 
+  const dupKeyFn = $derived(dupKeyOf ?? keyOf);
+
   const draftDuplicate = $derived.by(() => {
     if (!duplicateText || disabled || typeof resolve !== 'function') return false;
     const value = draft.trim();
     if (!value) return false;
-    const key = keyOf(resolve(value));
-    return items.some((item) => keyOf(item) === key);
+    const key = dupKeyFn(resolve(value));
+    return items.some((item) => dupKeyFn(item) === key);
   });
 
   function pulse(key) {
@@ -64,8 +67,8 @@
     const value = draft.trim();
     if (!value) return;
     const next = resolve(value);
-    const key = keyOf(next);
-    const existing = items.find((item) => keyOf(item) === key);
+    const dupKey = dupKeyFn(next);
+    const existing = items.find((item) => dupKeyFn(item) === dupKey);
     if (existing) {
       pulse(keyOf(existing));
       return;

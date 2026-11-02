@@ -26,7 +26,7 @@
   import { confirm } from '../lib/confirm.svelte.js';
   import { quitGuard } from '../lib/quit-guard.svelte.js';
   import { notifyLibraryChanged, notifyLibraryTagsChanged, notifyLibraryTraitsChanged } from '../lib/library-events.js';
-  import { tagKey, allTagItems, loadTagDict, traitItems } from '../lib/tag-label.svelte.js';
+  import { tagLabel, allTagItems, loadTagDict, traitItems } from '../lib/tag-label.svelte.js';
 
   const TRAIT_GROUP_ORDER = [
     'Hair',
@@ -131,6 +131,26 @@
     customTagNames.map((name) => ({ key: name, label: name, group: null, count: null, raw: { name } }))
   );
 
+  const tagPickerLibrary = $derived.by(() => {
+    const seen = new Set(customTagNames);
+    return [
+      ...customTagItems,
+      ...toTagItems()
+        .map((it) => ({ ...it, key: it.label }))
+        .filter((it) => !seen.has(it.key)),
+    ];
+  });
+
+  const tagPickerAll = $derived.by(() => {
+    const seen = new Set(customTagNames);
+    return [
+      ...customTagItems,
+      ...allTagItems()
+        .map((it) => ({ ...it, key: it.label }))
+        .filter((it) => !seen.has(it.key)),
+    ];
+  });
+
   const selectedTraits = $derived(
     characters.find((c) => c.id === selectedCharId)?.traits ?? []
   );
@@ -177,8 +197,9 @@
   }
 
   function toggleTag(key, item) {
-    if (tags.some((tag) => tagKey(tag) === key)) {
-      tags = tags.filter((tag) => tagKey(tag) !== key);
+    const label = tagLabel(item);
+    if (tags.some((tag) => tagLabel(tag) === label)) {
+      tags = tags.filter((tag) => tagLabel(tag) !== label);
       return;
     }
     tags = [...tags, item.id ? { id: item.id, name: item.tag } : { name: item.tag }];
@@ -257,6 +278,8 @@
     syncNotice = '';
     search.reset();
     loading = Boolean(gameId);
+    loadTagDict();
+    loadLibraryTags();
     if (gameId) {
       loadExisting(gameId);
     } else if (prefill) {
@@ -648,15 +671,17 @@
   {#snippet aside()}
     {#if asideMode === 'tags'}
       <TagPicker
-        libraryItems={[...customTagItems, ...toTagItems()]}
-        allItems={[...customTagItems, ...allTagItems()]}
-        selected={tags.map(tagKey)}
+        libraryItems={tagPickerLibrary}
+        allItems={tagPickerAll}
+        selected={tags.map(tagLabel)}
         groupOrder={TAG_GROUP_ORDER}
         hiddenGroups={['tech']}
         allowCustom
         {saving}
         onToggle={toggleTag}
-        onAdd={(name) => (tags = [...tags, { name }])}
+        onAdd={(name) => {
+          if (!tags.some((tag) => tagLabel(tag) === name)) tags = [...tags, { name }];
+        }}
         onClose={() => (asideOpen = false)}
       />
     {:else if asideMode === 'traits'}

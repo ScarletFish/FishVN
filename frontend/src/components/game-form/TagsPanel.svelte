@@ -1,7 +1,7 @@
 <script>
   import { t } from '../../lib/i18n.js';
   import { getLibraryTags } from '../../lib/library-tags.svelte.js';
-  import { tagLabel } from '../../lib/tag-label.svelte.js';
+  import { tagKey, tagLabel } from '../../lib/tag-label.svelte.js';
   import { tagCategory } from '../../lib/tag-order.svelte.js';
   import { coverSrc } from '../../lib/cover-src.js';
   import { pickImage } from '../../lib/pick-path.js';
@@ -150,7 +150,8 @@
   emptyText={t('gameForm.placeholder.noTags')}
   removeText={t('gameForm.action.removeTag')}
   resolve={resolveTag}
-  keyOf={(item) => item?.name ?? ''}
+  keyOf={tagKey}
+  dupKeyOf={tagLabel}
   duplicateText={t('gameForm.hint.tagExists')}
   labelOf={tagLabel}
   groupOf={tagCategory}
