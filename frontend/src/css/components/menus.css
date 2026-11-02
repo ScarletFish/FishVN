@@ -91,22 +91,6 @@
   cursor: pointer;
 }
 
-.toggle-switch.toggle-switch--sm {
-  width: 32px;
-  height: 18px;
-}
-
-.toggle-switch.toggle-switch--sm .toggle-slider::before {
-  width: 12px;
-  height: 12px;
-  left: 2px;
-  top: 2px;
-}
-
-.toggle-switch.toggle-switch--sm input:checked + .toggle-slider::before {
-  transform: translateX(14px);
-}
-
 .context-menu__heading {
   padding: var(--space-1) var(--space-2) var(--space-050);
   font-family: var(--font-sans);

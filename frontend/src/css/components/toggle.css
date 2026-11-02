@@ -9,12 +9,25 @@
 }
 
 .toggle-switch {
+  --toggle-w: 40px;
+  --toggle-h: 24px;
+  --toggle-knob: 16px;
+  --toggle-gap: 3px;
+  --toggle-travel: 16px;
   position: relative;
   display: inline-block;
-  width: 40px;
-  height: 24px;
+  width: var(--toggle-w);
+  height: var(--toggle-h);
   flex-shrink: 0;
   vertical-align: middle;
+}
+
+.toggle-switch--sm {
+  --toggle-w: 32px;
+  --toggle-h: 18px;
+  --toggle-knob: 12px;
+  --toggle-gap: 2px;
+  --toggle-travel: 14px;
 }
 
 .toggle-switch input {
@@ -34,8 +47,10 @@
 
 .toggle-slider {
   position: absolute;
-  cursor: pointer;
   inset: 0;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
   box-sizing: border-box;
   background: var(--bg-page);
   border: 1px solid var(--border-default);
@@ -47,11 +62,10 @@
 
 .toggle-slider::before {
   content: '';
-  position: absolute;
-  left: 3px;
-  bottom: 3px;
-  width: 16px;
-  height: 16px;
+  flex-shrink: 0;
+  width: var(--toggle-knob);
+  height: var(--toggle-knob);
+  margin-left: var(--toggle-gap);
   background: var(--fg-secondary);
   border-radius: 50%;
   transition:
@@ -65,6 +79,6 @@
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
-  transform: translateX(16px);
+  transform: translateX(var(--toggle-travel));
   background: var(--fg-on-accent);
 }
