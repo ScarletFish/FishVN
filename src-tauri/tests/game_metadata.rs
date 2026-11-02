@@ -196,29 +196,15 @@ fn 标签带排序键往返不断() {
 /// Option 字段缺键时 serde 补 None，只有 name 是必填的
 #[test]
 fn 标签只给名字能读出来() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    conn.execute_batch(
-        "
-        CREATE TABLE games (id TEXT PRIMARY KEY, name TEXT NOT NULL);
-        CREATE TABLE game_metadata (
-          game_id TEXT PRIMARY KEY, alias TEXT, titles TEXT, rating REAL,
-          votecount INTEGER, length_minutes INTEGER, released TEXT,
-          description TEXT, image_id TEXT,
-          image_path TEXT, cover_focal_x INTEGER NOT NULL DEFAULT 50,
-          cover_focal_y INTEGER NOT NULL DEFAULT 50,
-          tags TEXT, developers TEXT, staff TEXT
-        );
-        INSERT INTO games VALUES ('g1', '作品');
-        ",
-    )
-    .unwrap();
+    let db = Db::new();
+    let id = new_game(&db, "作品");
 
-    conn.execute(
-        "INSERT INTO game_metadata (game_id, tags) VALUES ('g1', ?)",
-        rusqlite::params![r#"[{"name":"只有名字"}]"#],
+    db.execute(
+        "INSERT INTO game_metadata (game_id, tags) VALUES (?, ?)",
+        rusqlite::params![&id, r#"[{"name":"只有名字"}]"#],
     )
     .unwrap();
-    let tag = metadata::get(&conn, "g1")
+    let tag = metadata::get(&db, &id)
         .unwrap()
         .unwrap()
         .tags
@@ -227,13 +213,13 @@ fn 标签只给名字能读出来() {
     assert_eq!(tag.name, "只有名字");
     assert_eq!(tag.rating, None);
 
-    conn.execute(
-        "UPDATE game_metadata SET tags = ? WHERE game_id = 'g1'",
-        rusqlite::params![r#"[{"category":"cont"}]"#],
+    db.execute(
+        "UPDATE game_metadata SET tags = ? WHERE game_id = ?",
+        rusqlite::params![r#"[{"category":"cont"}]"#, &id],
     )
     .unwrap();
     assert!(
-        metadata::get(&conn, "g1").is_err(),
+        metadata::get(&db, &id).is_err(),
         "没有 name 的标签该读不出来"
     );
 }
@@ -512,4 +498,34 @@ fn 不换封面只调焦点正常生效() {
         (stored.cover_focal_x, stored.cover_focal_y),
         (Some(80), Some(20))
     );
+}
+
+#[test]
+fn 清空自定义横幅写回空值() {
+    let db = Db::new();
+    let id = new_game(&db, "横幅");
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(Some("D:/kv.png".into())),
+            ..Default::default()
+        },
+    )
+    .expect("写横幅失败");
+
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(None),
+            ..Default::default()
+        },
+    )
+    .expect("清横幅失败");
+
+    let stored = metadata::get(&db, &id)
+        .expect("读元数据失败")
+        .expect("元数据不该是空的");
+    assert_eq!(stored.ambience_path, None, "清空后应回到跟随封面");
 }

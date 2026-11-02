@@ -86,6 +86,11 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           image_path  TEXT,
           cover_focal_x INTEGER NOT NULL DEFAULT 50,
           cover_focal_y INTEGER NOT NULL DEFAULT 50,
+          ambience_path TEXT,
+          ambience_mode TEXT NOT NULL DEFAULT 'soft',
+          ambience_plate INTEGER NOT NULL DEFAULT 0,
+          ambience_focal_x INTEGER NOT NULL DEFAULT 50,
+          ambience_focal_y INTEGER NOT NULL DEFAULT 22,
           tags        TEXT,
           developers  TEXT,
           staff       TEXT

@@ -2,11 +2,11 @@ use std::sync::{Arc, Mutex};
 
 use rusqlite::{Connection, params};
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, Result};
 use crate::settings::VndbSyncMode;
-use crate::types::Status;
+use crate::types::{Status, double_option};
 use crate::vndb::{RateLimiter, UlistLabel};
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -49,13 +49,6 @@ pub struct PlanAlign {
     pub status: Option<Status>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rating: Option<f64>,
-}
-
-fn double_option<'de, D>(d: D) -> std::result::Result<Option<Option<f64>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Deserialize::deserialize(d).map(Some)
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

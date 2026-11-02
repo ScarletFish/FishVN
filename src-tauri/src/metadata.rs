@@ -7,7 +7,7 @@ use crate::error::{AppError, Result};
 use crate::types::{GameMetadata, MetadataPatch, MetadataTag};
 
 const COLUMNS: &str =
-    "game_id, alias, titles, rating, votecount, length_minutes, released, description, image_id, image_path, cover_focal_x, cover_focal_y, tags, developers, staff";
+    "game_id, alias, titles, rating, votecount, length_minutes, released, description, image_id, image_path, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y, tags, developers, staff";
 
 struct MetaRow {
     game_id: String,
@@ -22,6 +22,11 @@ struct MetaRow {
     image_path: Option<String>,
     cover_focal_x: Option<i64>,
     cover_focal_y: Option<i64>,
+    ambience_path: Option<String>,
+    ambience_mode: String,
+    ambience_plate: bool,
+    ambience_focal_x: i64,
+    ambience_focal_y: i64,
     tags: Option<String>,
     developers: Option<String>,
     staff: Option<String>,
@@ -108,6 +113,30 @@ fn build_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>
     nullable!(&patch.released, "released");
     nullable!(&patch.description, "description");
     nullable!(&patch.image_path, "image_path");
+    nullable!(&patch.ambience_path, "ambience_path");
+
+    if let Some(raw) = &patch.ambience_mode {
+        columns.push("ambience_mode");
+        values.push(Value::Text(raw.clone()));
+    }
+    if let Some(raw) = &patch.ambience_plate {
+        columns.push("ambience_plate");
+        values.push(Value::Integer(i64::from(*raw)));
+    }
+    if let Some(raw) = &patch.ambience_focal_x {
+        columns.push("ambience_focal_x");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.ambience_focal_y {
+        columns.push("ambience_focal_y");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
 
     if let Some(raw) = &patch.rating {
         columns.push("rating");
@@ -213,6 +242,11 @@ fn read_row(row: &Row<'_>) -> rusqlite::Result<MetaRow> {
         image_path: row.get("image_path")?,
         cover_focal_x: row.get("cover_focal_x")?,
         cover_focal_y: row.get("cover_focal_y")?,
+        ambience_path: row.get("ambience_path")?,
+        ambience_mode: row.get("ambience_mode")?,
+        ambience_plate: row.get("ambience_plate")?,
+        ambience_focal_x: row.get("ambience_focal_x")?,
+        ambience_focal_y: row.get("ambience_focal_y")?,
         tags: row.get("tags")?,
         developers: row.get("developers")?,
         staff: row.get("staff")?,
@@ -233,6 +267,11 @@ fn to_api(row: &MetaRow) -> Result<GameMetadata> {
         image_path: row.image_path.clone(),
         cover_focal_x: row.cover_focal_x,
         cover_focal_y: row.cover_focal_y,
+        ambience_path: row.ambience_path.clone(),
+        ambience_mode: row.ambience_mode.clone(),
+        ambience_plate: row.ambience_plate,
+        ambience_focal_x: row.ambience_focal_x,
+        ambience_focal_y: row.ambience_focal_y,
         tags: from_json::<Vec<MetadataTag>>(&row.tags)?,
         developers: from_json(&row.developers)?,
         staff: from_json(&row.staff)?,

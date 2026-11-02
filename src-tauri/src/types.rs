@@ -1,5 +1,13 @@
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+pub fn double_option<'de, D, T>(d: D) -> std::result::Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Deserialize::deserialize(d).map(Some)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Game {
@@ -197,6 +205,11 @@ pub struct GameMetadata {
     pub image_path: Option<String>,
     pub cover_focal_x: Option<i64>,
     pub cover_focal_y: Option<i64>,
+    pub ambience_path: Option<String>,
+    pub ambience_mode: String,
+    pub ambience_plate: bool,
+    pub ambience_focal_x: i64,
+    pub ambience_focal_y: i64,
     pub tags: Option<Vec<MetadataTag>>,
     pub developers: Option<Vec<String>>,
     pub staff: Option<Vec<MetadataStaff>>,
@@ -232,18 +245,39 @@ pub struct MetadataStaff {
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
 pub struct MetadataPatch {
+    #[serde(default, deserialize_with = "double_option")]
     pub alias: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub titles: Option<Option<Vec<LocalizedTitle>>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub rating: Option<Option<f64>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub votecount: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub length_minutes: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub released: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub description: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub image_path: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub cover_focal_x: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub cover_focal_y: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub ambience_path: Option<Option<String>>,
+    pub ambience_mode: Option<String>,
+    pub ambience_plate: Option<bool>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub ambience_focal_x: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub ambience_focal_y: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub tags: Option<Option<Vec<MetadataTag>>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub developers: Option<Option<Vec<String>>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub staff: Option<Option<Vec<MetadataStaff>>>,
 }
 
@@ -328,4 +362,21 @@ pub struct TaskEvent {
     pub run_id: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub game_id: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MetadataPatch;
+
+    #[test]
+    fn patch_tells_missing_apart_from_null() {
+        let missing: MetadataPatch = serde_json::from_str(r"{}").unwrap();
+        let nulled: MetadataPatch = serde_json::from_str(r#"{"ambience_path": null}"#).unwrap();
+        let set: MetadataPatch =
+            serde_json::from_str(r#"{"ambience_path": "D:/a.png"}"#).unwrap();
+
+        assert_eq!(missing.ambience_path, None);
+        assert_eq!(nulled.ambience_path, Some(None));
+        assert_eq!(set.ambience_path.as_ref(), Some(&Some("D:/a.png".to_string())));
+    }
 }
