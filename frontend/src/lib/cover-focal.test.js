@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 
 import {
+  BANNER_ASPECT,
   clampFocal,
   focalFromPointer,
   focalToFrame,
@@ -92,4 +93,14 @@ test('焦点钳制在 0 到 100，异常值回落默认', () => {
   expect(clampFocal(49.6)).toBe(50);
   expect(clampFocal(Number.NaN)).toBe(50);
   expect(clampFocal('abc')).toBe(50);
+});
+
+test('横幅画幅把 16:9 横图裁成一条横带', () => {
+  expect(frameSize(1920, 1080, BANNER_ASPECT)).toEqual({ w: 1920, h: 536 });
+});
+
+test('横幅画幅下竖版封面只剩极窄的一段可移', () => {
+  const size = frameSize(600, 900, BANNER_ASPECT);
+  expect(size.h).toBeLessThan(170);
+  expect(frameToFocal(0, 900 - size.h, 600, 900, BANNER_ASPECT).y).toBe(100);
 });

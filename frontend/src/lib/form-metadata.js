@@ -85,6 +85,11 @@ export function buildMetadataPatch(fields) {
     image_path: fields.coverPath.trim() || null,
     cover_focal_x: clampFocal(fields.focusX),
     cover_focal_y: clampFocal(fields.focusY),
+    ambience_path: fields.ambiencePath.trim() || null,
+    ambience_mode: fields.ambienceMode,
+    ambience_plate: fields.ambiencePlate,
+    ambience_focal_x: clampFocal(fields.ambienceFocalX),
+    ambience_focal_y: clampFocal(fields.ambienceFocalY),
     tags: fields.tags,
     developers: fields.developers
       .split(',')

@@ -2,7 +2,7 @@
   import { tick, onMount } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
-  import { coverSrc } from '../lib/cover-src.js';
+  import { coverSrc, fullSrc } from '../lib/cover-src.js';
   import { joinLaunchPath } from '../lib/installations.js';
   import { bbcodeParagraphs } from '../lib/vn-merge.js';
   import { openExternal } from '../lib/open-external.js';
@@ -36,6 +36,14 @@
   let menuOpen = $state(false);
   let coverUrl = $state(null);
   let coverBroken = $state(false);
+  let ambienceUrl = $state(null);
+  let ambienceBroken = $state(false);
+
+  const ambienceMode = $derived(meta?.ambience_mode ?? 'soft');
+  const ambiencePlate = $derived(Boolean(meta?.ambience_plate));
+  const ambienceFocal = $derived(
+    `${meta?.ambience_focal_x ?? 50}% ${meta?.ambience_focal_y ?? 22}%`
+  );
   let gameState = $state(null);
   let activeSession = $state(null);
   let launching = $state(false);
@@ -415,6 +423,29 @@
     };
   });
 
+  let lastAmbienceKey = null;
+
+  $effect(() => {
+    const custom = (meta?.ambience_path ?? '').trim();
+    const source = custom || (meta?.image_path ?? '');
+    const mode = ambienceMode;
+    const key = `${mode}|${source}`;
+    if (key === lastAmbienceKey) return;
+    lastAmbienceKey = key;
+    ambienceBroken = false;
+    ambienceUrl = null;
+    if (!source) return;
+    let live = true;
+    (mode === 'clear' ? fullSrc(source) : coverSrc(source))
+      .then((url) => {
+        if (live) ambienceUrl = url;
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  });
+
   $effect(() => {
     if (!running) return;
     const timer = setInterval(() => {
@@ -466,9 +497,19 @@
   {:else if !game}
     <p class="detail-note">{t('detail.notFound')}</p>
   {:else}
-    <div class="detail-ambience detail-fade" class:detail-ambience--empty={!coverUrl || coverBroken} aria-hidden="true">
-      {#if coverUrl && !coverBroken}
-        <img src={coverUrl} alt="" onerror={() => (coverBroken = true)} />
+    <div
+      class="detail-ambience detail-fade"
+      class:detail-ambience--empty={!ambienceUrl || ambienceBroken}
+      class:detail-ambience--clear={ambienceMode === 'clear'}
+      aria-hidden="true"
+    >
+      {#if ambienceUrl && !ambienceBroken}
+        <img
+          src={ambienceUrl}
+          alt=""
+          style:object-position={ambienceFocal}
+          onerror={() => (ambienceBroken = true)}
+        />
       {/if}
     </div>
     <div class="detail-banner">
@@ -531,7 +572,7 @@
           </div>
         </div>
       </div>
-      <div class="detail-info">
+      <div class="detail-info" class:detail-info--plate={ambiencePlate && ambienceMode === 'clear'}>
         <h1 class="detail-rise" style="animation-delay: 0.04s">{game.name}</h1>
         {#if alias}
           <p class="detail-alias detail-rise" style="animation-delay: 0.09s">{alias}</p>

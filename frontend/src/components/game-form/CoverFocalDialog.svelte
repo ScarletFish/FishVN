@@ -18,6 +18,8 @@
     imagePath = '',
     focusX = 50,
     focusY = 50,
+    aspect = COVER_ASPECT,
+    aspectLabel = '3:4',
     oncommit,
     onclose,
   } = $props();
@@ -33,8 +35,8 @@
   let frameDrag = null;
 
   const hasImage = $derived(Boolean(imagePath));
-  const validX = $derived(Boolean(iw && ih && frameSize(iw, ih, COVER_ASPECT).w < iw));
-  const validY = $derived(Boolean(iw && ih && frameSize(iw, ih, COVER_ASPECT).h < ih));
+  const validX = $derived(Boolean(iw && ih && frameSize(iw, ih, aspect).w < iw));
+  const validY = $derived(Boolean(iw && ih && frameSize(iw, ih, aspect).h < ih));
 
   $effect(() => {
     if (!open) return;
@@ -71,8 +73,8 @@
 
   function onTap(p) {
     if (!iw || !ih) return;
-    const size = frameSize(iw, ih, COVER_ASPECT);
-    const next = frameToFocal(p.x - size.w / 2, p.y - size.h / 2, iw, ih, COVER_ASPECT);
+    const size = frameSize(iw, ih, aspect);
+    const next = frameToFocal(p.x - size.w / 2, p.y - size.h / 2, iw, ih, aspect);
     draftX = next.x;
     draftY = next.y;
   }
@@ -83,8 +85,8 @@
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     const p = toImage(e.clientX, e.clientY);
-    const size = frameSize(iw, ih, COVER_ASPECT);
-    const f = focalToFrame(draftX, draftY, iw, ih, COVER_ASPECT);
+    const size = frameSize(iw, ih, aspect);
+    const f = focalToFrame(draftX, draftY, iw, ih, aspect);
     frameDrag = {
       id: e.pointerId,
       toImage,
@@ -96,7 +98,7 @@
     if (!frameDrag || e.pointerId !== frameDrag.id) return;
     e.stopPropagation();
     const p = toImage(e.clientX, e.clientY);
-    const next = focalFromPointer(p.x, p.y, frameDrag.grab, iw, ih, COVER_ASPECT);
+    const next = focalFromPointer(p.x, p.y, frameDrag.grab, iw, ih, aspect);
     draftX = next.x;
     draftY = next.y;
   }
@@ -155,8 +157,8 @@
       >
         {#snippet children({ toImage, toScreen, view })}
           {#if iw && ih}
-            {@const size = frameSize(iw, ih, COVER_ASPECT)}
-            {@const f = focalToFrame(draftX, draftY, iw, ih, COVER_ASPECT)}
+            {@const size = frameSize(iw, ih, aspect)}
+            {@const f = focalToFrame(draftX, draftY, iw, ih, aspect)}
             {@const tl = toScreen(f.fx, f.fy)}
             {@const w = size.w * view.scale}
             {@const h = size.h * view.scale}
@@ -180,7 +182,7 @@
               onpointerup={onFrameUp}
               onpointercancel={onFrameUp}
             >
-              <span class="focal-frame__tag">3:4</span>
+              <span class="focal-frame__tag">{aspectLabel}</span>
             </div>
           {/if}
         {/snippet}

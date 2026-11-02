@@ -66,3 +66,24 @@ test('空路径不请求也不进缓存', async () => {
   expect(await coverSrc(null)).toBeNull();
   expect(thumbnail).not.toHaveBeenCalled();
 });
+
+test('全尺寸取图跳过缩图，直接放行原路径', async () => {
+  const { fullSrc } = await load();
+
+  const url = await fullSrc('D:\\pics\\mine.jpg');
+
+  expect(thumbnail).not.toHaveBeenCalled();
+  expect(allowLocalFile).toHaveBeenCalledWith('D:\\pics\\mine.jpg');
+  expect(url).toBe('asset://localhost/D:\\pics\\mine.jpg');
+});
+
+test('同一路径的缩图与全尺寸各走各的缓存', async () => {
+  const { coverSrc, fullSrc } = await load();
+
+  const small = await coverSrc('p.jpg');
+  const full = await fullSrc('p.jpg');
+
+  expect(small).toBe('asset://localhost/p.jpg.thumb.jpg');
+  expect(full).toBe('asset://localhost/p.jpg');
+  expect(thumbnail).toHaveBeenCalledTimes(1);
+});

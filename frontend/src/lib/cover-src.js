@@ -4,23 +4,35 @@ import { api } from './api.js';
 const cache = new Map();
 const inFlight = new Map();
 
+function load(key, produce) {
+  const hit = cache.get(key);
+  if (hit) return Promise.resolve(hit);
+
+  let job = inFlight.get(key);
+  if (!job) {
+    job = produce()
+      .then((url) => {
+        cache.set(key, url);
+        return url;
+      })
+      .finally(() => inFlight.delete(key));
+    inFlight.set(key, job);
+  }
+  return job;
+}
+
 export function coverSrc(path) {
   if (!path) return Promise.resolve(null);
 
-  const hit = cache.get(path);
-  if (hit) return Promise.resolve(hit);
+  return load(path, () =>
+    api.thumbnail(path).then((thumb) => api.allowLocalFile(thumb).then(() => convertFileSrc(thumb)))
+  );
+}
 
-  let job = inFlight.get(path);
-  if (!job) {
-    job = api
-      .thumbnail(path)
-      .then((thumb) => api.allowLocalFile(thumb).then(() => convertFileSrc(thumb)))
-      .then((url) => {
-        cache.set(path, url);
-        return url;
-      })
-      .finally(() => inFlight.delete(path));
-    inFlight.set(path, job);
-  }
-  return job;
+export function fullSrc(path) {
+  if (!path) return Promise.resolve(null);
+
+  return load(`full:${path}`, () =>
+    api.allowLocalFile(path).then(() => convertFileSrc(path))
+  );
 }

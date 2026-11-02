@@ -40,11 +40,11 @@
   ];
   import { toTagItems, loadLibraryTags } from '../lib/library-tags.svelte.js';
   import { toTraitItems, loadLibraryTraits } from '../lib/library-traits.svelte.js';
+  import { BANNER_FOCAL } from '../lib/cover-focal.js';
   import BasicPanel from './game-form/BasicPanel.svelte';
   import ProfilePanel from './game-form/ProfilePanel.svelte';
   import TagsPanel from './game-form/TagsPanel.svelte';
   import TagPicker from './game-form/TagPicker.svelte';
-  import StaffPanel from './game-form/StaffPanel.svelte';
   import VndbAside from './game-form/VndbAside.svelte';
 
   let {
@@ -54,7 +54,7 @@
     prefill = null,
   } = $props();
 
-  const TABS = ['basic', 'profile', 'tags', 'staff', 'installations', 'characters'];
+  const TABS = ['basic', 'profile', 'tags', 'installations', 'characters'];
 
   let name = $state('');
   let vndbId = $state(null);
@@ -82,6 +82,11 @@
   let coverPath = $state('');
   let coverFocalX = $state(50);
   let coverFocalY = $state(50);
+  let ambiencePath = $state('');
+  let ambienceMode = $state('soft');
+  let ambiencePlate = $state(false);
+  let ambienceFocalX = $state(BANNER_FOCAL.x);
+  let ambienceFocalY = $state(BANNER_FOCAL.y);
 
   let tagDraft = $state('');
   let characters = $state([]);
@@ -159,6 +164,11 @@
       coverPath,
       coverFocalX,
       coverFocalY,
+      ambiencePath,
+      ambienceMode,
+      ambiencePlate,
+      ambienceFocalX,
+      ambienceFocalY,
       characters,
       installations,
       defaultInstallKey,
@@ -220,6 +230,11 @@
     coverPath = '';
     coverFocalX = 50;
     coverFocalY = 50;
+    ambiencePath = '';
+    ambienceMode = 'soft';
+    ambiencePlate = false;
+    ambienceFocalX = BANNER_FOCAL.x;
+    ambienceFocalY = BANNER_FOCAL.y;
     tagDraft = '';
     characters = [];
     installations = [];
@@ -285,6 +300,11 @@
       coverPath = meta?.image_path ?? '';
       coverFocalX = meta?.cover_focal_x ?? 50;
       coverFocalY = meta?.cover_focal_y ?? 50;
+      ambiencePath = meta?.ambience_path ?? '';
+      ambienceMode = meta?.ambience_mode ?? 'soft';
+      ambiencePlate = meta?.ambience_plate ?? false;
+      ambienceFocalX = meta?.ambience_focal_x ?? BANNER_FOCAL.x;
+      ambienceFocalY = meta?.ambience_focal_y ?? BANNER_FOCAL.y;
       characters = roles.map(toDraft);
       installations = dirs.map(toInstallationDraft);
       defaultInstallKey = defaultKeyOf(installations, state.default_installation_id);
@@ -437,6 +457,11 @@
       coverPath,
       focusX: coverFocalX,
       focusY: coverFocalY,
+      ambiencePath,
+      ambienceMode,
+      ambiencePlate,
+      ambienceFocalX,
+      ambienceFocalY,
       tags,
       developers,
       staff,
@@ -537,6 +562,8 @@
           bind:votecount
           bind:lengthMinutes
           bind:developers
+          bind:staff
+          bind:staffRoleOpen
           ratingError={visibleError('rating')}
           votecountError={visibleError('votecount')}
           lengthMinutesError={visibleError('lengthMinutes')}
@@ -550,6 +577,13 @@
           bind:tags
           bind:tagDraft
           bind:coverPath
+          bind:ambiencePath
+          bind:ambienceMode
+          bind:ambiencePlate
+          bind:ambienceFocalX
+          bind:ambienceFocalY
+          title={name}
+          {alias}
           focusX={coverFocalX}
           focusY={coverFocalY}
           onfocus={(x, y) => {
@@ -564,10 +598,6 @@
             asideOpen = true;
           }}
         />
-      </div>
-
-      <div class="modal-panel" class:active={tab === 'staff'}>
-        <StaffPanel bind:staff bind:staffRoleOpen {saving} />
       </div>
 
       <div class="modal-panel" class:active={tab === 'installations'}>

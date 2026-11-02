@@ -1,5 +1,6 @@
 <script>
   import { t } from '../../lib/i18n.js';
+  import StaffPanel from './StaffPanel.svelte';
   import {
     cleanInteger,
     cleanRating,
@@ -14,6 +15,8 @@
     votecount = $bindable(''),
     lengthMinutes = $bindable(''),
     developers = $bindable(''),
+    staff = $bindable([]),
+    staffRoleOpen = $bindable(null),
     ratingError = '',
     votecountError = '',
     lengthMinutesError = '',
@@ -129,4 +132,6 @@
       disabled={saving}
     />
   </div>
+
+  <StaffPanel bind:staff bind:staffRoleOpen {saving} />
 </div>

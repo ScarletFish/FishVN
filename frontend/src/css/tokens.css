@@ -147,6 +147,10 @@ body {
   --fg-secondary: var(--sand-700);
   --fg-muted: var(--sand-500);
   --fg-on-accent: var(--ink-white);
+  /* 横幅压图文字：背景明度由图片决定，标题拉到近极值，副标题统一取 72%（两主题同值），
+     层级主要靠字号、字重与斜体，不靠把副标题压到读不清 */
+  --fg-banner-strong: color-mix(in srgb, var(--ink-black) 92%, transparent);
+  --fg-banner: color-mix(in srgb, var(--ink-black) 72%, transparent);
 
   /* accent */
   --accent: var(--red-700);
@@ -172,6 +176,8 @@ body {
 
   /* 封面文字的压暗渐变；两个主题都用暗色，封面本身明度不定 */
   --cover-scrim: linear-gradient(transparent 20%, color-mix(in srgb, var(--ink-black) 88%, transparent) 80%);
+  /* 横幅上给标题垫的衬底色；方向跟页面极性走（浅色提亮、深色压暗），不跟图片明暗走 */
+  --plate-on-image: color-mix(in srgb, var(--ink-white) 40%, transparent);
 
   /* 封面上的中性药丸底；压在照片上，与主题无关 */
   --cover-score-bg: color-mix(in srgb, var(--ink-black) 62%, transparent);
@@ -216,6 +222,10 @@ body {
   --fg-secondary: var(--sand-300);
   --fg-muted: var(--sand-400);
   --fg-on-accent: var(--ink-white);
+  /* 副标题与浅色同取 72%，两主题的主次落差一致；深色若跟着标题一起压到近白，
+     副标题会抢过标题。透明白随背景明度自适应：亮区更实、暗区更透。 */
+  --fg-banner-strong: var(--ink-white);
+  --fg-banner: color-mix(in srgb, var(--ink-white) 72%, transparent);
 
   --accent: var(--red-600);
   --accent-soft: var(--red-300);
@@ -227,6 +237,9 @@ body {
   --border-default: color-mix(in srgb, var(--ink-white) 12%, transparent);
   --border-strong: color-mix(in srgb, var(--ink-white) 22%, transparent);
   --focus-ring: color-mix(in srgb, var(--ink-white) 75%, transparent);
+  /* 深色压暗要压到浅色文字的明度基准之下。与浅色同取 40% 时，
+     亮区只降到中灰（#99 上下），白字压不住；取 65% 才能落回暗底。 */
+  --plate-on-image: color-mix(in srgb, var(--ink-black) 65%, transparent);
 
   --shadow-sm: 0 2px 8px color-mix(in srgb, var(--ink-black) 50%, transparent);
   --shadow-md: 0 4px 24px color-mix(in srgb, var(--ink-black) 60%, transparent);

@@ -23,7 +23,7 @@
   }
 </script>
 
-<div class="form-group">
+<div class="form-group panel-grid__full">
   <label for="game-form-staff">{t('gameForm.field.staff')}</label>
   <div class="staff-rows">
     {#each staff as person, i (i)}

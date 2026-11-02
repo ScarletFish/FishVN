@@ -2,6 +2,8 @@ export const FOCAL_DEFAULT = 50;
 export const FOCAL_MIN = 0;
 export const FOCAL_MAX = 100;
 export const COVER_ASPECT = 3 / 4;
+export const BANNER_ASPECT = 1200 / 335;
+export const BANNER_FOCAL = { x: 50, y: 22 };
 
 export function clampFocal(value) {
   if (!Number.isFinite(value)) return FOCAL_DEFAULT;

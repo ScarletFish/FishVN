@@ -1,13 +1,24 @@
 .cover-field {
   display: flex;
-  gap: var(--space-4);
-  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cover-field__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.cover-field__actions .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  padding-inline: var(--space-2);
 }
 
 .cover-field__preview {
   position: relative;
-  flex-shrink: 0;
-  width: calc((100% - var(--space-4) * 3) / 4);
+  width: 100%;
   aspect-ratio: 208 / 300;
   overflow: hidden;
   background: var(--bg-surface);
@@ -38,28 +49,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.cover-field__badge {
-  position: absolute;
-  left: 50%;
-  bottom: var(--space-2);
-  transform: translateX(-50%);
-  padding: 2px var(--space-2);
-  background: var(--bg-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  color: var(--fg-muted);
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
-  pointer-events: none;
-}
-
-.cover-field__preview:hover:not(:disabled) .cover-field__badge,
-.cover-field__preview:focus-visible .cover-field__badge {
-  opacity: 1;
 }
 
 .cover-field__ph {

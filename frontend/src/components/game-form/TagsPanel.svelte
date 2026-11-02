@@ -5,14 +5,21 @@
   import { tagCategory } from '../../lib/tag-order.svelte.js';
   import { coverSrc } from '../../lib/cover-src.js';
   import { pickImage } from '../../lib/pick-path.js';
-  import PathField from '../PathField.svelte';
   import CoverFocalDialog from './CoverFocalDialog.svelte';
+  import AmbienceField from './AmbienceField.svelte';
   import TagField from '../TagField.svelte';
 
   let {
     tags = $bindable([]),
     tagDraft = $bindable(''),
     coverPath = $bindable(''),
+    ambiencePath = $bindable(''),
+    ambienceMode = $bindable('soft'),
+    ambiencePlate = $bindable(false),
+    ambienceFocalX = $bindable(50),
+    ambienceFocalY = $bindable(22),
+    title = '',
+    alias = '',
     focusX = 50,
     focusY = 50,
     onfocus,
@@ -22,6 +29,7 @@
 
   let coverBroken = $state(false);
   let coverUrl = $state(null);
+  let coverError = $state('');
   let focalOpen = $state(false);
 
   const GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
@@ -35,6 +43,19 @@
         String(item.name ?? '').toLowerCase() === q
     );
     return hit?.id ? { id: hit.id, name: hit.tag ?? hit.name ?? text } : { name: text };
+  }
+
+  async function browseCover() {
+    if (saving) return;
+    coverError = '';
+    try {
+      const picked = await pickImage(t('gameForm.field.cover'));
+      if (!picked) return;
+      coverPath = picked;
+      onfocus?.(50, 50);
+    } catch (err) {
+      coverError = err.message;
+    }
   }
 
   $effect(() => {
@@ -54,43 +75,60 @@
   });
 </script>
 
-<div class="form-group">
-  <div class="form-label-row">
-    <label for="game-form-cover">{t('gameForm.field.cover')}</label>
-  </div>
-  <div class="cover-field">
-    <button
-      type="button"
-      class="cover-field__preview"
-      disabled={saving || !coverUrl || coverBroken}
-      onclick={() => (focalOpen = true)}
-    >
-      {#if coverUrl && !coverBroken}
-        <img
-          src={coverUrl}
-          alt=""
-          style:object-position="{focusX}% {focusY}%"
-          onerror={() => (coverBroken = true)}
-        />
-      {:else}
-        <div class="cover-field__ph">{t('gameForm.placeholder.empty')}</div>
+<div class="media-row">
+  <div class="form-group">
+    <span class="form-label">{t('gameForm.field.cover')}</span>
+    <div class="cover-field">
+      <button
+        type="button"
+        class="cover-field__preview"
+        disabled={saving || !coverUrl || coverBroken}
+        onclick={() => (focalOpen = true)}
+      >
+        {#if coverUrl && !coverBroken}
+          <img
+            src={coverUrl}
+            alt=""
+            style:object-position="{focusX}% {focusY}%"
+            onerror={() => (coverBroken = true)}
+          />
+        {:else}
+          <div class="cover-field__ph">{t('gameForm.placeholder.empty')}</div>
+        {/if}
+        <span class="media-badge">{t('gameForm.action.adjustFocal')}</span>
+      </button>
+      <div class="cover-field__actions">
+        <button type="button" class="btn" onclick={browseCover} disabled={saving}>
+          {t('gameForm.action.replaceCover')}
+        </button>
+        {#if coverPath.trim()}
+          <button
+            type="button"
+            class="btn btn-danger"
+            onclick={() => (coverPath = '')}
+            disabled={saving}
+          >
+            {t('gameForm.action.removeCover')}
+          </button>
+        {/if}
+      </div>
+      {#if coverError}
+        <p class="form-hint form-hint--error">{coverError}</p>
       {/if}
-      <span class="cover-field__badge">{t('gameForm.action.adjustCover')}</span>
-    </button>
-    <PathField
-      id="game-form-cover"
-      bind:value={coverPath}
-      picker={pickImage}
-      pickerTitle={t('gameForm.field.cover')}
-      placeholder={t('gameForm.placeholder.cover')}
-      ariaLabel={t('gameForm.field.cover')}
-      disabled={saving}
-      onPick={() => {
-        onfocus?.(50, 50);
-        return true;
-      }}
-    />
+    </div>
   </div>
+
+  <AmbienceField
+    bind:path={ambiencePath}
+    bind:mode={ambienceMode}
+    bind:plate={ambiencePlate}
+    bind:focalX={ambienceFocalX}
+    bind:focalY={ambienceFocalY}
+    {coverPath}
+    {title}
+    {alias}
+    {saving}
+  />
 </div>
 
 <CoverFocalDialog
