@@ -1,4 +1,6 @@
 <script>
+  import { Select } from 'bits-ui';
+
   let {
     id = undefined,
     options,
@@ -14,47 +16,42 @@
 </script>
 
 <div class="select-dd" class:is-open={open}>
-  <button
-    {id}
-    type="button"
-    class="select-dd-trigger"
-    aria-haspopup="listbox"
-    aria-expanded={open}
-    aria-label={ariaLabel || undefined}
+  <Select.Root
+    type="single"
+    bind:value={() => value, onchange}
+    bind:open={() => open, onopenchange}
     {disabled}
-    onclick={() => onopenchange(!open)}
-    onblur={() => {
-      if (open) onopenchange(false);
-    }}
   >
-    <span class="select-dd-text">{selected.label}</span>
-    <svg
-      class="select-dd-chevron"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  </button>
-  {#if open}
-    <div class="select-dd-menu" role="listbox">
-      {#each options as opt (opt.value)}
+    <Select.Trigger {id}>
+      {#snippet child({ props })}
         <button
+          {...props}
           type="button"
-          role="option"
-          aria-selected={value === opt.value}
-          class="select-dd-opt"
-          class:is-selected={value === opt.value}
-          onmousedown={(e) => e.preventDefault()}
-          onclick={() => {
-            onchange(opt.value);
-            onopenchange(false);
-          }}
+          class="select-dd-trigger"
+          aria-label={ariaLabel || undefined}
+        >
+          <span class="select-dd-text">{selected.label}</span>
+          <svg
+            class="select-dd-chevron"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+      {/snippet}
+    </Select.Trigger>
+    <Select.ContentStatic class="select-dd-menu">
+      {#each options as opt (opt.value)}
+        <Select.Item
+          value={opt.value}
+          label={opt.label}
+          class={value === opt.value ? 'select-dd-opt is-selected' : 'select-dd-opt'}
         >
           <span>{opt.label}</span>
           <svg
@@ -66,8 +63,8 @@
           >
             <polyline points="20 6 9 17 4 12" />
           </svg>
-        </button>
+        </Select.Item>
       {/each}
-    </div>
-  {/if}
+    </Select.ContentStatic>
+  </Select.Root>
 </div>

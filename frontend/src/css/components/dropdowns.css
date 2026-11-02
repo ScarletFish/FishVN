@@ -32,8 +32,9 @@
 
 .select-dd-trigger:focus-visible {
   outline: none;
+  background: var(--bg-raised);
   border-color: var(--border-strong);
-  box-shadow: 0 0 0 3px var(--accent-faint);
+  box-shadow: var(--shadow-sm);
 }
 
 .select-dd-text {
@@ -69,22 +70,15 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-raised);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-6px) scale(0.98);
-  transform-origin: top center;
-  pointer-events: none;
+  outline: none;
   transition:
     opacity var(--duration-fast) var(--ease-out),
-    visibility var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);
 }
 
-.select-dd.is-open .select-dd-menu {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
+.select-dd-menu[data-starting-style] {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
 }
 
 .select-dd-opt {
@@ -105,7 +99,8 @@
   transition: background var(--duration-fast) var(--ease-out);
 }
 
-.select-dd-opt:hover {
+.select-dd-opt:hover,
+.select-dd-opt[data-highlighted] {
   background: var(--bg-hover);
 }
 

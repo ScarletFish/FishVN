@@ -1,5 +1,6 @@
 <script>
   import { tick, untrack } from 'svelte';
+  import { Tabs } from 'bits-ui';
   import Modal from './Modal.svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
@@ -520,20 +521,18 @@
   onclose={close}
 >
   <form class="form-panel" onsubmit={submit}>
-    <div class="modal-tabs" role="tablist">
-      {#each TABS as key (key)}
-        <button
-          type="button"
-          role="tab"
-          class="modal-tab"
-          class:active={tab === key}
-          aria-selected={tab === key}
-          onclick={() => selectTab(key)}
-        >
-          {t(`gameForm.tab.${key}`)}
-        </button>
-      {/each}
-    </div>
+    <Tabs.Root bind:value={() => tab, selectTab}>
+      <Tabs.List class="modal-tabs">
+        {#each TABS as key (key)}
+          <Tabs.Trigger
+            value={key}
+            class={tab === key ? 'modal-tab active' : 'modal-tab'}
+          >
+            {t(`gameForm.tab.${key}`)}
+          </Tabs.Trigger>
+        {/each}
+      </Tabs.List>
+    </Tabs.Root>
 
     <div class="modal-panels" use:panelScrollbars>
       <div class="modal-panel" class:active={tab === 'basic'}>

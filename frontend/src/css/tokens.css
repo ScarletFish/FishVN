@@ -346,6 +346,11 @@ body {
   --detail-block-h: 20rem; /* 320px  详情页分区内容区高度档，超出在块内滚动 */
   --cover-thumb-w: 5.625rem;
   --menu-plain-size: 1.75rem; /* 28px  裸图标菜单按钮的边长 */
+  --toggle-w: 2.5rem;  /* 40px  开关轨道默认宽，--sm 覆盖为 32px */
+  --toggle-h: 1.5rem;  /* 24px  开关轨道默认高，--sm 覆盖为 18px */
+  --toggle-knob: 1rem; /* 16px  开关圆点直径，--sm 覆盖为 12px */
+  --toggle-gap: 0.1875rem; /* 3px  圆点起点留白，--sm 覆盖为 2px */
+  --toggle-travel: 1rem; /* 16px  选中态圆点位移，--sm 覆盖为 14px */
   --text-view-title: clamp(1.3rem, 2.2vw, 1.6rem);
   /* 水平滚动分页的列数与卡间距。--cols 初值只是首帧兜底，实际值由
      lib/scroll-dots.svelte.js 按容器宽写回，改算法要同步 hscroll.css 的均分公式 */

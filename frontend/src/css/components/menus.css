@@ -41,9 +41,7 @@
 }
 
 .menu__list {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  right: 0;
+  outline: none;
 }
 
 .context-menu {

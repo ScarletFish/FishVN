@@ -1,44 +1,39 @@
 <script>
+  import { DropdownMenu } from 'bits-ui';
+
   let { items = [], label, variant = 'btn', open = $bindable(false), trigger = null } = $props();
 </script>
 
-<div class="menu" class:is-open={open} data-variant={variant}>
-  {#if trigger}
-    {@render trigger()}
-  {:else}
-    <button
-      type="button"
-      class={variant === 'plain' ? 'menu__trigger' : 'menu__trigger btn btn-ghost'}
-      aria-haspopup="menu"
-      aria-expanded={open}
-      aria-label={label}
-      onclick={() => (open = !open)}
-      onblur={(e) => {
-        if (!e.currentTarget.parentElement.contains(e.relatedTarget)) open = false;
-      }}
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="5" r="1.8" />
-        <circle cx="12" cy="12" r="1.8" />
-        <circle cx="12" cy="19" r="1.8" />
-      </svg>
-    </button>
-  {/if}
-  {#if open}
-    <div class="menu__list" role="menu">
-      {#each items as item (item.label)}
-        <button
-          type="button"
-          role="menuitem"
-          class="menu__item"
-          onclick={() => {
-            open = false;
-            item.onclick();
-          }}
-        >
-          {item.label}
-        </button>
-      {/each}
-    </div>
-  {/if}
+<div class="menu" data-variant={variant}>
+  <DropdownMenu.Root bind:open>
+    <DropdownMenu.Trigger>
+      {#snippet child({ props })}
+        {#if trigger}
+          {@render trigger()}
+        {:else}
+          <button
+            {...props}
+            type="button"
+            class={variant === 'plain' ? 'menu__trigger' : 'menu__trigger btn btn-ghost'}
+            aria-label={label}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.8" />
+              <circle cx="12" cy="12" r="1.8" />
+              <circle cx="12" cy="19" r="1.8" />
+            </svg>
+          </button>
+        {/if}
+      {/snippet}
+    </DropdownMenu.Trigger>
+    <DropdownMenu.Portal>
+      <DropdownMenu.Content class="menu__list" align="end" sideOffset={4}>
+        {#each items as item (item.label)}
+          <DropdownMenu.Item class="menu__item" onSelect={() => item.onclick()}>
+            {item.label}
+          </DropdownMenu.Item>
+        {/each}
+      </DropdownMenu.Content>
+    </DropdownMenu.Portal>
+  </DropdownMenu.Root>
 </div>

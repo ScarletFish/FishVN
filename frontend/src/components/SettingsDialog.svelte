@@ -24,6 +24,7 @@
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
   import { loadLibraryTags, toTagItems } from '../lib/library-tags.svelte.js';
   import { tagKeyLabel } from '../lib/tag-label.svelte.js';
+  import { Tabs } from 'bits-ui';
   import TagPicker from './game-form/TagPicker.svelte';
   import SyncResultDialog from './SyncResultDialog.svelte';
   import SelectDd from './SelectDd.svelte';
@@ -524,58 +525,25 @@
     />
   {/snippet}
 
-  <div class="modal-tabs" role="tablist">
-    <button
-      type="button"
-      role="tab"
-      class="modal-tab"
-      class:active={tab === 'appearance'}
-      aria-selected={tab === 'appearance'}
-      onclick={() => selectTab('appearance')}
-    >
-      {t('settings.tab.appearance')}
-    </button>
-    <button
-      type="button"
-      role="tab"
-      class="modal-tab"
-      class:active={tab === 'content'}
-      aria-selected={tab === 'content'}
-      onclick={() => selectTab('content')}
-    >
-      {t('settings.tab.content')}
-    </button>
-    <button
-      type="button"
-      role="tab"
-      class="modal-tab"
-      class:active={tab === 'tools'}
-      aria-selected={tab === 'tools'}
-      onclick={() => selectTab('tools')}
-    >
-      {t('settings.tab.tools')}
-    </button>
-    <button
-      type="button"
-      role="tab"
-      class="modal-tab"
-      class:active={tab === 'vndb'}
-      aria-selected={tab === 'vndb'}
-      onclick={() => selectTab('vndb')}
-    >
-      {t('settings.vndb.tab')}
-    </button>
-    <button
-      type="button"
-      role="tab"
-      class="modal-tab"
-      class:active={tab === 'backup'}
-      aria-selected={tab === 'backup'}
-      onclick={() => selectTab('backup')}
-    >
-      {t('settings.tab.backup')}
-    </button>
-  </div>
+  <Tabs.Root bind:value={() => tab, selectTab}>
+    <Tabs.List class="modal-tabs">
+      <Tabs.Trigger value="appearance" class={tab === 'appearance' ? 'modal-tab active' : 'modal-tab'}>
+        {t('settings.tab.appearance')}
+      </Tabs.Trigger>
+      <Tabs.Trigger value="content" class={tab === 'content' ? 'modal-tab active' : 'modal-tab'}>
+        {t('settings.tab.content')}
+      </Tabs.Trigger>
+      <Tabs.Trigger value="tools" class={tab === 'tools' ? 'modal-tab active' : 'modal-tab'}>
+        {t('settings.tab.tools')}
+      </Tabs.Trigger>
+      <Tabs.Trigger value="vndb" class={tab === 'vndb' ? 'modal-tab active' : 'modal-tab'}>
+        {t('settings.vndb.tab')}
+      </Tabs.Trigger>
+      <Tabs.Trigger value="backup" class={tab === 'backup' ? 'modal-tab active' : 'modal-tab'}>
+        {t('settings.tab.backup')}
+      </Tabs.Trigger>
+    </Tabs.List>
+  </Tabs.Root>
 
   <div class="modal-panels" use:panelScrollbars>
     <div class="modal-panel" class:active={tab === 'appearance'}>
