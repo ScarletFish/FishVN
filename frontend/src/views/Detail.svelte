@@ -1,8 +1,11 @@
 <script>
   import { tick, onMount } from 'svelte';
+  import { ContextMenu } from 'bits-ui';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { coverSrc, fullSrc } from '../lib/cover-src.js';
+  import { BANNER_FOCAL } from '../lib/cover-focal.js';
+  import { pickImage } from '../lib/pick-path.js';
   import { joinLaunchPath } from '../lib/installations.js';
   import { bbcodeParagraphs } from '../lib/vn-merge.js';
   import { openExternal } from '../lib/open-external.js';
@@ -37,6 +40,7 @@
   let coverUrl = $state(null);
   let coverBroken = $state(false);
   let ambienceUrl = $state(null);
+  let ambienceLoaded = $state(false);
   let ambienceBroken = $state(false);
 
   const ambienceMode = $derived(meta?.ambience_mode ?? 'soft');
@@ -44,6 +48,8 @@
   const ambienceFocal = $derived(
     `${meta?.ambience_focal_x ?? 50}% ${meta?.ambience_focal_y ?? 22}%`
   );
+  const bannerSource = $derived((meta?.ambience_path ?? '').trim() ? 'custom' : 'follow');
+  let bannerMenuKey = $state(0);
   let gameState = $state(null);
   let activeSession = $state(null);
   let launching = $state(false);
@@ -119,6 +125,42 @@
     } catch (err) {
       toast(err.message, 'error');
     }
+  }
+
+  async function patchBanner(patch) {
+    try {
+      meta = await api.updateGameMetadata(gameId, patch);
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  async function chooseBannerImage() {
+    let picked;
+    try {
+      picked = await pickImage(t('gameForm.field.ambience'));
+    } catch (err) {
+      toast(err.message, 'error');
+      return false;
+    }
+    if (!picked) return false;
+    await patchBanner({
+      ambience_path: picked,
+      ambience_focal_x: BANNER_FOCAL.x,
+      ambience_focal_y: BANNER_FOCAL.y,
+    });
+    return true;
+  }
+
+  function setBannerSource(next) {
+    if (next === 'follow') {
+      if (bannerSource === 'follow') return;
+      patchBanner({ ambience_path: null });
+      return;
+    }
+    chooseBannerImage().then((ok) => {
+      if (!ok) bannerMenuKey += 1;
+    });
   }
 
   async function launch() {
@@ -433,12 +475,17 @@
     if (key === lastAmbienceKey) return;
     lastAmbienceKey = key;
     ambienceBroken = false;
-    ambienceUrl = null;
-    if (!source) return;
+    if (!source) {
+      ambienceUrl = null;
+      return;
+    }
     let live = true;
     (mode === 'clear' ? fullSrc(source) : coverSrc(source))
       .then((url) => {
-        if (live) ambienceUrl = url;
+        if (live) {
+          ambienceLoaded = false;
+          ambienceUrl = url;
+        }
       })
       .catch(() => {});
     return () => {
@@ -507,231 +554,312 @@
         <img
           src={ambienceUrl}
           alt=""
+          class:is-loaded={ambienceLoaded}
           style:object-position={ambienceFocal}
-          onerror={() => (ambienceBroken = true)}
+          onload={() => (ambienceLoaded = true)}
+          onerror={() => {
+            ambienceBroken = true;
+            ambienceUrl = null;
+          }}
         />
       {/if}
     </div>
-    <div class="detail-banner">
-      <div class="detail-banner-left">
-        <div class="detail-cover">
-          {#if coverUrl && !coverBroken}
-            <img
-              src={coverUrl}
-              alt={game.name}
-              style:object-position="{meta?.cover_focal_x ?? 50}% {meta?.cover_focal_y ?? 50}%"
-              onerror={() => (coverBroken = true)}
-            />
-          {:else}
-            <div class="detail-cover__ph">
-              <span class="detail-cover__initial" aria-hidden="true">{(game.name || '?')[0]}</span>
-            </div>
-          {/if}
-        </div>
-        <div class="detail-actions detail-rise">
-          <span
-            class="detail-action"
-            data-tooltip={canLaunch ? null : t('detail.playNoInstall')}
-          >
-            <button
-              type="button"
-              class="btn btn-primary"
-              disabled={!canLaunch || launching || running}
-              onclick={launch}
+    <ContextMenu.Root>
+      <ContextMenu.Portal>
+        <ContextMenu.Content class="context-menu context-menu--panel" strategy="fixed" sideOffset={2}>
+          <div class="context-menu__heading">{t('gameForm.ambience.source')}</div>
+          {#key bannerMenuKey}
+            <div
+              class="seg-radio-group"
+              role="radiogroup"
+              aria-label={t('gameForm.ambience.source')}
             >
-              {running ? t('status.playing') : t('detail.actionPlay')}
-            </button>
-          </span>
-          <div class="detail-launch-meta">
-            {#if playSeconds > 0}
-              <button
-                type="button"
-                class="detail-stat detail-stat--link"
-                data-tooltip={t('detail.playtimeJump')}
-                onclick={() => playLogEl?.scrollTo()}
-              >
-                {durationText(t, playSeconds)}
-              </button>
-            {:else}
-              <span class="detail-stat" data-tooltip={t('detail.playtime')}>--</span>
-            {/if}
-            <Menu
-              bind:open={menuOpen}
-              label={t('common.actionMore')}
-              items={[
-                {
-                  label: t('common.actionEdit'),
-                  onclick: () => {
-                    formTab = 'basic';
-                    formOpen = true;
-                  },
-                },
-                { label: t('detail.actionDelete'), onclick: removeGame },
-              ]}
-            />
+              <label class="seg-radio-item">
+                <input
+                  type="radio"
+                  name="banner-source-menu"
+                  value="follow"
+                  checked={bannerSource === 'follow'}
+                  onchange={() => setBannerSource('follow')}
+                />
+                {t('gameForm.ambience.follow')}
+              </label>
+              <label class="seg-radio-item">
+                <input
+                  type="radio"
+                  name="banner-source-menu"
+                  value="custom"
+                  checked={bannerSource === 'custom'}
+                  onchange={() => setBannerSource('custom')}
+                />
+                {t('gameForm.ambience.custom')}
+              </label>
+            </div>
+          {/key}
+          <div class="context-menu__sep" role="separator"></div>
+          <div class="context-menu__heading">{t('gameForm.ambience.mode')}</div>
+          <div class="seg-radio-group" role="radiogroup" aria-label={t('gameForm.ambience.mode')}>
+            <label class="seg-radio-item">
+              <input
+                type="radio"
+                name="banner-mode-menu"
+                value="soft"
+                checked={ambienceMode === 'soft'}
+                onchange={() => patchBanner({ ambience_mode: 'soft' })}
+              />
+              {t('gameForm.ambience.soft')}
+            </label>
+            <label class="seg-radio-item">
+              <input
+                type="radio"
+                name="banner-mode-menu"
+                value="clear"
+                checked={ambienceMode === 'clear'}
+                onchange={() => patchBanner({ ambience_mode: 'clear' })}
+              />
+              {t('gameForm.ambience.clear')}
+            </label>
           </div>
-        </div>
-      </div>
-      <div class="detail-info" class:detail-info--plate={ambiencePlate && ambienceMode === 'clear'}>
-        <h1 class="detail-rise" style="animation-delay: 0.04s">{game.name}</h1>
-        {#if alias}
-          <p class="detail-alias detail-rise" style="animation-delay: 0.09s">{alias}</p>
-        {/if}
-        {#if ratingShown || lengthText || releaseYear || developer}
-          <div class="detail-info-line detail-rise" style="animation-delay: 0.14s">
-            {#if ratingShown || lengthText}
-              <span class="info-left">
-                {#if ratingShown}
-                  {#if ratingSwitchable}
+          {#if ambienceMode === 'clear'}
+            <label class="context-menu__toggle">
+              <span>{t('gameForm.field.ambiencePlate')}</span>
+              <span class="toggle-switch toggle-switch--sm">
+                <input
+                  type="checkbox"
+                  checked={ambiencePlate}
+                  onchange={() => patchBanner({ ambience_plate: !ambiencePlate })}
+                />
+                <span class="toggle-slider"></span>
+              </span>
+            </label>
+          {/if}
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+      <ContextMenu.Trigger>
+        {#snippet child({ props })}
+          <div {...props} class="detail-banner">
+            <div class="detail-banner-left">
+              <div class="detail-cover">
+                {#if coverUrl && !coverBroken}
+                  <img
+                    src={coverUrl}
+                    alt={game.name}
+                    style:object-position="{meta?.cover_focal_x ?? 50}% {meta?.cover_focal_y ?? 50}%"
+                    onerror={() => (coverBroken = true)}
+                  />
+                {:else}
+                  <div class="detail-cover__ph">
+                    <span class="detail-cover__initial" aria-hidden="true">{(game.name || '?')[0]}</span>
+                  </div>
+                {/if}
+              </div>
+              <div class="detail-actions detail-rise">
+                <span
+                  class="detail-action"
+                  data-tooltip={canLaunch ? null : t('detail.playNoInstall')}
+                >
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    disabled={!canLaunch || launching || running}
+                    onclick={launch}
+                  >
+                    {running ? t('status.playing') : t('detail.actionPlay')}
+                  </button>
+                </span>
+                <div class="detail-launch-meta">
+                  {#if playSeconds > 0}
                     <button
                       type="button"
-                      class="info-rating"
-                      class:info-rating--mine={ratingIsMine}
-                      class:info-rating--vndb={!ratingIsMine}
-                      aria-label={`${ratingScore} ${ratingSub}`}
-                      data-tooltip={ratingTip}
-                      onclick={toggleRating}
+                      class="detail-stat detail-stat--link"
+                      data-tooltip={t('detail.playtimeJump')}
+                      onclick={() => playLogEl?.scrollTo()}
                     >
-                      {@render ratingFace()}
+                      {durationText(t, playSeconds)}
                     </button>
                   {:else}
-                    <span
-                      class="info-rating"
-                      class:info-rating--mine={ratingIsMine}
-                      class:info-rating--vndb={!ratingIsMine}
-                    >
-                      {@render ratingFace()}
+                    <span class="detail-stat" data-tooltip={t('detail.playtime')}>--</span>
+                  {/if}
+                  <Menu
+                    bind:open={menuOpen}
+                    label={t('common.actionMore')}
+                    items={[
+                      {
+                        label: t('common.actionEdit'),
+                        onclick: () => {
+                          formTab = 'basic';
+                          formOpen = true;
+                        },
+                      },
+                      { label: t('detail.actionDelete'), onclick: removeGame },
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="detail-info" class:detail-info--plate={ambiencePlate && ambienceMode === 'clear'}>
+              <h1 class="detail-rise" style="animation-delay: 0.04s">{game.name}</h1>
+              {#if alias}
+                <p class="detail-alias detail-rise" style="animation-delay: 0.09s">{alias}</p>
+              {/if}
+              {#if ratingShown || lengthText || releaseYear || developer}
+                <div class="detail-info-line detail-rise" style="animation-delay: 0.14s">
+                  {#if ratingShown || lengthText}
+                    <span class="info-left">
+                      {#if ratingShown}
+                        {#if ratingSwitchable}
+                          <button
+                            type="button"
+                            class="info-rating"
+                            class:info-rating--mine={ratingIsMine}
+                            class:info-rating--vndb={!ratingIsMine}
+                            aria-label={`${ratingScore} ${ratingSub}`}
+                            data-tooltip={ratingTip}
+                            onclick={toggleRating}
+                          >
+                            {@render ratingFace()}
+                          </button>
+                        {:else}
+                          <span
+                            class="info-rating"
+                            class:info-rating--mine={ratingIsMine}
+                            class:info-rating--vndb={!ratingIsMine}
+                          >
+                            {@render ratingFace()}
+                          </span>
+                        {/if}
+                      {/if}
+                      {#if lengthText}
+                        <span class="info-length" data-tooltip={t('detail.lengthHint')} bind:this={lengthEl}>
+                          <span class="info-length-mark">#</span>{lengthText}
+                        </span>
+                      {/if}
                     </span>
                   {/if}
-                {/if}
-                {#if lengthText}
-                  <span class="info-length" data-tooltip={t('detail.lengthHint')} bind:this={lengthEl}>
-                    <span class="info-length-mark">#</span>{lengthText}
+                  <span class="info-tags">
+                    {#if releaseYear}
+                      <span class="pill pill--tag">{releaseYear}</span>
+                    {/if}
+                    {#if developer}
+                      <span class="pill pill--tag">{developer}</span>
+                    {/if}
                   </span>
+                </div>
+              {/if}
+              <div class="detail-tags detail-rise" style="animation-delay: 0.19s" bind:this={tagsEl}>
+                <div class="detail-tags-list">
+                  {#each shownTags as tag (tag.id ?? tag.name)}
+                    <button
+                      type="button"
+                      class="pill pill--tag pill--link"
+                      aria-label={t('detail.tagSearch', { tag: tagLabel(tag) })}
+                      onclick={() => searchTag(tag)}
+                    >{tagLabel(tag)}</button>
+                  {/each}
+                  {#if tagsHiddenCount > 0 || tagsExpanded}
+                    <button
+                      type="button"
+                      class="pill pill--more"
+                      aria-expanded={tagsExpanded}
+                      onclick={toggleTags}
+                    >
+                      {tagsExpanded ? t('detail.fewerTags') : t('detail.moreTags', { count: tagsHiddenCount })}
+                    </button>
+                  {/if}
+                </div>
+                {#if tagsExpanded && (spoilerCount > 0 || tagView.poolCount > 0)}
+                  <div class="toggle-row">
+                    {#if spoilerCount > 0}
+                      <span>{t('detail.tagSpoilersCount', { count: spoilerCount })}</span>
+                      <label class="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={spoilersRevealed}
+                          aria-label={t('detail.tagSpoilersToggle')}
+                          onchange={toggleSpoilers}
+                        />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    {/if}
+                    {#if tagView.poolCount > 0}
+                      <span class="detail-tags-excluded"
+                        >{t('detail.tagsExcluded', { count: tagView.poolCount })}</span
+                      >
+                    {/if}
+                  </div>
                 {/if}
-              </span>
-            {/if}
-            <span class="info-tags">
-              {#if releaseYear}
-                <span class="pill pill--tag">{releaseYear}</span>
-              {/if}
-              {#if developer}
-                <span class="pill pill--tag">{developer}</span>
-              {/if}
-            </span>
-          </div>
-        {/if}
-        <div class="detail-tags detail-rise" style="animation-delay: 0.19s" bind:this={tagsEl}>
-          <div class="detail-tags-list">
-            {#each shownTags as tag (tag.id ?? tag.name)}
-              <button
-                type="button"
-                class="pill pill--tag pill--link"
-                aria-label={t('detail.tagSearch', { tag: tagLabel(tag) })}
-                onclick={() => searchTag(tag)}
-              >{tagLabel(tag)}</button>
-            {/each}
-            {#if tagsHiddenCount > 0 || tagsExpanded}
-              <button
-                type="button"
-                class="pill pill--more"
-                aria-expanded={tagsExpanded}
-                onclick={toggleTags}
+                {#if revealSpoilers && spoilerCount > 0}
+                  <div class="detail-tags-list detail-tags-spoiler">
+                    {#each tagView.spoilers as tag (tag.id ?? tag.name)}
+                      <button
+                        type="button"
+                        class="pill pill--tag pill--link"
+                        aria-label={t('detail.tagSearch', { tag: tagLabel(tag) })}
+                        onclick={() => searchTag(tag)}
+                      >{tagLabel(tag)}</button>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+              <div
+                class="detail-summary detail-rise"
+                class:detail-summary--open={summaryOpen || summaryFolding}
+                style="animation-delay: 0.24s"
+                bind:this={summaryEl}
               >
-                {tagsExpanded ? t('detail.fewerTags') : t('detail.moreTags', { count: tagsHiddenCount })}
+                {#each summaryParas as para, i (i)}
+                  <p>{#each para as seg, j (j)}{#if seg.type === 'link'}<a
+                      href={seg.href}
+                      onclick={(e) => {
+                        e.preventDefault();
+                        openExternal(seg.href);
+                      }}>{seg.text}</a
+                    >{:else}{seg.text}{/if}{/each}</p>
+                {/each}
+              </div>
+              {#if summaryClamped}
+                <button
+                  type="button"
+                  class="detail-summary-toggle"
+                  aria-expanded={summaryOpen}
+                  onclick={toggleSummary}
+                >
+                  {summaryOpen ? t('detail.summaryLess') : t('detail.summaryMore')}
+                </button>
+              {/if}
+            </div>
+            {#if launchPath}
+              <button
+                type="button"
+                class="detail-install detail-rise"
+                style="animation-delay: 0.29s"
+                data-tooltip={t('detail.installDefaultTip')}
+                onclick={() => {
+                  formTab = 'installations';
+                  formOpen = true;
+                }}
+              >
+                <span class="detail-install-label">{t('detail.installDefault')}</span>
+                <span class="detail-install-path">{launchPath}</span>
+                <svg
+                  class="detail-install-edit"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  <path d="m15 5 4 4" />
+                </svg>
               </button>
             {/if}
           </div>
-          {#if tagsExpanded && (spoilerCount > 0 || tagView.poolCount > 0)}
-            <div class="toggle-row">
-              {#if spoilerCount > 0}
-                <span>{t('detail.tagSpoilersCount', { count: spoilerCount })}</span>
-                <label class="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={spoilersRevealed}
-                    aria-label={t('detail.tagSpoilersToggle')}
-                    onchange={toggleSpoilers}
-                  />
-                  <span class="toggle-slider"></span>
-                </label>
-              {/if}
-              {#if tagView.poolCount > 0}
-                <span class="detail-tags-excluded"
-                  >{t('detail.tagsExcluded', { count: tagView.poolCount })}</span
-                >
-              {/if}
-            </div>
-          {/if}
-          {#if revealSpoilers && spoilerCount > 0}
-            <div class="detail-tags-list detail-tags-spoiler">
-              {#each tagView.spoilers as tag (tag.id ?? tag.name)}
-                <button
-                  type="button"
-                  class="pill pill--tag pill--link"
-                  aria-label={t('detail.tagSearch', { tag: tagLabel(tag) })}
-                  onclick={() => searchTag(tag)}
-                >{tagLabel(tag)}</button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-        <div
-          class="detail-summary detail-rise"
-          class:detail-summary--open={summaryOpen || summaryFolding}
-          style="animation-delay: 0.24s"
-          bind:this={summaryEl}
-        >
-          {#each summaryParas as para, i (i)}
-            <p>{#each para as seg, j (j)}{#if seg.type === 'link'}<a
-                href={seg.href}
-                onclick={(e) => {
-                  e.preventDefault();
-                  openExternal(seg.href);
-                }}>{seg.text}</a
-              >{:else}{seg.text}{/if}{/each}</p>
-          {/each}
-        </div>
-        {#if summaryClamped}
-          <button
-            type="button"
-            class="detail-summary-toggle"
-            aria-expanded={summaryOpen}
-            onclick={toggleSummary}
-          >
-            {summaryOpen ? t('detail.summaryLess') : t('detail.summaryMore')}
-          </button>
-        {/if}
-      </div>
-      {#if launchPath}
-        <button
-          type="button"
-          class="detail-install detail-rise"
-          style="animation-delay: 0.29s"
-          data-tooltip={t('detail.installDefaultTip')}
-          onclick={() => {
-            formTab = 'installations';
-            formOpen = true;
-          }}
-        >
-          <span class="detail-install-label">{t('detail.installDefault')}</span>
-          <span class="detail-install-path">{launchPath}</span>
-          <svg
-            class="detail-install-edit"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-            <path d="m15 5 4 4" />
-          </svg>
-        </button>
-      {/if}
-    </div>
+        {/snippet}
+      </ContextMenu.Trigger>
+    </ContextMenu.Root>
     <DetailCharacters gameId={gameId} />
     <DetailStaff {gameId} />
     <DetailPlayLog {gameId} bind:this={playLogEl} />

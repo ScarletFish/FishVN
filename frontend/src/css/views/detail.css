@@ -131,6 +131,12 @@
   object-fit: cover;
   transform: scale(1.15);
   filter: blur(14px);
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.detail-ambience img.is-loaded {
+  opacity: 1;
 }
 
 .detail-ambience::after {

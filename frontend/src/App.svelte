@@ -1,6 +1,7 @@
 <script>
   import './lib/tooltip.js';
   import './lib/side-tip.js';
+  import './lib/native-menu.js';
   import { tick } from 'svelte';
   import { t } from './lib/i18n.js';
   import { durationText } from './lib/playtime.js';

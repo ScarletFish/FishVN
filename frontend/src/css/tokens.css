@@ -138,9 +138,10 @@ body {
   --bg-hover: color-mix(in srgb, var(--ink-black) 6%, transparent);
   --bg-hover-strong: color-mix(in srgb, var(--ink-black) 12%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 18%, transparent);
-  /* 段控件：容器不上色，与周围同层；选中格提亮并投影，浮起靠阴影补明度 */
-  --bg-seg-thumb: var(--bg-raised);
-  --seg-thumb-shadow: var(--shadow-sm);
+  /* 段控件：容器不上色，与周围同层；选中格向反方向明度走一档（浅压暗 / 深提亮），
+     两主题同为 12% 对比色叠加，明度差即对比，不吃阴影 */
+  --bg-seg-thumb: var(--bg-hover-strong);
+  --seg-thumb-shadow: none;
 
   /* 前景 */
   --fg-default: var(--sand-950);
