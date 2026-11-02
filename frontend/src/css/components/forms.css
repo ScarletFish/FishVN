@@ -862,6 +862,10 @@
   color: var(--accent);
 }
 
+.form-group input.is-invalid {
+  border-color: var(--accent);
+}
+
 .form-hint-link {
   color: var(--fg-secondary);
   text-decoration: underline;

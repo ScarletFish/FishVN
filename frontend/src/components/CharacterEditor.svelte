@@ -17,6 +17,7 @@
   import SelectDd from './SelectDd.svelte';
   import TagField from './TagField.svelte';
   import { traitLabel, getTraitDict } from '../lib/tag-label.svelte.js';
+  import { isValidBirthday } from '../lib/form-metadata.js';
 
   let { characters = $bindable([]), disabled = false, onTraitBrowse, selectedId = $bindable(null) } = $props();
 
@@ -58,6 +59,7 @@
   let vaField = $state(null);
   let vaEntry = $state(null);
   let portraitError = $state('');
+  let birthdayError = $state(false);
   let genderOpen = $state(false);
   let roleOpen = $state(false);
   let bloodOpen = $state(false);
@@ -84,6 +86,14 @@
     const cleaned = cleanCup(event.currentTarget.value);
     if (cleaned !== event.currentTarget.value) event.currentTarget.value = cleaned;
     selected.cup = cleaned;
+  }
+
+  function onBirthdayInput() {
+    birthdayError = false;
+  }
+
+  function onBirthdayBlur() {
+    birthdayError = !isValidBirthday(selected.birthday);
   }
 
   const TRAIT_GROUP_ORDER = [
@@ -526,7 +536,19 @@
           </div>
           <div class="form-group">
             <label for="char-birthday">{t('gameForm.field.charBirthday')}</label>
-            <input id="char-birthday" type="text" bind:value={selected.birthday} {disabled} />
+            <input
+              id="char-birthday"
+              type="text"
+              bind:value={selected.birthday}
+              placeholder={t('gameForm.placeholder.charBirthday')}
+              class:is-invalid={birthdayError}
+              oninput={onBirthdayInput}
+              onblur={onBirthdayBlur}
+              {disabled}
+            />
+            {#if birthdayError}
+              <p class="form-hint form-hint--error">{t('gameForm.error.charBirthdayFormat')}</p>
+            {/if}
           </div>
 
           <div class="panel-grid__sub panel-grid__sub--3">

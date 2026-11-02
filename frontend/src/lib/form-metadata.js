@@ -49,6 +49,21 @@ export function clampRating(value) {
   return Math.round(Math.min(100, Math.max(0, value)) * 10) / 10;
 }
 
+export function isValidBirthday(raw) {
+  const text = String(raw ?? '').trim();
+  if (!text) return true;
+  const full = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(text);
+  const partial = /^(\d{1,2})-(\d{1,2})$/.exec(text);
+  const parts = full ? [full[1], full[2], full[3]] : partial ? [null, partial[1], partial[2]] : null;
+  if (!parts) return false;
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  if (!full) return true;
+  const probe = new Date(Date.UTC(Number(parts[0]), month - 1, day));
+  return probe.getUTCMonth() === month - 1 && probe.getUTCDate() === day;
+}
+
 export function ratingRejected(raw) {
   const score = toNumber(raw);
   return Boolean(raw.trim()) && (score === null || score < 0 || score > 100);

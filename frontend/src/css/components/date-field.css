@@ -1,0 +1,305 @@
+.date-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.date-field:focus-within {
+  background: var(--bg-raised);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.date-field.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.date-field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--fg-default);
+  outline: none;
+  cursor: text;
+}
+
+.date-field__seg {
+  border-radius: 2px;
+  padding: 0 1px;
+  color: var(--fg-default);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.date-field__seg:focus {
+  background: var(--bg-hover-strong);
+  outline: none;
+}
+
+.date-field.is-empty .date-field__seg {
+  color: var(--fg-muted);
+}
+
+.date-field__literal {
+  color: var(--fg-muted);
+  user-select: none;
+}
+
+.date-field__cal-btn {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.date-field__cal-btn:hover {
+  background: var(--bg-hover);
+  color: var(--fg-default);
+}
+
+.date-field__cal-btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.cal-pop {
+  z-index: var(--z-popover);
+  padding: var(--space-2);
+  background: var(--bg-floating);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+}
+
+.cal-pop__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+
+.cal-pop__nav {
+  display: grid;
+  place-items: center;
+  width: var(--menu-plain-size);
+  height: var(--menu-plain-size);
+  flex-shrink: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--fg-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.cal-pop__nav:hover {
+  background: var(--bg-hover);
+  color: var(--fg-default);
+}
+
+.cal-pop__nav svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.cal-pop__selects {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.cal-pop__select {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-1);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--fw-semibold);
+  color: var(--fg-default);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.cal-pop__select:hover {
+  background: var(--bg-hover);
+}
+
+.cal-pop__select:focus-visible {
+  outline: none;
+  background: var(--bg-hover);
+}
+
+.cal-pop__menu {
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-025);
+  min-width: 6.5rem;
+  padding: var(--space-1);
+  background: var(--bg-floating);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  outline: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.cal-pop__viewport {
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+.cal-pop__menu[data-starting-style] {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+}
+
+.cal-pop__opt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-250);
+  width: 100%;
+  padding: var(--space-2) var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--fg-default);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.cal-pop__opt:hover,
+.cal-pop__opt[data-highlighted] {
+  background: var(--bg-hover);
+}
+
+.cal-pop__opt.is-selected {
+  color: var(--accent);
+  background: var(--accent-faint);
+}
+
+.cal-pop__opt span {
+  flex: 1;
+  min-width: 0;
+}
+
+.cal-pop__opt-check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.cal-pop__opt.is-selected .cal-pop__opt-check {
+  opacity: 1;
+}
+
+.cal-pop__grid {
+  width: 17.5rem;
+  border-collapse: collapse;
+}
+
+.cal-pop__weekday {
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+.cal-pop__cell {
+  padding: 1px;
+  text-align: center;
+}
+
+.cal-pop__day {
+  display: grid;
+  place-items: center;
+  width: 2.125rem;
+  height: 2rem;
+  margin: 0 auto;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.cal-pop__day:hover {
+  background: var(--bg-hover);
+  color: var(--fg-default);
+}
+
+.cal-pop__day[data-selected] {
+  background: var(--accent);
+  color: var(--fg-on-accent);
+}
+
+.cal-pop__day[data-today]:not([data-selected]) {
+  color: var(--accent);
+  font-weight: var(--fw-semibold);
+}
+
+.cal-pop__day[data-outside-month] {
+  color: var(--fg-muted);
+  opacity: 0.5;
+}
+
+.cal-pop__day[data-outside-month][data-selected] {
+  background: none;
+  color: var(--accent);
+}
+
+.cal-pop__day[data-unavailable] {
+  color: var(--fg-muted);
+  text-decoration: line-through;
+  pointer-events: none;
+}
+
+.cal-pop__day[data-disabled] {
+  color: var(--fg-muted);
+  opacity: 0.5;
+  cursor: not-allowed;
+}

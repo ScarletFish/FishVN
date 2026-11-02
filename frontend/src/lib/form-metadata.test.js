@@ -5,6 +5,7 @@ import {
   clampRating,
   cleanInteger,
   cleanRating,
+  isValidBirthday,
   lengthMinutesRejected,
   normalizeInteger,
   normalizeRating,
@@ -222,4 +223,21 @@ test('总时长只在用户改过时才写', () => {
   );
   expect(buildStatePatch({ status: 'playing', playSeconds: -60 }).play_seconds).toBe(0);
   expect(buildStatePatch({ status: 'playing', playSeconds: 12.6 }).play_seconds).toBe(13);
+});
+test('生日校验放行完整日期、无年份日期与空值', () => {
+  expect(isValidBirthday('2005-08-02')).toBe(true);
+  expect(isValidBirthday('8-8')).toBe(true);
+  expect(isValidBirthday('08-02')).toBe(true);
+  expect(isValidBirthday('')).toBe(true);
+  expect(isValidBirthday(null)).toBe(true);
+});
+
+test('生日校验拦截假日期与乱格式', () => {
+  expect(isValidBirthday('2005-13-01')).toBe(false);
+  expect(isValidBirthday('2005-02-30')).toBe(false);
+  expect(isValidBirthday('2005-08-32')).toBe(false);
+  expect(isValidBirthday('8-0')).toBe(false);
+  expect(isValidBirthday('2005/08/02')).toBe(false);
+  expect(isValidBirthday('20050802')).toBe(false);
+  expect(isValidBirthday('2005')).toBe(false);
 });
