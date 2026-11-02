@@ -21,6 +21,7 @@
 
   let query = $state('');
   let searchEl = $state(null);
+  let stackEl = $state(null);
   let scope = $state('library');
 
   const swappable = $derived(Boolean(libraryItems && allItems));
@@ -72,6 +73,15 @@
     onToggle?.(item.key, item.raw ?? item);
   }
 
+  function onSearchKeydown(e) {
+    if (e.key !== 'ArrowDown') return;
+    const first = stackEl?.querySelector('.tag-picker__free, .tag-pill--pick');
+    if (first) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
   function addFree() {
     if (!canAddFree) return;
     onAdd?.(freeName);
@@ -92,6 +102,7 @@
           aria-label={searchPlaceholder}
           autocomplete="off"
           disabled={saving}
+          onkeydown={onSearchKeydown}
         />
         {#if swappable}
           <div class="tag-picker__scope">
@@ -113,7 +124,7 @@
       </div>
 
       <div class="tag-picker__body" use:panelScrollbars>
-        <div class="tag-picker__stack">
+        <div class="tag-picker__stack" bind:this={stackEl}>
           {#if canAddFree}
             <button type="button" class="tag-picker__free" onclick={addFree} disabled={saving}>
               {t('tagPicker.addCustom', { name: freeName })}
