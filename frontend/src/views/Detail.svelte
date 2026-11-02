@@ -16,6 +16,7 @@
   import { playHero, discardHero } from '../lib/hero-transition.js';
   import { tagLabel } from '../lib/tag-label.svelte.js';
   import { requestSearchQuery } from '../lib/search-query.js';
+  import { getFormTab, setFormTab } from '../lib/form-tab-pref.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
   import { classifyTags } from '../lib/tag-order.svelte.js';
   import { LIBRARY_CHANGED, notifyLibraryTagsChanged, onLibraryItemUpdated } from '../lib/library-events.js';
@@ -35,7 +36,7 @@
   let loading = $state(true);
   let failed = $state(false);
   let formOpen = $state(false);
-  let formTab = $state('basic');
+  let formTab = $state(getFormTab());
   let menuOpen = $state(false);
   let coverUrl = $state(null);
   let coverBroken = $state(false);
@@ -49,6 +50,10 @@
     `${meta?.ambience_focal_x ?? 50}% ${meta?.ambience_focal_y ?? 22}%`
   );
   const bannerSource = $derived((meta?.ambience_path ?? '').trim() ? 'custom' : 'follow');
+  const hasBannerImage = $derived(
+    Boolean((meta?.ambience_path ?? '').trim() || (meta?.image_path ?? '').trim()),
+  );
+
   let bannerMenuKey = $state(0);
   let gameState = $state(null);
   let activeSession = $state(null);
@@ -468,6 +473,10 @@
   let lastAmbienceKey = null;
 
   $effect(() => {
+    setFormTab(formTab);
+  });
+
+  $effect(() => {
     const custom = (meta?.ambience_path ?? '').trim();
     const source = custom || (meta?.image_path ?? '');
     const mode = ambienceMode;
@@ -596,7 +605,6 @@
               </label>
             </div>
           {/key}
-          <div class="context-menu__sep" role="separator"></div>
           <div class="context-menu__heading">{t('gameForm.ambience.mode')}</div>
           <div class="seg-radio-group" role="radiogroup" aria-label={t('gameForm.ambience.mode')}>
             <label class="seg-radio-item">
@@ -633,6 +641,17 @@
               </span>
             </label>
           {/if}
+          <div class="context-menu__sep" role="separator"></div>
+          <ContextMenu.Item
+            class="menu__item"
+            disabled={!hasBannerImage}
+            onSelect={() => {
+              formTab = 'tags';
+              formOpen = true;
+            }}
+          >
+            {t('gameForm.ambience.focalJump')}
+          </ContextMenu.Item>
         </ContextMenu.Content>
       </ContextMenu.Portal>
       <ContextMenu.Trigger>
@@ -687,7 +706,6 @@
                       {
                         label: t('common.actionEdit'),
                         onclick: () => {
-                          formTab = 'basic';
                           formOpen = true;
                         },
                       },
@@ -867,4 +885,4 @@
   {/if}
 </section>
 
-<GameForm bind:open={formOpen} gameId={gameId} initialTab={formTab} />
+<GameForm bind:open={formOpen} gameId={gameId} initialTab={formTab} bind:tab={formTab} />

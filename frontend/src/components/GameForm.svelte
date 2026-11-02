@@ -51,6 +51,7 @@
     open = $bindable(false),
     gameId = $bindable(null),
     initialTab = 'basic',
+    tab = $bindable('basic'),
     prefill = null,
   } = $props();
 
@@ -103,7 +104,6 @@
   let syncNotice = $state('');
   let incoming = $state(null);
 
-  let tab = $state('basic');
   let statusOpen = $state(false);
   let staffRoleOpen = $state(null);
 

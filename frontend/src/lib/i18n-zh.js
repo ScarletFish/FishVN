@@ -498,6 +498,7 @@ export const DICT_ZH = {
       mode: '观感',
       soft: '柔和',
       clear: '清晰',
+      focalJump: '调整取景位置',
       sample: '游戏标题',
       sampleAlias: '副标题',
     },

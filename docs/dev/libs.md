@@ -16,6 +16,7 @@
 - **`confirm.svelte.js`**：`action` 必须在 `i18n-zh.js` 有 `confirm.<action>.{title,message,confirm}` 三条词条，缺了不做兜底（`t()` 会回落 key）。
 - **`vndb-search.svelte.js`**：换词重搜先清空，表单每次打开也要清一遍；导出的是 getter 而不是 `$state` 本体（直接 `return` 只会把初始值交出去）。侧栏由 `Modal` 的 `aside` 渲染，关闭时那一段没有挂载，父组件的工具栏按钮因此调不到里面的东西。
 - **`native-menu.js`**：`contextmenu` 在 `document` **冒泡阶段**兜底 `preventDefault`，桌面端不再露出 WebView2 那套「重新加载 / 另存为 / 打印 / 检查」。必须挂冒泡而不是捕获：自己的菜单（bits-ui 的 Trigger、`Toaster` 的右键复制）都在目标节点上 `preventDefault`，捕获先跑会把事件标成已处理，Trigger 见到 `defaultPrevented` 直接不弹。`input` / `textarea` / `contenteditable` 里放行——剪切粘贴是系统级输入能力，自建只会降级；判定按 `closest` 命中祖先，输入框内部的节点一道放行，`contenteditable="false"` 不算。
+- **`form-tab-pref.js`**：编辑表单的 tab 位置记忆，localStorage 持久化到重启，全部作品共享一份。`resolveFormTab` 是纯函数（未知值回落 `basic`），测试不打 localStorage；读写两个入口只给 `Detail.svelte` 用——新建表单（`Dashboard` / `MyList`）不读记忆，永远落基本页。`GameForm` 的 `tab` 是 `$bindable` prop，表单内切页经绑定写回 `formTab`，持久化的 `$effect` 挂在 `Detail` 侧。
 - **`frontend-log.js`**：前端异常、未处理的 Promise 拒绝、启动就绪时刻经 `log_frontend` 落到日志文件，`api.js` 的 IPC 失败也经它上报。直连 `invoke` 而不走 `api.call`，日志上报自身失败不会形成上报循环；非 Tauri 环境（浏览器 dev）整体 no-op，异常看 devtools。
 
 ## 比对契约
