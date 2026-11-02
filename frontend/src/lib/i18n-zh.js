@@ -512,6 +512,7 @@ export const DICT_ZH = {
       ratingScale: '0～100（百分制）',
       userRating: '0～100（百分制）',
       staff: '详情页将按职能分组展示',
+      tagExists: '库内已有重名标签',
     },
     placeholder: {
       notes: '写点什么',

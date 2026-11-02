@@ -18,8 +18,28 @@
     groupLabel,
     hiddenGroups = [],
     onbrowse,
+    duplicateText = '',
     disabled = false,
   } = $props();
+
+  let listEl = $state(null);
+
+  const draftDuplicate = $derived.by(() => {
+    if (!duplicateText || disabled || typeof resolve !== 'function') return false;
+    const value = draft.trim();
+    if (!value) return false;
+    const key = keyOf(resolve(value));
+    return items.some((item) => keyOf(item) === key);
+  });
+
+  function pulse(key) {
+    const el = listEl?.querySelector(`[data-pill-key="${CSS.escape(key)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    el.classList.remove('tag-pill--pulse');
+    void el.offsetWidth;
+    el.classList.add('tag-pill--pulse');
+  }
 
   const groupRank = (key) => {
     const i = groupOrder.indexOf(key);
@@ -45,7 +65,12 @@
     if (!value) return;
     const next = resolve(value);
     const key = keyOf(next);
-    if (!items.some((item) => keyOf(item) === key)) onItemsChange([...items, next]);
+    const existing = items.find((item) => keyOf(item) === key);
+    if (existing) {
+      pulse(keyOf(existing));
+      return;
+    }
+    onItemsChange([...items, next]);
     draft = '';
   }
 
@@ -78,7 +103,7 @@
       </button>
     {/if}
   </div>
-  <div class="tag-input tag-input--grouped" use:panelScrollbars>
+  <div class="tag-input tag-input--grouped" bind:this={listEl} use:panelScrollbars>
     <div class="tag-input__flow tag-input__flow--stacked">
       {#each groups as group (group.key)}
         <section class="tag-field__group">
@@ -88,7 +113,11 @@
           </h3>
           <div class="tag-field__group-list">
             {#each group.items as item (keyOf(item))}
-              <span class="tag-pill">
+              <span
+                class="tag-pill"
+                data-pill-key={keyOf(item)}
+                onanimationend={(e) => e.currentTarget.classList.remove('tag-pill--pulse')}
+              >
                 {labelOf(item)}
                 <button
                   type="button"
@@ -121,4 +150,7 @@
     aria-label={label}
     {disabled}
   />
+  {#if draftDuplicate}
+    <p class="form-hint">{duplicateText}</p>
+  {/if}
 </div>

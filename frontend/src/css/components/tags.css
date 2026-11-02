@@ -158,6 +158,23 @@
   border-radius: var(--radius-pill);
 }
 
+.tag-pill--pulse {
+  animation: tag-pill-pulse 1.2s var(--ease-out);
+}
+
+@keyframes tag-pill-pulse {
+  0%,
+  100% {
+    border-color: var(--border-default);
+    color: var(--fg-secondary);
+  }
+  25%,
+  60% {
+    border-color: var(--accent);
+    color: var(--fg-default);
+  }
+}
+
 .tag-pill__note {
   color: var(--fg-muted);
   font-size: var(--text-xs);
