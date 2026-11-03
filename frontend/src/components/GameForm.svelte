@@ -27,6 +27,7 @@
   import { quitGuard } from '../lib/quit-guard.svelte.js';
   import { notifyLibraryChanged, notifyLibraryTagsChanged, notifyLibraryTraitsChanged } from '../lib/library-events.js';
   import { tagLabel, allTagItems, loadTagDict, traitItems } from '../lib/tag-label.svelte.js';
+  import { TAG_GROUP_ORDER } from '../lib/tag-order.svelte.js';
 
   const TRAIT_GROUP_ORDER = [
     'Hair',
@@ -111,7 +112,6 @@
   let asideOpen = $state(false);
   let asideMode = $state('search');
   let selectedCharId = $state(null);
-  const TAG_GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
   let baseline = $state('');
   const search = createVndbSearch();
 

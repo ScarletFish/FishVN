@@ -19,6 +19,8 @@ const SCOPE_OF = {
 
 const ROUND_ROBIN_ORDER = ['theme', 'plot', 'character', 'setting', 'style'];
 
+export const TAG_GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
+
 const SPOILER_THRESHOLD = { hide_all: 1, hide_major: 2, show_all: Infinity };
 
 let roots = $state(null);

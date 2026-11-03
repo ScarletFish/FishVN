@@ -31,6 +31,7 @@
   import Titlebar from './components/chrome/Titlebar.svelte';
   import Toaster from './components/Toaster.svelte';
   import MyList from './views/MyList.svelte';
+  import Query from './views/Query.svelte';
   import Dashboard from './views/Dashboard.svelte';
   import Stats from './views/Stats.svelte';
   import Detail from './views/Detail.svelte';
@@ -101,6 +102,11 @@
       id: 'mylist',
       label: t('nav.mylist'),
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>',
+    },
+    {
+      id: 'query',
+      label: t('nav.query'),
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>',
     },
     {
       id: 'stats',
@@ -211,6 +217,8 @@
           scroll={listScroll}
           bind:filter={listFilter}
         />
+      {:else if current === 'query'}
+        <Query onopen={(id) => openDetail(id)} />
       {:else if current === 'stats'}
         <Stats />
       {:else}

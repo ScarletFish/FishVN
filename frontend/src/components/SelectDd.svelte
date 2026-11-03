@@ -4,22 +4,26 @@
   let {
     id = undefined,
     options,
-    value,
-    open,
-    onopenchange,
+    value = $bindable(undefined),
+    open = undefined,
+    onopenchange = () => {},
     onchange,
     disabled = false,
     ariaLabel = '',
   } = $props();
 
+  let internalOpen = $state(false);
+  const isOpen = $derived(open ?? internalOpen);
+
   const selected = $derived(options.find((opt) => opt.value === value) ?? options[0]);
+
 </script>
 
-<div class="select-dd" class:is-open={open}>
+<div class="select-dd" class:is-open={isOpen}>
   <Select.Root
     type="single"
-    bind:value={() => value, onchange}
-    bind:open={() => open, onopenchange}
+    bind:value={() => value, (v) => { value = v; onchange?.(v); }}
+    bind:open={() => isOpen, (v) => { internalOpen = v; onopenchange(v); }}
     {disabled}
   >
     <Select.Trigger {id}>

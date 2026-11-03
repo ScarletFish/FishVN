@@ -530,4 +530,23 @@ mod tests {
         .unwrap_err();
         assert!(matches!(err, AppError::BadRequest(_)));
     }
+
+    #[test]
+    fn deserializes_wire_json() {
+        let raw = r#"{
+            "subject": "game",
+            "rows": [
+                { "kind": "tag_include", "mode": "all", "tags": ["百合"] },
+                { "kind": "tag_exclude", "tags": ["NTR"] },
+                { "kind": "status", "values": ["playing", "finished"] },
+                { "kind": "rating", "source": "user", "min": 60, "max": null },
+                { "kind": "released", "from": "2016-01-01", "to": null },
+                { "kind": "developer", "name": "Key" },
+                { "kind": "length", "source": "vndb", "min": null, "max": 300 }
+            ]
+        }"#;
+        let spec: QuerySpec = serde_json::from_str(raw).unwrap();
+        assert_eq!(spec.subject, QuerySubject::Game);
+        assert_eq!(spec.rows.len(), 7);
+    }
 }

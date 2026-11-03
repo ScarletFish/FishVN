@@ -59,12 +59,15 @@
 .select-dd-menu {
   position: absolute;
   top: calc(100% + var(--space-1));
-  left: 0;
   right: 0;
+  left: auto;
   z-index: var(--z-dropdown);
   display: flex;
   flex-direction: column;
   gap: var(--space-025);
+
+  width: max-content;
+  min-width: 100%;
   padding: var(--space-1);
   background: var(--bg-floating);
   border: 1px solid var(--border-default);
