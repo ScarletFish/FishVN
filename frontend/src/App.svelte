@@ -150,6 +150,7 @@
   let current = $state('home');
   let detailId = $state(null);
   let autoLaunch = $state(false);
+  let focusCharacter = $state(null);
   let detailTitle = $state('');
   let listScroll = $state(0);
   let listFilter = $state('all');
@@ -165,15 +166,17 @@
     else if (current === 'query') queryScroll = viewport.scrollTop;
   }
 
-  function openDetail(id, autostart = false) {
+  function openDetail(id, autostart = false, characterId = null) {
     saveViewScroll();
     detailId = id;
     autoLaunch = autostart;
+    focusCharacter = characterId;
   }
 
   function closeDetail() {
     detailId = null;
     autoLaunch = false;
+    focusCharacter = null;
   }
 
   function leaveView() {
@@ -208,6 +211,7 @@
         <Detail
           gameId={detailId}
           autostart={autoLaunch}
+          focusCharacter={focusCharacter}
           onname={(name) => (detailTitle = name ?? '')}
           onclose={closeDetail}
         />
@@ -220,7 +224,7 @@
           bind:filter={listFilter}
         />
       {:else if current === 'query'}
-        <Query onopen={(id) => openDetail(id)} scroll={queryScroll} />
+        <Query onopen={(id, characterId) => openDetail(id, false, characterId)} scroll={queryScroll} />
       {:else if current === 'stats'}
         <Stats />
       {:else}

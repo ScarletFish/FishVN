@@ -331,6 +331,13 @@
 
   <div class="query-body">
     <aside class="query-side" style:width="{sideWidth}px">
+      <div class="query-side__group">
+        <span class="query-side__group-title">{t('query.groupGame')}</span>
+        <span class="query-side__group-sub">
+          {isChar ? t('query.groupGameSubChar') : t('query.groupGameSubGame')}
+        </span>
+      </div>
+
       {#if ui.tags.open}
         <ConditionCard
           title={t('query.dim.tags')}
@@ -353,7 +360,12 @@
       {@render dimHeader('developer', t('query.dim.developer'))}
       {@render dimHeader('length', t('query.dim.length'))}
 
-      <div class="query-side__divider"></div>
+      <div class="query-side__group query-side__group--sep">
+        <span class="query-side__group-title">{t('query.groupChar')}</span>
+        <span class="query-side__group-sub">
+          {isChar ? t('query.groupCharSubChar') : t('query.groupCharSubGame')}
+        </span>
+      </div>
 
       {#if ui.traits.open}
         <ConditionCard
@@ -434,7 +446,7 @@
       {:else if shownIsChar}
         <div class="char-list">
           {#each sorted as hit ((hit.game_id ?? hit.id) + '/' + (hit.character_id ?? ''))}
-            <button type="button" class="char-row" onclick={() => openFromCard({ id: hit.game_id })}>
+            <button type="button" class="char-row" onclick={() => onopen(hit.game_id, hit.character_id)}>
               <span class="char-row__main">
                 <span class="char-row__name">{charName(hit)}</span>
                 {#if hit.name && hit.original}

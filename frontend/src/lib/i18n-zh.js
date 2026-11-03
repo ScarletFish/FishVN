@@ -40,6 +40,12 @@ export const DICT_ZH = {
     sortName: '名称',
     sortAdded: '添加时间',
     sortCharGame: '所属作品',
+    groupGame: '作品',
+    groupChar: '角色',
+    groupGameSubGame: '返回作品',
+    groupGameSubChar: '作用于角色所属作品',
+    groupCharSubGame: '任一角色满足即命中',
+    groupCharSubChar: '返回角色',
     dim: {
       tags: '标签',
       status: '状态',

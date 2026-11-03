@@ -27,7 +27,7 @@
   import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
 
-  let { gameId, onname, onclose, autostart = false } = $props();
+  let { gameId, onname, onclose, autostart = false, focusCharacter = null } = $props();
 
   let game = $state(null);
   let meta = $state(null);
@@ -878,7 +878,7 @@
         {/snippet}
       </ContextMenu.Trigger>
     </ContextMenu.Root>
-    <DetailCharacters gameId={gameId} />
+    <DetailCharacters gameId={gameId} {focusCharacter} />
     <DetailStaff {gameId} />
     <DetailPlayLog {gameId} bind:this={playLogEl} />
     <DetailNotes {gameId} />

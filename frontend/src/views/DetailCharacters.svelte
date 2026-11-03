@@ -31,7 +31,7 @@
     return i < 0 ? TRAIT_GROUP_ORDER.length : i;
   };
 
-  let { gameId } = $props();
+  let { gameId, focusCharacter = null } = $props();
 
   let scrollEl = $state(null);
   let headerEl = $state(null);
@@ -48,8 +48,12 @@
     let live = true;
     api
       .listGameCharacters(gameId)
-      .then((list) => {
-        if (live) characters = list;
+      .then(async (list) => {
+        if (!live) return;
+        characters = list;
+        if (focusCharacter && list.some((c) => c.id === focusCharacter)) {
+          await toggle(focusCharacter);
+        }
       })
       .catch(() => {});
     return () => {
