@@ -216,6 +216,14 @@ handler!(update_game_metadata, |c, a| {
 });
 handler!(list_game_characters, |c, a| characters::list(c, a.id()?));
 handler!(list_staff, |c, _a| characters::list_all_staff(c));
+handler!(update_staff, |c, a| {
+    let patch: characters::StaffUpdate = a.parse(a.input.as_ref(), "input")?;
+    characters::update_staff(c, &patch)
+});
+handler!(merge_staff, |c, a| {
+    let merge: characters::StaffMerge = a.parse(a.input.as_ref(), "input")?;
+    characters::merge_staff(c, &merge)
+});
 handler!(save_game_characters, |c, a| {
     let list: Vec<GameCharacter> = a.parse(a.characters.as_ref(), "characters")?;
     characters::replace_all(c, a.id()?, &list)
@@ -562,6 +570,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/update_game_metadata", post(update_game_metadata))
         .route("/list_game_characters", post(list_game_characters))
         .route("/list_staff", post(list_staff))
+        .route("/update_staff", post(update_staff))
+        .route("/merge_staff", post(merge_staff))
         .route("/save_game_characters", post(save_game_characters))
         .route("/search_vndb", post(search_vndb))
         .route("/fetch_vn_metadata", post(fetch_vn_metadata))
@@ -620,6 +630,8 @@ pub const COMMANDS: &[&str] = &[
     "update_game_metadata",
     "list_game_characters",
     "list_staff",
+    "update_staff",
+    "merge_staff",
     "save_game_characters",
     "search_vndb",
     "fetch_vn_metadata",

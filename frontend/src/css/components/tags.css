@@ -180,6 +180,23 @@
   font-size: var(--text-xs);
 }
 
+.tag-pill__label {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.tag-pill__label:disabled {
+  cursor: default;
+}
+
+.tag-pill__label:hover:not(:disabled) {
+  color: var(--fg-default);
+}
+
 .tag-pill__remove {
   display: flex;
   align-items: center;

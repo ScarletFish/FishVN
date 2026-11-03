@@ -266,6 +266,26 @@ pub fn list_staff(shared: Shared<'_>) -> Result<Vec<characters::StaffOption>> {
 }
 
 #[tauri::command]
+pub fn update_staff(
+    shared: Shared<'_>,
+    patch: characters::StaffUpdate,
+) -> Result<characters::StaffOption> {
+    traced("update_staff", || {
+        characters::update_staff(&*lock(&shared)?, &patch)
+    })
+}
+
+#[tauri::command]
+pub fn merge_staff(
+    shared: Shared<'_>,
+    merge: characters::StaffMerge,
+) -> Result<characters::StaffOption> {
+    traced("merge_staff", || {
+        characters::merge_staff(&*lock(&shared)?, &merge)
+    })
+}
+
+#[tauri::command]
 pub async fn search_vndb(
     rate: State<'_, Arc<RateLimiter>>,
     keyword: String,

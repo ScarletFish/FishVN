@@ -1,6 +1,7 @@
 <script>
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { t } from '../lib/i18n.js';
+  import { api } from '../lib/api.js';
   import { initScrollDots } from '../lib/scroll-dots.svelte.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
   import { coverSrc } from '../lib/cover-src.js';
@@ -12,6 +13,7 @@
     cleanCup,
     displayName,
     moveCharacters,
+    newLocalId,
     normalizeCharNumber,
   } from '../lib/characters.js';
   import SelectDd from './SelectDd.svelte';
@@ -58,6 +60,12 @@
   let vaOpen = $state(false);
   let vaField = $state(null);
   let vaEntry = $state(null);
+  let staffOptions = $state([]);
+  let vaEditingKey = $state(null);
+  let vaNameDraft = $state('');
+  let vaOriginalDraft = $state('');
+  let vaMergeQuery = $state('');
+  let vaBusy = $state(false);
   let portraitError = $state('');
   let birthdayError = $state(false);
   let genderOpen = $state(false);
@@ -272,13 +280,159 @@
     }
   }
 
-  function addVa() {
-    const value = vaDraft.trim();
-    if (!value || selectedIndex < 0) return;
-    const next = [...characters[selectedIndex].va, { ...blankVa(), name: value }];
+  onMount(async () => {
+    try {
+      staffOptions = (await api.listStaff()) ?? [];
+    } catch {
+      staffOptions = [];
+    }
+  });
+
+  function staffLabelOf(s) {
+    return s?.display_name || s?.name || '';
+  }
+
+  function staffOriginalOf(s) {
+    return s?.display_original || s?.original || '';
+  }
+
+  function staffHay(s) {
+    return [s.display_name, s.name, s.display_original, s.original]
+      .filter(Boolean)
+      .join('\n')
+      .toLowerCase();
+  }
+
+  const vaSuggestions = $derived.by(() => {
+    const query = vaDraft.trim().toLowerCase();
+    if (!query || selectedIndex < 0) return [];
+    const owned = new Set(characters[selectedIndex].va.map((entry) => entry.staffId));
+    return staffOptions
+      .filter((s) => !owned.has(s.id) && staffHay(s).includes(query))
+      .slice(0, 6);
+  });
+
+  const editingVa = $derived(
+    selectedIndex >= 0
+      ? (characters[selectedIndex].va.find((entry) => entry.key === vaEditingKey) ?? null)
+      : null,
+  );
+
+  const editingStaff = $derived(
+    editingVa ? (staffOptions.find((s) => s.id === editingVa.staffId) ?? null) : null,
+  );
+
+  const vaMergeTargets = $derived.by(() => {
+    const query = vaMergeQuery.trim().toLowerCase();
+    if (!query || !editingVa) return [];
+    return staffOptions
+      .filter((s) => s.id !== editingVa.staffId && staffHay(s).includes(query))
+      .slice(0, 6);
+  });
+
+  function patchVa(key, patch) {
+    if (selectedIndex < 0) return;
+    const next = characters[selectedIndex].va.map((entry) =>
+      entry.key === key ? { ...entry, ...patch } : entry,
+    );
+    characters = characters.map((c, i) => (i === selectedIndex ? { ...c, va: next } : c));
+  }
+
+  function pushVa(entry) {
+    if (selectedIndex < 0) return;
+    const next = [...characters[selectedIndex].va, entry];
     characters = characters.map((c, i) => (i === selectedIndex ? { ...c, va: next } : c));
     vaDraft = '';
     vaField?.focus();
+  }
+
+  function addVa() {
+    const value = vaDraft.trim();
+    if (!value || selectedIndex < 0) return;
+    const hit = staffOptions.find((s) =>
+      [s.display_name, s.name, s.display_original, s.original].some(
+        (n) => (n ?? '').trim().toLowerCase() === value.toLowerCase(),
+      ),
+    );
+    if (hit) {
+      pushVa({
+        key: newLocalId(),
+        staffId: hit.id,
+        name: staffLabelOf(hit) || value,
+        original: staffOriginalOf(hit),
+        note: '',
+      });
+      return;
+    }
+    pushVa({ ...blankVa(), name: value });
+  }
+
+  function pickVaSuggestion(s) {
+    pushVa({
+      key: newLocalId(),
+      staffId: s.id,
+      name: staffLabelOf(s),
+      original: staffOriginalOf(s),
+      note: '',
+    });
+  }
+
+  function openVaEdit(key) {
+    const entry = selectedIndex >= 0
+      ? characters[selectedIndex].va.find((item) => item.key === key)
+      : null;
+    if (!entry) return;
+    vaEditingKey = key;
+    const staff = staffOptions.find((s) => s.id === entry.staffId) ?? null;
+    vaNameDraft = staffLabelOf(staff) || entry.name || '';
+    vaOriginalDraft = staffOriginalOf(staff) || entry.original || '';
+    vaMergeQuery = '';
+  }
+
+  function closeVaEdit() {
+    vaEditingKey = null;
+    vaMergeQuery = '';
+  }
+
+  async function saveStaffMeta() {
+    if (!editingVa || vaBusy || !vaNameDraft.trim()) return;
+    vaBusy = true;
+    try {
+      const updated = await api.updateStaff({
+        id: editingVa.staffId,
+        name: vaNameDraft.trim(),
+        original: vaOriginalDraft.trim(),
+      });
+      staffOptions = staffOptions.map((s) => (s.id === updated.id ? updated : s));
+      patchVa(editingVa.key, {
+        name: updated.display_name || vaNameDraft.trim(),
+        original: updated.display_original || '',
+      });
+    } finally {
+      vaBusy = false;
+    }
+  }
+
+  async function mergeVaInto(target) {
+    if (!editingVa || vaBusy) return;
+    vaBusy = true;
+    try {
+      const updated = await api.mergeStaff({
+        target_id: target.id,
+        source_id: editingVa.staffId,
+      });
+      staffOptions = staffOptions
+        .filter((s) => s.id !== editingVa.staffId)
+        .map((s) => (s.id === updated.id ? updated : s));
+      patchVa(editingVa.key, {
+        staffId: updated.id,
+        name: updated.display_name || '',
+        original: updated.display_original || '',
+      });
+      closeVaEdit();
+    } finally {
+      vaBusy = false;
+    }
   }
 
   async function openVoice() {
@@ -656,8 +810,15 @@
           <div class="tag-input" use:panelScrollbars onpointerdown={revealVoice}>
             <div class="tag-input__flow">
               {#each selected.va as entry (entry.key)}
-                <span class="tag-pill">
-                  {entry.original || entry.name}
+                <span class="tag-pill" class:tag-pill--on={vaEditingKey === entry.key}>
+                  <button
+                    type="button"
+                    class="tag-pill__label"
+                    onclick={() => openVaEdit(entry.key)}
+                    disabled={disabled}
+                  >
+                    {entry.original || entry.name}
+                  </button>
                   {#if entry.note}<span class="tag-pill__note">· {entry.note}</span>{/if}
                   <button
                     type="button"
@@ -703,6 +864,102 @@
               {/if}
             </div>
           </div>
+          {#if vaOpen && vaSuggestions.length}
+            <div class="va-suggest">
+              {#each vaSuggestions as suggestion (suggestion.id)}
+                <button
+                  type="button"
+                  class="va-suggest__item"
+                  onmousedown={(e) => e.preventDefault()}
+                  onclick={() => pickVaSuggestion(suggestion)}
+                >
+                  {staffLabelOf(suggestion)}{#if staffOriginalOf(suggestion)}<span class="va-suggest__orig">（{staffOriginalOf(suggestion)}）</span>{/if}
+                  <span class="tag-pill__count">×{suggestion.roles}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+          {#if editingVa}
+            <div class="va-edit">
+              <div class="va-edit__head">
+                <span class="va-edit__title">{t('gameForm.voice.editTitle')}</span>
+                <button
+                  type="button"
+                  class="va-edit__close"
+                  aria-label={t('common.close')}
+                  onclick={closeVaEdit}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div class="va-edit__row">
+                <label class="va-edit__label" for="va-note">{t('gameForm.voice.noteLabel')}</label>
+                <input
+                  id="va-note"
+                  class="va-edit__field"
+                  type="text"
+                  value={editingVa.note ?? ''}
+                  oninput={(e) => patchVa(editingVa.key, { note: e.currentTarget.value })}
+                  placeholder={t('gameForm.voice.notePlaceholder')}
+                  {disabled}
+                />
+              </div>
+              <div class="va-edit__row">
+                <label class="va-edit__label" for="va-name">{t('gameForm.voice.staffName')}</label>
+                <input
+                  id="va-name"
+                  class="va-edit__field"
+                  type="text"
+                  bind:value={vaNameDraft}
+                  disabled={disabled || vaBusy}
+                />
+                <label class="va-edit__label" for="va-original">{t('gameForm.voice.staffOriginal')}</label>
+                <input
+                  id="va-original"
+                  class="va-edit__field"
+                  type="text"
+                  bind:value={vaOriginalDraft}
+                  disabled={disabled || vaBusy}
+                />
+                <button
+                  type="button"
+                  class="btn"
+                  onclick={saveStaffMeta}
+                  disabled={disabled || vaBusy || !vaNameDraft.trim()}
+                >{t('gameForm.voice.save')}</button>
+              </div>
+              <p class="va-edit__hint">{t('gameForm.voice.globalHint')}</p>
+              <div class="va-edit__row">
+                <label class="va-edit__label" for="va-merge">{t('gameForm.voice.mergeLabel')}</label>
+                <input
+                  id="va-merge"
+                  class="va-edit__field"
+                  type="text"
+                  bind:value={vaMergeQuery}
+                  placeholder={t('gameForm.voice.mergePlaceholder')}
+                  disabled={disabled || vaBusy}
+                />
+              </div>
+              {#if vaMergeTargets.length}
+                <div class="va-edit__targets">
+                  {#each vaMergeTargets as target (target.id)}
+                    <button
+                      type="button"
+                      class="tag-pill tag-pill--pick"
+                      onclick={() => mergeVaInto(target)}
+                      disabled={disabled || vaBusy}
+                    >
+                      {staffLabelOf(target)}
+                      <span class="tag-pill__count">×{target.roles}</span>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/if}
         </div>
 
         <div class="form-group">
@@ -970,5 +1227,117 @@
 
   .char-panel-move .btn {
     padding: var(--space-1) var(--space-3);
+  }
+
+  .va-suggest {
+    display: flex;
+    flex-direction: column;
+    margin-top: var(--space-1);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .va-suggest__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--fg-secondary);
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      background var(--duration-fast) var(--ease-out);
+  }
+
+  .va-suggest__item:hover {
+    color: var(--fg-default);
+    background: var(--bg-hover);
+  }
+
+  .va-suggest__item + .va-suggest__item {
+    border-top: 1px solid var(--border-default);
+  }
+
+  .va-suggest__orig {
+    color: var(--fg-muted);
+  }
+
+  .va-edit {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+  }
+
+  .va-edit__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .va-edit__title {
+    font-size: var(--text-xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.04em;
+    color: var(--fg-muted);
+  }
+
+  .va-edit__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--fg-muted);
+    background: none;
+    border: none;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+  }
+
+  .va-edit__close:hover {
+    color: var(--fg-default);
+    background: var(--bg-hover);
+  }
+
+  .va-edit__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .va-edit__label {
+    flex: none;
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+  }
+
+  .va-edit__field {
+    flex: 1 1 120px;
+    min-width: 0;
+  }
+
+  .va-edit__hint {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+  }
+
+  .va-edit__targets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
 </style>

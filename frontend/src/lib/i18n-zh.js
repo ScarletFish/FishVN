@@ -628,6 +628,18 @@ export const DICT_ZH = {
       addTraitCustom: '添加「{name}」',
       browseTraits: '从库内特征挑选',
     },
+    voice: {
+      editTitle: '编辑声优',
+      noteLabel: '版本备注',
+      notePlaceholder: '如：幼年版、重制版',
+      staffName: '主名',
+      staffOriginal: '原文',
+      save: '保存',
+      globalHint: '主名与原文属于该声优本人，修改将作用于库内全部署名',
+      mergeLabel: '并入其他声优',
+      mergePlaceholder: '搜索要并入的声优…',
+      merged: '已并入',
+    },
     install: {
       label: '启动项',
       pickTitle: '选择启动文件',

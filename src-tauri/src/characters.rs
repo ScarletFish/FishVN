@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Row};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, Result};
 use crate::types::{CharacterTrait, CharacterVa, GameCharacter};
@@ -47,41 +47,119 @@ pub fn list(conn: &Connection, game_id: &str) -> Result<Vec<GameCharacter>> {
     rows.iter().map(|row| to_api(conn, game_id, row)).collect()
 }
 
+const STAFF_OPTION_SQL: &str = "WITH freq AS (
+   SELECT staff_id, staff_name, staff_original,
+          ROW_NUMBER() OVER (
+            PARTITION BY staff_id
+            ORDER BY COUNT(*) DESC, MAX(game_id) DESC
+          ) AS rn
+   FROM character_va
+   WHERE COALESCE(TRIM(staff_name), '') != ''
+   GROUP BY staff_id, staff_name, staff_original
+ )
+ SELECT s.id, s.name, s.original,
+        COALESCE(NULLIF(s.name, ''), f.staff_name),
+        COALESCE(NULLIF(s.original, ''), f.staff_original),
+        COUNT(cv.character_id) AS roles
+ FROM staffs s
+ LEFT JOIN freq f ON f.staff_id = s.id AND f.rn = 1
+ LEFT JOIN character_va cv ON cv.staff_id = s.id
+ {FILTER}
+ GROUP BY s.id
+ ORDER BY 4, s.id";
+
 pub fn list_all_staff(conn: &Connection) -> Result<Vec<StaffOption>> {
-    let mut stmt = conn.prepare(
-        "WITH freq AS (
-           SELECT staff_id, staff_name, staff_original,
-                  ROW_NUMBER() OVER (
-                    PARTITION BY staff_id
-                    ORDER BY COUNT(*) DESC, MAX(game_id) DESC
-                  ) AS rn
-           FROM character_va
-           WHERE COALESCE(TRIM(staff_name), '') != ''
-           GROUP BY staff_id, staff_name, staff_original
-         )
-         SELECT s.id, s.name, s.original,
-                COALESCE(f.staff_name, s.name),
-                COALESCE(f.staff_original, s.original),
-                COUNT(cv.character_id) AS roles
-         FROM staffs s
-         LEFT JOIN freq f ON f.staff_id = s.id AND f.rn = 1
-         LEFT JOIN character_va cv ON cv.staff_id = s.id
-         GROUP BY s.id
-         ORDER BY 4, s.id",
-    )?;
+    let sql = STAFF_OPTION_SQL.replace("{FILTER}", "");
+    let mut stmt = conn.prepare(&sql)?;
     let rows = stmt
-        .query_map([], |row| {
-            Ok(StaffOption {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                original: row.get(2)?,
-                display_name: row.get(3)?,
-                display_original: row.get(4)?,
-                roles: row.get(5)?,
-            })
-        })?
+        .query_map([], read_staff_option)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
+}
+
+fn read_staff_option(row: &Row<'_>) -> rusqlite::Result<StaffOption> {
+    Ok(StaffOption {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        original: row.get(2)?,
+        display_name: row.get(3)?,
+        display_original: row.get(4)?,
+        roles: row.get(5)?,
+    })
+}
+
+fn staff_option(conn: &Connection, id: &str) -> Result<StaffOption> {
+    let sql = STAFF_OPTION_SQL.replace("{FILTER}", "WHERE s.id = ?1");
+    let mut stmt = conn.prepare(&sql)?;
+    stmt.query_row(params![id], read_staff_option)
+        .optional()?
+        .ok_or_else(|| AppError::NotFound("声优不存在".into()))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StaffUpdate {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub original: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StaffMerge {
+    pub target_id: String,
+    pub source_id: String,
+}
+
+pub fn update_staff(conn: &Connection, patch: &StaffUpdate) -> Result<StaffOption> {
+    let name = patch.name.trim();
+    if name.is_empty() {
+        return Err(AppError::BadRequest("声优主名不能为空".into()));
+    }
+    let updated = conn.execute(
+        "UPDATE staffs SET name = ?2, original = ?3 WHERE id = ?1",
+        params![patch.id, name, patch.original.trim()],
+    )?;
+    if updated == 0 {
+        return Err(AppError::NotFound("声优不存在".into()));
+    }
+    staff_option(conn, &patch.id)
+}
+
+pub fn merge_staff(conn: &Connection, merge: &StaffMerge) -> Result<StaffOption> {
+    if merge.target_id == merge.source_id {
+        return Err(AppError::BadRequest("不能把声优并入它自己".into()));
+    }
+    let tx = conn.unchecked_transaction()?;
+    for id in [&merge.target_id, &merge.source_id] {
+        let found = tx
+            .query_row("SELECT 1 FROM staffs WHERE id = ?", params![id], |_| Ok(()))
+            .optional()?;
+        if found.is_none() {
+            return Err(AppError::NotFound("声优不存在".into()));
+        }
+    }
+    tx.execute(
+        "UPDATE OR IGNORE character_va SET staff_id = ?1 WHERE staff_id = ?2",
+        params![merge.target_id, merge.source_id],
+    )?;
+    tx.execute(
+        "DELETE FROM character_va WHERE staff_id = ?1",
+        params![merge.source_id],
+    )?;
+    tx.execute(
+        "UPDATE staffs SET
+           name     = COALESCE(NULLIF(name, ''), (SELECT name FROM staffs WHERE id = ?2)),
+           original = COALESCE(NULLIF(original, ''), (SELECT original FROM staffs WHERE id = ?2))
+         WHERE id = ?1",
+        params![merge.target_id, merge.source_id],
+    )?;
+    tx.execute(
+        "DELETE FROM staffs WHERE id = ?1",
+        params![merge.source_id],
+    )?;
+    tx.commit()?;
+    staff_option(conn, &merge.target_id)
 }
 
 #[derive(Debug, Clone, Serialize)]

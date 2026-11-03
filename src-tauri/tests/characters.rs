@@ -1,7 +1,9 @@
 mod common;
 
 use common::{variant, Db};
-use fishvn::characters::{list, replace_all};
+use fishvn::characters::{
+    list_all_staff, list, merge_staff, replace_all, update_staff, StaffMerge, StaffUpdate,
+};
 use fishvn::games::{create_game, delete_game};
 use fishvn::types::{CharacterVa, GameCharacter, NewGame};
 use serde_json::json;
@@ -416,4 +418,177 @@ fn 整包替换换掉角色也回收它的声优() {
 
     assert_eq!(staff_count(&db, "s1"), 0);
     assert_eq!(staff_count(&db, "s2"), 1);
+}
+
+fn staff_patch(id: &str, name: &str, original: &str) -> StaffUpdate {
+    StaffUpdate {
+        id: id.into(),
+        name: name.into(),
+        original: original.into(),
+    }
+}
+
+fn staff_merge(target: &str, source: &str) -> StaffMerge {
+    StaffMerge {
+        target_id: target.into(),
+        source_id: source.into(),
+    }
+}
+
+fn staff_display(db: &Db, staff_id: &str) -> StaffDisplay {
+    let hit = list_all_staff(db)
+        .expect("列声优失败")
+        .into_iter()
+        .find(|s| s.id == staff_id)
+        .unwrap_or_else(|| panic!("声优 {staff_id} 不在列表里"));
+    StaffDisplay {
+        name: hit.display_name.unwrap_or_default(),
+        original: hit.display_original.unwrap_or_default(),
+        roles: hit.roles,
+    }
+}
+
+struct StaffDisplay {
+    name: String,
+    original: String,
+    roles: i64,
+}
+
+#[test]
+fn 改名写进主名并带出列表显示() {
+    let db = Db::new();
+    let id = new_game(&db, "改名");
+    replace_all(&db, &id, &[with_va("c1", "甲", &[("s1", "旧署名", "")])]).expect("写角色失败");
+
+    let updated = update_staff(&db, &staff_patch("s1", "新主名", "新原文")).expect("改名失败");
+
+    assert_eq!(updated.display_name.as_deref(), Some("新主名"));
+    assert_eq!(updated.display_original.as_deref(), Some("新原文"));
+    let shown = staff_display(&db, "s1");
+    assert_eq!(shown.name, "新主名");
+    assert_eq!(shown.original, "新原文");
+    let credited = list(&db, &id).expect("读角色失败")[0]
+        .va
+        .clone()
+        .expect("没有配音记录");
+    assert_eq!(credited[0].name.as_deref(), Some("新主名"));
+}
+
+#[test]
+fn 署名证据不随改名被涂改() {
+    let db = Db::new();
+    let id = new_game(&db, "证据");
+    replace_all(&db, &id, &[with_va("c1", "甲", &[("s1", "旧署名", "")])]).expect("写角色失败");
+
+    update_staff(&db, &staff_patch("s1", "新主名", "")).expect("改名失败");
+
+    let evidence: String = db
+        .query_row(
+            "SELECT staff_name FROM character_va WHERE game_id = ?",
+            [&id],
+            |row| row.get(0),
+        )
+        .expect("查署名证据失败");
+    assert_eq!(evidence, "旧署名");
+}
+
+#[test]
+fn 空主名被拒() {
+    let db = Db::new();
+    let id = new_game(&db, "空名");
+    replace_all(&db, &id, &[with_va("c1", "甲", &[("s1", "声优甲", "")])]).expect("写角色失败");
+
+    let err = update_staff(&db, &staff_patch("s1", "   ", "")).expect_err("空主名竟然通过了");
+
+    assert_eq!(variant(&err), "BadRequest");
+}
+
+#[test]
+fn 改不存在的声优报_not_found() {
+    let db = Db::new();
+    let err = update_staff(&db, &staff_patch("s404", "无名", "")).expect_err("竟然改成功了");
+
+    assert_eq!(variant(&err), "NotFound");
+}
+
+#[test]
+fn 合并把别处的署名并到目标() {
+    let db = Db::new();
+    let a = new_game(&db, "甲作");
+    let b = new_game(&db, "乙作");
+    replace_all(&db, &a, &[with_va("c1", "甲", &[("s1", "目标", "")])]).expect("写甲失败");
+    replace_all(&db, &b, &[with_va("c2", "乙", &[("s2", "来源", "")])]).expect("写乙失败");
+
+    let merged = merge_staff(&db, &staff_merge("s1", "s2")).expect("合并失败");
+
+    assert_eq!(merged.roles, 2);
+    assert_eq!(staff_count(&db, "s2"), 0);
+    assert_eq!(
+        count(&db, "character_va", &b),
+        1,
+        "乙作的署名应换指向而不是消失"
+    );
+    let owner: String = db
+        .query_row(
+            "SELECT staff_id FROM character_va WHERE game_id = ?",
+            [&b],
+            |row| row.get(0),
+        )
+        .expect("查署名归属失败");
+    assert_eq!(owner, "s1");
+}
+
+#[test]
+fn 合并时同角色同版本的重复署名去重() {
+    let db = Db::new();
+    let id = new_game(&db, "去重");
+    replace_all(
+        &db,
+        &id,
+        &[with_va(
+            "c1",
+            "甲",
+            &[("s1", "目标", ""), ("s2", "来源", "")],
+        )],
+    )
+    .expect("写角色失败");
+
+    merge_staff(&db, &staff_merge("s1", "s2")).expect("合并失败");
+
+    let got = list(&db, &id).expect("读角色失败");
+    let credited = got[0].va.clone().expect("没有配音记录");
+    assert_eq!(credited.len(), 1, "同角色同 note 只能留一条");
+    assert_eq!(credited[0].staff_id, "s1");
+}
+
+#[test]
+fn 合并把目标空缺的名字从来源补上() {
+    let db = Db::new();
+    let a = new_game(&db, "甲作");
+    let b = new_game(&db, "乙作");
+    replace_all(&db, &a, &[with_va("c1", "甲", &[("s1", "目标", "")])]).expect("写甲失败");
+    replace_all(&db, &b, &[with_va("c2", "乙", &[("s2", "占位", "")])]).expect("写乙失败");
+    db.execute(
+        "UPDATE staffs SET name = '来源名', original = '来源原文' WHERE id = 's2'",
+        [],
+    )
+    .expect("设来源名失败");
+    db.execute("UPDATE staffs SET name = '', original = '' WHERE id = 's1'", [])
+        .expect("置空失败");
+
+    let merged = merge_staff(&db, &staff_merge("s1", "s2")).expect("合并失败");
+
+    assert_eq!(merged.display_name.as_deref(), Some("来源名"));
+    assert_eq!(merged.display_original.as_deref(), Some("来源原文"));
+}
+
+#[test]
+fn 不能把声优并入它自己() {
+    let db = Db::new();
+    let id = new_game(&db, "自并");
+    replace_all(&db, &id, &[with_va("c1", "甲", &[("s1", "声优甲", "")])]).expect("写角色失败");
+
+    let err = merge_staff(&db, &staff_merge("s1", "s1")).expect_err("自己并自己竟然通过了");
+
+    assert_eq!(variant(&err), "BadRequest");
 }
