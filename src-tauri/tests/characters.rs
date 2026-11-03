@@ -444,14 +444,12 @@ fn staff_display(db: &Db, staff_id: &str) -> StaffDisplay {
     StaffDisplay {
         name: hit.display_name.unwrap_or_default(),
         original: hit.display_original.unwrap_or_default(),
-        roles: hit.roles,
     }
 }
 
 struct StaffDisplay {
     name: String,
     original: String,
-    roles: i64,
 }
 
 #[test]
