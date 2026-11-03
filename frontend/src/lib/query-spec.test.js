@@ -52,6 +52,17 @@ describe('query-spec', () => {
     ]);
   });
 
+  it('va 生成 staff_ids 行', () => {
+    const ui = emptyQueryUi();
+    ui.va.open = true;
+    expect(dimFilled('va', ui.va)).toBe(false);
+    ui.va.values = ['s113'];
+    expect(dimFilled('va', ui.va)).toBe(true);
+    expect(uiToSpec(ui).rows).toEqual([{ kind: 'va', staff_ids: ['s113'] }]);
+    ui.va.enabled = false;
+    expect(uiToSpec(ui).rows).toEqual([]);
+  });
+
   it('dimFilled 覆盖角色维度', () => {
     const ui = emptyQueryUi();
     ui.traits.open = true;

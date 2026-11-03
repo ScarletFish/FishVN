@@ -128,10 +128,12 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
         );
 
         CREATE TABLE IF NOT EXISTS character_va (
-          game_id      TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-          character_id TEXT NOT NULL,
-          staff_id     TEXT NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
-          note         TEXT NOT NULL DEFAULT '',
+          game_id       TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+          character_id  TEXT NOT NULL,
+          staff_id      TEXT NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
+          note          TEXT NOT NULL DEFAULT '',
+          staff_name    TEXT,
+          staff_original TEXT,
           PRIMARY KEY (game_id, character_id, staff_id, note),
           FOREIGN KEY (game_id, character_id) REFERENCES characters(game_id, id) ON DELETE CASCADE
         );

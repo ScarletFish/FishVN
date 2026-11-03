@@ -82,6 +82,10 @@ pub enum QueryRow {
         #[serde(default)]
         value: String,
     },
+    Va {
+        #[serde(default)]
+        staff_ids: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -245,7 +249,8 @@ fn row_matches(facts: &GameFacts, row: &QueryRow, threshold: Option<i64>) -> boo
         | QueryRow::TraitExclude { .. }
         | QueryRow::Role { .. }
         | QueryRow::Gender { .. }
-        | QueryRow::NameContains { .. } => true,
+        | QueryRow::NameContains { .. }
+        | QueryRow::Va { .. } => true,
     }
 }
 
@@ -257,6 +262,7 @@ struct CharacterFacts {
     gender: Vec<String>,
     role: Option<String>,
     traits: Vec<CharacterTrait>,
+    va_staff: Vec<String>,
 }
 
 fn load_character_facts(conn: &Connection) -> Result<HashMap<String, Vec<CharacterFacts>>> {
@@ -297,7 +303,24 @@ fn load_character_facts(conn: &Connection) -> Result<HashMap<String, Vec<Charact
             gender,
             role,
             traits,
+            va_staff: Vec::new(),
         });
+    }
+    let mut stmt = conn.prepare("SELECT game_id, character_id, staff_id FROM character_va")?;
+    let va_rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
+    })?;
+    for row in va_rows {
+        let (game_id, character_id, staff_id) = row?;
+        if let Some(list) = map.get_mut(&game_id) {
+            if let Some(facts) = list.iter_mut().find(|c| c.id == character_id) {
+                facts.va_staff.push(staff_id);
+            }
+        }
     }
     Ok(map)
 }
@@ -310,6 +333,7 @@ fn is_character_row(row: &QueryRow) -> bool {
             | QueryRow::Role { .. }
             | QueryRow::Gender { .. }
             | QueryRow::NameContains { .. }
+            | QueryRow::Va { .. }
     )
 }
 
@@ -372,6 +396,9 @@ fn char_row_matches(facts: &CharacterFacts, row: &QueryRow, threshold: Option<i6
         }
         QueryRow::Gender { values } => {
             values.is_empty() || facts.gender.iter().any(|g| values.contains(g))
+        }
+        QueryRow::Va { staff_ids } => {
+            staff_ids.is_empty() || facts.va_staff.iter().any(|s| staff_ids.contains(s))
         }
         QueryRow::NameContains { value } => {
             let needle = value.trim().to_lowercase();
@@ -618,6 +645,20 @@ mod tests {
         out
     }
 
+    fn add_va(conn: &Connection, game_id: &str, character_id: &str, staff_id: &str) {
+        conn.execute(
+            "INSERT OR IGNORE INTO staffs (id, name, original) VALUES (?1, ?2, NULL)",
+            params![staff_id, staff_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO character_va (game_id, character_id, staff_id, note)
+             VALUES (?1, ?2, ?3, '')",
+            params![game_id, character_id, staff_id],
+        )
+        .unwrap();
+    }
+
     fn ids(conn: &Connection, s: QuerySpec) -> Vec<String> {
         let mut out = query_games(conn, s)
             .unwrap()
@@ -709,7 +750,69 @@ mod tests {
             &["Senpai"],
             &[trait_(Some("t400"), "百合", Some(1))],
         );
+        add_va(&conn, "g1", "c1", "s1");
+        add_va(&conn, "g1", "c2", "s2");
+        add_va(&conn, "g2", "c3", "s1");
         conn
+    }
+
+    #[test]
+    fn va_row_matches_by_staff_id() {
+        let conn = fixture();
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::Va {
+                    staff_ids: vec!["s1".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1", "g2/c3"]);
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::Va {
+                    staff_ids: vec!["s2".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c2"]);
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::Va {
+                    staff_ids: vec!["s1".into(), "s2".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got.len(), 3);
+    }
+
+    #[test]
+    fn game_subject_va_row_uses_exists_semantics() {
+        let conn = fixture();
+        let got = ids(
+            &conn,
+            spec(vec![QueryRow::Va {
+                staff_ids: vec!["s1".into()],
+            }]),
+        );
+        assert_eq!(got, vec!["g1", "g2"]);
+        let got = ids(
+            &conn,
+            spec(vec![
+                QueryRow::Va {
+                    staff_ids: vec!["s1".into()],
+                },
+                QueryRow::Status {
+                    values: vec![Status::Playing],
+                },
+            ]),
+        );
+        assert_eq!(got, vec!["g1"]);
     }
 
     #[test]
@@ -1205,12 +1308,13 @@ mod tests {
                 { "kind": "trait_exclude", "traits": ["NTR"] },
                 { "kind": "role", "values": ["main", "side"] },
                 { "kind": "gender", "values": ["female"] },
-                { "kind": "name_contains", "value": "senpai" }
+                { "kind": "name_contains", "value": "senpai" },
+                { "kind": "va", "staff_ids": ["s1", "s113"] }
             ]
         }"#;
         let spec: QuerySpec = serde_json::from_str(raw).unwrap();
         assert_eq!(spec.subject, QuerySubject::Character);
         assert_eq!(spec.spoiler_threshold, Some(2));
-        assert_eq!(spec.rows.len(), 5);
+        assert_eq!(spec.rows.len(), 6);
     }
 }

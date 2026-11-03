@@ -175,6 +175,19 @@ va{character{id},staff{id,name,original},note}
 `va` 里出现而 `/character` 里没有的角色，在本作品里按没有立绘与资料处理；`va` 里缺 `staff`
 的条目直接跳过。
 
+### staff 双 id 体系与主名回填
+
+staff 有两个人物标识：主 `id`（`sXXX`，对应人物页面）与每个马甲各自的 `aid`。**`va.staff.id`
+恒为主 `id`**——同一人以不同马甲署名（如 s113 ひと美在旧作署「北斗みなみ」），跨作品的
+`staff.id` 仍一致，所以本地按 `staff_id` 匹配天然跨马甲合并，不需要 alias 映射表。
+`va.staff.name` 则是署名马甲，直接落库会让 `staffs.name` 挂上历史艺名。
+
+主名无需反查：`/vn` 的 `va` 载荷本就携带署名，随配音关系落在 `character_va.staff_name/staff_original`
+（kana 的 `va.staff.id` 恒为主 id，署名归人天然正确）。`staffs.name` 只作 keep-first 兜底，
+CV 选择器的显示名取本地各作品署名的频次最高者（并列取较新作品），全程零额外网络。
+ismain 事实备用：`/staff` 每条记录按名字返回多行，`ismain=true` 是主名，批量形态
+`["and", ["or", ["id","=","s1"],…], ["ismain","=",1]]`（实测 v23/v568 的 s113 以马甲署名但 id 一致）。
+
 `birthday` 的 `[月, 日]` 落库拍平成 `月-日`：只公布一个分量时存已知的那个，两边都没有则该字段
 留空。
 

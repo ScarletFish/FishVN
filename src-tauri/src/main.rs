@@ -171,6 +171,7 @@ fn main() {
             commands::list_games,
             commands::query_games,
             commands::query_characters,
+            commands::list_staff,
             commands::dashboard_stats,
             commands::dashboard_recent,
             commands::dashboard_tag_cloud,

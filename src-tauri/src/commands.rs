@@ -261,6 +261,11 @@ pub fn list_game_characters(shared: Shared<'_>, id: String) -> Result<Vec<GameCh
 }
 
 #[tauri::command]
+pub fn list_staff(shared: Shared<'_>) -> Result<Vec<characters::StaffOption>> {
+    characters::list_all_staff(&*lock(&shared)?)
+}
+
+#[tauri::command]
 pub async fn search_vndb(
     rate: State<'_, Arc<RateLimiter>>,
     keyword: String,

@@ -1,5 +1,5 @@
 export const QUERY_DIMS = ['tags', 'status', 'rating', 'released', 'developer', 'length'];
-export const CHAR_DIMS = ['traits', 'role', 'gender', 'charname'];
+export const CHAR_DIMS = ['traits', 'role', 'va', 'gender', 'charname'];
 
 export function emptyQueryUi() {
   return {
@@ -11,6 +11,7 @@ export function emptyQueryUi() {
     developer: { open: false, enabled: true, name: '' },
     length: { open: false, enabled: true, source: 'vndb', min: '', max: '' },
     traits: { open: false, enabled: true, mode: 'any', groups: [[]], exclude: [] },
+    va: { open: false, enabled: true, values: [] },
     role: { open: false, enabled: true, values: [] },
     gender: { open: false, enabled: true, values: [] },
     charname: { open: false, enabled: true, value: '' },
@@ -40,6 +41,7 @@ export function dimFilled(dim, d) {
     case 'status':
     case 'role':
     case 'gender':
+    case 'va':
       return d.values.length > 0;
     case 'rating':
     case 'length':
@@ -105,6 +107,9 @@ export function uiToSpec(ui, spoilerLevel = null) {
     }
     if (ui.traits.exclude.length > 0)
       rows.push({ kind: 'trait_exclude', traits: [...ui.traits.exclude] });
+  }
+  if (ui.va.enabled && dimFilled('va', ui.va)) {
+    rows.push({ kind: 'va', staff_ids: [...ui.va.values] });
   }
   if (ui.role.enabled && dimFilled('role', ui.role)) {
     rows.push({ kind: 'role', values: [...ui.role.values] });

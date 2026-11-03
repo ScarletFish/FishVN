@@ -215,6 +215,7 @@ handler!(update_game_metadata, |c, a| {
     metadata::upsert(c, a.id()?, &a.parse(a.patch.as_ref(), "patch")?)
 });
 handler!(list_game_characters, |c, a| characters::list(c, a.id()?));
+handler!(list_staff, |c, _a| characters::list_all_staff(c));
 handler!(save_game_characters, |c, a| {
     let list: Vec<GameCharacter> = a.parse(a.characters.as_ref(), "characters")?;
     characters::replace_all(c, a.id()?, &list)
@@ -560,6 +561,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/get_game_metadata", post(get_game_metadata))
         .route("/update_game_metadata", post(update_game_metadata))
         .route("/list_game_characters", post(list_game_characters))
+        .route("/list_staff", post(list_staff))
         .route("/save_game_characters", post(save_game_characters))
         .route("/search_vndb", post(search_vndb))
         .route("/fetch_vn_metadata", post(fetch_vn_metadata))
@@ -617,6 +619,7 @@ pub const COMMANDS: &[&str] = &[
     "get_game_metadata",
     "update_game_metadata",
     "list_game_characters",
+    "list_staff",
     "save_game_characters",
     "search_vndb",
     "fetch_vn_metadata",

@@ -16,6 +16,7 @@
   import ConditionCard from '../components/query/ConditionCard.svelte';
   import TagCondition from '../components/query/TagCondition.svelte';
   import TraitCondition from '../components/query/TraitCondition.svelte';
+  import VaCondition from '../components/query/VaCondition.svelte';
   import DateRangeField from '../components/query/DateRangeField.svelte';
   import NumberStepper from '../components/query/NumberStepper.svelte';
 
@@ -289,6 +290,8 @@
       placeholder={t('query.devPlaceholder')}
       bind:value={ui.developer.name}
     />
+  {:else if dim === 'va'}
+    <VaCondition va={ui.va} />
   {:else if dim === 'role'}
     <div class="cond-chips">
       {#each ROLE_KEYS as r (r)}
@@ -369,6 +372,7 @@
       {/if}
 
       {@render dimHeader('role', t('query.dim.role'))}
+      {@render dimHeader('va', t('query.dim.va'))}
       {@render dimHeader('gender', t('query.dim.gender'))}
       {@render dimHeader('charname', t('query.dim.charname'))}
 

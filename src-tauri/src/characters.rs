@@ -47,6 +47,54 @@ pub fn list(conn: &Connection, game_id: &str) -> Result<Vec<GameCharacter>> {
     rows.iter().map(|row| to_api(conn, game_id, row)).collect()
 }
 
+pub fn list_all_staff(conn: &Connection) -> Result<Vec<StaffOption>> {
+    let mut stmt = conn.prepare(
+        "WITH freq AS (
+           SELECT staff_id, staff_name, staff_original,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY staff_id
+                    ORDER BY COUNT(*) DESC, MAX(game_id) DESC
+                  ) AS rn
+           FROM character_va
+           WHERE COALESCE(TRIM(staff_name), '') != ''
+           GROUP BY staff_id, staff_name, staff_original
+         )
+         SELECT s.id, s.name, s.original,
+                COALESCE(f.staff_name, s.name),
+                COALESCE(f.staff_original, s.original),
+                COUNT(cv.character_id) AS roles
+         FROM staffs s
+         LEFT JOIN freq f ON f.staff_id = s.id AND f.rn = 1
+         LEFT JOIN character_va cv ON cv.staff_id = s.id
+         GROUP BY s.id
+         ORDER BY 4, s.id",
+    )?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(StaffOption {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                original: row.get(2)?,
+                display_name: row.get(3)?,
+                display_original: row.get(4)?,
+                roles: row.get(5)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StaffOption {
+    pub id: String,
+    pub name: Option<String>,
+    pub original: Option<String>,
+    pub display_name: Option<String>,
+    pub display_original: Option<String>,
+    pub roles: i64,
+}
+
 pub fn replace_all(
     conn: &Connection,
     game_id: &str,
@@ -196,14 +244,16 @@ fn insert_va(
         params![entry.staff_id, name, original],
     )?;
     conn.execute(
-        "INSERT INTO character_va (game_id, character_id, staff_id, note)
-         VALUES (?1, ?2, ?3, ?4)
+        "INSERT INTO character_va (game_id, character_id, staff_id, note, staff_name, staff_original)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
          ON CONFLICT(game_id, character_id, staff_id, note) DO NOTHING",
         params![
             game_id,
             character_id,
             entry.staff_id,
-            entry.note.as_deref().unwrap_or_default()
+            entry.note.as_deref().unwrap_or_default(),
+            entry.name,
+            entry.original
         ],
     )?;
     Ok(())

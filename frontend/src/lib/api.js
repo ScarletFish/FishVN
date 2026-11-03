@@ -38,6 +38,7 @@ export const api = {
   listGames: () => call('list_games'),
   queryGames: (spec) => call('query_games', { spec }),
   queryCharacters: (spec) => call('query_characters', { spec }),
+  listStaff: () => call('list_staff'),
   dashboardStats: () => call('dashboard_stats'),
   dashboardRecent: () => call('dashboard_recent'),
   dashboardTagCloud: () => call('dashboard_tag_cloud'),
