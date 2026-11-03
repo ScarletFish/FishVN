@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { t } from '../../lib/i18n.js';
   import { loadTagDict, traitItems, traitKeyLabel } from '../../lib/tag-label.svelte.js';
+  import { loadLibraryTraits, toTraitItems } from '../../lib/library-traits.svelte.js';
   import { TRAIT_GROUP_ORDER } from '../../lib/tag-order.svelte.js';
   import Modal from '../Modal.svelte';
   import TagPicker from '../game-form/TagPicker.svelte';
@@ -13,6 +14,7 @@
 
   onMount(() => {
     loadTagDict();
+    loadLibraryTraits();
   });
 
   function targetList() {
@@ -48,6 +50,10 @@
 
   const pickerItems = $derived(
     traitItems().map((item) => ({ ...item, group: item.group ?? 'uncategorized' })),
+  );
+
+  const libraryPickerItems = $derived(
+    toTraitItems().map((item) => ({ ...item, group: item.group ?? 'uncategorized' })),
   );
 </script>
 
@@ -129,6 +135,7 @@
 <Modal bind:open={pickerOpen} title={t('query.pickTrait')} variant="modal--picker">
   <TagPicker
     items={pickerItems}
+    libraryItems={libraryPickerItems}
     allItems={pickerItems}
     groupOrder={TRAIT_GROUP_ORDER}
     groupLabel={(g) => t('detail.traitGroups.' + g)}

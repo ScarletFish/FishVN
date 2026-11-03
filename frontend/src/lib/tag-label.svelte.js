@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { setTagGroups, tagCategory } from './tag-order.svelte.js';
 import { getLibraryTags } from './library-tags.svelte.js';
+import { getLibraryTraits } from './library-traits.svelte.js';
 
 let tags = $state({});
 let traits = $state({});
@@ -70,5 +71,7 @@ export function traitItems() {
 
 export function traitKeyLabel(key) {
   const hit = key && traits[key];
-  return hit ? hit.name : key;
+  if (hit) return hit.name;
+  const lib = getLibraryTraits().find((t) => (t.id ?? t.name) === key);
+  return lib?.name ?? key;
 }
