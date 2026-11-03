@@ -326,6 +326,17 @@ pub struct CharacterVa {
     pub note: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct CharacterHit {
+    pub game_id: String,
+    pub game_title: String,
+    pub character_id: String,
+    pub name: Option<String>,
+    pub original: Option<String>,
+    pub role: Option<String>,
+    pub gender: Option<Vec<String>>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct NewGame {
     pub name: String,

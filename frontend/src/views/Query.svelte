@@ -1,44 +1,72 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { t } from '../lib/i18n.js';
   import { api } from '../lib/api.js';
   import { STATUS_KEYS, statusLabel } from '../lib/status.js';
   import { captureHero } from '../lib/hero-transition.js';
   import { onLibraryItemsThrottled } from '../lib/library-events.js';
+  import { getScrollViewport } from '../lib/scrollbars.js';
   import { dimFilled, emptyQueryUi, hasActive, uiToSpec } from '../lib/query-spec.js';
+  import { queryStore } from '../lib/query-store.svelte.js';
+  import { getSpoilerLevel } from '../lib/config-store.svelte.js';
+  import { spoilerThreshold } from '../lib/tag-order.svelte.js';
   import SelectDd from '../components/SelectDd.svelte';
   import GameCard from '../components/GameCard.svelte';
   import WindowedGrid from '../components/WindowedGrid.svelte';
   import ConditionCard from '../components/query/ConditionCard.svelte';
   import TagCondition from '../components/query/TagCondition.svelte';
+  import TraitCondition from '../components/query/TraitCondition.svelte';
   import DateRangeField from '../components/query/DateRangeField.svelte';
   import NumberStepper from '../components/query/NumberStepper.svelte';
 
-  let { onopen } = $props();
+  let { onopen, scroll = 0 } = $props();
 
-  const ui = $state(emptyQueryUi());
-  const spec = $derived(uiToSpec(ui));
+  const ui = queryStore.ui;
+  const spec = $derived(uiToSpec(ui, spoilerThreshold(getSpoilerLevel())));
   const active = $derived(hasActive(ui));
 
-  let results = $state([]);
-  let loading = $state(true);
+  let loading = $state(queryStore.lastJson[queryStore.ui.subject] === null);
   let error = $state(null);
-  let sortBy = $state('vndb');
   let reqSeq = 0;
   let unwatch = null;
 
-  const SORT_OPTIONS = $derived([
-    { value: 'vndb', label: t('query.sortVndb') },
-    { value: 'user', label: t('query.sortUser') },
-    { value: 'name', label: t('query.sortName') },
-    { value: 'added', label: t('query.sortAdded') },
-  ]);
+  const isChar = $derived(ui.subject === 'character');
+  const shownIsChar = $derived(queryStore.resultsSubject === 'character');
+
+  const SORT_OPTIONS = $derived(
+    isChar
+      ? [
+          { value: 'name', label: t('query.sortName') },
+          { value: 'game', label: t('query.sortCharGame') },
+        ]
+      : [
+          { value: 'vndb', label: t('query.sortVndb') },
+          { value: 'user', label: t('query.sortUser') },
+          { value: 'name', label: t('query.sortName') },
+          { value: 'added', label: t('query.sortAdded') },
+        ],
+  );
+
+  $effect(() => {
+    if (isChar && queryStore.sortBy !== 'name' && queryStore.sortBy !== 'game')
+      queryStore.sortBy = 'name';
+  });
+
+  const charName = (hit) => hit.name ?? hit.original ?? hit.character_id ?? '';
 
   const sorted = $derived.by(() => {
-    const list = results.slice();
-    if (sortBy === 'name') list.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
-    else if (sortBy === 'user') list.sort((a, b) => (b.user_rating ?? -1) - (a.user_rating ?? -1));
-    else if (sortBy === 'added') list.sort((a, b) => b.created_at - a.created_at);
+    const list = queryStore.results.slice();
+    const sort = queryStore.sortBy;
+    if (sort === 'name')
+      list.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'zh-CN'));
+    else if (sort === 'game')
+      list.sort(
+        (a, b) =>
+          String(a.game_title ?? '').localeCompare(String(b.game_title ?? ''), 'zh-CN') ||
+          charName(a).localeCompare(charName(b), 'zh-CN'),
+      );
+    else if (sort === 'user') list.sort((a, b) => (b.user_rating ?? -1) - (a.user_rating ?? -1));
+    else if (sort === 'added') list.sort((a, b) => b.created_at - a.created_at);
     else list.sort((a, b) => (b.vndb_rating ?? -1) - (a.vndb_rating ?? -1));
     return list;
   });
@@ -46,11 +74,26 @@
   $effect(() => {
     const s = spec;
     const seq = ++reqSeq;
+    const json = JSON.stringify(s);
+    const subject = s.subject;
+    if (queryStore.lastJson[subject] === json) {
+      if (queryStore.resultsSubject !== subject) {
+        queryStore.results = queryStore.resultsCache[subject];
+        queryStore.resultsSubject = subject;
+      }
+      loading = false;
+      error = null;
+      return;
+    }
+    if (queryStore.resultsSubject !== subject) loading = true;
     const timer = setTimeout(async () => {
       try {
-        const rows = await api.queryGames(s);
+        const rows = subject === 'character' ? await api.queryCharacters(s) : await api.queryGames(s);
         if (seq !== reqSeq) return;
-        results = rows;
+        queryStore.resultsCache[subject] = rows;
+        queryStore.results = rows;
+        queryStore.resultsSubject = subject;
+        queryStore.lastJson[subject] = json;
         error = null;
       } catch (e) {
         if (seq !== reqSeq) return;
@@ -62,6 +105,21 @@
     return () => clearTimeout(timer);
   });
 
+  let restored = $state(false);
+
+  $effect(() => {
+    if (restored || scroll <= 0) return;
+    if (loading || error) return;
+    if (queryStore.resultsSubject !== ui.subject) return;
+    const viewport = getScrollViewport();
+    if (!viewport) return;
+    restored = true;
+    const target = scroll;
+    tick().then(() => {
+      viewport.scrollTop = target;
+    });
+  });
+
   onMount(() => {
     unwatch = onLibraryItemsThrottled(reload);
   });
@@ -71,14 +129,25 @@
   async function reload() {
     const seq = ++reqSeq;
     try {
-      const rows = await api.queryGames(spec);
+      const rows =
+        spec.subject === 'character'
+          ? await api.queryCharacters(spec)
+          : await api.queryGames(spec);
       if (seq !== reqSeq) return;
-      results = rows;
+      const subject = spec.subject;
+      queryStore.resultsCache[subject] = rows;
+      queryStore.results = rows;
+      queryStore.resultsSubject = subject;
+      queryStore.lastJson[subject] = JSON.stringify(spec);
       error = null;
     } catch (e) {
       if (seq !== reqSeq) return;
       error = e.message;
     }
+  }
+
+  function setSubject(next) {
+    ui.subject = next;
   }
 
   function openFromCard(item) {
@@ -92,7 +161,8 @@
   }
 
   function clearAll() {
-    Object.assign(ui, emptyQueryUi());
+    const { subject, ...dims } = emptyQueryUi();
+    Object.assign(ui, dims);
   }
 
   function toggleIn(list, value) {
@@ -100,6 +170,9 @@
     if (idx >= 0) list.splice(idx, 1);
     else list.push(value);
   }
+
+  const ROLE_KEYS = ['main', 'primary', 'side', 'appears'];
+  const GENDER_KEYS = ['f', 'm', 't', 'i'];
 
   const SIDE_MIN = 240;
   const SIDE_MAX = 460;
@@ -216,6 +289,35 @@
       placeholder={t('query.devPlaceholder')}
       bind:value={ui.developer.name}
     />
+  {:else if dim === 'role'}
+    <div class="cond-chips">
+      {#each ROLE_KEYS as r (r)}
+        <button
+          type="button"
+          class="cond-chip"
+          class:is-active={ui.role.values.includes(r)}
+          onclick={() => toggleIn(ui.role.values, r)}
+        >{t(`gameForm.charRole.${r}`)}</button>
+      {/each}
+    </div>
+  {:else if dim === 'gender'}
+    <div class="cond-chips">
+      {#each GENDER_KEYS as g (g)}
+        <button
+          type="button"
+          class="cond-chip"
+          class:is-active={ui.gender.values.includes(g)}
+          onclick={() => toggleIn(ui.gender.values, g)}
+        >{t(`detail.gender.${g}`)}</button>
+      {/each}
+    </div>
+  {:else if dim === 'charname'}
+    <input
+      type="text"
+      class="cond-text"
+      placeholder={t('query.charnamePlaceholder')}
+      bind:value={ui.charname.value}
+    />
   {/if}
 {/snippet}
 
@@ -248,6 +350,28 @@
       {@render dimHeader('developer', t('query.dim.developer'))}
       {@render dimHeader('length', t('query.dim.length'))}
 
+      <div class="query-side__divider"></div>
+
+      {#if ui.traits.open}
+        <ConditionCard
+          title={t('query.dim.traits')}
+          filled={dimFilled('traits', ui.traits)}
+          enabled={ui.traits.enabled}
+          ontoggle={() => (ui.traits.enabled = !ui.traits.enabled)}
+          onclear={() => clearDim('traits')}
+        >
+          <TraitCondition traits={ui.traits} />
+        </ConditionCard>
+      {:else}
+        <button type="button" class="query-dim" onclick={() => (ui.traits.open = true)}>
+          <span class="query-dim__plus">＋</span>{t('query.dim.traits')}
+        </button>
+      {/if}
+
+      {@render dimHeader('role', t('query.dim.role'))}
+      {@render dimHeader('gender', t('query.dim.gender'))}
+      {@render dimHeader('charname', t('query.dim.charname'))}
+
       <button type="button" class="query-side__clear" disabled={!active} onclick={clearAll}>
         {t('query.clearAll')}
       </button>
@@ -265,10 +389,30 @@
 
     <div class="query-results">
       <div class="query-toolbar">
-        <span class="query-count"><b>{sorted.length}</b>{t('query.matchCount')}</span>
+        <div class="query-subject" role="radiogroup" aria-label={t('query.subject')}>
+          <button
+            type="button"
+            class="query-subject__btn"
+            class:is-active={!isChar}
+            onclick={() => setSubject('game')}
+          >{t('query.subjectGame')}</button>
+          <button
+            type="button"
+            class="query-subject__btn"
+            class:is-active={isChar}
+            onclick={() => setSubject('character')}
+          >{t('query.subjectChar')}</button>
+        </div>
+        <span class="query-count">
+          <b>{sorted.length}</b>{shownIsChar ? t('query.matchCountChar') : t('query.matchCount')}
+        </span>
         <label class="query-sort">
           <span class="query-sort__label">{t('query.sort')}</span>
-          <SelectDd options={SORT_OPTIONS} bind:value={sortBy} ariaLabel={t('query.sort')} />
+          <SelectDd
+            options={SORT_OPTIONS}
+            bind:value={queryStore.sortBy}
+            ariaLabel={t('query.sort')}
+          />
         </label>
       </div>
 
@@ -276,10 +420,26 @@
         <p class="query-note">{t('common.loading')}</p>
       {:else if error}
         <p class="query-note">{t('query.error')}</p>
+      {:else if shownIsChar !== isChar}
+        <p class="query-note">{t('common.loading')}</p>
       {:else if sorted.length === 0}
         <div class="query-empty">
-          <p>{t('query.empty')}</p>
+          <p>{isChar ? t('query.emptyChar') : t('query.empty')}</p>
           <p class="query-empty__hint">{t('query.emptyHint')}</p>
+        </div>
+      {:else if shownIsChar}
+        <div class="char-list">
+          {#each sorted as hit ((hit.game_id ?? hit.id) + '/' + (hit.character_id ?? ''))}
+            <button type="button" class="char-row" onclick={() => openFromCard({ id: hit.game_id })}>
+              <span class="char-row__main">
+                <span class="char-row__name">{charName(hit)}</span>
+                {#if hit.name && hit.original}
+                  <span class="char-row__original">{hit.original}</span>
+                {/if}
+              </span>
+              <span class="char-row__game">{hit.game_title}</span>
+            </button>
+          {/each}
         </div>
       {:else if sorted.length >= 60}
         <WindowedGrid items={sorted}>

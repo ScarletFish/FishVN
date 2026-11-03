@@ -1,13 +1,19 @@
 export const QUERY_DIMS = ['tags', 'status', 'rating', 'released', 'developer', 'length'];
+export const CHAR_DIMS = ['traits', 'role', 'gender', 'charname'];
 
 export function emptyQueryUi() {
   return {
+    subject: 'game',
     tags: { open: false, enabled: true, mode: 'any', groups: [[]], exclude: [] },
     status: { open: false, enabled: true, values: [] },
     rating: { open: false, enabled: true, source: 'vndb', min: '', max: '' },
     released: { open: false, enabled: true, from: '', to: '' },
     developer: { open: false, enabled: true, name: '' },
     length: { open: false, enabled: true, source: 'vndb', min: '', max: '' },
+    traits: { open: false, enabled: true, mode: 'any', groups: [[]], exclude: [] },
+    role: { open: false, enabled: true, values: [] },
+    gender: { open: false, enabled: true, values: [] },
+    charname: { open: false, enabled: true, value: '' },
   };
 }
 
@@ -29,8 +35,11 @@ function hoursToMinutes(value) {
 export function dimFilled(dim, d) {
   switch (dim) {
     case 'tags':
+    case 'traits':
       return d.groups.some((g) => g.length > 0) || d.exclude.length > 0;
     case 'status':
+    case 'role':
+    case 'gender':
       return d.values.length > 0;
     case 'rating':
     case 'length':
@@ -39,18 +48,20 @@ export function dimFilled(dim, d) {
       return Boolean(d.from || d.to);
     case 'developer':
       return Boolean(d.name.trim());
+    case 'charname':
+      return Boolean(d.value.trim());
     default:
       return false;
   }
 }
 
 export function hasActive(ui) {
-  return QUERY_DIMS.some((dim) => ui[dim].open);
+  return [...QUERY_DIMS, ...CHAR_DIMS].some((dim) => ui[dim].open);
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function uiToSpec(ui) {
+export function uiToSpec(ui, spoilerLevel = null) {
   const rows = [];
   if (ui.tags.enabled && dimFilled('tags', ui.tags)) {
     for (const group of ui.tags.groups) {
@@ -87,5 +98,23 @@ export function uiToSpec(ui) {
       max: hoursToMinutes(ui.length.max),
     });
   }
-  return { subject: 'game', rows };
+  if (ui.traits.enabled && dimFilled('traits', ui.traits)) {
+    for (const group of ui.traits.groups) {
+      if (group.length > 0)
+        rows.push({ kind: 'trait_include', mode: ui.traits.mode, traits: [...group] });
+    }
+    if (ui.traits.exclude.length > 0)
+      rows.push({ kind: 'trait_exclude', traits: [...ui.traits.exclude] });
+  }
+  if (ui.role.enabled && dimFilled('role', ui.role)) {
+    rows.push({ kind: 'role', values: [...ui.role.values] });
+  }
+  if (ui.gender.enabled && dimFilled('gender', ui.gender)) {
+    rows.push({ kind: 'gender', values: [...ui.gender.values] });
+  }
+  if (ui.charname.enabled && dimFilled('charname', ui.charname)) {
+    rows.push({ kind: 'name_contains', value: ui.charname.value.trim() });
+  }
+  const threshold = Number.isFinite(spoilerLevel) ? spoilerLevel : null;
+  return { subject: ui.subject, rows, spoilerThreshold: threshold };
 }

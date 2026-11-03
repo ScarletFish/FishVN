@@ -150,6 +150,10 @@ handler!(query_games, |c, a| query::query_games(
     c,
     a.parse(a.spec.as_ref(), "spec")?
 ));
+handler!(query_characters, |c, a| query::query_characters(
+    c,
+    a.parse(a.spec.as_ref(), "spec")?
+));
 handler!(dashboard_stats, |c, _a| {
     let config = settings::current();
     let week_start = crate::now() - 7 * 24 * 3600;
@@ -529,6 +533,7 @@ pub fn router(dev: Dev) -> Router {
     Router::new()
         .route("/list_games", post(list_games))
         .route("/query_games", post(query_games))
+        .route("/query_characters", post(query_characters))
         .route("/dashboard_stats", post(dashboard_stats))
         .route("/dashboard_recent", post(dashboard_recent))
         .route("/dashboard_tag_cloud", post(dashboard_tag_cloud))
@@ -585,6 +590,7 @@ pub fn router(dev: Dev) -> Router {
 pub const COMMANDS: &[&str] = &[
     "list_games",
     "query_games",
+    "query_characters",
     "dashboard_stats",
     "dashboard_recent",
     "dashboard_tag_cloud",

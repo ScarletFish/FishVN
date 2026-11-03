@@ -21,6 +21,21 @@ const ROUND_ROBIN_ORDER = ['theme', 'plot', 'character', 'setting', 'style'];
 
 export const TAG_GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
 
+export const TRAIT_GROUP_ORDER = [
+  'Hair',
+  'Eyes',
+  'Body',
+  'Clothes',
+  'Items',
+  'Personality',
+  'Role',
+  'Engages in',
+  'Subject of',
+  'Engages in (Sexual)',
+  'Subject of (Sexual)',
+  'uncategorized',
+];
+
 const SPOILER_THRESHOLD = { hide_all: 1, hide_major: 2, show_all: Infinity };
 
 let roots = $state(null);

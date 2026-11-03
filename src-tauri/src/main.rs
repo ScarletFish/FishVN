@@ -170,6 +170,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::list_games,
             commands::query_games,
+            commands::query_characters,
             commands::dashboard_stats,
             commands::dashboard_recent,
             commands::dashboard_tag_cloud,

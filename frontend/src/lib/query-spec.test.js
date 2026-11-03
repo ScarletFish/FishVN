@@ -9,7 +9,66 @@ import {
 describe('query-spec', () => {
   it('空状态产生空 rows', () => {
     const spec = uiToSpec(emptyQueryUi());
-    expect(spec).toEqual({ subject: 'game', rows: [] });
+    expect(spec).toEqual({ subject: 'game', rows: [], spoilerThreshold: null });
+  });
+
+  it('subject 与 spoilerThreshold 进 spec，Infinity 归 null', () => {
+    const ui = emptyQueryUi();
+    ui.subject = 'character';
+    expect(uiToSpec(ui, Infinity)).toEqual({
+      subject: 'character',
+      rows: [],
+      spoilerThreshold: null,
+    });
+    expect(uiToSpec(ui, 2).spoilerThreshold).toBe(2);
+    expect(uiToSpec(emptyQueryUi(), 1).spoilerThreshold).toBe(1);
+  });
+
+  it('特征多组共享 mode，排除集生成 trait_exclude', () => {
+    const ui = emptyQueryUi();
+    ui.traits.open = true;
+    ui.traits.mode = 'all';
+    ui.traits.groups = [['t100', 't200'], ['t300']];
+    ui.traits.exclude = ['t400'];
+    expect(uiToSpec(ui).rows).toEqual([
+      { kind: 'trait_include', mode: 'all', traits: ['t100', 't200'] },
+      { kind: 'trait_include', mode: 'all', traits: ['t300'] },
+      { kind: 'trait_exclude', traits: ['t400'] },
+    ]);
+  });
+
+  it('role/gender/charname 生成对应行', () => {
+    const ui = emptyQueryUi();
+    ui.role.open = true;
+    ui.role.values = ['main', 'primary'];
+    ui.gender.open = true;
+    ui.gender.values = ['f'];
+    ui.charname.open = true;
+    ui.charname.value = '  白毛  ';
+    expect(uiToSpec(ui).rows).toEqual([
+      { kind: 'role', values: ['main', 'primary'] },
+      { kind: 'gender', values: ['f'] },
+      { kind: 'name_contains', value: '白毛' },
+    ]);
+  });
+
+  it('dimFilled 覆盖角色维度', () => {
+    const ui = emptyQueryUi();
+    ui.traits.open = true;
+    expect(dimFilled('traits', ui.traits)).toBe(false);
+    ui.traits.groups = [['t100']];
+    expect(dimFilled('traits', ui.traits)).toBe(true);
+    ui.role.open = true;
+    ui.role.values = ['main'];
+    expect(dimFilled('role', ui.role)).toBe(true);
+    ui.gender.open = true;
+    expect(dimFilled('gender', ui.gender)).toBe(false);
+    ui.charname.open = true;
+    ui.charname.value = ' ';
+    expect(dimFilled('charname', ui.charname)).toBe(false);
+    ui.charname.value = 'x';
+    expect(dimFilled('charname', ui.charname)).toBe(true);
+    expect(hasActive(ui)).toBe(true);
   });
 
   it('标签多组共享 mode，排除集生成 tagExclude', () => {

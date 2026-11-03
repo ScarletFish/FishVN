@@ -154,6 +154,7 @@
   let listScroll = $state(0);
   let listFilter = $state('all');
   let dashScroll = $state(0);
+  let queryScroll = $state(0);
 
   function saveViewScroll() {
     if (detailId !== null) return;
@@ -161,6 +162,7 @@
     if (!viewport) return;
     if (current === 'mylist') listScroll = viewport.scrollTop;
     else if (current === 'home') dashScroll = viewport.scrollTop;
+    else if (current === 'query') queryScroll = viewport.scrollTop;
   }
 
   function openDetail(id, autostart = false) {
@@ -218,7 +220,7 @@
           bind:filter={listFilter}
         />
       {:else if current === 'query'}
-        <Query onopen={(id) => openDetail(id)} />
+        <Query onopen={(id) => openDetail(id)} scroll={queryScroll} />
       {:else if current === 'stats'}
         <Stats />
       {:else}

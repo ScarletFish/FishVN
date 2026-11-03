@@ -22,9 +22,9 @@ use crate::sync;
 use crate::tasks::{EventLog, Task, Tasks};
 use crate::thumbs;
 use crate::types::{
-    Game, GameCharacter, GameListItem, GameMetadata, GamePatch, GamePlayLog, Installation,
-    InstallationInput, InstallationPatch, MetadataPatch, NewGame, NewInstallation, PlaySession,
-    StatePatch, TaskEvent, UserGameState,
+    CharacterHit, Game, GameCharacter, GameListItem, GameMetadata, GamePatch, GamePlayLog,
+    Installation, InstallationInput, InstallationPatch, MetadataPatch, NewGame, NewInstallation,
+    PlaySession, StatePatch, TaskEvent, UserGameState,
 };
 use crate::vndb::{self, RateLimiter, VnSearchHit, VnSync};
 use tauri_plugin_log::log;
@@ -58,6 +58,11 @@ pub fn list_games(shared: Shared<'_>) -> Result<Vec<GameListItem>> {
 #[tauri::command]
 pub fn query_games(shared: Shared<'_>, spec: QuerySpec) -> Result<Vec<GameListItem>> {
     query::query_games(&*lock(&shared)?, spec)
+}
+
+#[tauri::command]
+pub fn query_characters(shared: Shared<'_>, spec: QuerySpec) -> Result<Vec<CharacterHit>> {
+    query::query_characters(&*lock(&shared)?, spec)
 }
 
 #[tauri::command]

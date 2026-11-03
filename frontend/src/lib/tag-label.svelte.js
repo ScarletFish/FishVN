@@ -67,3 +67,8 @@ export function traitItems() {
     raw: { id, name: entry.name, group: entry.group || null },
   }));
 }
+
+export function traitKeyLabel(key) {
+  const hit = key && traits[key];
+  return hit ? hit.name : key;
+}

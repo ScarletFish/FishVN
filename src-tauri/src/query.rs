@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, Result};
 use crate::games;
-use crate::types::{GameListItem, MetadataTag, Status};
+use crate::types::{CharacterHit, CharacterTrait, GameListItem, MetadataTag, Status};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -61,6 +61,27 @@ pub enum QueryRow {
         min: Option<i64>,
         max: Option<i64>,
     },
+    TraitInclude {
+        mode: TagMatchMode,
+        #[serde(default)]
+        traits: Vec<String>,
+    },
+    TraitExclude {
+        #[serde(default)]
+        traits: Vec<String>,
+    },
+    Role {
+        #[serde(default)]
+        values: Vec<String>,
+    },
+    Gender {
+        #[serde(default)]
+        values: Vec<String>,
+    },
+    NameContains {
+        #[serde(default)]
+        value: String,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -69,6 +90,8 @@ pub struct QuerySpec {
     pub subject: QuerySubject,
     #[serde(default)]
     pub rows: Vec<QueryRow>,
+    #[serde(default)]
+    pub spoiler_threshold: Option<i64>,
 }
 
 struct GameFacts {
@@ -148,17 +171,22 @@ fn is_iso_date(value: &str) -> bool {
         && bytes[8..].iter().all(u8::is_ascii_digit)
 }
 
-fn tag_names(facts: &GameFacts) -> HashSet<&str> {
-    facts.tags.iter().map(|t| t.name.as_str()).collect()
+fn visible_tag_names(facts: &GameFacts, threshold: Option<i64>) -> HashSet<&str> {
+    facts
+        .tags
+        .iter()
+        .filter(|t| t.spoiler.unwrap_or(0) < threshold.unwrap_or(i64::MAX))
+        .map(|t| t.name.as_str())
+        .collect()
 }
 
-fn row_matches(facts: &GameFacts, row: &QueryRow) -> bool {
+fn row_matches(facts: &GameFacts, row: &QueryRow, threshold: Option<i64>) -> bool {
     match row {
         QueryRow::TagInclude { mode, tags } => {
             if tags.is_empty() {
                 return true;
             }
-            let names = tag_names(facts);
+            let names = visible_tag_names(facts, threshold);
             match mode {
                 TagMatchMode::Any => tags.iter().any(|t| names.contains(t.as_str())),
                 TagMatchMode::All => tags.iter().all(|t| names.contains(t.as_str())),
@@ -168,7 +196,7 @@ fn row_matches(facts: &GameFacts, row: &QueryRow) -> bool {
             if tags.is_empty() {
                 return true;
             }
-            let names = tag_names(facts);
+            let names = visible_tag_names(facts, threshold);
             !tags.iter().any(|t| names.contains(t.as_str()))
         }
         QueryRow::Status { values } => values.is_empty() || values.contains(&facts.status),
@@ -213,26 +241,259 @@ fn row_matches(facts: &GameFacts, row: &QueryRow) -> bool {
             };
             min.is_none_or(|m| minutes >= m) && max.is_none_or(|m| minutes <= m)
         }
+        QueryRow::TraitInclude { .. }
+        | QueryRow::TraitExclude { .. }
+        | QueryRow::Role { .. }
+        | QueryRow::Gender { .. }
+        | QueryRow::NameContains { .. } => true,
     }
 }
 
-pub fn query_games(conn: &Connection, spec: QuerySpec) -> Result<Vec<GameListItem>> {
-    if spec.subject == QuerySubject::Character {
-        return Err(AppError::BadRequest("角色级查询尚未实现".into()));
+struct CharacterFacts {
+    id: String,
+    name: Option<String>,
+    original: Option<String>,
+    aliases: Vec<String>,
+    gender: Vec<String>,
+    role: Option<String>,
+    traits: Vec<CharacterTrait>,
+}
+
+fn load_character_facts(conn: &Connection) -> Result<HashMap<String, Vec<CharacterFacts>>> {
+    let mut stmt = conn.prepare(
+        "SELECT game_id, id, name, original, aliases, gender, role, traits
+         FROM characters
+         ORDER BY game_id, sort_order, id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, Option<String>>(2)?,
+            row.get::<_, Option<String>>(3)?,
+            row.get::<_, Option<String>>(4)?,
+            row.get::<_, Option<String>>(5)?,
+            row.get::<_, Option<String>>(6)?,
+            row.get::<_, Option<String>>(7)?,
+        ))
+    })?;
+    let mut map: HashMap<String, Vec<CharacterFacts>> = HashMap::new();
+    for row in rows {
+        let (game_id, id, name, original, aliases, gender, role, traits) = row?;
+        let aliases = aliases
+            .and_then(|raw| serde_json::from_str::<Vec<String>>(&raw).ok())
+            .unwrap_or_default();
+        let gender = gender
+            .and_then(|raw| serde_json::from_str::<Vec<String>>(&raw).ok())
+            .unwrap_or_default();
+        let traits = traits
+            .and_then(|raw| serde_json::from_str::<Vec<CharacterTrait>>(&raw).ok())
+            .unwrap_or_default();
+        map.entry(game_id).or_default().push(CharacterFacts {
+            id,
+            name,
+            original,
+            aliases,
+            gender,
+            role,
+            traits,
+        });
     }
+    Ok(map)
+}
+
+fn is_character_row(row: &QueryRow) -> bool {
+    matches!(
+        row,
+        QueryRow::TraitInclude { .. }
+            | QueryRow::TraitExclude { .. }
+            | QueryRow::Role { .. }
+            | QueryRow::Gender { .. }
+            | QueryRow::NameContains { .. }
+    )
+}
+
+fn partition_rows(rows: Vec<QueryRow>) -> (Vec<QueryRow>, Vec<QueryRow>) {
+    let mut game_rows = Vec::new();
+    let mut char_rows = Vec::new();
+    for row in rows {
+        if is_character_row(&row) {
+            char_rows.push(row);
+        } else {
+            game_rows.push(row);
+        }
+    }
+    (game_rows, char_rows)
+}
+
+fn trait_matches(trait_: &CharacterTrait, selector: &str) -> bool {
+    trait_.id.as_deref() == Some(selector) || trait_.name.as_deref() == Some(selector)
+}
+
+fn visible_traits(
+    facts: &CharacterFacts,
+    threshold: Option<i64>,
+) -> impl Iterator<Item = &CharacterTrait> {
+    facts
+        .traits
+        .iter()
+        .filter(move |t| t.spoiler.unwrap_or(0) < threshold.unwrap_or(i64::MAX))
+}
+
+fn char_row_matches(facts: &CharacterFacts, row: &QueryRow, threshold: Option<i64>) -> bool {
+    match row {
+        QueryRow::TraitInclude { mode, traits } => {
+            if traits.is_empty() {
+                return true;
+            }
+            match mode {
+                TagMatchMode::Any => traits
+                    .iter()
+                    .any(|sel| visible_traits(facts, threshold).any(|t| trait_matches(t, sel))),
+                TagMatchMode::All => traits
+                    .iter()
+                    .all(|sel| visible_traits(facts, threshold).any(|t| trait_matches(t, sel))),
+            }
+        }
+        QueryRow::TraitExclude { traits } => {
+            if traits.is_empty() {
+                return true;
+            }
+            !traits
+                .iter()
+                .any(|sel| visible_traits(facts, threshold).any(|t| trait_matches(t, sel)))
+        }
+        QueryRow::Role { values } => {
+            values.is_empty()
+                || facts
+                    .role
+                    .as_deref()
+                    .is_some_and(|r| values.iter().any(|v| v == r))
+        }
+        QueryRow::Gender { values } => {
+            values.is_empty() || facts.gender.iter().any(|g| values.contains(g))
+        }
+        QueryRow::NameContains { value } => {
+            let needle = value.trim().to_lowercase();
+            needle.is_empty()
+                || facts
+                    .name
+                    .as_deref()
+                    .is_some_and(|n| n.to_lowercase().contains(&needle))
+                || facts
+                    .original
+                    .as_deref()
+                    .is_some_and(|n| n.to_lowercase().contains(&needle))
+                || facts
+                    .aliases
+                    .iter()
+                    .any(|a| a.to_lowercase().contains(&needle))
+        }
+        _ => unreachable!("非角色级行不应进入 char_row_matches"),
+    }
+}
+
+fn game_satisfies_rows(
+    facts: Option<&GameFacts>,
+    game_rows: &[QueryRow],
+    threshold: Option<i64>,
+) -> bool {
+    if game_rows.is_empty() {
+        return true;
+    }
+    let Some(facts) = facts else {
+        return false;
+    };
+    game_rows.iter().all(|row| row_matches(facts, row, threshold))
+}
+
+fn game_has_matching_character(
+    chars: &HashMap<String, Vec<CharacterFacts>>,
+    game_id: &str,
+    char_rows: &[QueryRow],
+    threshold: Option<i64>,
+) -> bool {
+    let Some(list) = chars.get(game_id) else {
+        return false;
+    };
+    list.iter()
+        .any(|c| char_rows.iter().all(|row| char_row_matches(c, row, threshold)))
+}
+
+pub fn query_games(conn: &Connection, spec: QuerySpec) -> Result<Vec<GameListItem>> {
+    if spec.subject != QuerySubject::Game {
+        return Err(AppError::BadRequest(
+            "subject 与命令不匹配：query_games 需要 subject=game".into(),
+        ));
+    }
+    let threshold = spec.spoiler_threshold;
+    let (game_rows, char_rows) = partition_rows(spec.rows);
     let items = games::list_games(conn)?;
-    if spec.rows.is_empty() {
+    if game_rows.is_empty() && char_rows.is_empty() {
         return Ok(items);
     }
-    let facts = load_facts(conn)?;
+    let facts = if game_rows.is_empty() {
+        HashMap::new()
+    } else {
+        load_facts(conn)?
+    };
+    let chars = if char_rows.is_empty() {
+        HashMap::new()
+    } else {
+        load_character_facts(conn)?
+    };
     Ok(items
         .into_iter()
         .filter(|item| {
-            facts
-                .get(&item.id)
-                .is_some_and(|f| spec.rows.iter().all(|row| row_matches(f, row)))
+            game_satisfies_rows(facts.get(&item.id), &game_rows, threshold)
+                && (char_rows.is_empty()
+                    || game_has_matching_character(&chars, &item.id, &char_rows, threshold))
         })
         .collect())
+}
+
+pub fn query_characters(conn: &Connection, spec: QuerySpec) -> Result<Vec<CharacterHit>> {
+    if spec.subject != QuerySubject::Character {
+        return Err(AppError::BadRequest(
+            "subject 与命令不匹配：query_characters 需要 subject=character".into(),
+        ));
+    }
+    let threshold = spec.spoiler_threshold;
+    let (game_rows, char_rows) = partition_rows(spec.rows);
+    let items = games::list_games(conn)?;
+    let facts = if game_rows.is_empty() {
+        HashMap::new()
+    } else {
+        load_facts(conn)?
+    };
+    let chars = load_character_facts(conn)?;
+    let mut out = Vec::new();
+    for game in items {
+        if !game_satisfies_rows(facts.get(&game.id), &game_rows, threshold) {
+            continue;
+        }
+        let Some(list) = chars.get(&game.id) else {
+            continue;
+        };
+        for c in list {
+            if char_rows.iter().all(|row| char_row_matches(c, row, threshold)) {
+                out.push(CharacterHit {
+                    game_id: game.id.clone(),
+                    game_title: game.name.clone(),
+                    character_id: c.id.clone(),
+                    name: c.name.clone(),
+                    original: c.original.clone(),
+                    role: c.role.clone(),
+                    gender: if c.gender.is_empty() {
+                        None
+                    } else {
+                        Some(c.gender.clone())
+                    },
+                });
+            }
+        }
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -292,7 +553,69 @@ mod tests {
         QuerySpec {
             subject: QuerySubject::Game,
             rows,
+            spoiler_threshold: None,
         }
+    }
+
+    fn char_spec(
+        rows: Vec<QueryRow>,
+        spoiler_threshold: Option<i64>,
+    ) -> QuerySpec {
+        QuerySpec {
+            subject: QuerySubject::Character,
+            rows,
+            spoiler_threshold,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_character(
+        conn: &Connection,
+        game_id: &str,
+        id: &str,
+        name: Option<&str>,
+        original: Option<&str>,
+        role: Option<&str>,
+        gender: &[&str],
+        aliases: &[&str],
+        traits: &[CharacterTrait],
+    ) {
+        let gender: Vec<String> = gender.iter().map(|s| s.to_string()).collect();
+        let aliases: Vec<String> = aliases.iter().map(|s| s.to_string()).collect();
+        conn.execute(
+            "INSERT INTO characters (game_id, id, name, original, role, gender, aliases, traits)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                game_id,
+                id,
+                name,
+                original,
+                role,
+                serde_json::to_string(&gender).unwrap(),
+                serde_json::to_string(&aliases).unwrap(),
+                serde_json::to_string(traits).unwrap(),
+            ],
+        )
+        .unwrap();
+    }
+
+    fn trait_(id: Option<&str>, name: &str, spoiler: Option<i64>) -> CharacterTrait {
+        CharacterTrait {
+            id: id.map(String::from),
+            name: Some(String::from(name)),
+            spoiler,
+            ..Default::default()
+        }
+    }
+
+    fn hit_keys(conn: &Connection, s: QuerySpec) -> Vec<String> {
+        let mut out = query_characters(conn, s)
+            .unwrap()
+            .into_iter()
+            .map(|h| format!("{}/{}", h.game_id, h.character_id))
+            .collect::<Vec<_>>();
+        out.sort();
+        out
     }
 
     fn ids(conn: &Connection, s: QuerySpec) -> Vec<String> {
@@ -346,6 +669,45 @@ mod tests {
             Some("2020-01-01"),
             None,
             Some(30),
+        );
+        add_character(
+            &conn,
+            "g1",
+            "c1",
+            Some("白毛静音"),
+            Some("シロガネ"),
+            Some("main"),
+            &["female"],
+            &[],
+            &[
+                trait_(Some("t100"), "白毛", None),
+                trait_(Some("t200"), "傲娇", None),
+            ],
+        );
+        add_character(
+            &conn,
+            "g1",
+            "c2",
+            Some("路人甲"),
+            None,
+            Some("side"),
+            &["female"],
+            &["モブ"],
+            &[
+                trait_(Some("t300"), "黑毛", None),
+                trait_(Some("t100"), "伪白毛", Some(2)),
+            ],
+        );
+        add_character(
+            &conn,
+            "g2",
+            "c3",
+            Some("学姐"),
+            Some("センパイ"),
+            Some("main"),
+            &["female"],
+            &["Senpai"],
+            &[trait_(Some("t400"), "百合", Some(1))],
         );
         conn
     }
@@ -518,6 +880,13 @@ mod tests {
     }
 
     #[test]
+    fn game_subject_rejected_in_character_query() {
+        let conn = fixture();
+        let err = query_characters(&conn, spec(vec![])).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
     fn character_subject_rejected() {
         let conn = fixture();
         let err = query_games(
@@ -525,10 +894,285 @@ mod tests {
             QuerySpec {
                 subject: QuerySubject::Character,
                 rows: vec![],
+                spoiler_threshold: None,
             },
         )
         .unwrap_err();
         assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn character_subject_empty_rows_returns_all() {
+        let conn = fixture();
+        let got = hit_keys(&conn, char_spec(vec![], None));
+        assert_eq!(got, vec!["g1/c1", "g1/c2", "g2/c3"]);
+    }
+
+    #[test]
+    fn trait_include_matches_by_id_and_name() {
+        let conn = fixture();
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TraitInclude {
+                    mode: TagMatchMode::Any,
+                    traits: vec!["t100".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1", "g1/c2"]);
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TraitInclude {
+                    mode: TagMatchMode::Any,
+                    traits: vec!["黑毛".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c2"]);
+    }
+
+    #[test]
+    fn trait_include_all_requires_every_trait() {
+        let conn = fixture();
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TraitInclude {
+                    mode: TagMatchMode::All,
+                    traits: vec!["t100".into(), "t200".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1"]);
+    }
+
+    #[test]
+    fn trait_exclude_removes_hit() {
+        let conn = fixture();
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TraitExclude {
+                    traits: vec!["t200".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c2", "g2/c3"]);
+    }
+
+    #[test]
+    fn spoiler_threshold_filters_traits_on_match_side() {
+        let conn = fixture();
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TraitInclude {
+                    mode: TagMatchMode::Any,
+                    traits: vec!["白毛".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1"]);
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TraitInclude {
+                    mode: TagMatchMode::Any,
+                    traits: vec!["t100".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1", "g1/c2"]);
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TraitInclude {
+                    mode: TagMatchMode::Any,
+                    traits: vec!["t100".into()],
+                }],
+                Some(2),
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1"]);
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TraitExclude {
+                    traits: vec!["百合".into()],
+                }],
+                Some(2),
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1", "g1/c2"]);
+    }
+
+    #[test]
+    fn spoiler_threshold_filters_game_tags_too() {
+        let conn = fixture();
+        add_game(
+            &conn,
+            "g4",
+            "playing",
+            None,
+            0,
+            &[MetadataTag {
+                name: String::from("剧透神器"),
+                spoiler: Some(2),
+                ..Default::default()
+            }],
+            &[],
+            None,
+            None,
+            None,
+        );
+        add_character(&conn, "g4", "c4", Some("c4"), None, None, &[], &[], &[]);
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TagInclude {
+                    mode: TagMatchMode::Any,
+                    tags: vec!["剧透神器".into()],
+                }],
+                Some(2),
+            ),
+        );
+        assert!(got.is_empty());
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::TagInclude {
+                    mode: TagMatchMode::Any,
+                    tags: vec!["剧透神器".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g4/c4"]);
+    }
+
+    #[test]
+    fn role_and_gender_rows_filter() {
+        let conn = fixture();
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::Role {
+                    values: vec!["main".into()],
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1", "g2/c3"]);
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::Gender {
+                    values: vec!["male".into()],
+                }],
+                None,
+            ),
+        );
+        assert!(got.is_empty());
+    }
+
+    #[test]
+    fn name_contains_matches_all_name_fields() {
+        let conn = fixture();
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::NameContains {
+                    value: "senpai".into(),
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g2/c3"]);
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![QueryRow::NameContains {
+                    value: "シロ".into(),
+                }],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1"]);
+    }
+
+    #[test]
+    fn character_subject_combines_game_rows_and_character_rows() {
+        let conn = fixture();
+        let got = hit_keys(
+            &conn,
+            char_spec(
+                vec![
+                    QueryRow::Status {
+                        values: vec![Status::Playing],
+                    },
+                    QueryRow::Role {
+                        values: vec!["main".into()],
+                    },
+                ],
+                None,
+            ),
+        );
+        assert_eq!(got, vec!["g1/c1"]);
+    }
+
+    #[test]
+    fn game_subject_character_rows_use_exists_semantics() {
+        let conn = fixture();
+        let got = ids(
+            &conn,
+            spec(vec![QueryRow::TraitInclude {
+                mode: TagMatchMode::Any,
+                traits: vec!["白毛".into()],
+            }]),
+        );
+        assert_eq!(got, vec!["g1"]);
+        let got = ids(
+            &conn,
+            spec(vec![
+                QueryRow::Status {
+                    values: vec![Status::Playing],
+                },
+                QueryRow::TraitInclude {
+                    mode: TagMatchMode::Any,
+                    traits: vec!["t100".into()],
+                },
+            ]),
+        );
+        assert_eq!(got, vec!["g1"]);
+    }
+
+    #[test]
+    fn character_hits_carry_game_context() {
+        let conn = fixture();
+        let hits = query_characters(
+            &conn,
+            char_spec(
+                vec![QueryRow::Role {
+                    values: vec!["main".into()],
+                }],
+                None,
+            ),
+        )
+        .unwrap();
+        let hit = hits.iter().find(|h| h.character_id == "c3").unwrap();
+        assert_eq!(hit.game_id, "g2");
+        assert_eq!(hit.game_title, "g2");
+        assert_eq!(hit.name.as_deref(), Some("学姐"));
+        assert_eq!(hit.original.as_deref(), Some("センパイ"));
+        assert_eq!(hit.gender.as_deref(), Some(&["female".to_string()][..]));
     }
 
     #[test]
@@ -548,5 +1192,25 @@ mod tests {
         let spec: QuerySpec = serde_json::from_str(raw).unwrap();
         assert_eq!(spec.subject, QuerySubject::Game);
         assert_eq!(spec.rows.len(), 7);
+        assert_eq!(spec.spoiler_threshold, None);
+    }
+
+    #[test]
+    fn deserializes_character_rows_wire_json() {
+        let raw = r#"{
+            "subject": "character",
+            "spoilerThreshold": 2,
+            "rows": [
+                { "kind": "trait_include", "mode": "any", "traits": ["t100", "白毛"] },
+                { "kind": "trait_exclude", "traits": ["NTR"] },
+                { "kind": "role", "values": ["main", "side"] },
+                { "kind": "gender", "values": ["female"] },
+                { "kind": "name_contains", "value": "senpai" }
+            ]
+        }"#;
+        let spec: QuerySpec = serde_json::from_str(raw).unwrap();
+        assert_eq!(spec.subject, QuerySubject::Character);
+        assert_eq!(spec.spoiler_threshold, Some(2));
+        assert_eq!(spec.rows.len(), 5);
     }
 }
