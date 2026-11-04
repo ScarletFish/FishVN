@@ -281,6 +281,27 @@ pub struct MetadataPatch {
     pub staff: Option<Option<Vec<MetadataStaff>>>,
 }
 
+impl MetadataPatch {
+    pub fn filled_labels(&self) -> Vec<&'static str> {
+        [
+            ("别名", self.alias.is_some()),
+            ("发售日", self.released.is_some()),
+            ("评分", self.rating.is_some()),
+            ("评分人数", self.votecount.is_some()),
+            ("时长", self.length_minutes.is_some()),
+            ("简介", self.description.is_some()),
+            ("封面", self.image_path.is_some()),
+            ("标题", self.titles.is_some()),
+            ("标签", self.tags.is_some()),
+            ("开发商", self.developers.is_some()),
+            ("制作组", self.staff.is_some()),
+        ]
+        .into_iter()
+        .filter_map(|(label, set)| set.then_some(label))
+        .collect()
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GameCharacter {
@@ -365,8 +386,12 @@ pub struct InstallationInput {
 #[derive(Debug, Clone, Serialize)]
 pub struct TaskEvent {
     pub phase: String,
+    #[serde(default)]
+    pub ts: i64,
     pub done: Option<i64>,
     pub total: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
     #[serde(default)]
     pub error: Option<String>,
     #[serde(default)]

@@ -1,13 +1,21 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use crate::types::TaskEvent;
 
-pub const LOG_CAP: usize = 512;
+pub const LOG_CAP: usize = 2048;
+
+pub(crate) fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or_default()
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LoggedEvent {
@@ -52,6 +60,9 @@ pub trait Progress: Sync {
         self.report(phase, done, total);
     }
     fn report_error(&self, phase: &str, message: &str);
+    fn report_note(&self, phase: &str, _detail: &str) {
+        self.report(phase, None, None);
+    }
     fn cancelled(&self) -> bool;
 }
 
@@ -67,6 +78,7 @@ pub struct Task {
     log: Arc<Mutex<EventLog>>,
     cancel: Arc<AtomicBool>,
     run_id: u64,
+    current: Mutex<Option<String>>,
 }
 
 impl Task {
@@ -83,6 +95,28 @@ impl Task {
             log,
             cancel,
             run_id,
+            current: Mutex::new(None),
+        }
+    }
+
+    pub fn enter(&self, game_id: &str) {
+        match self.current.lock() {
+            Ok(mut current) => *current = Some(game_id.to_owned()),
+            Err(poison) => *poison.into_inner() = Some(game_id.to_owned()),
+        }
+    }
+
+    pub fn leave(&self) {
+        match self.current.lock() {
+            Ok(mut current) => *current = None,
+            Err(poison) => *poison.into_inner() = None,
+        }
+    }
+
+    fn current_id(&self) -> Option<String> {
+        match self.current.lock() {
+            Ok(current) => current.clone(),
+            Err(poison) => poison.into_inner().clone(),
         }
     }
 
@@ -91,18 +125,22 @@ impl Task {
         phase: &str,
         done: Option<i64>,
         total: Option<i64>,
+        detail: Option<String>,
         error: Option<String>,
         game_id: Option<&str>,
     ) {
+        let game_id = game_id.map(str::to_owned).or_else(|| self.current_id());
         let logged = match self.log.lock() {
             Ok(mut log) => log.push(
                 &self.name,
                 TaskEvent {
                     phase: phase.to_owned(),
+                    ts: now_ms(),
                     done,
                     total,
+                    detail,
                     error,
-                    game_id: game_id.map(str::to_owned),
+                    game_id,
                     run_id: self.run_id,
                 },
             ),
@@ -114,16 +152,20 @@ impl Task {
 
 impl Progress for Task {
     fn report(&self, phase: &str, done: Option<i64>, total: Option<i64>) {
-        self.push(phase, done, total, None, None);
+        self.push(phase, done, total, None, None, None);
     }
 
     fn report_item(&self, phase: &str, done: Option<i64>, total: Option<i64>, game_id: &str) {
-        self.push(phase, done, total, None, Some(game_id));
+        self.push(phase, done, total, None, None, Some(game_id));
     }
 
     fn report_error(&self, phase: &str, message: &str) {
         tauri_plugin_log::log::warn!("任务 {} 在 {phase} 阶段报告：{message}", self.name);
-        self.push(phase, None, None, Some(message.to_owned()), None);
+        self.push(phase, None, None, None, Some(message.to_owned()), None);
+    }
+
+    fn report_note(&self, phase: &str, detail: &str) {
+        self.push(phase, None, None, Some(detail.to_owned()), None, None);
     }
 
     fn cancelled(&self) -> bool {
@@ -170,8 +212,10 @@ mod tests {
     fn event(phase: &str) -> TaskEvent {
         TaskEvent {
             phase: phase.to_owned(),
+            ts: 0,
             done: None,
             total: None,
+            detail: None,
             error: None,
             run_id: 0,
             game_id: None,

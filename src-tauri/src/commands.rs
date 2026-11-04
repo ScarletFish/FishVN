@@ -19,7 +19,7 @@ use crate::query::{self, QuerySpec};
 use crate::sessions;
 use crate::settings::{self, AppConfig, ConfigPatch};
 use crate::sync;
-use crate::tasks::{EventLog, Task, Tasks};
+use crate::tasks::{EventLog, LoggedEvent, Task, Tasks};
 use crate::thumbs;
 use crate::types::{
     CharacterHit, Game, GameCharacter, GameListItem, GameMetadata, GamePatch, GamePlayLog,
@@ -337,6 +337,14 @@ pub fn cancel_task(tasks: State<'_, Arc<Tasks>>, task: String) -> bool {
 }
 
 #[tauri::command]
+pub fn events_since(events: State<'_, Arc<Mutex<EventLog>>>, after: u64) -> Vec<LoggedEvent> {
+    match events.lock() {
+        Ok(log) => log.since(after),
+        Err(poison) => poison.into_inner().since(after),
+    }
+}
+
+#[tauri::command]
 pub async fn inspect_path(path: String) -> Result<PathInspect> {
     tauri::async_runtime::spawn_blocking(move || inspect::inspect(&path))
         .await
@@ -458,8 +466,10 @@ pub async fn sync_vndb(
     let result = sync::plan(shared.inner().clone(), rate.inner(), |phase, done, total| {
         let event = TaskEvent {
             phase: phase.to_owned(),
+            ts: crate::tasks::now_ms(),
             done,
             total,
+            detail: None,
             error: None,
             run_id: 0,
             game_id: None,
@@ -517,8 +527,10 @@ pub async fn apply_sync_plan(
         report.pushed = sync::push(conn, http, &token, &labels, &pushes, rate.inner(), |done, total| {
             let event = TaskEvent {
                 phase: "push".to_owned(),
+                ts: crate::tasks::now_ms(),
                 done: Some(done as i64),
                 total: Some(total as i64),
+                detail: None,
                 error: None,
                 run_id: 0,
                 game_id: None,
@@ -558,7 +570,7 @@ pub async fn start_backfill(
             }
         };
         let total = items.len();
-        let run_id = backfill::reset(total as i64);
+        let run_id = backfill::reset(&items);
         tauri::async_runtime::spawn(backfill::run(
             shared.inner().clone(),
             rate.inner().clone(),

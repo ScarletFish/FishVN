@@ -90,6 +90,8 @@ pub struct Args {
     pub game_ids: Option<Vec<String>>,
     #[serde(default)]
     pub spec: Option<Value>,
+    #[serde(default)]
+    pub after: Option<u64>,
 }
 
 impl Args {
@@ -470,8 +472,10 @@ async fn sync_vndb(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Repl
                 commands::SYNC_PROGRESS,
                 TaskEvent {
                     phase: phase.to_owned(),
+                    ts: crate::tasks::now_ms(),
                     done,
                     total,
+                    detail: None,
                     error: None,
                     run_id: 0,
                     game_id: None,
@@ -503,7 +507,7 @@ async fn start_backfill(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> 
         }
     };
     let total = items.len();
-    let run_id = backfill::reset(total as i64);
+    let run_id = backfill::reset(&items);
     tokio::spawn(backfill::run(
         dev.conn.clone(),
         dev.rate.clone(),
@@ -521,6 +525,15 @@ async fn start_backfill(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> 
 
 async fn backfill_status(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
     finish(Ok(backfill::status()))
+}
+
+async fn events_since(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let after = a.after.unwrap_or_default();
+    let entries = match dev.events.lock() {
+        Ok(log) => log.since(after),
+        Err(poison) => poison.into_inner().since(after),
+    };
+    finish(Ok(entries))
 }
 
 async fn pause_backfill(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
@@ -576,6 +589,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/search_vndb", post(search_vndb))
         .route("/fetch_vn_metadata", post(fetch_vn_metadata))
         .route("/cancel_task", post(cancel_task))
+        .route("/events_since", post(events_since))
         .route("/inspect_path", post(inspect_path))
         .route("/scan_dir", post(scan_dir))
         .route("/allow_local_file", post(allow_local_file))
@@ -636,6 +650,7 @@ pub const COMMANDS: &[&str] = &[
     "search_vndb",
     "fetch_vn_metadata",
     "cancel_task",
+    "events_since",
     "inspect_path",
     "scan_dir",
     "allow_local_file",

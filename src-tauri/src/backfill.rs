@@ -39,6 +39,47 @@ pub struct BackfillItem {
     pub vndb_id: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ItemState {
+    #[default]
+    Pending,
+    Active,
+    Ok,
+    Unmatched,
+    Failed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BindSource {
+    Existing,
+    Search,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BackfillCandidate {
+    pub id: String,
+    pub title: String,
+    pub released: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct BackfillItemState {
+    pub game_id: String,
+    pub name: String,
+    pub vndb_id: Option<String>,
+    pub state: ItemState,
+    pub bind_source: Option<BindSource>,
+    pub hit_count: usize,
+    pub hit_title: Option<String>,
+    pub hit_released: Option<String>,
+    pub candidates: Vec<BackfillCandidate>,
+    pub filled: Vec<&'static str>,
+    pub characters: usize,
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize)]
 pub struct BackfillReport {
     pub total: usize,
@@ -60,6 +101,7 @@ pub struct BackfillStatus {
     pub failed: i64,
     pub rate_limited: bool,
     pub run_id: u64,
+    pub items: Vec<BackfillItemState>,
     pub finished: Option<BackfillReport>,
 }
 
@@ -82,17 +124,40 @@ fn set_status(f: impl FnOnce(&mut BackfillStatus)) {
     }
 }
 
-pub fn reset(total: i64) -> u64 {
+pub fn reset(items: &[BackfillItem]) -> u64 {
     let run_id = RUN_ID.fetch_add(1, Ordering::Relaxed) + 1;
+    let states: Vec<BackfillItemState> = items
+        .iter()
+        .map(|item| BackfillItemState {
+            game_id: item.game_id.clone(),
+            name: item.name.clone(),
+            vndb_id: item.vndb_id.clone(),
+            bind_source: Some(if item.vndb_id.is_some() {
+                BindSource::Existing
+            } else {
+                BindSource::Search
+            }),
+            ..Default::default()
+        })
+        .collect();
     if let Ok(mut guard) = status_cell().lock() {
         *guard = Some(BackfillStatus {
             running: true,
-            total,
+            total: items.len() as i64,
             run_id,
+            items: states,
             ..Default::default()
         });
     }
     run_id
+}
+
+fn set_item(game_id: &str, f: impl FnOnce(&mut BackfillItemState)) {
+    set_status(|s| {
+        if let Some(item) = s.items.iter_mut().find(|item| item.game_id == game_id) {
+            f(item);
+        }
+    });
 }
 
 pub fn set_paused(paused: bool) -> BackfillStatus {
@@ -283,18 +348,7 @@ pub fn patch_for(current: Option<&GameMetadata>, sync: &VnSync) -> Option<Metada
         developers: fill(blank_list(&cur.developers), map_developers(vn)),
         staff: fill(blank_list(&cur.staff), map_staff(vn)),
     };
-    let any = patch.alias.is_some()
-        || patch.released.is_some()
-        || patch.rating.is_some()
-        || patch.votecount.is_some()
-        || patch.length_minutes.is_some()
-        || patch.description.is_some()
-        || patch.image_path.is_some()
-        || patch.titles.is_some()
-        || patch.tags.is_some()
-        || patch.developers.is_some()
-        || patch.staff.is_some();
-    any.then_some(patch)
+    (!patch.filled_labels().is_empty()).then_some(patch)
 }
 
 async fn freeze(task: &Task) -> bool {
@@ -325,10 +379,23 @@ async fn wait_resume(task: &Task) {
     set_status(|s| s.paused_idle = false);
 }
 
-fn fail(report: &mut BackfillReport, task: &Task, phase: &str, name: &str, err: &AppError) {
+fn fail(
+    report: &mut BackfillReport,
+    task: &Task,
+    phase: &str,
+    game_id: &str,
+    name: &str,
+    err: &AppError,
+) {
     report.failed += 1;
     task.report_error(phase, &format!("「{name}」{err}"));
-    set_status(|s| s.failed += 1);
+    set_status(|s| {
+        s.failed += 1;
+        if let Some(item) = s.items.iter_mut().find(|item| item.game_id == game_id) {
+            item.state = ItemState::Failed;
+            item.error = Some(err.to_string());
+        }
+    });
 }
 
 async fn resolve_vndb_id(
@@ -354,10 +421,44 @@ async fn resolve_vndb_id(
                         "unmatched",
                         &format!("「{}」在 VNDB 没搜到结果，已跳过", item.name),
                     );
-                    set_status(|s| s.unmatched += 1);
+                    set_status(|s| {
+                        s.unmatched += 1;
+                        if let Some(it) = s.items.iter_mut().find(|it| it.game_id == item.game_id) {
+                            it.state = ItemState::Unmatched;
+                            it.error = Some("VNDB 未搜到结果".to_owned());
+                        }
+                    });
                     return Ok(None);
                 };
-                return Ok(Some(first.id.clone()));
+                let hit_count = hits.len();
+                let first_id = first.id.clone();
+                let first_title = first.title.clone();
+                let first_released = first.released.clone();
+                let candidates: Vec<BackfillCandidate> = hits
+                    .iter()
+                    .take(3)
+                    .map(|hit| BackfillCandidate {
+                        id: hit.id.clone(),
+                        title: hit.title.clone(),
+                        released: hit.released.clone(),
+                    })
+                    .collect();
+                task.report_note(
+                    "resolve",
+                    &format!(
+                        "「{}」命中 {} 条，取 {}《{}》",
+                        item.name, hit_count, first_id, first_title
+                    ),
+                );
+                set_item(&item.game_id, |it| {
+                    it.vndb_id = Some(first_id.clone());
+                    it.bind_source = Some(BindSource::Search);
+                    it.hit_count = hit_count;
+                    it.hit_title = Some(first_title);
+                    it.hit_released = first_released;
+                    it.candidates = candidates;
+                });
+                return Ok(Some(first_id));
             }
             Err(AppError::RateLimited) if rounds > 0 => {
                 rounds -= 1;
@@ -366,7 +467,7 @@ async fn resolve_vndb_id(
                 }
             }
             Err(e) => {
-                fail(report, task, "failed", &item.name, &e);
+                fail(report, task, "failed", &item.game_id, &item.name, &e);
                 return Ok(None);
             }
         }
@@ -411,13 +512,14 @@ async fn backfill_one(
                     report,
                     task,
                     "failed",
+                    &item.game_id,
                     &item.name,
                     &AppError::Conflict("vndb_id 已被其他游戏占用".into()),
                 );
                 return Ok(());
             }
             Err(e) => {
-                fail(report, task, "failed", &item.name, &e);
+                fail(report, task, "failed", &item.game_id, &item.name, &e);
                 return Ok(());
             }
         }
@@ -439,31 +541,53 @@ async fn backfill_one(
             }
             Err(AppError::Cancelled) => return Err(AppError::Cancelled),
             Err(e) => {
-                fail(report, task, "failed", &item.name, &e);
+                fail(report, task, "failed", &item.game_id, &item.name, &e);
                 return Ok(());
             }
         }
     };
+    let vn_title = sync.vn.title.clone();
+    let vn_released = sync.vn.released.clone();
     let stored = tauri::async_runtime::spawn_blocking({
         let conn = conn.clone();
         let game_id = item.game_id.clone();
         move || {
             let guard = crate::db::lock(&conn)?;
             let current = metadata::get(&guard, &game_id)?;
+            let mut filled = Vec::new();
             if let Some(patch) = patch_for(current.as_ref(), &sync) {
+                filled = patch.filled_labels();
                 metadata::upsert(&guard, &game_id, &patch)?;
             }
+            let mut char_count = 0;
             if characters::list(&guard, &game_id)?.is_empty() && !sync.characters.is_empty() {
                 characters::replace_all(&guard, &game_id, &sync.characters)?;
+                char_count = sync.characters.len();
             }
-            Ok::<(), AppError>(())
+            Ok::<(Vec<&'static str>, usize), AppError>((filled, char_count))
         }
     })
     .await
     .map_err(|e| AppError::Upstream(format!("补全任务失败：{e}")))?;
     match stored {
-        Ok(()) => report.fetched += 1,
-        Err(e) => fail(report, task, "failed", &item.name, &e),
+        Ok((filled, char_count)) => {
+            report.fetched += 1;
+            set_item(&item.game_id, |it| {
+                it.state = ItemState::Ok;
+                it.filled = filled;
+                it.characters = char_count;
+                if it.vndb_id.is_none() {
+                    it.vndb_id = Some(vndb_id);
+                }
+                if it.hit_title.is_none() {
+                    it.hit_title = Some(vn_title);
+                }
+                if it.hit_released.is_none() {
+                    it.hit_released = vn_released;
+                }
+            });
+        }
+        Err(e) => fail(report, task, "failed", &item.game_id, &item.name, &e),
     }
     Ok(())
 }
@@ -491,6 +615,7 @@ pub async fn run(
             return report;
         }
     };
+    let mut processed = 0i64;
     for (idx, item) in items.iter().enumerate() {
         if task.cancelled() {
             break;
@@ -499,15 +624,20 @@ pub async fn run(
         if task.cancelled() {
             break;
         }
-        if let Err(AppError::Cancelled) = backfill_one(&task, &conn, &rate, &dir, item, &mut report).await
-        {
+        task.enter(&item.game_id);
+        set_item(&item.game_id, |it| it.state = ItemState::Active);
+        let outcome = backfill_one(&task, &conn, &rate, &dir, item, &mut report).await;
+        task.leave();
+        if let Err(AppError::Cancelled) = outcome {
+            set_item(&item.game_id, |it| it.state = ItemState::Pending);
             break;
         }
         let done = idx as i64 + 1;
+        processed = done;
         set_status(|s| s.done = done);
         task.report_item("backfill", Some(done), Some(total), &item.game_id);
     }
-    finish_run(&task, total, report.fetched as i64, report);
+    finish_run(&task, total, processed, report);
     report
 }
 
@@ -698,15 +828,52 @@ mod tests {
         assert_eq!(patch.alias, Some(Some("Fate/stay night".into())));
     }
 
+    fn items(n: usize) -> Vec<BackfillItem> {
+        (0..n)
+            .map(|i| BackfillItem {
+                game_id: format!("g{i}"),
+                name: format!("游戏{i}"),
+                vndb_id: None,
+            })
+            .collect()
+    }
+
     #[test]
-    fn 暂停开关置位且新任务重置清除() {
-        reset(3);
+    fn 重置按有无绑定二分标注() {
+        let mut list = items(3);
+        list[0].vndb_id = Some("v10".into());
+        list[1].vndb_id = Some("v66".into());
+        reset(&list);
+        let fresh = status();
+        assert_eq!(fresh.items[0].bind_source, Some(BindSource::Existing));
+        assert_eq!(fresh.items[1].bind_source, Some(BindSource::Existing));
+        assert_eq!(fresh.items[2].bind_source, Some(BindSource::Search));
+    }
+
+    #[test]
+    fn 重置建立逐条状态并清掉暂停开关() {
+        reset(&items(3));
         assert!(!status().paused);
+        let fresh = status();
+        assert_eq!(fresh.items.len(), 3);
+        assert_eq!(fresh.total, 3);
+        assert!(fresh.items.iter().all(|it| it.state == ItemState::Pending));
+
+        set_item("g1", |it| {
+            it.state = ItemState::Ok;
+            it.filled = vec!["简介", "封面"];
+        });
+        let after = status();
+        assert_eq!(after.items[0].state, ItemState::Pending);
+        assert_eq!(after.items[1].state, ItemState::Ok);
+        assert_eq!(after.items[1].filled, vec!["简介", "封面"]);
+
         assert!(!set_paused(true).paused_idle);
         assert!(set_paused(true).paused);
         assert!(status().paused);
         assert!(!set_paused(false).paused);
-        reset(1);
+        reset(&items(1));
         assert!(!status().paused);
+        assert_eq!(status().items.len(), 1);
     }
 }

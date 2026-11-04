@@ -204,6 +204,7 @@ fn main() {
             commands::search_vndb,
             commands::fetch_vn_metadata,
             commands::cancel_task,
+            commands::events_since,
             commands::allow_local_file,
             commands::thumbnail,
             commands::tag_dictionary,
