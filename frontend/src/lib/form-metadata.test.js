@@ -44,6 +44,22 @@ test('空串与非数字都归 null', () => {
   expect(toNumber('8.63')).toBe(8.63);
 });
 
+test('字段为 null 时按空值落库', () => {
+  expect(toNumber(null)).toBeNull();
+  const patch = buildMetadataPatch({
+    ...blank(),
+    alias: null,
+    released: null,
+    description: null,
+    coverPath: null,
+    ambiencePath: null,
+  });
+  expect(patch.alias).toBeNull();
+  expect(patch.released).toBeNull();
+  expect(patch.image_path).toBeNull();
+  expect(patch.ambience_path).toBeNull();
+});
+
 test('评分人数取整', () => {
   expect(toInteger('19334')).toBe(19334);
   expect(toInteger('19334.7')).toBe(19334);

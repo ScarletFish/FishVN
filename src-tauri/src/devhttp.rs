@@ -487,7 +487,7 @@ async fn sync_vndb(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Repl
 }
 
 async fn start_backfill(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
-    if backfill::status().running {
+    if backfill::busy() {
         return Err(Fail(StatusCode::CONFLICT, "补全任务正在进行中".into()));
     }
     let items = {
@@ -521,6 +521,23 @@ async fn start_backfill(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> 
         total,
         ..Default::default()
     }))
+}
+
+async fn backfill_single(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let Some(game_id) = a.game_id else {
+        return Err(Fail(StatusCode::BAD_REQUEST, "缺少 game_id".into()));
+    };
+    finish(
+        backfill::fill_single(
+            dev.conn.clone(),
+            dev.rate.clone(),
+            dev.app.clone(),
+            dev.events.clone(),
+            dev.tasks.clone(),
+            game_id,
+        )
+        .await,
+    )
 }
 
 async fn backfill_status(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
@@ -606,6 +623,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/sync_vndb", post(sync_vndb))
         .route("/apply_sync_plan", post(apply_sync_plan))
         .route("/start_backfill", post(start_backfill))
+        .route("/backfill_single", post(backfill_single))
         .route("/backfill_status", post(backfill_status))
         .route("/pause_backfill", post(pause_backfill))
         .route("/resume_backfill", post(resume_backfill))
@@ -667,6 +685,7 @@ pub const COMMANDS: &[&str] = &[
     "sync_vndb",
     "apply_sync_plan",
     "start_backfill",
+    "backfill_single",
     "backfill_status",
     "pause_backfill",
     "resume_backfill",

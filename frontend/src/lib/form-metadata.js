@@ -2,7 +2,7 @@
 import { clampFocal } from './cover-focal.js';
 
 export function toNumber(raw) {
-  const text = raw.trim();
+  const text = (raw ?? '').trim();
   if (!text) return null;
   const value = Number(text);
   return Number.isFinite(value) ? value : null;
@@ -91,16 +91,16 @@ export function buildStatePatch({ status, userRating, notes, playSeconds }) {
 
 export function buildMetadataPatch(fields) {
   return {
-    alias: fields.alias.trim() || null,
-    released: fields.released.trim() || null,
+    alias: (fields.alias ?? '').trim() || null,
+    released: (fields.released ?? '').trim() || null,
     rating: toNumber(fields.rating),
     votecount: toInteger(fields.votecount),
     length_minutes: toInteger(fields.lengthMinutes),
-    description: fields.description.trim() || null,
-    image_path: fields.coverPath.trim() || null,
+    description: (fields.description ?? '').trim() || null,
+    image_path: (fields.coverPath ?? '').trim() || null,
     cover_focal_x: clampFocal(fields.focusX),
     cover_focal_y: clampFocal(fields.focusY),
-    ambience_path: fields.ambiencePath.trim() || null,
+    ambience_path: (fields.ambiencePath ?? '').trim() || null,
     ambience_mode: fields.ambienceMode,
     ambience_plate: fields.ambiencePlate,
     ambience_focal_x: clampFocal(fields.ambienceFocalX),

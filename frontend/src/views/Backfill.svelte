@@ -16,6 +16,7 @@
     backfillCounts,
     backfillVisible,
     backfillItem,
+    mergeBackfillItem,
   } from '../lib/backfill-store.svelte.js';
   import BackfillPanel from '../components/backfill/BackfillPanel.svelte';
   import BackfillLog from '../components/backfill/BackfillLog.svelte';
@@ -361,7 +362,7 @@
               <BackfillPanel
                 item={selected}
                 {running}
-                onretried={reloadBackfill}
+                onchanged={mergeBackfillItem}
                 onclose={() => (backfillStore.selected = null)}
               />
             {/if}

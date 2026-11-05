@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -17,6 +17,31 @@ use crate::vndb::{self, RateLimiter, VnMetadata, VnSync, VnTitle};
 pub const BACKFILL: &str = "vndb-backfill";
 
 static RUN_ID: AtomicU64 = AtomicU64::new(0);
+static SINGLE: AtomicBool = AtomicBool::new(false);
+
+struct SingleGuard;
+
+impl SingleGuard {
+    fn acquire() -> Result<Self> {
+        if SINGLE
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return Err(AppError::Conflict("单条补全正在进行中".into()));
+        }
+        Ok(Self)
+    }
+}
+
+impl Drop for SingleGuard {
+    fn drop(&mut self) {
+        SINGLE.store(false, Ordering::SeqCst);
+    }
+}
+
+pub fn busy() -> bool {
+    status().running || SINGLE.load(Ordering::SeqCst)
+}
 
 const FREEZE: Duration = Duration::from_secs(300);
 const FREEZE_ROUNDS: u32 = 3;
@@ -491,6 +516,35 @@ async fn resolve_vndb_id(
     }
 }
 
+async fn apply_sync(
+    conn: &Arc<Mutex<Connection>>,
+    game_id: &str,
+    sync: &VnSync,
+) -> Result<(Vec<&'static str>, usize)> {
+    tauri::async_runtime::spawn_blocking({
+        let conn = conn.clone();
+        let game_id = game_id.to_owned();
+        let sync = sync.clone();
+        move || {
+            let guard = crate::db::lock(&conn)?;
+            let current = metadata::get(&guard, &game_id)?;
+            let mut filled = Vec::new();
+            if let Some(patch) = patch_for(current.as_ref(), &sync) {
+                filled = patch.filled_labels();
+                metadata::upsert(&guard, &game_id, &patch)?;
+            }
+            let mut char_count = 0;
+            if characters::list(&guard, &game_id)?.is_empty() && !sync.characters.is_empty() {
+                characters::replace_all(&guard, &game_id, &sync.characters)?;
+                char_count = sync.characters.len();
+            }
+            Ok::<(Vec<&'static str>, usize), AppError>((filled, char_count))
+        }
+    })
+    .await
+    .map_err(|e| AppError::Upstream(format!("补全任务失败：{e}")))?
+}
+
 async fn backfill_one(
     task: &Task,
     conn: &Arc<Mutex<Connection>>,
@@ -565,28 +619,7 @@ async fn backfill_one(
     };
     let vn_title = sync.vn.title.clone();
     let vn_released = sync.vn.released.clone();
-    let stored = tauri::async_runtime::spawn_blocking({
-        let conn = conn.clone();
-        let game_id = item.game_id.clone();
-        move || {
-            let guard = crate::db::lock(&conn)?;
-            let current = metadata::get(&guard, &game_id)?;
-            let mut filled = Vec::new();
-            if let Some(patch) = patch_for(current.as_ref(), &sync) {
-                filled = patch.filled_labels();
-                metadata::upsert(&guard, &game_id, &patch)?;
-            }
-            let mut char_count = 0;
-            if characters::list(&guard, &game_id)?.is_empty() && !sync.characters.is_empty() {
-                characters::replace_all(&guard, &game_id, &sync.characters)?;
-                char_count = sync.characters.len();
-            }
-            Ok::<(Vec<&'static str>, usize), AppError>((filled, char_count))
-        }
-    })
-    .await
-    .map_err(|e| AppError::Upstream(format!("补全任务失败：{e}")))?;
-    match stored {
+    match apply_sync(conn, &item.game_id, &sync).await {
         Ok((filled, char_count)) => {
             report.fetched += 1;
             set_item(&item.game_id, |it| {
@@ -607,6 +640,105 @@ async fn backfill_one(
         Err(e) => fail(report, task, "failed", &item.game_id, &item.name, &e),
     }
     Ok(())
+}
+
+fn failed_single(game_id: &str, name: &str, err: &AppError) -> BackfillItemState {
+    let message = err.to_string();
+    set_item(game_id, |it| {
+        it.state = ItemState::Failed;
+        it.error = Some(message.clone());
+    });
+    BackfillItemState {
+        game_id: game_id.to_owned(),
+        name: name.to_owned(),
+        state: ItemState::Failed,
+        error: Some(message),
+        ..Default::default()
+    }
+}
+
+pub async fn fill_single(
+    conn: Arc<Mutex<Connection>>,
+    rate: Arc<RateLimiter>,
+    app: tauri::AppHandle,
+    events: Arc<Mutex<EventLog>>,
+    tasks: Arc<Tasks>,
+    game_id: String,
+) -> Result<BackfillItemState> {
+    if status().running {
+        return Err(AppError::Conflict("补全任务正在进行中".into()));
+    }
+    let _guard = SingleGuard::acquire()?;
+    let item = {
+        let guard = crate::db::lock(&conn)?;
+        items_by_ids(&guard, std::slice::from_ref(&game_id))?
+            .into_iter()
+            .next()
+            .ok_or_else(|| AppError::NotFound("游戏不存在".into()))?
+    };
+    let Some(vndb_id) = item.vndb_id.clone() else {
+        return Err(AppError::Conflict("未绑定 VNDB 作品，先匹配作品".into()));
+    };
+    let dir = crate::data_dir(&app)
+        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    let task = Task::new(BACKFILL, app, events, tasks.register(BACKFILL), 0);
+    task.enter(&game_id);
+    let mut rounds = FREEZE_ROUNDS;
+    let sync = loop {
+        rate.acquire().await;
+        rate.acquire().await;
+        match vndb::fetch_sync(vndb::http(), &vndb_id, &dir, &task).await {
+            Ok(sync) => break sync,
+            Err(AppError::RateLimited) if rounds > 0 => {
+                rounds -= 1;
+                if !freeze(&task).await {
+                    task.leave();
+                    return Err(AppError::Cancelled);
+                }
+            }
+            Err(e) => {
+                task.leave();
+                return Ok(failed_single(&game_id, &item.name, &e));
+            }
+        }
+    };
+    let applied = apply_sync(&conn, &game_id, &sync).await;
+    task.leave();
+    let (filled, char_count) = match applied {
+        Ok(done) => done,
+        Err(e) => return Ok(failed_single(&game_id, &item.name, &e)),
+    };
+    let vn_title = sync.vn.title.clone();
+    let vn_released = sync.vn.released.clone();
+    set_item(&game_id, |it| {
+        it.state = ItemState::Ok;
+        it.filled = filled.clone();
+        it.characters = char_count;
+        it.error = None;
+        if it.vndb_id.is_none() {
+            it.vndb_id = Some(vndb_id.clone());
+        }
+        if it.hit_title.is_none() {
+            it.hit_title = Some(vn_title.clone());
+        }
+        if it.hit_released.is_none() {
+            it.hit_released = vn_released.clone();
+        }
+    });
+    let mut state = status()
+        .items
+        .into_iter()
+        .find(|it| it.game_id == game_id)
+        .unwrap_or_default();
+    state.game_id = game_id;
+    state.state = ItemState::Ok;
+    state.filled = filled;
+    state.characters = char_count;
+    state.error = None;
+    if state.vndb_id.is_none() {
+        state.vndb_id = Some(vndb_id);
+    }
+    Ok(state)
 }
 
 pub async fn run(

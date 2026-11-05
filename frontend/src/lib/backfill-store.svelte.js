@@ -118,3 +118,14 @@ export function backfillItem(status, gameId) {
   if (!gameId) return null;
   return (status?.items ?? []).find((it) => it.game_id === gameId) ?? null;
 }
+
+export function mergeBackfillItem(patch) {
+  const status = backfillStore.status;
+  if (!status || !patch?.game_id) return;
+  const items = status.items ?? [];
+  if (!items.some((it) => it.game_id === patch.game_id)) return;
+  backfillStore.status = {
+    ...status,
+    items: items.map((it) => (it.game_id === patch.game_id ? { ...it, ...patch } : it)),
+  };
+}

@@ -79,6 +79,7 @@ export const api = {
   syncVndb: () => call('sync_vndb'),
   applySyncPlan: (decision) => call('apply_sync_plan', { decision }),
   startBackfill: (gameIds) => call('start_backfill', { gameIds }),
+  backfillSingle: (gameId) => call('backfill_single', { gameId }),
   backfillStatus: () => call('backfill_status'),
   eventsSince: (after) => call('events_since', { after }),
   pauseBackfill: () => call('pause_backfill'),

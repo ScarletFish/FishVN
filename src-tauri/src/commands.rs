@@ -559,7 +559,7 @@ pub async fn start_backfill(
     game_ids: Option<Vec<String>>,
 ) -> Result<backfill::BackfillReport> {
     traced("start_backfill", || {
-        if backfill::status().running {
+        if backfill::busy() {
             return Err(AppError::Conflict("补全任务正在进行中".into()));
         }
         let items = {
@@ -585,6 +585,26 @@ pub async fn start_backfill(
             ..Default::default()
         })
     })
+}
+
+#[tauri::command]
+pub async fn backfill_single(
+    app: tauri::AppHandle,
+    shared: State<'_, Arc<Mutex<Connection>>>,
+    rate: State<'_, Arc<RateLimiter>>,
+    events: State<'_, Arc<Mutex<EventLog>>>,
+    tasks: State<'_, Arc<Tasks>>,
+    game_id: String,
+) -> Result<backfill::BackfillItemState> {
+    backfill::fill_single(
+        shared.inner().clone(),
+        rate.inner().clone(),
+        app,
+        events.inner().clone(),
+        tasks.inner().clone(),
+        game_id,
+    )
+    .await
 }
 
 #[tauri::command]

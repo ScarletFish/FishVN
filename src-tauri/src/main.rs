@@ -215,6 +215,7 @@ fn main() {
             commands::sync_vndb,
             commands::apply_sync_plan,
             commands::start_backfill,
+            commands::backfill_single,
             commands::backfill_status,
             commands::pause_backfill,
             commands::resume_backfill,
