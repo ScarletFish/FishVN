@@ -15,20 +15,19 @@
   import { BACKFILL_REFRESH } from '../lib/task-events.js';
   import { toast } from '../lib/toast.svelte.js';
   import { backfillSummaryText } from '../lib/backfill-summary.js';
-  import { createDockState, reduce, seedFromStatus, markFinished, dockView } from '../lib/dock-state.js';
+  import { createDockState, reduce, seedFromStatus, markFinished, dockVisible } from '../lib/dock-state.js';
 
   let { hidden = false, visible = $bindable(false), onopen } = $props();
 
-  let collapsedRun = $state(0);
   let closedRun = $state(0);
   let dock = $state(createDockState());
   let unsub = null;
   let hideTimer = null;
 
-  let view = $derived(dockView(dock, { collapsedRun, closedRun, hidden }, false));
+  let shown = $derived(dockVisible(dock, { closedRun, hidden }));
 
   $effect(() => {
-    visible = view.form !== 'hidden';
+    visible = shown;
   });
 
   onMount(async () => {
@@ -49,10 +48,7 @@
 
   function onEvent(ev) {
     const freshRun = Boolean(ev?.run_id) && ev.run_id !== dock.runId;
-    if (freshRun) {
-      collapsedRun = 0;
-      closedRun = 0;
-    }
+    if (freshRun) closedRun = 0;
     const prevDone = freshRun ? 0 : dock.done;
     dock = reduce(dock, ev);
     if (ev?.phase === 'backfill' && dock.done > prevDone) notifyLibraryItemUpdated(ev.game_id);
@@ -87,7 +83,6 @@
   }
 
   async function refresh() {
-    collapsedRun = 0;
     closedRun = 0;
     await syncStatus();
   }
@@ -107,12 +102,10 @@
   function autoHide() {
     hideTimer = null;
     closedRun = dock.runId;
-    collapsedRun = 0;
   }
 
   function open() {
     clearHideTimer();
-    collapsedRun = dock.runId;
     if (!dock.running) closedRun = dock.runId;
     onopen?.();
   }
@@ -127,9 +120,9 @@
   }
 </script>
 
-{#if view.form !== 'hidden'}
+{#if shown}
   <div
-    class="task-dock task-dock--handle"
+    class="task-dock"
     use:portal
     transition:fly={{ y: 8, duration: 200, easing: cubicOut }}
   >
