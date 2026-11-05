@@ -588,8 +588,11 @@ pub async fn start_backfill(
 }
 
 #[tauri::command]
-pub fn backfill_status() -> backfill::BackfillStatus {
-    backfill::status()
+pub fn backfill_status(
+    shared: State<'_, Arc<Mutex<Connection>>>,
+) -> Result<backfill::BackfillStatus> {
+    let guard = lock(&shared)?;
+    backfill::status_or_plan(&guard)
 }
 
 #[tauri::command]

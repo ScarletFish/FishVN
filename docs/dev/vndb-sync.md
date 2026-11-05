@@ -153,4 +153,6 @@ FishVN 是本地库，不是 VNDB 的附属：同步只取对本地有用的数�
 - 逐条状态挂在 `BackfillStatus.items`：开跑时按传入条目建表，跑中原地更新，跑完保留，因此换视图或刷新后能还原整张表而不必重拉。每条带 `state`（pending / active / ok / unmatched / failed）、`bind_source`、`hit_count`、`hit_title`、`hit_released`、`candidates`（前三条）、`filled`（本次实际写入的字段名）、`characters`、`error`。
 - `bind_source` 是二分而非来源追踪：运行前 `vndb_id` 已有值记为 `existing`，本次不搜索，不存在按名猜错；没有值的记为 `search`，只能按名搜一条。`existing` 的结局只有成功与拉取失败，不会出现未匹配。
 - 事件载荷补了毫秒 `ts` 与 `detail`；`resolve` 阶段写一条取证行（命中几条、取了哪一条），阶段事件（meta / cover / characters / images）自动携带当前条目的 `game_id`；`events_since(after)` 按序号增量取，环形日志容量 2048 条。
+- 日志流的阶段名沿用游戏编辑表单的分区，不另造名词：`meta` → 基本信息、`cover` → 封面、`characters` → 角色、`images` → 立绘，与补丁写入的字段属于同一套叫法。`meta` 一次请求覆盖表单的基本信息、扩展信息与图片与标签三页，取最前面的分区名，detail 不重复描述范围。
+- 日志流按条目折叠：同一部作品连续的 `images` 进度只占一行，数字原地递增（`0/8` → `8/8`），否则一部作品会刷出十几行；带 `error` 的进度不参与折叠，单独成行。
 - 图片合规提示同第 8 节。

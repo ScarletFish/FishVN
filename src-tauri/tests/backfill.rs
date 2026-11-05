@@ -1,7 +1,7 @@
 mod common;
 
 use common::Db;
-use fishvn::backfill::{items_by_ids, patch_for, scan};
+use fishvn::backfill::{BindSource, ItemState, items_by_ids, patch_for, reset, scan, status_or_plan};
 use fishvn::games::create_game;
 use fishvn::metadata;
 use fishvn::types::{MetadataPatch, NewGame};
@@ -78,6 +78,40 @@ fn 扫描带上未绑定作品由匹配阶段补_id() {
     let item = items.iter().find(|i| i.game_id == id).expect("未绑定也要收");
     assert_eq!(item.name, "没绑 VNDB");
     assert_eq!(item.vndb_id, None);
+}
+
+#[test]
+fn 没跑过补全时状态里先摆出计划清单() {
+    let db = Db::new();
+    let bare = new_game(&db, "啥都没有");
+    metadata::upsert(&db, &bare, &full_meta_patch()).unwrap();
+    fishvn::characters::replace_all(
+        &db,
+        &bare,
+        &[fishvn::types::GameCharacter {
+            id: "c1".into(),
+            name: Some("角色".into()),
+            sort_order: 0,
+            ..Default::default()
+        }],
+    )
+    .unwrap();
+    let pending = new_game(&db, "缺东西");
+
+    let plan = status_or_plan(&db).unwrap();
+    assert!(!plan.running);
+    assert_eq!(plan.total, 1);
+    let ids: Vec<&str> = plan.items.iter().map(|i| i.game_id.as_str()).collect();
+    assert_eq!(ids, vec![pending.as_str()]);
+    assert_eq!(plan.items[0].state, ItemState::Pending);
+    assert_eq!(plan.items[0].bind_source, Some(BindSource::Search));
+
+    let run_items = items_by_ids(&db, std::slice::from_ref(&bare)).unwrap();
+    reset(&run_items);
+    let live = status_or_plan(&db).unwrap();
+    assert_eq!(live.items.len(), 1);
+    assert_eq!(live.items[0].game_id, bare);
+    assert_eq!(live.items[0].bind_source, Some(BindSource::Search));
 }
 
 #[test]

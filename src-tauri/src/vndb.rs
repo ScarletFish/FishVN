@@ -115,7 +115,7 @@ pub async fn fetch_sync(
     if progress.cancelled() {
         return Err(AppError::Cancelled);
     }
-    progress.report("characters", None, None);
+    progress.report_note("characters", &format!("{} 位", rows.len()));
     let characters = characters::map_characters(
         rows,
         vn.va.as_deref().unwrap_or_default(),

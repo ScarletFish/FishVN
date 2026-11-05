@@ -523,8 +523,8 @@ async fn start_backfill(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> 
     }))
 }
 
-async fn backfill_status(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
-    finish(Ok(backfill::status()))
+async fn backfill_status(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
+    run(&dev, backfill::status_or_plan)
 }
 
 async fn events_since(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {

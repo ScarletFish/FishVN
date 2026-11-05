@@ -33,7 +33,7 @@
   import { notifyLibraryChanged } from '../lib/library-events.js';
   import { openExternal } from '../lib/open-external.js';
 
-  let { open = $bindable(false) } = $props();
+  let { open = $bindable(false), onbackfill } = $props();
 
   let tab = $state('appearance');
   let themeMode = $state(getThemeMode());
@@ -500,6 +500,8 @@
       if (!ok) return;
       await api.startBackfill(created);
       notifyBackfillRefresh();
+      open = false;
+      onbackfill?.();
     } catch (err) {
       toast(err.message, 'error');
     }

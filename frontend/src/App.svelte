@@ -31,6 +31,7 @@
   import Titlebar from './components/chrome/Titlebar.svelte';
   import Toaster from './components/Toaster.svelte';
   import MyList from './views/MyList.svelte';
+  import Backfill from './views/Backfill.svelte';
   import Query from './views/Query.svelte';
   import Dashboard from './views/Dashboard.svelte';
   import Stats from './views/Stats.svelte';
@@ -109,6 +110,11 @@
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>',
     },
     {
+      id: 'backfill',
+      label: t('nav.backfill'),
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
+    },
+    {
       id: 'stats',
       label: t('nav.stats'),
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>',
@@ -156,6 +162,7 @@
   let listFilter = $state('all');
   let dashScroll = $state(0);
   let queryScroll = $state(0);
+  let backfillScroll = $state(0);
 
   function saveViewScroll() {
     if (detailId !== null) return;
@@ -164,6 +171,7 @@
     if (current === 'mylist') listScroll = viewport.scrollTop;
     else if (current === 'home') dashScroll = viewport.scrollTop;
     else if (current === 'query') queryScroll = viewport.scrollTop;
+    else if (current === 'backfill') backfillScroll = viewport.scrollTop;
   }
 
   function openDetail(id, autostart = false, characterId = null) {
@@ -218,13 +226,11 @@
       {:else if current === 'home'}
         <Dashboard onopen={openDetail} scroll={dashScroll} />
       {:else if current === 'mylist'}
-        <MyList
-          onopen={(id) => openDetail(id)}
-          scroll={listScroll}
-          bind:filter={listFilter}
-        />
+        <MyList onopen={(id) => openDetail(id)} scroll={listScroll} bind:filter={listFilter} />
       {:else if current === 'query'}
         <Query onopen={(id, characterId) => openDetail(id, false, characterId)} scroll={queryScroll} />
+      {:else if current === 'backfill'}
+        <Backfill scroll={backfillScroll} />
       {:else if current === 'stats'}
         <Stats />
       {:else}
@@ -238,6 +244,10 @@
   </div>
 </div>
 
-<TaskDock bind:visible={dockVisible} hidden={detailId !== null} />
-<SettingsDialog bind:open={settingsOpen} />
+<TaskDock
+  bind:visible={dockVisible}
+  hidden={detailId !== null || current === 'backfill'}
+  onopen={() => (current = 'backfill')}
+/>
+<SettingsDialog bind:open={settingsOpen} onbackfill={() => (current = 'backfill')} />
 <Toaster />

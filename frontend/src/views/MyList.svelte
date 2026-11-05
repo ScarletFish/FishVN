@@ -14,7 +14,6 @@
     onLibraryItemsThrottled,
     LIBRARY_CHANGED,
   } from '../lib/library-events.js';
-  import { notifyBackfillRefresh } from '../lib/task-events.js';
   import GameCard from '../components/GameCard.svelte';
   import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
@@ -34,7 +33,6 @@
   let addMenuOpen = $state(false);
   let scanOpen = $state(false);
   let scanPath = $state('');
-  let backfillRunning = $state(false);
 
   function openForm(id) {
     prefill = null;
@@ -67,17 +65,6 @@
     if (!dir) return;
     scanPath = dir;
     scanOpen = true;
-  }
-
-  async function startBackfill() {
-    backfillRunning = true;
-    try {
-      await api.startBackfill();
-      notifyBackfillRefresh();
-    } catch (e) {
-      backfillRunning = false;
-      toast(e.message, 'error');
-    }
   }
 
   async function openPrefilled(path) {
@@ -125,24 +112,14 @@
     restored = true;
   }
 
-  onMount(async () => {
+  onMount(() => {
     load();
-    window.addEventListener(LIBRARY_CHANGED, onLibraryChanged);
+    window.addEventListener(LIBRARY_CHANGED, load);
     unwatchItems = onLibraryItemsThrottled(load);
-    try {
-      backfillRunning = (await api.backfillStatus())?.running ?? false;
-    } catch {}
   });
 
-  async function onLibraryChanged() {
-    try {
-      backfillRunning = (await api.backfillStatus())?.running ?? false;
-    } catch {}
-    load();
-  }
-
   onDestroy(() => {
-    window.removeEventListener(LIBRARY_CHANGED, onLibraryChanged);
+    window.removeEventListener(LIBRARY_CHANGED, load);
     unwatchItems?.();
   });
 
@@ -217,19 +194,6 @@
   <header class="view-header">
     <h1>{t('mylist.title')}</h1>
     <div class="view-header-right">
-      <button
-        type="button"
-        class="mylist-backfill"
-        disabled={backfillRunning}
-        onclick={startBackfill}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        {t('mylist.backfill')}
-      </button>
       <Menu
         bind:open={addMenuOpen}
         label={t('mylist.add')}

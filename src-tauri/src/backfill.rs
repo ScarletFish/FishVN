@@ -124,9 +124,8 @@ fn set_status(f: impl FnOnce(&mut BackfillStatus)) {
     }
 }
 
-pub fn reset(items: &[BackfillItem]) -> u64 {
-    let run_id = RUN_ID.fetch_add(1, Ordering::Relaxed) + 1;
-    let states: Vec<BackfillItemState> = items
+fn pending_states(items: &[BackfillItem]) -> Vec<BackfillItemState> {
+    items
         .iter()
         .map(|item| BackfillItemState {
             game_id: item.game_id.clone(),
@@ -139,7 +138,25 @@ pub fn reset(items: &[BackfillItem]) -> u64 {
             }),
             ..Default::default()
         })
-        .collect();
+        .collect()
+}
+
+pub fn status_or_plan(conn: &Connection) -> Result<BackfillStatus> {
+    let current = status();
+    if !current.items.is_empty() {
+        return Ok(current);
+    }
+    let items = scan(conn)?;
+    Ok(BackfillStatus {
+        total: items.len() as i64,
+        items: pending_states(&items),
+        ..Default::default()
+    })
+}
+
+pub fn reset(items: &[BackfillItem]) -> u64 {
+    let run_id = RUN_ID.fetch_add(1, Ordering::Relaxed) + 1;
+    let states = pending_states(items);
     if let Ok(mut guard) = status_cell().lock() {
         *guard = Some(BackfillStatus {
             running: true,
