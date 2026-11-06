@@ -156,6 +156,28 @@ pub fn list_backups(dir: &Path) -> Result<Vec<BackupMeta>> {
     Ok(out)
 }
 
+struct Reopen<'a> {
+    conn: &'a mut Connection,
+    dir: &'a Path,
+    armed: bool,
+}
+
+impl Reopen<'_> {
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for Reopen<'_> {
+    fn drop(&mut self) {
+        if self.armed {
+            if let Ok(conn) = db::open(self.dir) {
+                *self.conn = conn;
+            }
+        }
+    }
+}
+
 pub fn restore_backup(conn: &Arc<Mutex<Connection>>, dir: &Path, id: &str) -> Result<()> {
     if !id_valid(id) {
         return Err(crate::error::AppError::BadRequest("备份标识非法".into()));
@@ -166,14 +188,28 @@ pub fn restore_backup(conn: &Arc<Mutex<Connection>>, dir: &Path, id: &str) -> Re
     }
 
     let mut guard = db::lock(conn)?;
-    *guard = Connection::open_in_memory()?;
+    let mut held = Reopen {
+        conn: &mut guard,
+        dir,
+        armed: true,
+    };
+    *held.conn = Connection::open_in_memory()?;
+
+    restore_files(dir, &src)?;
+
+    *held.conn = db::open(dir)?;
+    held.disarm();
+    Ok(())
+}
+
+fn restore_files(dir: &Path, src: &Path) -> Result<()> {
+    let tmp = dir.join(format!("{}.restore-tmp", db::DB_FILE));
+    let _ = fs::remove_file(&tmp);
+    fs::copy(src.join(db::DB_FILE), &tmp)?;
 
     let live_db = dir.join(db::DB_FILE);
     let _ = fs::remove_file(dir.join(format!("{}-wal", db::DB_FILE)));
     let _ = fs::remove_file(dir.join(format!("{}-shm", db::DB_FILE)));
-    let tmp = dir.join(format!("{}.restore-tmp", db::DB_FILE));
-    let _ = fs::remove_file(&tmp);
-    fs::copy(src.join(db::DB_FILE), &tmp)?;
     fs::rename(&tmp, &live_db)?;
 
     let backup_covers = src.join("covers");
@@ -190,8 +226,6 @@ pub fn restore_backup(conn: &Arc<Mutex<Connection>>, dir: &Path, id: &str) -> Re
         fs::copy(&backup_cfg, dir.join("config.json"))?;
         settings::init(dir);
     }
-
-    *guard = db::open(dir)?;
     Ok(())
 }
 

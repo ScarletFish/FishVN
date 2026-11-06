@@ -846,6 +846,7 @@ fn 计划缓存_ttl_内命中_过期即失效() {
 
     let at = store_plan(&SyncPlan::default());
     assert!(cached_plan_at(at).is_some(), "刚落库的计划应命中");
+    assert!(cached_plan_at(at - 1).is_none(), "时钟回拨时旧计划作废");
     assert!(cached_plan_at(at + 59).is_some(), "TTL 边缘内仍命中");
     assert!(cached_plan_at(at + 60).is_none(), "超过 TTL 必须重新拉取");
 

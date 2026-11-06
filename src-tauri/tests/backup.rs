@@ -70,6 +70,22 @@ fn 非法标识被拒绝且缺失备份报未找到() {
 }
 
 #[test]
+fn 还原中途失败后磁盘库与共享连接都不受损() {
+    let shared = common::Shared::new();
+    let dir = shared.dir().to_path_buf();
+
+    common::new_game(&shared, "还原前");
+    let meta = backup::create_backup(&shared.conn, &dir).expect("建备份不该失败");
+    fs::remove_file(dir.join("backups").join(&meta.id).join(db::DB_FILE))
+        .expect("删备份库不该失败");
+
+    assert!(backup::restore_backup(&shared.conn, &dir, &meta.id).is_err());
+    assert_eq!(game_count(&shared), 1, "失败后连接不能停在空内存库");
+    common::new_game(&shared, "失败后仍能写");
+    assert_eq!(game_count(&shared), 2, "失败后磁盘库仍可写");
+}
+
+#[test]
 fn 超过保留天数的旧备份在新建时被清掉() {
     let shared = common::Shared::new();
     let dir = shared.dir().to_path_buf();

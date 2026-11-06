@@ -7,7 +7,7 @@ use fishvn::fsinfo::resolve_path;
 use fishvn::games::{delete_game, get_game_state, update_game_state};
 use fishvn::installations::{
     create_installation, delete_installation, get_installation, list_installations,
-    save_installations, update_installation,
+    save_installations, update_installation, validate_installation_inputs,
 };
 use fishvn::types::{
     Installation, InstallationInput, InstallationPatch, MagpieMode, NewInstallation, StatePatch,
@@ -644,34 +644,23 @@ fn 整包保存撞别作品的目录返回_conflict() {
 }
 
 #[test]
-fn 整包保存同批重复目录返回_conflict() {
-    let db = Db::new();
-    let mut tree = Tree::new();
-    let game_id = new_game(&db, "重复目录");
-    let dir = tree.make_dir(&[("a.exe", "a")]);
-
-    let err = save_installations(&db, &game_id, &[fresh(&dir), fresh(&dir)]).unwrap_err();
+fn 同批重复目录在校验阶段返回_conflict() {
+    let dir = "C:\\games\\a";
+    let err = validate_installation_inputs(&[
+        input(None, dir.into(), None),
+        input(None, dir.into(), None),
+    ])
+    .unwrap_err();
     assert_eq!(variant(&err), "Conflict");
     assert!(message(&err).contains("重复添加"));
 }
 
 #[test]
-fn 整包保存重复出现同一安装项返回_bad_request() {
-    let db = Db::new();
-    let mut tree = Tree::new();
-    let game_id = new_game(&db, "重复项");
-    let one = tree.make_dir(&[("a.exe", "a")]);
-    let two = tree.make_dir(&[("b.exe", "b")]);
-    let saved = save_installations(&db, &game_id, &[fresh(&one), fresh(&two)]).expect("首次失败");
-
-    let err = save_installations(
-        &db,
-        &game_id,
-        &[
-            kept(&saved[0]),
-            input(Some(saved[0].id.clone()), path_str(&two), None),
-        ],
-    )
+fn 重复出现同一安装项在校验阶段返回_bad_request() {
+    let err = validate_installation_inputs(&[
+        input(Some("i1".into()), "C:\\games\\a".into(), None),
+        input(Some("i1".into()), "C:\\games\\b".into(), None),
+    ])
     .unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
     assert!(message(&err).contains("重复出现"));
@@ -717,27 +706,14 @@ fn 整包保存带不存在的安装_id返回_not_found() {
 }
 
 #[test]
-fn 整包保存缺目录或空_id返回_bad_request() {
-    let db = Db::new();
-    let mut tree = Tree::new();
-    let game_id = new_game(&db, "参数缺失");
-    let dir = tree.make_dir(&[("a.exe", "a")]);
-
-    let blank_dir = save_installations(
-        &db,
-        &game_id,
-        &[input(None, "   ".into(), None)],
-    )
-    .unwrap_err();
+fn 缺目录或空_id在校验阶段返回_bad_request() {
+    let blank_dir = validate_installation_inputs(&[input(None, "   ".into(), None)]).unwrap_err();
     assert_eq!(variant(&blank_dir), "BadRequest");
     assert_eq!(message(&blank_dir), "dir_path 必填");
 
-    let blank_id = save_installations(
-        &db,
-        &game_id,
-        &[input(Some("  ".into()), path_str(&dir), None)],
-    )
-    .unwrap_err();
+    let blank_id =
+        validate_installation_inputs(&[input(Some("  ".into()), "C:\\games\\a".into(), None)])
+            .unwrap_err();
     assert_eq!(variant(&blank_id), "BadRequest");
     assert!(message(&blank_id).contains("空串"));
 }
@@ -765,18 +741,13 @@ fn 整包保存新目录不存在返回_bad_request() {
 }
 
 #[test]
-fn 整包保存入口越出目录返回_bad_request() {
-    let db = Db::new();
-    let mut tree = Tree::new();
-    let game_id = new_game(&db, "越级入口");
-    let dir = tree.make_dir(&[("a.exe", "a")]);
-
+fn 入口越出目录在校验阶段返回_bad_request() {
     for bad in ["", "../outside.exe", "sub/../../up.exe"] {
-        let err = save_installations(
-            &db,
-            &game_id,
-            &[input(None, path_str(&dir), Some(bad.into()))],
-        )
+        let err = validate_installation_inputs(&[input(
+            None,
+            "C:\\games\\a".into(),
+            Some(bad.into()),
+        )])
         .unwrap_err();
         assert_eq!(variant(&err), "BadRequest", "入口 {bad:?} 应被拒");
     }

@@ -109,16 +109,12 @@ fn patch改user_rating与notes() {
     assert_eq!(state.user_rating, Some(8.5));
     assert_eq!(state.notes.as_deref(), Some("通关了"));
 
-    let cleared = update_game_state(
-        &db,
-        &id,
-        &StatePatch {
-            user_rating: Some(None),
-            notes: Some(None),
-            ..Default::default()
-        },
-    )
-    .expect("清空失败");
+    let clear: StatePatch =
+        serde_json::from_str(r#"{"user_rating":null,"notes":null}"#).expect("null 应解析为清空");
+    assert_eq!(clear.user_rating, Some(None));
+    assert_eq!(clear.notes, Some(None));
+
+    let cleared = update_game_state(&db, &id, &clear).expect("清空失败");
     assert_eq!(cleared.user_rating, None);
     assert_eq!(cleared.notes, None);
 }

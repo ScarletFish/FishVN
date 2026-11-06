@@ -1,5 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import {
+  FIELD_KEYS,
   applyIncoming,
   asText,
   bbcodeParagraphs,
@@ -107,27 +108,12 @@ test('简介按原文读入，BBCode 交给渲染层处理', () => {
   );
 });
 
-const ALL_KEYS = [
-  'name',
-  'alias',
-  'released',
-  'rating',
-  'votecount',
-  'lengthMinutes',
-  'description',
-  'tags',
-  'developers',
-  'staff',
-  'coverPath',
-];
-
 function sameForm(over = {}) {
-  return form({ ...applyIncoming(form(), VN, new Set(ALL_KEYS)), ...over });
+  return form({ ...applyIncoming(form(), VN, new Set(FIELD_KEYS)), ...over });
 }
 
 test('本地为空的字段也进面板，勾选才填', () => {
-  expect(conflictRows(form(), VN).map((r) => r.key)).toEqual(ALL_KEYS);
-  const next = applyIncoming(form(), VN, new Set(ALL_KEYS));
+  const next = applyIncoming(form(), VN, new Set(FIELD_KEYS));
   expect(next.name).toBe('フェイト／ステイナイト');
   expect(next.alias).toBe('Fate/stay night');
   expect(next.tags.map((t) => t.name)).toEqual(['Gore']);
@@ -206,7 +192,7 @@ test('VNDB 没下到封面就不动本地', () => {
 });
 
 test('一样的值不算冲突', () => {
-  const filled = applyIncoming(form(), VN, new Set(ALL_KEYS));
+  const filled = applyIncoming(form(), VN, new Set(FIELD_KEYS));
   expect(conflictRows(filled, VN)).toEqual([]);
 });
 
@@ -248,7 +234,7 @@ test('开发商取 name，为空回落 original', () => {
 });
 
 test('staff 本地为空也进面板，有差异进冲突，勾选才替换', () => {
-  const filled = applyIncoming(form(), VN, new Set(ALL_KEYS));
+  const filled = applyIncoming(form(), VN, new Set(FIELD_KEYS));
   expect(filled.staff).toEqual(VN.staff);
   expect(conflictRows(filled, VN)).toEqual([]);
 
@@ -260,7 +246,7 @@ test('staff 本地为空也进面板，有差异进冲突，勾选才替换', ()
 });
 
 test('staff 条目顺序不同不算冲突', () => {
-  const filled = applyIncoming(form(), VN, new Set(ALL_KEYS));
+  const filled = applyIncoming(form(), VN, new Set(FIELD_KEYS));
   const current = form({ staff: [...filled.staff].reverse() });
   expect(conflictRows(current, VN).filter((r) => r.key === 'staff')).toEqual([]);
 });

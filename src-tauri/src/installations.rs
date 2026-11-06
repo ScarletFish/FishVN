@@ -357,6 +357,10 @@ pub fn save_installations(
     list_installations(conn, Some(game_id))
 }
 
+pub fn validate_installation_inputs(entries: &[InstallationInput]) -> Result<()> {
+    validate_drafts(entries).map(|_| ())
+}
+
 fn validate_drafts(entries: &[InstallationInput]) -> Result<Vec<Draft>> {
     let mut out = Vec::with_capacity(entries.len());
     let mut targets: HashSet<(String, String)> = HashSet::with_capacity(entries.len());

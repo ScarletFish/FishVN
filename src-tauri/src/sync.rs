@@ -425,6 +425,13 @@ fn prefer_for(mode: VndbSyncMode, local_at: Option<i64>, remote_at: Option<i64>)
     }
 }
 
+fn update_one(tx: &Connection, sql: &str, values: impl rusqlite::Params) -> Result<()> {
+    if tx.execute(sql, values)? == 0 {
+        return Err(AppError::NotFound("游戏不存在".into()));
+    }
+    Ok(())
+}
+
 pub fn apply(conn: &Connection, decision: &PlanDecision) -> Result<ApplyReport> {
     let tx = conn.unchecked_transaction()?;
     let mut report = ApplyReport::default();
@@ -447,7 +454,8 @@ pub fn apply(conn: &Connection, decision: &PlanDecision) -> Result<ApplyReport> 
     }
     for u in &decision.updates {
         if let Some(status) = u.status {
-            tx.execute(
+            update_one(
+                &tx,
                 "UPDATE user_game_state
                  SET status = ?, synced_status = ?, state_modified_at = ?
                  WHERE game_id = ?",
@@ -456,7 +464,8 @@ pub fn apply(conn: &Connection, decision: &PlanDecision) -> Result<ApplyReport> 
             report.updated += 1;
         }
         if let Some(rating) = u.rating {
-            tx.execute(
+            update_one(
+                &tx,
                 "UPDATE user_game_state
                  SET user_rating = ?, synced_rating = ?, state_modified_at = ?
                  WHERE game_id = ?",
@@ -467,40 +476,38 @@ pub fn apply(conn: &Connection, decision: &PlanDecision) -> Result<ApplyReport> 
     }
     for a in &decision.aligns {
         if let Some(status) = a.status {
-            tx.execute(
+            update_one(
+                &tx,
                 "UPDATE user_game_state SET synced_status = ? WHERE game_id = ?",
                 params![status.as_str(), a.game_id],
             )?;
         }
         if let Some(rating) = a.rating {
-            tx.execute(
+            update_one(
+                &tx,
                 "UPDATE user_game_state SET synced_rating = ? WHERE game_id = ?",
                 params![rating, a.game_id],
             )?;
         }
     }
     for d in &decision.statuses {
-        let changes = tx.execute(
+        update_one(
+            &tx,
             "UPDATE user_game_state
              SET status = ?, synced_status = ?, state_modified_at = ?
              WHERE game_id = ?",
             params![d.status.as_str(), d.synced.as_str(), crate::now(), d.game_id],
         )?;
-        if changes == 0 {
-            return Err(AppError::NotFound("游戏不存在".into()));
-        }
         report.resolved += 1;
     }
     for d in &decision.ratings {
-        let changes = tx.execute(
+        update_one(
+            &tx,
             "UPDATE user_game_state
              SET user_rating = ?, synced_rating = ?, state_modified_at = ?
              WHERE game_id = ?",
             params![d.rating, d.synced, crate::now(), d.game_id],
         )?;
-        if changes == 0 {
-            return Err(AppError::NotFound("游戏不存在".into()));
-        }
         report.resolved += 1;
     }
     tx.commit()?;
@@ -636,7 +643,7 @@ pub fn cached_plan() -> Option<SyncPlan> {
 pub fn cached_plan_at(now: i64) -> Option<SyncPlan> {
     let guard = plan_cache().lock().ok()?;
     let (at, plan) = guard.as_ref()?;
-    (now - *at < PLAN_TTL_SECS).then(|| plan.clone())
+    (now >= *at && now.saturating_sub(*at) < PLAN_TTL_SECS).then(|| plan.clone())
 }
 
 pub fn store_plan(plan: &SyncPlan) -> i64 {

@@ -136,6 +136,8 @@ const FIELDS = [
   },
 ];
 
+export const FIELD_KEYS = FIELDS.map((f) => f.key);
+
 export function conflictRows(current, incoming) {
   return FIELDS.filter((f) => {
     const value = f.read(incoming);

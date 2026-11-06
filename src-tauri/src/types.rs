@@ -149,24 +149,31 @@ pub struct GameListItem {
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
 pub struct GamePatch {
     pub name: Option<String>,
+    #[serde(default, deserialize_with = "double_option")]
     pub vndb_id: Option<Option<String>>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
 pub struct StatePatch {
     pub status: Option<Status>,
+    #[serde(default, deserialize_with = "double_option")]
     pub user_rating: Option<Option<f64>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub notes: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub default_installation_id: Option<Option<String>>,
     pub play_seconds: Option<i64>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
 pub struct InstallationPatch {
+    #[serde(default, deserialize_with = "double_option")]
     pub game_id: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub entry_path: Option<Option<String>>,
     pub le_launch: Option<bool>,
     pub magpie: Option<MagpieMode>,
+    #[serde(default, deserialize_with = "double_option")]
     pub launch_args: Option<Option<String>>,
 }
 

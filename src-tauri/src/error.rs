@@ -16,25 +16,26 @@ pub enum AppError {
 }
 
 impl AppError {
-    pub fn kind(&self) -> &'static str {
+    fn meta(&self) -> (&'static str, bool) {
         match self {
-            Self::BadRequest(_) => "input",
-            Self::NotFound(_) => "not-found",
-            Self::Conflict(_) => "conflict",
-            Self::RateLimited => "rate-limited",
-            Self::Upstream(_) => "upstream",
-            Self::Cancelled => "cancelled",
-            Self::Db(_) => "db",
-            Self::Json(_) => "json",
-            Self::Io(_) => "io",
+            Self::BadRequest(_) => ("input", false),
+            Self::NotFound(_) => ("not-found", false),
+            Self::Conflict(_) => ("conflict", false),
+            Self::RateLimited => ("rate-limited", false),
+            Self::Upstream(_) => ("upstream", true),
+            Self::Cancelled => ("cancelled", false),
+            Self::Db(_) => ("db", true),
+            Self::Json(_) => ("json", true),
+            Self::Io(_) => ("io", true),
         }
     }
 
+    pub fn kind(&self) -> &'static str {
+        self.meta().0
+    }
+
     pub fn is_fault(&self) -> bool {
-        matches!(
-            self,
-            Self::Upstream(_) | Self::Db(_) | Self::Json(_) | Self::Io(_)
-        )
+        self.meta().1
     }
 }
 

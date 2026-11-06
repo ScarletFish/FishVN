@@ -58,8 +58,11 @@ pub fn dictionary() -> TagDictionary {
     });
     static GROUPS: OnceLock<TagGroups> = OnceLock::new();
     let g = GROUPS.get_or_init(|| {
-        serde_json::from_str(include_str!("../resources/vndb/tag_groups.json"))
-            .expect("tag_groups.json 损坏：反序列化失败")
+        let mut groups: TagGroups =
+            serde_json::from_str(include_str!("../resources/vndb/tag_groups.json"))
+                .expect("tag_groups.json 损坏：反序列化失败");
+        groups.excluded.sort_unstable();
+        groups
     });
     TagDictionary {
         tags: &d.tags,
@@ -143,10 +146,6 @@ mod tests {
         assert!(groups.excluded.contains(&"g1474".to_string()), "Ending List 应被排除");
         assert!(!groups.excluded.contains(&"g96".to_string()), "Romance 不应被排除");
         assert!(!groups.excluded.contains(&"g136".to_string()), "Multiple Protagonists 不应被排除");
-        assert!(
-            groups.excluded.windows(2).all(|w| w[0] < w[1]),
-            "excluded 需按字符串序排列（Rust 侧二分查找依赖该顺序）"
-        );
         for (id, root) in groups.roots.iter() {
             assert!(
                 matches!(root.as_str(), "g1" | "g20" | "g22" | "g24" | "g674"),
