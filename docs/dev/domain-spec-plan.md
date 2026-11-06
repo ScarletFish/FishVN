@@ -156,7 +156,15 @@
 | 2 | **评估后不做通用 merge 抽象** | — | 四路写路径处理的是不同实体（元数据 / 用户状态 / 角色），硬塞进一个 `merge()` 会造成类型擦除与参数遍地；字段级规则已由 `source` / `blank` / `editable` 单一来源。`user_override` 上锁属于 provenance，并入步 5 |
 | 3 | 完成 | 本批 | 生成前端 `metadata-fields.js`（`METADATA_FIELDS` / `PATCH_KEYS` / `FORM_KEYS`），新增 2 条前后端键名契约测试；前端 309→311 例 |
 | 4 | 完成 | 本批 | 抽出 `backfill-projection.js` 纯函数做事件投影，`onEvent` 不再丢弃 payload；全量重拉只在终态/错误时触发；前端 311→315 例 |
-| 5 | 未开始 | — | |
+| 5 | 完成 | 本批 | 新增 `docs/dev/architecture.md`（骨架 / 不变量台账 / 影响面矩阵 / 性能边界），修 `view-contracts.md` 里并不存在的 selector 层，`AGENTS.md` 加索引；provenance 评估后不做 |
+
+**步 5 的 provenance 决定**：不落 `field_sources` / `locked_fields` 列，不改 FDD:413。理由：没有消费方的来源列就是死代码；FDD:413「批量仍保持仅空白」是明确的产品决策，本任务约定默认行为不变、不擅自改产品语义；规格表已用 `source` / `editable` 声明了字段来源与可编辑性，将来真要支持多源或「改绑后重算」，加列与写入来源是局部增量，不需要现在预付。这项判断连同步 2 的决定一并留档，供将来重审。
+
+## 九、收尾状态
+
+全部 5 步完成。提交序列：`6ea48f5`（步 0）→ `c3a86ce` / `202f10a` / `d9440cd`（步 1）→ `5243baf`（步 3）→ `590e1ce`（步 4）→ 本批（步 5）；步 2 经评估不做通用 `merge()` 抽象。
+
+最终基线：后端 **337 passed / 5 skipped**，前端 **31 文件 315 例**，`check:rust` / `check:frontend` / `check:generated` / `git diff --check` 全过。元数据字段从 8 份手写清单收敛为 `spec/metadata.json` 一处，Rust 与 JS 两侧代码由 `build.rs` 生成；加一个字段只需改规格一行，再加该字段特有的上游映射与 UI 控件。
 
 步 4 的范围说明：核查发现 `vndb-backfill` / `vndb-sync` / `scan` 共有 8 处订阅者，且后端 `tasks.rs:149` 与 `commands.rs:481,542` 发的都是 `TaskEvent`（devhttp 的 SSE 另用 `id` 带 seq）。**改 payload 为 `LoggedEvent` 会破坏所有消费者**，故本步不动 IPC 契约，只让前端消费已有的 `phase/done/total/game_id/error`：进度与当前条目实时投影进 `backfillStore.status`，`needsReload()` 把全量重拉收敛到 `finished/failed/unmatched/resolve/rate-limited/paused` 与带 error 的事件。`seq` 竞态、`pulling` 单飞、`watchers` 引用计数保留（订阅生命周期与首次/重连补历史仍需要），没有为了「删代码」而牺牲正确性。
 
