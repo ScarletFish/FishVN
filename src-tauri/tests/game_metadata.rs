@@ -1,24 +1,11 @@
 mod common;
 
-use common::{variant, Db};
+use common::{new_game_in as new_game, variant, Db};
 use fishvn::games::{create_game, delete_game};
 use fishvn::metadata;
 use fishvn::types::{
-    LocalizedTitle, MetadataPatch, MetadataStaff, MetadataTag, NewGame, StatePatch, UserGameState,
+    LocalizedTitle, MetadataPatch, MetadataStaff, MetadataTag, NewGame, StatePatch,
 };
-
-fn new_game(db: &Db, name: &str) -> String {
-    create_game(
-        db,
-        &NewGame {
-            name: name.into(),
-            vndb_id: None,
-            metadata: None,
-        },
-    )
-    .expect("建作品失败")
-    .id
-}
 
 fn alias_patch(alias: &str) -> MetadataPatch {
     MetadataPatch {
@@ -419,7 +406,7 @@ fn 没资料也能改状态() {
     let db = Db::new();
     let id = new_game(&db, "只改状态");
 
-    let state = fishvn::games::update_game_state(
+    fishvn::games::update_game_state(
         &db,
         &id,
         &StatePatch {
@@ -429,7 +416,6 @@ fn 没资料也能改状态() {
     )
     .expect("改状态失败");
 
-    assert!(matches!(state, UserGameState { .. }));
     assert_eq!(metadata::get(&db, &id).unwrap(), None);
 }
 

@@ -237,31 +237,36 @@ mod tests {
     }
 
     #[test]
-    fn dedupe_prefers_id_bearing_entry() {
-        let conn = Connection::open_in_memory().unwrap();
-        ensure_schema(&conn).unwrap();
-        meta_with_tags(&conn, "g1", &[tag(None, "百合"), tag(Some("g1890"), "百合")]);
-        ensure_schema(&conn).unwrap();
-        let tags = tags_of(&conn, "g1");
-        assert_eq!(tags.len(), 1);
-        assert_eq!(tags[0].id.as_deref(), Some("g1890"));
-    }
-
-    #[test]
-    fn dedupe_keeps_first_when_none_has_id() {
-        let conn = Connection::open_in_memory().unwrap();
-        ensure_schema(&conn).unwrap();
-        meta_with_tags(&conn, "g1", &[tag(None, "自定义"), tag(None, "自定义")]);
-        ensure_schema(&conn).unwrap();
-        assert_eq!(tags_of(&conn, "g1").len(), 1);
-    }
-
-    #[test]
-    fn dedupe_leaves_unique_tags_untouched() {
-        let conn = Connection::open_in_memory().unwrap();
-        ensure_schema(&conn).unwrap();
-        meta_with_tags(&conn, "g1", &[tag(Some("g1a"), "A"), tag(None, "B")]);
-        ensure_schema(&conn).unwrap();
-        assert_eq!(tags_of(&conn, "g1").len(), 2);
+    fn 升级建表时标签去重规则() {
+        for (label, tags, expected_len, expected_id) in [
+            (
+                "同名时优先保留带 id 的条目",
+                vec![tag(None, "百合"), tag(Some("g1890"), "百合")],
+                1,
+                Some("g1890"),
+            ),
+            (
+                "都没 id 时只留第一条",
+                vec![tag(None, "自定义"), tag(None, "自定义")],
+                1,
+                None,
+            ),
+            (
+                "不同标签不动",
+                vec![tag(Some("g1a"), "A"), tag(None, "B")],
+                2,
+                None,
+            ),
+        ] {
+            let conn = Connection::open_in_memory().unwrap();
+            ensure_schema(&conn).unwrap();
+            meta_with_tags(&conn, "g1", &tags);
+            ensure_schema(&conn).unwrap();
+            let got = tags_of(&conn, "g1");
+            assert_eq!(got.len(), expected_len, "{label}");
+            if let Some(id) = expected_id {
+                assert_eq!(got[0].id.as_deref(), Some(id), "{label}");
+            }
+        }
     }
 }

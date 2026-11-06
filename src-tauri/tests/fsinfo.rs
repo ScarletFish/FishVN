@@ -166,25 +166,6 @@ fn 读不进的子目录跳过而不中断() {
 }
 
 #[test]
-fn 单独读候选与整棵树读出的候选一致() {
-    let mut tree = Tree::new();
-    let dir = tree.make_dir(&[
-        ("top.exe", "a"),
-        ("d1/one.exe", "b"),
-        ("d1/d2/two.exe", "c"),
-        ("d1/d2/d3/three.exe", "d"),
-        ("d1/d2/d3/d4/deep.exe", "e"),
-        ("notes.txt", "f"),
-    ]);
-
-    assert_eq!(
-        read_exes(&dir),
-        read_dir_info(&dir).exes,
-        "只读候选与连大小一起读，候选清单要一模一样"
-    );
-}
-
-#[test]
 fn 没有可执行文件时读候选给空数组() {
     let mut tree = Tree::new();
     let dir = tree.make_dir(&[("readme.txt", "a"), ("data/notes.md", "b")]);

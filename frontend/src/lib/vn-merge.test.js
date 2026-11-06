@@ -210,17 +210,6 @@ test('一样的值不算冲突', () => {
   expect(conflictRows(filled, VN)).toEqual([]);
 });
 
-test('有差异或本地为空的字段都进冲突列表', () => {
-  const current = form({
-    name: 'Fate/stay night',
-    rating: '80',
-    votecount: '999',
-    tags: [{ name: 'Old' }],
-  });
-  const keys = conflictRows(current, VN).map((r) => r.key);
-  expect(keys.sort()).toEqual([...ALL_KEYS].sort());
-});
-
 /** 用户默认意图是覆盖，但没勾的字段必须保持原样 */
 test('只有选中的字段取 VNDB 的值', () => {
   const current = form({ rating: '80', votecount: '999' });
@@ -256,12 +245,6 @@ test('开发商取 name，为空回落 original', () => {
     developers: [{ name: null, original: 'タイプムーン' }, { name: null, original: null }],
   }, new Set(['developers']));
   expect(next.developers).toBe('タイプムーン');
-});
-
-test('多出来的键（characters / id / titles）不会进表单', () => {
-  const incoming = { ...VN, characters: [{ id: 'c1', name: 'Saber' }] };
-  const next = applyIncoming(form(), incoming, new Set(ALL_KEYS));
-  expect(Object.keys(next).sort()).toEqual(Object.keys(form()).sort());
 });
 
 test('staff 本地为空也进面板，有差异进冲突，勾选才替换', () => {

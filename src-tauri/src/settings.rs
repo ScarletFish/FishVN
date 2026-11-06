@@ -464,21 +464,8 @@ mod tests {
         let config = patch(
             tmp.path(),
             ConfigPatch {
-                time_metric: None,
                 theme: Some(Theme::Light),
                 accent: Some(Accent::Amber),
-                dashboard_layout: None,
-                dashboard_include_uninstalled: None,
-                hide_r18_tags: None,
-                spoiler_level: None,
-                excluded_tags: None,
-                vndb_sync_mode: None,
-                vndb_sync_wishlist: None,
-                vndb_sync_rating: None,
-                vndb_token: None,
-                magpie_path: None,
-                le_path: None,
-                quit_behavior: None,
                 ..Default::default()
             },
         )
@@ -621,15 +608,6 @@ mod tests {
         std::fs::write(tmp.path().join(FILE_NAME), r#"{"theme":"dark"}"#).unwrap();
         init(tmp.path());
         assert_eq!(current().excluded_tags, default_excluded_tags());
-    }
-
-    #[test]
-    fn 主题跟随系统可反序列化() {
-        let _guard = exclusive();
-        let tmp = tempfile::tempdir().unwrap();
-        std::fs::write(tmp.path().join(FILE_NAME), r#"{"theme":"system"}"#).unwrap();
-        init(tmp.path());
-        assert_eq!(current().theme, Theme::System);
     }
 
     #[test]

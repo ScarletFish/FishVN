@@ -44,6 +44,17 @@ test('空串与非数字都归 null', () => {
   expect(toNumber('8.63')).toBe(8.63);
 });
 
+test('数字输入不抛错，空值仍按空处理', () => {
+  expect(toNumber(85)).toBe(85);
+  expect(toInteger(19334)).toBe(19334);
+  expect(ratingRejected(85)).toBe(false);
+  expect(ratingRejected(101)).toBe(true);
+  expect(votecountRejected(-1)).toBe(true);
+  expect(lengthMinutesRejected(1820)).toBe(false);
+  expect(ratingRejected(null)).toBe(false);
+  expect(votecountRejected(undefined)).toBe(false);
+});
+
 test('字段为 null 时按空值落库', () => {
   expect(toNumber(null)).toBeNull();
   const patch = buildMetadataPatch({
@@ -166,6 +177,10 @@ test('焦点随表单值写入并钳制范围', () => {
   expect(buildMetadataPatch({ ...blank(), focusX: 72, focusY: 31 })).toMatchObject({
     cover_focal_x: 72,
     cover_focal_y: 31,
+  });
+  expect(buildMetadataPatch({ ...blank(), focusX: '30', focusY: '72' })).toMatchObject({
+    cover_focal_x: 30,
+    cover_focal_y: 72,
   });
 });
 

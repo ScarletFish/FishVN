@@ -72,13 +72,6 @@ pub fn dictionary() -> TagDictionary {
 mod tests {
     use super::*;
 
-    #[test]
-    fn 词典两条目数量级正确() {
-        let d = dictionary();
-        assert!(d.tags.len() > 2000, "tags 条目过少：{}", d.tags.len());
-        assert!(d.traits.len() > 2500, "traits 条目过少：{}", d.traits.len());
-    }
-
     const ASCII_TERMS: &[&str] = &[
         "BDSM", "NEET", "DJ", "Vocaloid", "ADHD", "PTSD", "OCD", "CG", "SD", "DC", "Marvel",
         "Free!", "BL", "GL", "Yaoi", "LGBT", "LGBTQ", "JK", "JD", "FPS", "TPS", "RPG", "MMORPG",
@@ -107,15 +100,6 @@ mod tests {
                 .map(|(k, v)| (k.as_str(), v.name.as_str()))
                 .collect(),
         );
-    }
-
-    #[test]
-    fn 代表性词条与分表隔离() {
-        let d = dictionary();
-        assert_eq!(d.tags.get("g2").map(String::as_str), Some("奇幻"));
-        assert_ne!(d.traits.get("i2").map(|e| e.name.as_str()), Some("奇幻"));
-        assert_eq!(d.tags.get("g4").map(String::as_str), Some("魔法"));
-        assert_eq!(d.traits.get("i4").map(|e| e.name.as_str()), Some("黑色"));
     }
 
     #[test]

@@ -877,16 +877,7 @@ fn 应用计划后缓存失效() {
     assert!(cached_plan_at(at).is_some());
 
     let db = Db::new();
-    let id = create_game(
-        &db,
-        &NewGame {
-            name: "壳".into(),
-            vndb_id: Some("v1".into()),
-            metadata: None,
-        },
-    )
-    .unwrap()
-    .id;
+    let id = new_game(&db, "壳", "v1");
     let decision = PlanDecision {
         creates: vec![],
         updates: vec![],
@@ -908,57 +899,43 @@ fn 应用计划后缓存失效() {
 }
 
 #[test]
-fn 本地改状态后计划缓存失效() {
+fn 本地写操作后计划缓存失效() {
+    type Action = (&'static str, fn(&Db, &str));
+
     let _guard = plan_cache_guard();
-    invalidate_plan();
-    let db = Db::new();
-    let id = new_game(&db, "壳", "v1");
+    let actions: Vec<Action> = vec![
+        (
+            "改状态后旧计划应失效，否则弹窗拿着旧本地值算判定",
+            |db, id| set_state(db, id, Some(Status::Playing), None),
+        ),
+        (
+            "删作品后旧计划应失效，否则导入名单会认错行",
+            |db, id| {
+                delete_game(db, id).unwrap();
+            },
+        ),
+        (
+            "重绑 vndb 后旧计划应失效，否则条目会归错桶",
+            |db, id| {
+                update_game(
+                    db,
+                    id,
+                    &GamePatch {
+                        name: None,
+                        vndb_id: Some(Some("v2".into())),
+                    },
+                )
+                .unwrap();
+            },
+        ),
+    ];
 
-    let at = store_plan(&SyncPlan::default());
-    set_state(&db, &id, Some(Status::Playing), None);
-
-    assert!(
-        cached_plan_at(at).is_none(),
-        "本地改完状态旧计划必须失效，否则弹窗拿着旧本地值算判定"
-    );
-}
-
-#[test]
-fn 删除作品后计划缓存失效() {
-    let _guard = plan_cache_guard();
-    invalidate_plan();
-    let db = Db::new();
-    let id = new_game(&db, "壳", "v1");
-
-    let at = store_plan(&SyncPlan::default());
-    delete_game(&db, &id).unwrap();
-
-    assert!(
-        cached_plan_at(at).is_none(),
-        "作品删了旧计划还挂着，导入名单会认错行"
-    );
-}
-
-#[test]
-fn 重绑_vndb_后计划缓存失效() {
-    let _guard = plan_cache_guard();
-    invalidate_plan();
-    let db = Db::new();
-    let id = new_game(&db, "壳", "v1");
-
-    let at = store_plan(&SyncPlan::default());
-    update_game(
-        &db,
-        &id,
-        &GamePatch {
-            name: None,
-            vndb_id: Some(Some("v2".into())),
-        },
-    )
-    .unwrap();
-
-    assert!(
-        cached_plan_at(at).is_none(),
-        "换了绑定的 vndb_id 旧计划会把条目归错桶"
-    );
+    for (label, act) in actions {
+        invalidate_plan();
+        let db = Db::new();
+        let id = new_game(&db, "壳", "v1");
+        let at = store_plan(&SyncPlan::default());
+        act(&db, &id);
+        assert!(cached_plan_at(at).is_none(), "{label}");
+    }
 }

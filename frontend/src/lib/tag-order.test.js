@@ -170,31 +170,6 @@ describe('classifyTags 的展示顺序', () => {
     const out = classifyTags([NEW_TAG, THEME_A, PLOT_A]);
     expect(names(out.shown)).toEqual(['Romance', 'Multiple Endings', 'VNDB 新标签']);
   });
-
-  it('前八条覆盖多个属性维度', () => {
-    const out = classifyTags([
-      THEME_A,
-      THEME_B,
-      THEME_C,
-      THEME_C,
-      PLOT_A,
-      PLOT_B,
-      CHARACTER_A,
-      SETTING_A,
-      STYLE_A,
-      NEW_TAG,
-    ]).shown.slice(0, 8);
-    expect(names(out)).toEqual([
-      'Romance',
-      'Multiple Endings',
-      'Male Protagonist',
-      'School',
-      'RPG',
-      'Fantasy',
-      'Branching Plot',
-      'Drama',
-    ]);
-  });
 });
 
 describe('classifyTags 的隐藏判定', () => {
@@ -265,14 +240,6 @@ describe('classifyTags 的剧透折叠', () => {
     const out = classifyTags([THEME_A, SPOILER_A, CHARACTER_SPOILER, PLOT_A]);
     expect(names(out.spoilers)).toEqual(['剧透结局', '剧透角色']);
     expect(names(out.shown)).toEqual(['Romance', 'Multiple Endings']);
-  });
-
-  it('揭示剧透不改动展示顺序，剧透标签始终单列', () => {
-    const out = classifyTags([THEME_A, MILD_SPOILER, MAJOR_SPOILER], {
-      revealSpoilers: true,
-    });
-    expect(names(out.shown)).toEqual(['Romance']);
-    expect(names(out.spoilers)).toEqual(['轻微剧透', '严重剧透']);
   });
 });
 

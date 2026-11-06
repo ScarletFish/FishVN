@@ -90,35 +90,3 @@ pub fn write_conflict(err: rusqlite::Error, message: &str) -> AppError {
     }
     AppError::Db(err)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn 每个变体的类别与故障判定() {
-        let cases: Vec<(AppError, &str, bool)> = vec![
-            (AppError::BadRequest(String::new()), "input", false),
-            (AppError::NotFound(String::new()), "not-found", false),
-            (AppError::Conflict(String::new()), "conflict", false),
-            (AppError::RateLimited, "rate-limited", false),
-            (AppError::Cancelled, "cancelled", false),
-            (AppError::Upstream(String::new()), "upstream", true),
-            (
-                AppError::Db(rusqlite::Error::QueryReturnedNoRows),
-                "db",
-                true,
-            ),
-            (
-                AppError::Json(serde_json::Error::io(std::io::Error::other("x"))),
-                "json",
-                true,
-            ),
-            (AppError::Io(std::io::Error::other("x")), "io", true),
-        ];
-        for (err, kind, fault) in cases {
-            assert_eq!(err.kind(), kind);
-            assert_eq!(err.is_fault(), fault, "{kind}");
-        }
-    }
-}

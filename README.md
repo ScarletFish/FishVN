@@ -5,7 +5,7 @@
 <h1 align="center">FishVN</h1>
 
 <div align="center">
-<img alt="Version" src="https://img.shields.io/badge/version-v0.2.0-blue">
+<img alt="Version" src="https://img.shields.io/badge/version-v0.3.0-blue">
 <img alt="Windows 10+" src="https://img.shields.io/badge/Windows-10%2B-blue?logo=windows">
 <img alt="Tauri v2" src="https://img.shields.io/badge/Tauri-v2-orange?logo=tauri">
 <img alt="Svelte 5" src="https://img.shields.io/badge/Svelte-5-ff3e00?logo=svelte">
@@ -23,8 +23,6 @@
 FishVN 是一个 **Windows 桌面应用**，用来管理本地安装（甚至未安装）的 Galgame：**导入、记录、启动、计时、回顾**。
 
 库里游戏支持自定义修改数据：几乎全数据可编辑，包括角色。
-
-<!-- 留给你写：为什么做、跟用过的工具哪里不一样 -->
 
 > [!IMPORTANT]
 > 仅支持 Windows 10 / 11。转区与缩放依赖 Locale Emulator 与 Magpie，需自行安装并在设置页填写路径。

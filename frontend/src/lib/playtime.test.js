@@ -42,6 +42,16 @@ test('带单位的写法按单位解析', () => {
   expect(parseDuration('2h')).toBe(7200);
 });
 
+test('英文长单位不会被短单位抢先截断', () => {
+  expect(parseDuration('12min')).toBe(12 * 60);
+  expect(parseDuration('2minutes')).toBe(120);
+  expect(parseDuration('1.5hours')).toBe(5400);
+  expect(parseDuration('12hr')).toBe(12 * 3600);
+  expect(parseDuration('45sec')).toBe(45);
+  expect(parseDuration('1h30min')).toBe(5400);
+  expect(parseDuration('12 小时 30 分钟')).toBe(12 * 3600 + 30 * 60);
+});
+
 test('纯数字按秒解析', () => {
   expect(parseDuration('45000')).toBe(45000);
   expect(parseDuration('0')).toBe(0);

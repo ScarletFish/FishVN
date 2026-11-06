@@ -91,7 +91,6 @@ describe('shownErrors', () => {
 
   it('没离开过、也没保存过时一个都不说', () => {
     expect(shownErrors(errors)).toEqual({});
-    expect(shownErrors(errors, { touched: {} })).toEqual({});
   });
 
   it('离开过的字段才说', () => {

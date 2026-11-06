@@ -2,30 +2,16 @@
 
 mod common;
 
-use common::{message, path_str, variant, Db, Tree};
+use common::{message, new_game_in as new_game, path_str, variant, Db, Tree};
 use fishvn::fsinfo::resolve_path;
-use fishvn::games::{create_game, delete_game, get_game_state, update_game_state};
+use fishvn::games::{delete_game, get_game_state, update_game_state};
 use fishvn::installations::{
     create_installation, delete_installation, get_installation, list_installations,
     save_installations, update_installation,
 };
 use fishvn::types::{
-    Installation, InstallationInput, InstallationPatch, MagpieMode, NewGame, NewInstallation,
-    StatePatch,
+    Installation, InstallationInput, InstallationPatch, MagpieMode, NewInstallation, StatePatch,
 };
-
-fn new_game(db: &Db, name: &str) -> String {
-    create_game(
-        db,
-        &NewGame {
-            name: name.into(),
-            vndb_id: None,
-            metadata: None,
-        },
-    )
-    .expect("建作品失败")
-    .id
-}
 
 fn add(db: &Db, game_id: &str, dir: &std::path::Path) -> fishvn::error::Result<String> {
     create_installation(
@@ -38,26 +24,27 @@ fn add(db: &Db, game_id: &str, dir: &std::path::Path) -> fishvn::error::Result<S
     .map(|i| i.id)
 }
 
-fn fresh(dir: &std::path::Path) -> InstallationInput {
+fn input(id: Option<String>, dir_path: String, entry_path: Option<String>) -> InstallationInput {
     InstallationInput {
-        id: None,
-        dir_path: path_str(dir),
-        entry_path: None,
+        id,
+        dir_path,
+        entry_path,
         le_launch: false,
         magpie: MagpieMode::Off,
         launch_args: None,
     }
 }
 
+fn fresh(dir: &std::path::Path) -> InstallationInput {
+    input(None, path_str(dir), None)
+}
+
 fn kept(inst: &Installation) -> InstallationInput {
-    InstallationInput {
-        id: Some(inst.id.clone()),
-        dir_path: inst.dir_path.clone(),
-        entry_path: inst.entry_path.clone(),
-        le_launch: false,
-        magpie: MagpieMode::Off,
-        launch_args: None,
-    }
+    input(
+        Some(inst.id.clone()),
+        inst.dir_path.clone(),
+        inst.entry_path.clone(),
+    )
 }
 
 fn ids(list: &[Installation]) -> Vec<String> {
@@ -65,25 +52,11 @@ fn ids(list: &[Installation]) -> Vec<String> {
 }
 
 fn entry(dir: &std::path::Path, name: &str) -> InstallationInput {
-    InstallationInput {
-        id: None,
-        dir_path: path_str(dir),
-        entry_path: Some(name.to_owned()),
-        le_launch: false,
-        magpie: MagpieMode::Off,
-        launch_args: None,
-    }
+    input(None, path_str(dir), Some(name.to_owned()))
 }
 
 fn with_entry(inst: &Installation, dir: &std::path::Path, name: &str) -> InstallationInput {
-    InstallationInput {
-        id: Some(inst.id.clone()),
-        dir_path: path_str(dir),
-        entry_path: Some(name.to_owned()),
-        le_launch: false,
-        magpie: MagpieMode::Off,
-        launch_args: None,
-    }
+    input(Some(inst.id.clone()), path_str(dir), Some(name.to_owned()))
 }
 
 #[test]
@@ -262,11 +235,8 @@ fn patch改入口与改归属作品() {
         &db,
         &id,
         &InstallationPatch {
-            game_id: None,
             entry_path: Some(Some("data/nested.exe".into())),
-            le_launch: None,
-            magpie: None,
-            launch_args: None,
+            ..Default::default()
         },
     )
     .expect("改入口失败");
@@ -277,10 +247,7 @@ fn patch改入口与改归属作品() {
         &id,
         &InstallationPatch {
             game_id: Some(Some(other.clone())),
-            entry_path: None,
-            le_launch: None,
-            magpie: None,
-            launch_args: None,
+            ..Default::default()
         },
     )
     .expect("改归属失败");
@@ -305,10 +272,7 @@ fn patch把归属改成不存在的作品返回_not_found() {
         &id,
         &InstallationPatch {
             game_id: Some(Some(common::ghost().to_owned())),
-            entry_path: None,
-            le_launch: None,
-            magpie: None,
-            launch_args: None,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -328,10 +292,7 @@ fn patch归属给空串返回_not_found_不是外键错误() {
         &id,
         &InstallationPatch {
             game_id: Some(Some(String::new())),
-            entry_path: None,
-            le_launch: None,
-            magpie: None,
-            launch_args: None,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -355,11 +316,8 @@ fn patch_entry_path为空串返回_bad_request() {
         &db,
         &id,
         &InstallationPatch {
-            game_id: None,
             entry_path: Some(Some(String::new())),
-            le_launch: None,
-            magpie: None,
-            launch_args: None,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -383,9 +341,7 @@ fn 归属与入口同时非法时报输入问题不是不存在() {
         &InstallationPatch {
             game_id: Some(Some(common::ghost().to_owned())),
             entry_path: Some(Some(String::new())),
-            le_launch: None,
-            magpie: None,
-            launch_args: None,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -416,11 +372,8 @@ fn patch不存在的安装返回_not_found() {
         &db,
         common::ghost(),
         &InstallationPatch {
-            game_id: None,
             entry_path: Some(Some("x.exe".into())),
-            le_launch: None,
-            magpie: None,
-            launch_args: None,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -716,14 +669,7 @@ fn 整包保存重复出现同一安装项返回_bad_request() {
         &game_id,
         &[
             kept(&saved[0]),
-            InstallationInput {
-                id: Some(saved[0].id.clone()),
-                dir_path: path_str(&two),
-                entry_path: None,
-                le_launch: false,
-                magpie: MagpieMode::Off,
-                launch_args: None,
-            },
+            input(Some(saved[0].id.clone()), path_str(&two), None),
         ],
     )
     .unwrap_err();
@@ -743,14 +689,7 @@ fn 整包保存带别作品的安装_id返回_conflict() {
     let err = save_installations(
         &db,
         &mine,
-        &[InstallationInput {
-            id: Some(foreign),
-            dir_path: path_str(&dir),
-            entry_path: None,
-            le_launch: false,
-            magpie: MagpieMode::Off,
-            launch_args: None,
-        }],
+        &[input(Some(foreign), path_str(&dir), None)],
     )
     .unwrap_err();
     assert_eq!(variant(&err), "Conflict");
@@ -767,14 +706,11 @@ fn 整包保存带不存在的安装_id返回_not_found() {
     let err = save_installations(
         &db,
         &game_id,
-        &[InstallationInput {
-            id: Some(common::ghost().to_owned()),
-            dir_path: path_str(&dir),
-            entry_path: None,
-            le_launch: false,
-            magpie: MagpieMode::Off,
-            launch_args: None,
-        }],
+        &[input(
+            Some(common::ghost().to_owned()),
+            path_str(&dir),
+            None,
+        )],
     )
     .unwrap_err();
     assert_eq!(variant(&err), "NotFound");
@@ -790,14 +726,7 @@ fn 整包保存缺目录或空_id返回_bad_request() {
     let blank_dir = save_installations(
         &db,
         &game_id,
-        &[InstallationInput {
-            id: None,
-            dir_path: "   ".into(),
-            entry_path: None,
-            le_launch: false,
-            magpie: MagpieMode::Off,
-            launch_args: None,
-        }],
+        &[input(None, "   ".into(), None)],
     )
     .unwrap_err();
     assert_eq!(variant(&blank_dir), "BadRequest");
@@ -806,14 +735,7 @@ fn 整包保存缺目录或空_id返回_bad_request() {
     let blank_id = save_installations(
         &db,
         &game_id,
-        &[InstallationInput {
-            id: Some("  ".into()),
-            dir_path: path_str(&dir),
-            entry_path: None,
-            le_launch: false,
-            magpie: MagpieMode::Off,
-            launch_args: None,
-        }],
+        &[input(Some("  ".into()), path_str(&dir), None)],
     )
     .unwrap_err();
     assert_eq!(variant(&blank_id), "BadRequest");
@@ -853,14 +775,7 @@ fn 整包保存入口越出目录返回_bad_request() {
         let err = save_installations(
             &db,
             &game_id,
-            &[InstallationInput {
-                id: None,
-                dir_path: path_str(&dir),
-                entry_path: Some(bad.into()),
-                le_launch: false,
-                magpie: MagpieMode::Off,
-                launch_args: None,
-            }],
+            &[input(None, path_str(&dir), Some(bad.into()))],
         )
         .unwrap_err();
         assert_eq!(variant(&err), "BadRequest", "入口 {bad:?} 应被拒");
@@ -877,14 +792,7 @@ fn 整包保存接受候选之外的手输入口() {
     let saved = save_installations(
         &db,
         &game_id,
-        &[InstallationInput {
-            id: None,
-            dir_path: path_str(&dir),
-            entry_path: Some("bin/start.exe".into()),
-            le_launch: false,
-            magpie: MagpieMode::Off,
-            launch_args: None,
-        }],
+        &[input(None, path_str(&dir), Some("bin/start.exe".into()))],
     )
     .expect("整包保存失败");
     assert_eq!(saved[0].entry_path.as_deref(), Some("bin/start.exe"));
@@ -927,14 +835,7 @@ fn 整包保存换目录时重算候选并清掉旧的目录大小() {
     let after = save_installations(
         &db,
         &game_id,
-        &[InstallationInput {
-            id: Some(before.id.clone()),
-            dir_path: path_str(&new),
-            entry_path: None,
-            le_launch: false,
-            magpie: MagpieMode::Off,
-            launch_args: None,
-        }],
+        &[input(Some(before.id.clone()), path_str(&new), None)],
     )
     .expect("换目录失败");
 
@@ -1142,11 +1043,8 @@ fn patch把入口改成同目录已有的那条返回_conflict() {
         &db,
         &saved[1].id,
         &InstallationPatch {
-            game_id: None,
             entry_path: Some(Some("game.exe".into())),
-            le_launch: None,
-            magpie: None,
-            launch_args: None,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -1157,11 +1055,8 @@ fn patch把入口改成同目录已有的那条返回_conflict() {
         &db,
         &saved[1].id,
         &InstallationPatch {
-            game_id: None,
             entry_path: Some(Some("game_zh.exe".into())),
-            le_launch: None,
-            magpie: None,
-            launch_args: None,
+            ..Default::default()
         },
     )
     .expect("改成自己原来的值该放行");

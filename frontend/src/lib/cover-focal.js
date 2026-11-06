@@ -6,8 +6,9 @@ export const BANNER_ASPECT = 1200 / 335;
 export const BANNER_FOCAL = { x: 50, y: 22 };
 
 export function clampFocal(value) {
-  if (!Number.isFinite(value)) return FOCAL_DEFAULT;
-  return Math.min(FOCAL_MAX, Math.max(FOCAL_MIN, Math.round(value)));
+  const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  if (!Number.isFinite(number)) return FOCAL_DEFAULT;
+  return Math.min(FOCAL_MAX, Math.max(FOCAL_MIN, Math.round(number)));
 }
 
 export function frameSize(iw, ih, aspect = COVER_ASPECT) {

@@ -1,25 +1,12 @@
 mod common;
 
-use common::{variant, Db};
+use common::{new_game_in as new_game, variant, Db};
 use fishvn::characters::{
     list_all_staff, list, merge_staff, replace_all, update_staff, StaffMerge, StaffUpdate,
 };
-use fishvn::games::{create_game, delete_game};
-use fishvn::types::{CharacterVa, GameCharacter, NewGame};
+use fishvn::games::delete_game;
+use fishvn::types::{CharacterVa, GameCharacter};
 use serde_json::json;
-
-fn new_game(db: &Db, name: &str) -> String {
-    create_game(
-        db,
-        &NewGame {
-            name: name.into(),
-            vndb_id: None,
-            metadata: None,
-        },
-    )
-    .expect("建作品失败")
-    .id
-}
 
 fn character(id: &str, name: &str) -> GameCharacter {
     GameCharacter {

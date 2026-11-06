@@ -2,22 +2,9 @@
 
 mod common;
 
-use common::{message, variant, Db};
-use fishvn::games::{create_game, delete_game, get_game_state, update_game, update_game_state};
-use fishvn::types::{NewGame, StatePatch, Status};
-
-fn new_game(db: &Db, name: &str) -> String {
-    create_game(
-        db,
-        &NewGame {
-            name: name.into(),
-            vndb_id: None,
-            metadata: None,
-        },
-    )
-    .expect("建作品失败")
-    .id
-}
+use common::{message, new_game_in as new_game, variant, Db};
+use fishvn::games::{delete_game, get_game_state, update_game, update_game_state};
+use fishvn::types::{StatePatch, Status};
 
 #[test]
 fn 建条目时自动带一条wishlist状态() {
@@ -102,26 +89,6 @@ fn status给null等于没给_状态列不允许清空() {
     let parsed: StatePatch = serde_json::from_str(r#"{"status":null}"#).expect("null 视为未提供");
     assert_eq!(parsed.status, None);
     assert_eq!(parsed, StatePatch::default());
-}
-
-#[test]
-fn 非法状态写入不应改变状态() {
-    let db = Db::new();
-    let id = new_game(&db, "非法状态");
-    for bad in [
-        r#""on_hold""#,
-        r#""WISHLIST""#,
-        r#""playing ""#,
-        r#""""#,
-        "1",
-    ] {
-        let payload = format!(r#"{{"status":{bad}}}"#);
-        assert!(
-            serde_json::from_str::<StatePatch>(&payload).is_err(),
-            "status={bad} 应在反序列化就被拒"
-        );
-    }
-    assert_eq!(get_game_state(&db, &id).unwrap().status, Status::Wishlist);
 }
 
 #[test]

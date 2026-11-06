@@ -2,7 +2,7 @@
 import { clampFocal } from './cover-focal.js';
 
 export function toNumber(raw) {
-  const text = (raw ?? '').trim();
+  const text = String(raw ?? '').trim();
   if (!text) return null;
   const value = Number(text);
   return Number.isFinite(value) ? value : null;
@@ -66,17 +66,17 @@ export function isValidBirthday(raw) {
 
 export function ratingRejected(raw) {
   const score = toNumber(raw);
-  return Boolean(raw.trim()) && (score === null || score < 0 || score > 100);
+  return Boolean(String(raw ?? '').trim()) && (score === null || score < 0 || score > 100);
 }
 
 export function votecountRejected(raw) {
   const votes = toNumber(raw);
-  return Boolean(raw.trim()) && (votes === null || votes < 0);
+  return Boolean(String(raw ?? '').trim()) && (votes === null || votes < 0);
 }
 
 export function lengthMinutesRejected(raw) {
   const minutes = toNumber(raw);
-  return Boolean(raw.trim()) && (minutes === null || minutes < 0);
+  return Boolean(String(raw ?? '').trim()) && (minutes === null || minutes < 0);
 }
 
 export function buildStatePatch({ status, userRating, notes, playSeconds }) {

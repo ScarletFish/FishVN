@@ -1,24 +1,10 @@
 mod common;
 
-use common::Db;
+use common::{new_game_in as new_game, Db};
 use fishvn::backfill::{BindSource, ItemState, items_by_ids, patch_for, reset, scan, status_or_plan};
-use fishvn::games::create_game;
 use fishvn::metadata;
-use fishvn::types::{MetadataPatch, NewGame};
+use fishvn::types::MetadataPatch;
 use fishvn::vndb::VnSync;
-
-fn new_game(db: &Db, name: &str) -> String {
-    create_game(
-        db,
-        &NewGame {
-            name: name.into(),
-            vndb_id: None,
-            metadata: None,
-        },
-    )
-    .expect("建作品失败")
-    .id
-}
 
 fn full_meta_patch() -> MetadataPatch {
     MetadataPatch {

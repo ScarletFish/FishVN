@@ -151,68 +151,36 @@ mod tests {
     }
 
     #[test]
-    fn birthday拍成月减日() {
-        assert_eq!(
-            format_birthday(Some(vec![Some(12), Some(15)])),
-            Some("12-15".to_owned())
-        );
-    }
-
-    #[test]
-    fn birthday只有月时只留月() {
-        assert_eq!(
-            format_birthday(Some(vec![Some(12), None])),
-            Some("12".to_owned())
-        );
-    }
-
-    #[test]
-    fn birthday只有日時只留日() {
-        assert_eq!(
-            format_birthday(Some(vec![None, Some(15)])),
-            Some("15".to_owned())
-        );
-    }
-
-    #[test]
-    fn birthday两个分量都空时该字段留空() {
-        assert_eq!(format_birthday(Some(vec![None, None])), None);
-    }
-
-    #[test]
-    fn birthday整体缺失时该字段留空() {
-        assert_eq!(format_birthday(None), None);
-        assert_eq!(format_birthday(Some(vec![])), None);
-    }
-
-    #[test]
-    fn 多条release取入库档位() {
-        let r = row("c1", vec![], vec!["main", "side"]);
-        assert_eq!(role_of(r.vns.as_deref()), Some("main"));
-    }
-
-    #[test]
-    fn 主要角色的两档都入库() {
-        for role in ["main", "primary"] {
-            let r = row("c1", vec![], vec![role]);
-            assert_eq!(role_of(r.vns.as_deref()), Some(role));
+    fn birthday只拼接存在的月日分量() {
+        for (parts, expected) in [
+            (Some(vec![Some(12), Some(15)]), Some("12-15")),
+            (Some(vec![Some(12), None]), Some("12")),
+            (Some(vec![None, Some(15)]), Some("15")),
+            (Some(vec![None, None]), None),
+            (None, None),
+            (Some(vec![]), None),
+        ] {
+            let shown = format!("{parts:?}");
+            assert_eq!(format_birthday(parts).as_deref(), expected, "{shown}");
         }
     }
 
     #[test]
-    fn 配角与登场不取() {
-        for role in ["side", "appears"] {
-            let r = row("c1", vec![], vec![role]);
-            assert_eq!(role_of(r.vns.as_deref()), None);
+    fn role只取主要档且首条是配角时继续往后找() {
+        for (roles, expected) in [
+            (vec!["main", "side"], Some("main")),
+            (vec!["main"], Some("main")),
+            (vec!["primary"], Some("primary")),
+            (vec!["side"], None),
+            (vec!["appears"], None),
+            (vec!["side", "primary"], Some("primary")),
+        ] {
+            let shown = format!("{roles:?}");
+            let r = row("c1", vec![], roles);
+            assert_eq!(role_of(r.vns.as_deref()), expected, "{shown}");
         }
         assert_eq!(role_of(None), None);
         assert_eq!(role_of(Some(&[])), None);
-    }
-
-    #[test]
-    fn 多条release里首条是配角时往后找主要档() {
-        let r = row("c1", vec![], vec!["side", "primary"]);
-        assert_eq!(role_of(r.vns.as_deref()), Some("primary"));
     }
 
     #[test]

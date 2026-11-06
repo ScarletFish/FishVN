@@ -97,18 +97,13 @@ test('空串与 null 归一', () => {
   expect(planCharacters([a], [b]).conflicts).toEqual([]);
 });
 
-test('年龄 80 与 80.0 判等', () => {
-  expect(planCharacters([saber({ age: '80' })], [saber({ age: 80.0 })]).conflicts).toEqual([]);
-});
-
-test('体型数字与字符串判等', () => {
-  const a = saber({ height: '154', bust: 73 });
-  const b = saber({ height: 154.0, bust: '73.0' });
-  expect(planCharacters([a], [b]).conflicts).toEqual([]);
-});
-
-test('空值与 0 不判等', () => {
-  expect(planCharacters([saber({ age: null })], [saber({ age: 0 })]).conflicts).toHaveLength(1);
+test.each([
+  ['年龄 80 与 80.0 判等', { age: '80' }, { age: 80.0 }, 0],
+  ['体型数字与字符串判等', { height: '154', bust: 73 }, { height: 154.0, bust: '73.0' }, 0],
+  ['空值与 0 不判等', { age: null }, { age: 0 }, 1],
+])('%s', (desc, localOver, incomingOver, conflictCount) => {
+  const conflicts = planCharacters([saber(localOver)], [saber(incomingOver)]).conflicts;
+  expect(conflicts).toHaveLength(conflictCount);
 });
 
 test('别名与 traits 顺序不同不算冲突', () => {

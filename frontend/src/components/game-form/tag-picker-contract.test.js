@@ -14,12 +14,16 @@ const items = [
   { key: 'i2', label: 'Red Eyes', group: 'Eyes', raw: { id: 'i2', name: 'Red Eyes', group: 'Eyes' } },
 ];
 
+function mountPicker(over = {}) {
+  return mount(TagPicker, {
+    target: document.body,
+    props: { items, selected: [], groupOrder: ['Hair', 'Eyes'], allowCustom: true, saving: false, onToggle: vi.fn(), onAdd: vi.fn(), onClose: vi.fn(), ...over },
+  });
+}
+
 test('TagPicker: 点击特征触发 onToggle(key, raw)', async () => {
   const onToggle = vi.fn();
-  const cmp = mount(TagPicker, {
-    target: document.body,
-    props: { items, selected: [], groupOrder: ['Hair', 'Eyes'], allowCustom: true, saving: false, onToggle, onAdd: vi.fn(), onClose: vi.fn() },
-  });
+  const cmp = mountPicker({ onToggle });
   document.querySelectorAll('.tag-pill--pick')[0].click();
   await tick();
   expect(onToggle).toHaveBeenCalledTimes(1);
@@ -30,10 +34,7 @@ test('TagPicker: 点击特征触发 onToggle(key, raw)', async () => {
 
 test('TagPicker: 自定义添加触发 onAdd(name)', async () => {
   const onAdd = vi.fn();
-  const cmp = mount(TagPicker, {
-    target: document.body,
-    props: { items, selected: [], groupOrder: ['Hair', 'Eyes'], allowCustom: true, saving: false, onToggle: vi.fn(), onAdd, onClose: vi.fn() },
-  });
+  const cmp = mountPicker({ onAdd });
   const input = document.querySelector('.tag-picker__search');
   input.value = 'Custom Trait';
   input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -47,10 +48,7 @@ test('TagPicker: 自定义添加触发 onAdd(name)', async () => {
 
 test('TagPicker: 完成按钮触发 onClose', async () => {
   const onClose = vi.fn();
-  const cmp = mount(TagPicker, {
-    target: document.body,
-    props: { items, selected: [], groupOrder: ['Hair', 'Eyes'], allowCustom: true, saving: false, onToggle: vi.fn(), onAdd: vi.fn(), onClose },
-  });
+  const cmp = mountPicker({ onClose });
   document.querySelector('.modal-actions .btn').click();
   await tick();
   expect(onClose).toHaveBeenCalledTimes(1);

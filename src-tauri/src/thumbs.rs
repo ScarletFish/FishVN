@@ -143,30 +143,18 @@ mod tests {
     }
 
     #[test]
-    fn 大图按比例缩到上限() {
-        let tmp = tempfile::tempdir().unwrap();
-        let src = sample(tmp.path(), 700, 980);
-        let out = dir_dst(tmp.path());
-        generate(&src, &out).unwrap();
-        assert_eq!(dims(&out), (400, 560));
-    }
-
-    #[test]
-    fn 小图不放大只换编码() {
-        let tmp = tempfile::tempdir().unwrap();
-        let src = sample(tmp.path(), 300, 400);
-        let out = dir_dst(tmp.path());
-        generate(&src, &out).unwrap();
-        assert_eq!(dims(&out), (300, 400));
-    }
-
-    #[test]
-    fn 横图按长边缩() {
-        let tmp = tempfile::tempdir().unwrap();
-        let src = sample(tmp.path(), 980, 700);
-        let out = dir_dst(tmp.path());
-        generate(&src, &out).unwrap();
-        assert_eq!(dims(&out), (560, 400));
+    fn 生成缩略图按上限缩放且不放大() {
+        for (w, h, expected) in [
+            (700, 980, (400, 560)),
+            (300, 400, (300, 400)),
+            (980, 700, (560, 400)),
+        ] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = sample(tmp.path(), w, h);
+            let out = dir_dst(tmp.path());
+            generate(&src, &out).unwrap();
+            assert_eq!(dims(&out), expected, "{w}x{h}");
+        }
     }
 
     #[test]
@@ -202,23 +190,17 @@ mod tests {
     }
 
     #[test]
-    fn 文件不存在报错() {
+    fn 无效源文件都报错() {
         let tmp = tempfile::tempdir().unwrap();
-        assert!(cached("nope.jpg", tmp.path()).is_err());
-    }
-
-    #[test]
-    fn 不是文件报错() {
-        let tmp = tempfile::tempdir().unwrap();
-        assert!(cached(tmp.path().to_str().unwrap(), tmp.path()).is_err());
-    }
-
-    #[test]
-    fn 坏文件报错() {
-        let tmp = tempfile::tempdir().unwrap();
-        let src = tmp.path().join("bad.jpg");
-        std::fs::write(&src, b"not an image").unwrap();
-        assert!(cached(src.to_str().unwrap(), tmp.path()).is_err());
+        let bad = tmp.path().join("bad.jpg");
+        std::fs::write(&bad, b"not an image").unwrap();
+        for (label, src) in [
+            ("不存在", "nope.jpg"),
+            ("不是文件", tmp.path().to_str().unwrap()),
+            ("坏文件", bad.to_str().unwrap()),
+        ] {
+            assert!(cached(src, tmp.path()).is_err(), "{label}");
+        }
     }
 
     fn dir_dst(dir: &Path) -> PathBuf {

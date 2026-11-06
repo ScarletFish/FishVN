@@ -34,9 +34,9 @@ export function durationInput(seconds) {
 }
 
 const UNITS = [
-  [/^(\d+(?:\.\d+)?)(?:h|hr|hours?|小时|時)/i, HOUR],
-  [/^(\d+(?:\.\d+)?)(?:m|min|minutes?|分钟|分)/i, MINUTE],
-  [/^(\d+(?:\.\d+)?)(?:s|sec|seconds?|秒)/i, 1],
+  [/^(\d+(?:\.\d+)?)(?:hours?|hr|h|小时|時)/i, HOUR],
+  [/^(\d+(?:\.\d+)?)(?:minutes?|min|m|分钟|分)/i, MINUTE],
+  [/^(\d+(?:\.\d+)?)(?:seconds?|sec|s|秒)/i, 1],
 ];
 
 export function parseDuration(text) {

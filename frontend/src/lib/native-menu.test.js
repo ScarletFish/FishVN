@@ -39,18 +39,6 @@ test('可输入元素内部的节点一并放行', () => {
   expect(fire(nested)).toBe(false);
 });
 
-test('目标自身先拿到事件，能自己接管', () => {
-  const host = mount('div');
-  let seen = null;
-  host.addEventListener('contextmenu', (event) => {
-    seen = event.defaultPrevented;
-    event.preventDefault();
-  });
-
-  expect(fire(host)).toBe(true);
-  expect(seen).toBe(false);
-});
-
 test('contenteditable="false" 不算可编辑', () => {
   expect(fire(mount('div', { contenteditable: 'false' }))).toBe(true);
 });

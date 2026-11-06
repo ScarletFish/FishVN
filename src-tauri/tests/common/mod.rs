@@ -89,6 +89,19 @@ pub fn new_game(shared: &Shared, name: &str) -> String {
         .id
 }
 
+pub fn new_game_in(db: &Db, name: &str) -> String {
+    create_game(
+        db,
+        &NewGame {
+            name: name.into(),
+            vndb_id: None,
+            metadata: None,
+        },
+    )
+    .expect("建作品失败")
+    .id
+}
+
 pub fn add_launch(shared: &Shared, game: &str, dir: &Path, entry: &str) -> String {
     let id = shared
         .with(|conn| {

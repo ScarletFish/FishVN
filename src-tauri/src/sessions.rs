@@ -633,40 +633,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 按空白拆参数() {
-        assert_eq!(
-            split_command_line("-window -w 1280"),
-            vec!["-window", "-w", "1280"]
-        );
-    }
-
-    #[test]
-    fn 引号里的空白不分隔() {
-        assert_eq!(
-            split_command_line("-path \"D:\\My Games\\One\""),
-            vec!["-path", "D:\\My Games\\One"]
-        );
-    }
-
-    #[test]
-    fn 空串与纯空白没有参数() {
-        assert!(split_command_line("").is_empty());
-        assert!(split_command_line("   \t ").is_empty());
-    }
-
-    #[test]
-    fn 引号包着的空串是独立参数() {
-        assert_eq!(split_command_line("a \"\" b"), vec!["a", "", "b"]);
-    }
-
-    #[test]
-    fn 相邻引号拼进同一参数() {
-        assert_eq!(split_command_line("\"a\"\"b\"c"), vec!["a\"bc"]);
-    }
-
-    #[test]
-    fn 引号内外的字符连成一个参数() {
-        assert_eq!(split_command_line("pre\"in mid\"post"), vec!["prein midpost"]);
+    fn 命令行参数按空白与引号拆分() {
+        for (input, expected) in [
+            ("-window -w 1280", vec!["-window", "-w", "1280"]),
+            (
+                "-path \"D:\\My Games\\One\"",
+                vec!["-path", "D:\\My Games\\One"],
+            ),
+            ("", vec![]),
+            ("   \t ", vec![]),
+            ("a \"\" b", vec!["a", "", "b"]),
+            ("\"a\"\"b\"c", vec!["a\"bc"]),
+            ("pre\"in mid\"post", vec!["prein midpost"]),
+        ] {
+            assert_eq!(split_command_line(input), expected, "{input:?}");
+        }
     }
 
     #[test]

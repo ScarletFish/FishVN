@@ -9,19 +9,10 @@ import {
 } from './status.js';
 
 describe('status 定义', () => {
-  it('主列表无重复', () => {
+  it('常量列表自洽：无重复、默认项在内、首页为子集、报告顺序是排列', () => {
     expect(new Set(STATUS_KEYS).size).toBe(STATUS_KEYS.length);
-  });
-
-  it('默认状态在主列表内', () => {
     expect(STATUS_KEYS).toContain(DEFAULT_STATUS);
-  });
-
-  it('首页状态是主列表的子集', () => {
     for (const key of HOME_STATUS_KEYS) expect(STATUS_KEYS).toContain(key);
-  });
-
-  it('同步报告顺序是主列表的一个排列（不重不漏）', () => {
     expect([...REPORT_STATUS_KEYS].sort()).toEqual([...STATUS_KEYS].sort());
   });
 

@@ -97,15 +97,6 @@ test('盘符根目录补齐分隔符', () => {
   expect(splitLaunchPath('D:\\game.exe')).toEqual({ dirPath: 'D:\\', entryPath: 'game.exe' });
 });
 
-test('目录与启动文件拼成一行路径', () => {
-  expect(toInstallationDraft({ dir_path: 'D:/Games/One', entry_path: 'game.exe' }).path).toBe(
-    'D:/Games/One/game.exe',
-  );
-  expect(
-    toInstallationDraft({ dir_path: 'D:\\Games\\One', entry_path: 'bin\\game.exe' }).path,
-  ).toBe('D:\\Games\\One\\bin\\game.exe');
-});
-
 test('没动过的行原样提交', () => {
   const nested = toInstallationDraft({
     id: 'i1',

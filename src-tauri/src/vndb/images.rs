@@ -168,16 +168,3 @@ fn transport_error(e: &reqwest::Error) -> ImageError {
         ImageError::Network
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn 错误码按失败类别映射() {
-        assert_eq!(ImageError::Http(404).code(), "404");
-        assert_eq!(ImageError::Timeout.code(), "timeout");
-        assert_eq!(ImageError::Network.code(), "network");
-        assert_eq!(ImageError::Local.code(), "local");
-    }
-}

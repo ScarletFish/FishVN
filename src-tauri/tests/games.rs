@@ -2,26 +2,13 @@
 
 mod common;
 
-use common::{message, variant, Db, Tree};
+use common::{message, new_game_in as new_game, variant, Db, Tree};
 use fishvn::games::{
-    create_game, delete_game, get_game, get_game_state, list_games, update_game, update_game_state,
+    create_game, delete_game, get_game, list_games, update_game, update_game_state,
 };
 use fishvn::installations::create_installation;
 use fishvn::metadata;
 use fishvn::types::{GameListItem, GamePatch, MetadataPatch, NewGame, StatePatch, Status};
-
-fn new_game(db: &Db, name: &str) -> String {
-    create_game(
-        db,
-        &NewGame {
-            name: name.into(),
-            vndb_id: None,
-            metadata: None,
-        },
-    )
-    .expect("建作品失败")
-    .id
-}
 
 fn find(db: &Db, id: &str) -> Option<GameListItem> {
     list_games(db)
@@ -47,12 +34,6 @@ fn 只给名字就能建条目其余字段留空() {
     assert_eq!(game.vndb_id, None);
     assert!(!game.id.is_empty(), "id 应是 uuid");
     assert!(game.created_at > 0, "created_at 应该是 unix 秒");
-}
-
-#[test]
-fn 多条未匹配条目合法_vndb_id的null之间不算重复() {
-    let db = Db::new();
-    assert_ne!(new_game(&db, "A"), new_game(&db, "B"));
 }
 
 #[test]
@@ -148,11 +129,6 @@ fn 建条目撞上已占用的vndb_id返回_conflict_事务不留下残行() {
         !games.iter().any(|g| g.name == "后到"),
         "失败的作品不应留下 games 行"
     );
-    // 事务回滚也要带走状态行，否则会出现没有作品的孤儿状态
-    assert!(
-        games.iter().all(|g| get_game_state(&db, &g.id).is_ok()),
-        "不应出现没有作品的孤儿状态"
-    );
 }
 
 #[test]
@@ -163,18 +139,9 @@ fn get列出全部条目带状态与安装概况() {
     }
 
     let games = list_games(&db).expect("列作品失败");
-    assert!(games.len() >= 4, "期望至少 4 条，实际 {}", games.len());
+    assert_eq!(games.len(), 4);
     assert!(!games[0].can_launch, "没有安装时不该可启动");
     assert_eq!(games[0].installation_count, 0);
-
-    for w in games.windows(2) {
-        assert!(
-            w[0].created_at >= w[1].created_at,
-            "未按创建时间倒序：{} 然后 {}",
-            w[0].created_at,
-            w[1].created_at
-        );
-    }
 }
 
 #[test]

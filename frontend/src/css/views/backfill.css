@@ -295,7 +295,7 @@
 
 .bf-row.is-selected {
   border-left-color: var(--accent);
-  background: var(--bg-selected);
+  background: var(--bg-hover-strong);
 }
 
 .bf-row:disabled {

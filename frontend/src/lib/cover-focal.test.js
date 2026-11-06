@@ -95,6 +95,16 @@ test('焦点钳制在 0 到 100，异常值回落默认', () => {
   expect(clampFocal('abc')).toBe(50);
 });
 
+test('表单里的数字字符串按数值钳制，空值仍回落默认', () => {
+  expect(clampFocal('30')).toBe(30);
+  expect(clampFocal(' 72 ')).toBe(72);
+  expect(clampFocal('140')).toBe(100);
+  expect(clampFocal('')).toBe(50);
+  expect(clampFocal('   ')).toBe(50);
+  expect(clampFocal(null)).toBe(50);
+  expect(clampFocal(undefined)).toBe(50);
+});
+
 test('横幅画幅把 16:9 横图裁成一条横带', () => {
   expect(frameSize(1920, 1080, BANNER_ASPECT)).toEqual({ w: 1920, h: 536 });
 });
