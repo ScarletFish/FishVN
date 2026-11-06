@@ -367,6 +367,28 @@ pub fn field(key: &str) -> Option<&'static FieldSpec> {
 
 pub const COLUMNS: &str = "game_id, image_id, alias, released, rating, votecount, length_minutes, description, image_path, titles, tags, developers, staff, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y";
 
+pub const DDL_COLUMNS: &str = r#"          game_id      TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+          image_id     TEXT,
+          alias        TEXT,
+          released     TEXT,
+          rating       REAL,
+          votecount    INTEGER,
+          length_minutes INTEGER,
+          description  TEXT,
+          image_path   TEXT,
+          titles       TEXT,
+          tags         TEXT,
+          developers   TEXT,
+          staff        TEXT,
+          cover_focal_x INTEGER NOT NULL DEFAULT 50,
+          cover_focal_y INTEGER NOT NULL DEFAULT 50,
+          ambience_path TEXT,
+          ambience_mode TEXT NOT NULL DEFAULT 'soft',
+          ambience_plate INTEGER NOT NULL DEFAULT 0,
+          ambience_focal_x INTEGER NOT NULL DEFAULT 50,
+          ambience_focal_y INTEGER NOT NULL DEFAULT 22
+"#;
+
 pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {
     let mut columns: Vec<&'static str> = Vec::new();
     let mut values: Vec<Value> = Vec::new();
@@ -507,5 +529,85 @@ pub fn is_blank_current(meta: &GameMetadata, key: &str) -> bool {
         "developers" => meta.developers.as_ref().is_none_or(|v| v.is_empty()),
         "staff" => meta.staff.as_ref().is_none_or(|v| v.is_empty()),
         _ => false,
+    }
+}
+
+pub struct MetaRow {
+    pub game_id: String,
+    pub image_id: Option<String>,
+    pub alias: Option<String>,
+    pub released: Option<String>,
+    pub rating: Option<f64>,
+    pub votecount: Option<i64>,
+    pub length_minutes: Option<i64>,
+    pub description: Option<String>,
+    pub image_path: Option<String>,
+    pub titles: Option<String>,
+    pub tags: Option<String>,
+    pub developers: Option<String>,
+    pub staff: Option<String>,
+    pub cover_focal_x: Option<i64>,
+    pub cover_focal_y: Option<i64>,
+    pub ambience_path: Option<String>,
+    pub ambience_mode: String,
+    pub ambience_plate: bool,
+    pub ambience_focal_x: i64,
+    pub ambience_focal_y: i64,
+}
+
+pub fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MetaRow> {
+    Ok(MetaRow {
+        game_id: row.get("game_id")?,
+        image_id: row.get("image_id")?,
+        alias: row.get("alias")?,
+        released: row.get("released")?,
+        rating: row.get("rating")?,
+        votecount: row.get("votecount")?,
+        length_minutes: row.get("length_minutes")?,
+        description: row.get("description")?,
+        image_path: row.get("image_path")?,
+        titles: row.get("titles")?,
+        tags: row.get("tags")?,
+        developers: row.get("developers")?,
+        staff: row.get("staff")?,
+        cover_focal_x: row.get("cover_focal_x")?,
+        cover_focal_y: row.get("cover_focal_y")?,
+        ambience_path: row.get("ambience_path")?,
+        ambience_mode: row.get("ambience_mode")?,
+        ambience_plate: row.get("ambience_plate")?,
+        ambience_focal_x: row.get("ambience_focal_x")?,
+        ambience_focal_y: row.get("ambience_focal_y")?,
+    })
+}
+
+pub fn to_api(row: &MetaRow) -> Result<GameMetadata> {
+    Ok(GameMetadata {
+        game_id: row.game_id.clone(),
+        image_id: row.image_id.clone(),
+        alias: row.alias.clone(),
+        released: row.released.clone(),
+        rating: row.rating,
+        votecount: row.votecount,
+        length_minutes: row.length_minutes,
+        description: row.description.clone(),
+        image_path: row.image_path.clone(),
+        titles: from_json::<Vec<LocalizedTitle>>(&row.titles)?,
+        tags: from_json::<Vec<MetadataTag>>(&row.tags)?,
+        developers: from_json::<Vec<String>>(&row.developers)?,
+        staff: from_json::<Vec<MetadataStaff>>(&row.staff)?,
+        cover_focal_x: row.cover_focal_x,
+        cover_focal_y: row.cover_focal_y,
+        ambience_path: row.ambience_path.clone(),
+        ambience_mode: row.ambience_mode.clone(),
+        ambience_plate: row.ambience_plate,
+        ambience_focal_x: row.ambience_focal_x,
+        ambience_focal_y: row.ambience_focal_y,
+    })
+}
+
+fn from_json<T: serde::de::DeserializeOwned>(raw: &Option<String>) -> Result<Option<T>> {
+    match raw {
+        Some(text) => Ok(Some(serde_json::from_str(text)?)),
+        None => Ok(None),
     }
 }

@@ -24,7 +24,7 @@ pub fn lock<'a>(shared: &'a Arc<Mutex<Connection>>) -> Result<MutexGuard<'a, Con
 
 pub fn ensure_schema(conn: &Connection) -> Result<()> {
     conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;")?;
-    conn.execute_batch(
+    conn.execute_batch(&format!(
         "
         CREATE TABLE IF NOT EXISTS games (
           id         TEXT PRIMARY KEY,
@@ -74,26 +74,7 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS play_sessions_game ON play_sessions(game_id);
 
         CREATE TABLE IF NOT EXISTS game_metadata (
-          game_id     TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
-          alias       TEXT,
-          titles      TEXT,
-          rating      REAL,
-          votecount   INTEGER,
-          length_minutes INTEGER,
-          released    TEXT,
-          description TEXT,
-          image_id    TEXT,
-          image_path  TEXT,
-          cover_focal_x INTEGER NOT NULL DEFAULT 50,
-          cover_focal_y INTEGER NOT NULL DEFAULT 50,
-          ambience_path TEXT,
-          ambience_mode TEXT NOT NULL DEFAULT 'soft',
-          ambience_plate INTEGER NOT NULL DEFAULT 0,
-          ambience_focal_x INTEGER NOT NULL DEFAULT 50,
-          ambience_focal_y INTEGER NOT NULL DEFAULT 22,
-          tags        TEXT,
-          developers  TEXT,
-          staff       TEXT
+{}
         );
 
         CREATE TABLE IF NOT EXISTS characters (
@@ -149,7 +130,8 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
             );
         END;
         ",
-    )?;
+        crate::generated::metadata::DDL_COLUMNS,
+    ))?;
 
     dedupe_metadata_tags(conn)?;
 

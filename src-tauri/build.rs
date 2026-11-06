@@ -231,6 +231,19 @@ fn generate_metadata_spec() {
         .join(", ");
     out.push_str(&format!("pub const COLUMNS: &str = \"{column_list}\";\n\n"));
 
+    out.push_str("pub const DDL_COLUMNS: &str = r#\"");
+    for (i, field) in fields.iter().enumerate() {
+        if i > 0 {
+            out.push_str(",\n");
+        }
+        out.push_str(&format!(
+            "          {:<12} {}",
+            text(field, "sql"),
+            text(field, "col_def")
+        ));
+    }
+    out.push_str("\n\"#;\n\n");
+
     out.push_str("pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {\n    let mut columns: Vec<&'static str> = Vec::new();\n    let mut values: Vec<Value> = Vec::new();\n");
     for field in fields.iter().filter(|f| flag(f, "in_patch")) {
         let key = text(field, "key");
@@ -258,7 +271,49 @@ fn generate_metadata_spec() {
             out.push_str(&format!("        \"{key}\" => {body},\n"));
         }
     }
-    out.push_str("        _ => false,\n    }\n}\n");
+    out.push_str("        _ => false,\n    }\n}\n\n");
+
+    out.push_str("pub struct MetaRow {\n");
+    for field in fields {
+        let ty = text(field, "ty");
+        let row_type = if matches!(ty, "titles" | "tags" | "strings" | "staff") {
+            "Option<String>".to_owned()
+        } else {
+            row_ty(field)
+        };
+        out.push_str(&format!(
+            "    pub {}: {row_type},\n",
+            text(field, "key")
+        ));
+    }
+    out.push_str("}\n\n");
+
+    out.push_str("pub fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MetaRow> {\n    Ok(MetaRow {\n");
+    for field in fields {
+        out.push_str(&format!(
+            "        {}: row.get(\"{}\")?,\n",
+            text(field, "key"),
+            text(field, "sql")
+        ));
+    }
+    out.push_str("    })\n}\n\n");
+
+    out.push_str("pub fn to_api(row: &MetaRow) -> Result<GameMetadata> {\n    Ok(GameMetadata {\n");
+    for field in fields {
+        let key = text(field, "key");
+        let ty = text(field, "ty");
+        let expr = match ty {
+            "titles" | "tags" | "strings" | "staff" => {
+                format!("from_json::<Vec<{}>>(&row.{key})?", text(field, "item"))
+            }
+            "text" | "mode" => format!("row.{key}.clone()"),
+            _ => format!("row.{key}"),
+        };
+        out.push_str(&format!("        {key}: {expr},\n"));
+    }
+    out.push_str("    })\n}\n\n");
+
+    out.push_str("fn from_json<T: serde::de::DeserializeOwned>(raw: &Option<String>) -> Result<Option<T>> {\n    match raw {\n        Some(text) => Ok(Some(serde_json::from_str(text)?)),\n        None => Ok(None),\n    }\n}\n");
 
     let out_path = root.join("src/generated/metadata.rs");
     let unchanged = fs::read_to_string(&out_path)
