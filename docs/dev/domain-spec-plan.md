@@ -155,8 +155,10 @@
 | 1 | 完成 | `c3a86ce` / `202f10a` / `d9440cd` | 分 1a（COLUMNS/patch_columns/空值判定）、1b（两个 struct）、1c（行映射 + DDL）；DDL 切换前逐列 parity 20/20 一致；全程 337 passed / 5 skipped、前端 309 例 |
 | 2 | **评估后不做通用 merge 抽象** | — | 四路写路径处理的是不同实体（元数据 / 用户状态 / 角色），硬塞进一个 `merge()` 会造成类型擦除与参数遍地；字段级规则已由 `source` / `blank` / `editable` 单一来源。`user_override` 上锁属于 provenance，并入步 5 |
 | 3 | 完成 | 本批 | 生成前端 `metadata-fields.js`（`METADATA_FIELDS` / `PATCH_KEYS` / `FORM_KEYS`），新增 2 条前后端键名契约测试；前端 309→311 例 |
-| 4 | 未开始 | — | |
+| 4 | 完成 | 本批 | 抽出 `backfill-projection.js` 纯函数做事件投影，`onEvent` 不再丢弃 payload；全量重拉只在终态/错误时触发；前端 311→315 例 |
 | 5 | 未开始 | — | |
+
+步 4 的范围说明：核查发现 `vndb-backfill` / `vndb-sync` / `scan` 共有 8 处订阅者，且后端 `tasks.rs:149` 与 `commands.rs:481,542` 发的都是 `TaskEvent`（devhttp 的 SSE 另用 `id` 带 seq）。**改 payload 为 `LoggedEvent` 会破坏所有消费者**，故本步不动 IPC 契约，只让前端消费已有的 `phase/done/total/game_id/error`：进度与当前条目实时投影进 `backfillStore.status`，`needsReload()` 把全量重拉收敛到 `finished/failed/unmatched/resolve/rate-limited/paused` 与带 error 的事件。`seq` 竞态、`pulling` 单飞、`watchers` 引用计数保留（订阅生命周期与首次/重连补历史仍需要），没有为了「删代码」而牺牲正确性。
 
 步 3 的范围说明：`vn-merge.js` 的 `FIELDS` 用的是**表单字段名**（`lengthMinutes` / `coverPath` / `name`），与元数据表的 `length_minutes` / `image_path` 不是同一概念，`name` 甚至来自 `games` 表；`read` 映射与 `same` 判定是业务规则，强行由规格生成会引入 camelCase 映射表和规则枚举，收益低于风险。因此本步聚焦真正会漂移的部分——**前后端补丁键名契约**：`form-metadata.js::buildMetadataPatch` 产出的 17 个键由生成的 `FORM_KEYS` 断言守住，正是 `null` 清空那类跨层 bug 的护栏。`check:generated` 已同时覆盖 Rust 与 JS 两侧生成物。
 

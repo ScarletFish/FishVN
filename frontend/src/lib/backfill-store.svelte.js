@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { subscribe } from './events.js';
 import { BACKFILL_REFRESH } from './task-events.js';
+import { needsReload, projectEvent } from './backfill-projection.js';
 
 export const backfillStore = $state({
   status: null,
@@ -72,7 +73,8 @@ async function pullLogs() {
 
 function onEvent(ev) {
   if (!ev) return;
-  schedule();
+  backfillStore.status = projectEvent(backfillStore.status, ev);
+  if (needsReload(ev)) schedule();
 }
 
 export async function watchBackfill() {
