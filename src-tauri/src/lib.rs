@@ -9,6 +9,7 @@ pub mod devhttp;
 pub mod error;
 pub mod fsinfo;
 pub mod games;
+pub mod generated;
 pub mod installations;
 pub mod inspect;
 pub mod metadata;

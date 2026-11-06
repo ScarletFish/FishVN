@@ -290,22 +290,14 @@ pub struct MetadataPatch {
 
 impl MetadataPatch {
     pub fn filled_labels(&self) -> Vec<&'static str> {
-        [
-            ("别名", self.alias.is_some()),
-            ("发售日", self.released.is_some()),
-            ("评分", self.rating.is_some()),
-            ("评分人数", self.votecount.is_some()),
-            ("时长", self.length_minutes.is_some()),
-            ("简介", self.description.is_some()),
-            ("封面", self.image_path.is_some()),
-            ("标题", self.titles.is_some()),
-            ("标签", self.tags.is_some()),
-            ("开发商", self.developers.is_some()),
-            ("制作组", self.staff.is_some()),
-        ]
-        .into_iter()
-        .filter_map(|(label, set)| set.then_some(label))
-        .collect()
+        crate::generated::metadata::METADATA_FIELDS
+            .iter()
+            .filter_map(|field| {
+                field
+                    .label
+                    .filter(|_| crate::generated::metadata::is_set(self, field.key))
+            })
+            .collect()
     }
 }
 
@@ -410,6 +402,7 @@ pub struct TaskEvent {
 #[cfg(test)]
 mod tests {
     use super::MetadataPatch;
+    use crate::generated::metadata::{is_set, METADATA_FIELDS};
 
     #[test]
     fn patch_tells_missing_apart_from_null() {
@@ -421,5 +414,45 @@ mod tests {
         assert_eq!(missing.ambience_path, None);
         assert_eq!(nulled.ambience_path, Some(None));
         assert_eq!(set.ambience_path.as_ref(), Some(&Some("D:/a.png".to_string())));
+    }
+
+    #[test]
+    fn 补全报告由规格表驱动且不遗漏字段() {
+        assert_eq!(METADATA_FIELDS.len(), 20);
+        assert_eq!(METADATA_FIELDS.iter().filter(|f| f.in_patch).count(), 18);
+        assert_eq!(METADATA_FIELDS.iter().filter(|f| f.label.is_some()).count(), 11);
+
+        let patch: MetadataPatch = serde_json::from_str(
+            r#"{"alias":"A","released":"2020-01-01","rating":8.5,"votecount":10,
+                "length_minutes":120,"description":"D","image_path":"p.png",
+                "titles":[{"lang":"ja","title":"T"}],"tags":[{"name":"t"}],
+                "developers":["d"],"staff":[{"name":"s"}],
+                "cover_focal_x":30,"cover_focal_y":40,"ambience_path":"a.png",
+                "ambience_mode":"soft","ambience_plate":true,
+                "ambience_focal_x":50,"ambience_focal_y":22}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            patch.filled_labels(),
+            vec![
+                "别名", "发售日", "评分", "评分人数", "时长", "简介", "封面", "标题", "标签",
+                "开发商", "制作组"
+            ]
+        );
+        for f in METADATA_FIELDS.iter().filter(|f| f.in_patch) {
+            assert!(is_set(&patch, f.key), "{} 未被 is_set 覆盖", f.key);
+        }
+    }
+
+    #[test]
+    fn 本地视觉字段不进补全报告() {
+        let base: MetadataPatch = serde_json::from_str(r#"{"alias":"A"}"#).unwrap();
+        let with_local: MetadataPatch = serde_json::from_str(
+            r#"{"alias":"A","cover_focal_x":30,"ambience_mode":"soft","ambience_plate":true}"#,
+        )
+        .unwrap();
+        assert_eq!(with_local.filled_labels(), base.filled_labels());
+        assert_eq!(with_local.filled_labels(), vec!["别名"]);
     }
 }

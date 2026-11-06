@@ -13,6 +13,7 @@
     "check:comments": "node scripts/check-comments.mjs",
     "check:frontend": "npm run check:comments && npm run check:frontend --prefix frontend",
     "check:rust": "npm run check:comments && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets",
+    "check:generated": "cargo check --manifest-path src-tauri/Cargo.toml && git diff --exit-code -- src-tauri/src/generated/",
     "test": "cargo nextest run --manifest-path src-tauri/Cargo.toml --status-level fail --final-status-level fail",
     "test:launch": "cargo nextest run --manifest-path src-tauri/Cargo.toml --test launch --run-ignored ignored-only --status-level fail --final-status-level fail"
   },
