@@ -316,14 +316,46 @@ fn generate_metadata_spec() {
     out.push_str("fn from_json<T: serde::de::DeserializeOwned>(raw: &Option<String>) -> Result<Option<T>> {\n    match raw {\n        Some(text) => Ok(Some(serde_json::from_str(text)?)),\n        None => Ok(None),\n    }\n}\n");
 
     let out_path = root.join("src/generated/metadata.rs");
-    let unchanged = fs::read_to_string(&out_path)
-        .map(|old| old == out)
+    write_if_changed(&out_path, &out, "generated/metadata.rs");
+
+    let mut js = String::from("export const METADATA_FIELDS = [\n");
+    for field in fields {
+        let label = field
+            .get("label")
+            .map(|v| serde_json::to_string(v).unwrap())
+            .unwrap_or_else(|| "null".to_owned());
+        js.push_str(&format!(
+            "  {{ key: \"{}\", type: \"{}\", blank: \"{}\", label: {}, source: \"{}\", editable: {}, clearable: {}, inPatch: {} }},\n",
+            text(field, "key"),
+            text(field, "ty"),
+            text(field, "blank"),
+            label,
+            text(field, "source"),
+            flag(field, "editable"),
+            flag(field, "clearable"),
+            flag(field, "in_patch"),
+        ));
+    }
+    js.push_str("];\n\n");
+    js.push_str("export const PATCH_KEYS = METADATA_FIELDS.filter((field) => field.inPatch).map((field) => field.key);\n\n");
+    js.push_str("export const FORM_KEYS = METADATA_FIELDS.filter((field) => field.inPatch && field.editable).map((field) => field.key);\n");
+
+    let js_path = root
+        .parent()
+        .unwrap()
+        .join("frontend/src/lib/generated/metadata-fields.js");
+    write_if_changed(&js_path, &js, "frontend generated/metadata-fields.js");
+}
+
+fn write_if_changed(path: &std::path::Path, content: &str, label: &str) {
+    let unchanged = fs::read_to_string(path)
+        .map(|old| old == content)
         .unwrap_or(false);
     if !unchanged {
         if env::var_os("FISHVN_GENERATED_CHECK").is_some() {
-            panic!("generated/metadata.rs 与 spec/metadata.json 不一致");
+            panic!("{label} 与 spec/metadata.json 不一致");
         }
-        fs::create_dir_all(out_path.parent().unwrap()).expect("创建 generated 目录失败");
-        fs::write(&out_path, out).expect("写入 generated/metadata.rs 失败");
+        fs::create_dir_all(path.parent().unwrap()).unwrap_or_else(|_| panic!("创建 {label} 目录失败"));
+        fs::write(path, content).unwrap_or_else(|_| panic!("写入 {label} 失败"));
     }
 }

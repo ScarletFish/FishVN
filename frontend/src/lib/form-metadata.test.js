@@ -14,6 +14,17 @@ import {
   toNumber,
   votecountRejected,
 } from './form-metadata.js';
+import { FORM_KEYS, METADATA_FIELDS, PATCH_KEYS } from './generated/metadata-fields.js';
+
+test('表单补丁键与后端字段规格一致', () => {
+  expect(Object.keys(buildMetadataPatch(blank())).sort()).toEqual([...FORM_KEYS].sort());
+});
+
+test('只读的本地化标题进补丁但不进表单', () => {
+  expect(PATCH_KEYS).toContain('titles');
+  expect(FORM_KEYS).not.toContain('titles');
+  expect(METADATA_FIELDS.find((field) => field.key === 'titles').editable).toBe(false);
+});
 
 /** 空白表单：字段与编辑态的初值同构 */
 function blank() {

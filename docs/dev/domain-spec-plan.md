@@ -151,11 +151,15 @@
 
 | 步 | 状态 | 提交 | 备注 |
 |---|---|---|---|
-| 0 | 切片已完成，待 CI 校验与提交 | — | 337 passed / 5 skipped |
-| 1 | 未开始 | — | |
-| 2 | 未开始 | — | |
-| 3 | 未开始 | — | |
+| 0 | 完成 | `6ea48f5` | 规格表 + 生成器 + filled_labels + `check:generated` + 本台账 |
+| 1 | 完成 | `c3a86ce` / `202f10a` / `d9440cd` | 分 1a（COLUMNS/patch_columns/空值判定）、1b（两个 struct）、1c（行映射 + DDL）；DDL 切换前逐列 parity 20/20 一致；全程 337 passed / 5 skipped、前端 309 例 |
+| 2 | **评估后不做通用 merge 抽象** | — | 四路写路径处理的是不同实体（元数据 / 用户状态 / 角色），硬塞进一个 `merge()` 会造成类型擦除与参数遍地；字段级规则已由 `source` / `blank` / `editable` 单一来源。`user_override` 上锁属于 provenance，并入步 5 |
+| 3 | 完成 | 本批 | 生成前端 `metadata-fields.js`（`METADATA_FIELDS` / `PATCH_KEYS` / `FORM_KEYS`），新增 2 条前后端键名契约测试；前端 309→311 例 |
 | 4 | 未开始 | — | |
 | 5 | 未开始 | — | |
+
+步 3 的范围说明：`vn-merge.js` 的 `FIELDS` 用的是**表单字段名**（`lengthMinutes` / `coverPath` / `name`），与元数据表的 `length_minutes` / `image_path` 不是同一概念，`name` 甚至来自 `games` 表；`read` 映射与 `same` 判定是业务规则，强行由规格生成会引入 camelCase 映射表和规则枚举，收益低于风险。因此本步聚焦真正会漂移的部分——**前后端补丁键名契约**：`form-metadata.js::buildMetadataPatch` 产出的 17 个键由生成的 `FORM_KEYS` 断言守住，正是 `null` 清空那类跨层 bug 的护栏。`check:generated` 已同时覆盖 Rust 与 JS 两侧生成物。
+
+步 1 完成后，「四、现状盘点」中后端 8 份清单已全部消失；`db.rs` 只剩其他表的 schema，`metadata.rs` 只剩读写编排与封面焦点重置。**规格表现有属性 12 个**：`key sql ty nullable item col_def clearable blank label source editable in_patch`。
 
 **接手指引**：先跑 `git log -6 --oneline` 与 `git status` 确认进度，再对照上表找到下一步；每步开始前重读该步「做法」与对应源码行号（行号会随改动漂移，按函数名定位）。
