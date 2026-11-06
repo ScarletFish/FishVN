@@ -9,6 +9,8 @@ where
     Deserialize::deserialize(d).map(Some)
 }
 
+pub use crate::generated::metadata::{GameMetadata, MetadataPatch};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Game {
     pub id: String,
@@ -199,30 +201,6 @@ pub struct GamePlayLog {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GameMetadata {
-    pub game_id: String,
-    pub alias: Option<String>,
-    pub titles: Option<Vec<LocalizedTitle>>,
-    pub rating: Option<f64>,
-    pub votecount: Option<i64>,
-    pub length_minutes: Option<i64>,
-    pub released: Option<String>,
-    pub description: Option<String>,
-    pub image_id: Option<String>,
-    pub image_path: Option<String>,
-    pub cover_focal_x: Option<i64>,
-    pub cover_focal_y: Option<i64>,
-    pub ambience_path: Option<String>,
-    pub ambience_mode: String,
-    pub ambience_plate: bool,
-    pub ambience_focal_x: i64,
-    pub ambience_focal_y: i64,
-    pub tags: Option<Vec<MetadataTag>>,
-    pub developers: Option<Vec<String>>,
-    pub staff: Option<Vec<MetadataStaff>>,
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LocalizedTitle {
     pub lang: String,
     pub title: String,
@@ -248,57 +226,6 @@ pub struct MetadataStaff {
     pub name: Option<String>,
     pub original: Option<String>,
     pub note: Option<String>,
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Deserialize)]
-pub struct MetadataPatch {
-    #[serde(default, deserialize_with = "double_option")]
-    pub alias: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub titles: Option<Option<Vec<LocalizedTitle>>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub rating: Option<Option<f64>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub votecount: Option<Option<i64>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub length_minutes: Option<Option<i64>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub released: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub description: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub image_path: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub cover_focal_x: Option<Option<i64>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub cover_focal_y: Option<Option<i64>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub ambience_path: Option<Option<String>>,
-    pub ambience_mode: Option<String>,
-    pub ambience_plate: Option<bool>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub ambience_focal_x: Option<Option<i64>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub ambience_focal_y: Option<Option<i64>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub tags: Option<Option<Vec<MetadataTag>>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub developers: Option<Option<Vec<String>>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub staff: Option<Option<Vec<MetadataStaff>>>,
-}
-
-impl MetadataPatch {
-    pub fn filled_labels(&self) -> Vec<&'static str> {
-        crate::generated::metadata::METADATA_FIELDS
-            .iter()
-            .filter_map(|field| {
-                field
-                    .label
-                    .filter(|_| crate::generated::metadata::is_set(self, field.key))
-            })
-            .collect()
-    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]

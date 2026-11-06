@@ -42,7 +42,7 @@ pub struct FieldSpec {
 }
 
 use crate::error::Result;
-use crate::types::{GameMetadata, MetadataPatch};
+use crate::types::{LocalizedTitle, MetadataStaff, MetadataTag};
 use rusqlite::types::Value;
 
 "#;
@@ -75,6 +75,38 @@ fn ident(raw: &str, variants: &[(&str, &str)]) -> String {
         .find(|(value, _)| *value == raw)
         .map(|(_, name)| (*name).to_owned())
         .unwrap_or_else(|| panic!("未知枚举值 {raw}"))
+}
+
+fn base_ty(field: &serde_json::Value) -> String {
+    let ty = text(field, "ty");
+    match ty {
+        "text" | "mode" => "String".to_owned(),
+        "integer" => "i64".to_owned(),
+        "real" => "f64".to_owned(),
+        "bool" => "bool".to_owned(),
+        "titles" | "tags" | "strings" | "staff" => {
+            format!("Vec<{}>", text(field, "item"))
+        }
+        _ => panic!("未知类型 {ty}"),
+    }
+}
+
+fn row_ty(field: &serde_json::Value) -> String {
+    let base = base_ty(field);
+    if flag(field, "nullable") {
+        format!("Option<{base}>")
+    } else {
+        base
+    }
+}
+
+fn patch_ty(field: &serde_json::Value) -> String {
+    let base = base_ty(field);
+    if flag(field, "clearable") {
+        format!("Option<Option<{base}>>")
+    } else {
+        format!("Option<{base}>")
+    }
 }
 
 fn value_expr(ty: &str, clearable: bool) -> &'static str {
@@ -136,6 +168,32 @@ fn generate_metadata_spec() {
     ];
 
     let mut out = String::from(HEADER);
+
+    out.push_str("#[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]\npub struct GameMetadata {\n");
+    for field in fields {
+        out.push_str(&format!(
+            "    pub {}: {},\n",
+            text(field, "key"),
+            row_ty(field)
+        ));
+    }
+    out.push_str("}\n\n");
+
+    out.push_str("#[derive(Debug, Default, Clone, PartialEq, serde::Deserialize)]\npub struct MetadataPatch {\n");
+    for field in fields.iter().filter(|f| flag(f, "in_patch")) {
+        if flag(field, "clearable") {
+            out.push_str("    #[serde(default, deserialize_with = \"crate::types::double_option\")]\n");
+        }
+        out.push_str(&format!(
+            "    pub {}: {},\n",
+            text(field, "key"),
+            patch_ty(field)
+        ));
+    }
+    out.push_str("}\n\n");
+
+    out.push_str("impl MetadataPatch {\n    pub fn filled_labels(&self) -> Vec<&'static str> {\n        METADATA_FIELDS\n            .iter()\n            .filter_map(|field| field.label.filter(|_| is_set(self, field.key)))\n            .collect()\n    }\n}\n\n");
+
     out.push_str("pub const METADATA_FIELDS: &[FieldSpec] = &[\n");
     for field in fields {
         let label = field

@@ -40,8 +40,79 @@ pub struct FieldSpec {
 }
 
 use crate::error::Result;
-use crate::types::{GameMetadata, MetadataPatch};
+use crate::types::{LocalizedTitle, MetadataStaff, MetadataTag};
 use rusqlite::types::Value;
+
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct GameMetadata {
+    pub game_id: String,
+    pub image_id: Option<String>,
+    pub alias: Option<String>,
+    pub released: Option<String>,
+    pub rating: Option<f64>,
+    pub votecount: Option<i64>,
+    pub length_minutes: Option<i64>,
+    pub description: Option<String>,
+    pub image_path: Option<String>,
+    pub titles: Option<Vec<LocalizedTitle>>,
+    pub tags: Option<Vec<MetadataTag>>,
+    pub developers: Option<Vec<String>>,
+    pub staff: Option<Vec<MetadataStaff>>,
+    pub cover_focal_x: Option<i64>,
+    pub cover_focal_y: Option<i64>,
+    pub ambience_path: Option<String>,
+    pub ambience_mode: String,
+    pub ambience_plate: bool,
+    pub ambience_focal_x: i64,
+    pub ambience_focal_y: i64,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, serde::Deserialize)]
+pub struct MetadataPatch {
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub alias: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub released: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub rating: Option<Option<f64>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub votecount: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub length_minutes: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub description: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub image_path: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub titles: Option<Option<Vec<LocalizedTitle>>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub tags: Option<Option<Vec<MetadataTag>>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub developers: Option<Option<Vec<String>>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub staff: Option<Option<Vec<MetadataStaff>>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub cover_focal_x: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub cover_focal_y: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub ambience_path: Option<Option<String>>,
+    pub ambience_mode: Option<String>,
+    pub ambience_plate: Option<bool>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub ambience_focal_x: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub ambience_focal_y: Option<Option<i64>>,
+}
+
+impl MetadataPatch {
+    pub fn filled_labels(&self) -> Vec<&'static str> {
+        METADATA_FIELDS
+            .iter()
+            .filter_map(|field| field.label.filter(|_| is_set(self, field.key)))
+            .collect()
+    }
+}
 
 pub const METADATA_FIELDS: &[FieldSpec] = &[
     FieldSpec {
