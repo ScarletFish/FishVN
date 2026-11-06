@@ -9,6 +9,7 @@ use serde::Serialize;
 use crate::characters;
 use crate::error::{AppError, Result};
 use crate::games;
+use crate::generated::metadata::is_blank_current;
 use crate::metadata;
 use crate::tasks::{EventLog, Progress, Task, Tasks};
 use crate::types::{GameMetadata, GamePatch, LocalizedTitle, MetadataPatch, MetadataStaff, MetadataTag};
@@ -247,14 +248,6 @@ fn clean_text(raw: &str) -> Option<String> {
     (!trimmed.is_empty()).then(|| trimmed.to_owned())
 }
 
-fn blank_str(raw: Option<&str>) -> bool {
-    raw.is_none_or(|v| v.trim().is_empty())
-}
-
-fn blank_list<T>(raw: &Option<Vec<T>>) -> bool {
-    raw.as_ref().is_none_or(|v| v.is_empty())
-}
-
 fn fill<T>(blank: bool, remote: Option<T>) -> Option<Option<T>> {
     (blank && remote.is_some()).then_some(remote)
 }
@@ -359,20 +352,20 @@ pub fn patch_for(current: Option<&GameMetadata>, sync: &VnSync) -> Option<Metada
     let vn = &sync.vn;
     let cur = current.cloned().unwrap_or_default();
     let patch = MetadataPatch {
-        alias: fill(blank_str(cur.alias.as_deref()), alias_title(vn)),
+        alias: fill(is_blank_current(&cur, "alias"), alias_title(vn)),
         released: fill(
-            blank_str(cur.released.as_deref()),
+            is_blank_current(&cur, "released"),
             vn.released.as_deref().and_then(clean_text),
         ),
-        rating: fill(cur.rating.is_none(), vn.rating),
-        votecount: fill(cur.votecount.is_none(), vn.votecount),
-        length_minutes: fill(cur.length_minutes.is_none(), vn.length_minutes),
+        rating: fill(is_blank_current(&cur, "rating"), vn.rating),
+        votecount: fill(is_blank_current(&cur, "votecount"), vn.votecount),
+        length_minutes: fill(is_blank_current(&cur, "length_minutes"), vn.length_minutes),
         description: fill(
-            blank_str(cur.description.as_deref()),
+            is_blank_current(&cur, "description"),
             vn.description.as_deref().and_then(clean_text),
         ),
         image_path: fill(
-            blank_str(cur.image_path.as_deref()),
+            is_blank_current(&cur, "image_path"),
             vn.image
                 .as_ref()
                 .and_then(|i| i.local_path.as_deref())
@@ -385,10 +378,10 @@ pub fn patch_for(current: Option<&GameMetadata>, sync: &VnSync) -> Option<Metada
         ambience_plate: None,
         ambience_focal_x: None,
         ambience_focal_y: None,
-        titles: fill(blank_list(&cur.titles), map_titles(vn)),
-        tags: fill(blank_list(&cur.tags), map_tags(vn)),
-        developers: fill(blank_list(&cur.developers), map_developers(vn)),
-        staff: fill(blank_list(&cur.staff), map_staff(vn)),
+        titles: fill(is_blank_current(&cur, "titles"), map_titles(vn)),
+        tags: fill(is_blank_current(&cur, "tags"), map_tags(vn)),
+        developers: fill(is_blank_current(&cur, "developers"), map_developers(vn)),
+        staff: fill(is_blank_current(&cur, "staff"), map_staff(vn)),
     };
     (!patch.filled_labels().is_empty()).then_some(patch)
 }

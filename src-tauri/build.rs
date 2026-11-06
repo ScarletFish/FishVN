@@ -41,6 +41,10 @@ pub struct FieldSpec {
     pub in_patch: bool,
 }
 
+use crate::error::Result;
+use crate::types::{GameMetadata, MetadataPatch};
+use rusqlite::types::Value;
+
 "#;
 
 fn main() {
@@ -71,6 +75,31 @@ fn ident(raw: &str, variants: &[(&str, &str)]) -> String {
         .find(|(value, _)| *value == raw)
         .map(|(_, name)| (*name).to_owned())
         .unwrap_or_else(|| panic!("未知枚举值 {raw}"))
+}
+
+fn value_expr(ty: &str, clearable: bool) -> &'static str {
+    match (ty, clearable) {
+        ("text" | "mode", true) => "Value::Text(v.clone())",
+        ("integer", true) => "Value::Integer(*v)",
+        ("real", true) => "Value::Real(*v)",
+        ("titles" | "tags" | "strings" | "staff", true) => {
+            "Value::Text(serde_json::to_string(v)?)"
+        }
+        ("mode", false) => "Value::Text(raw.clone())",
+        ("bool", false) => "Value::Integer(i64::from(*raw))",
+        _ => panic!("无法生成 SQL 值转换：{ty} clearable={clearable}"),
+    }
+}
+
+fn blank_expr(key: &str, rule: &str) -> Option<String> {
+    let body = match rule {
+        "trim_empty" => format!("{key}.as_deref().is_none_or(|v| v.trim().is_empty())"),
+        "null_only" => format!("{key}.is_none()"),
+        "empty_list" => format!("{key}.as_ref().is_none_or(|v| v.is_empty())"),
+        "not_applicable" => return None,
+        _ => panic!("未知空值规则 {rule}"),
+    };
+    Some(body)
 }
 
 fn generate_metadata_spec() {
@@ -135,7 +164,43 @@ fn generate_metadata_spec() {
     }
     out.push_str("        _ => false,\n    }\n}\n\n");
 
-    out.push_str("pub fn field(key: &str) -> Option<&'static FieldSpec> {\n    METADATA_FIELDS.iter().find(|f| f.key == key)\n}\n");
+    out.push_str("pub fn field(key: &str) -> Option<&'static FieldSpec> {\n    METADATA_FIELDS.iter().find(|f| f.key == key)\n}\n\n");
+
+    let column_list = fields
+        .iter()
+        .map(|f| text(f, "sql"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    out.push_str(&format!("pub const COLUMNS: &str = \"{column_list}\";\n\n"));
+
+    out.push_str("pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {\n    let mut columns: Vec<&'static str> = Vec::new();\n    let mut values: Vec<Value> = Vec::new();\n");
+    for field in fields.iter().filter(|f| flag(f, "in_patch")) {
+        let key = text(field, "key");
+        let sql = text(field, "sql");
+        let clearable = flag(field, "clearable");
+        let expr = value_expr(text(field, "ty"), clearable);
+        out.push_str(&format!(
+            "    if let Some(raw) = &patch.{key} {{\n        columns.push(\"{sql}\");\n"
+        ));
+        if clearable {
+            out.push_str(&format!(
+                "        values.push(match raw {{\n            Some(v) => {expr},\n            None => Value::Null,\n        }});\n"
+            ));
+        } else {
+            out.push_str(&format!("        values.push({expr});\n"));
+        }
+        out.push_str("    }\n");
+    }
+    out.push_str("    Ok((columns, values))\n}\n\n");
+
+    out.push_str("pub fn is_blank_current(meta: &GameMetadata, key: &str) -> bool {\n    match key {\n");
+    for field in fields.iter().filter(|f| flag(f, "in_patch")) {
+        let key = text(field, "key");
+        if let Some(body) = blank_expr(&format!("meta.{key}"), text(field, "blank")) {
+            out.push_str(&format!("        \"{key}\" => {body},\n"));
+        }
+    }
+    out.push_str("        _ => false,\n    }\n}\n");
 
     let out_path = root.join("src/generated/metadata.rs");
     let unchanged = fs::read_to_string(&out_path)

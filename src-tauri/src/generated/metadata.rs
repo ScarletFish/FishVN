@@ -39,6 +39,10 @@ pub struct FieldSpec {
     pub in_patch: bool,
 }
 
+use crate::error::Result;
+use crate::types::{GameMetadata, MetadataPatch};
+use rusqlite::types::Value;
+
 pub const METADATA_FIELDS: &[FieldSpec] = &[
     FieldSpec {
         key: "game_id",
@@ -288,4 +292,149 @@ pub fn is_set(patch: &crate::types::MetadataPatch, key: &str) -> bool {
 
 pub fn field(key: &str) -> Option<&'static FieldSpec> {
     METADATA_FIELDS.iter().find(|f| f.key == key)
+}
+
+pub const COLUMNS: &str = "game_id, image_id, alias, released, rating, votecount, length_minutes, description, image_path, titles, tags, developers, staff, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y";
+
+pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {
+    let mut columns: Vec<&'static str> = Vec::new();
+    let mut values: Vec<Value> = Vec::new();
+    if let Some(raw) = &patch.alias {
+        columns.push("alias");
+        values.push(match raw {
+            Some(v) => Value::Text(v.clone()),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.released {
+        columns.push("released");
+        values.push(match raw {
+            Some(v) => Value::Text(v.clone()),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.rating {
+        columns.push("rating");
+        values.push(match raw {
+            Some(v) => Value::Real(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.votecount {
+        columns.push("votecount");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.length_minutes {
+        columns.push("length_minutes");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.description {
+        columns.push("description");
+        values.push(match raw {
+            Some(v) => Value::Text(v.clone()),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.image_path {
+        columns.push("image_path");
+        values.push(match raw {
+            Some(v) => Value::Text(v.clone()),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.titles {
+        columns.push("titles");
+        values.push(match raw {
+            Some(v) => Value::Text(serde_json::to_string(v)?),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.tags {
+        columns.push("tags");
+        values.push(match raw {
+            Some(v) => Value::Text(serde_json::to_string(v)?),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.developers {
+        columns.push("developers");
+        values.push(match raw {
+            Some(v) => Value::Text(serde_json::to_string(v)?),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.staff {
+        columns.push("staff");
+        values.push(match raw {
+            Some(v) => Value::Text(serde_json::to_string(v)?),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.cover_focal_x {
+        columns.push("cover_focal_x");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.cover_focal_y {
+        columns.push("cover_focal_y");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.ambience_path {
+        columns.push("ambience_path");
+        values.push(match raw {
+            Some(v) => Value::Text(v.clone()),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.ambience_mode {
+        columns.push("ambience_mode");
+        values.push(Value::Text(raw.clone()));
+    }
+    if let Some(raw) = &patch.ambience_plate {
+        columns.push("ambience_plate");
+        values.push(Value::Integer(i64::from(*raw)));
+    }
+    if let Some(raw) = &patch.ambience_focal_x {
+        columns.push("ambience_focal_x");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.ambience_focal_y {
+        columns.push("ambience_focal_y");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    Ok((columns, values))
+}
+
+pub fn is_blank_current(meta: &GameMetadata, key: &str) -> bool {
+    match key {
+        "alias" => meta.alias.as_deref().is_none_or(|v| v.trim().is_empty()),
+        "released" => meta.released.as_deref().is_none_or(|v| v.trim().is_empty()),
+        "rating" => meta.rating.is_none(),
+        "votecount" => meta.votecount.is_none(),
+        "length_minutes" => meta.length_minutes.is_none(),
+        "description" => meta.description.as_deref().is_none_or(|v| v.trim().is_empty()),
+        "image_path" => meta.image_path.as_deref().is_none_or(|v| v.trim().is_empty()),
+        "titles" => meta.titles.as_ref().is_none_or(|v| v.is_empty()),
+        "tags" => meta.tags.as_ref().is_none_or(|v| v.is_empty()),
+        "developers" => meta.developers.as_ref().is_none_or(|v| v.is_empty()),
+        "staff" => meta.staff.as_ref().is_none_or(|v| v.is_empty()),
+        _ => false,
+    }
 }

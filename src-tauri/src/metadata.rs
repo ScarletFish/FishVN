@@ -1,13 +1,10 @@
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Row};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
 
 use crate::error::{AppError, Result};
+use crate::generated::metadata::COLUMNS;
 use crate::types::{GameMetadata, MetadataPatch, MetadataTag};
-
-const COLUMNS: &str =
-    "game_id, alias, titles, rating, votecount, length_minutes, released, description, image_id, image_path, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y, tags, developers, staff";
 
 struct MetaRow {
     game_id: String,
@@ -60,7 +57,7 @@ pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result
         patch.cover_focal_y = Some(Some(50));
     }
 
-    let (columns, mut values) = build_columns(&patch)?;
+    let (columns, mut values) = crate::generated::metadata::patch_columns(&patch)?;
     if columns.is_empty() {
         return Err(AppError::BadRequest("没有可更新的字段".into()));
     }
@@ -92,123 +89,6 @@ pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result
     }
 
     get(conn, game_id)?.ok_or_else(|| AppError::NotFound("游戏不存在".into()))
-}
-
-fn build_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {
-    let mut columns: Vec<&'static str> = Vec::new();
-    let mut values: Vec<Value> = Vec::new();
-
-    macro_rules! nullable {
-        ($field:expr, $column:literal) => {
-            if let Some(raw) = $field {
-                columns.push($column);
-                values.push(match raw {
-                    Some(v) => Value::Text(v.clone()),
-                    None => Value::Null,
-                });
-            }
-        };
-    }
-    nullable!(&patch.alias, "alias");
-    nullable!(&patch.released, "released");
-    nullable!(&patch.description, "description");
-    nullable!(&patch.image_path, "image_path");
-    nullable!(&patch.ambience_path, "ambience_path");
-
-    if let Some(raw) = &patch.ambience_mode {
-        columns.push("ambience_mode");
-        values.push(Value::Text(raw.clone()));
-    }
-    if let Some(raw) = &patch.ambience_plate {
-        columns.push("ambience_plate");
-        values.push(Value::Integer(i64::from(*raw)));
-    }
-    if let Some(raw) = &patch.ambience_focal_x {
-        columns.push("ambience_focal_x");
-        values.push(match raw {
-            Some(v) => Value::Integer(*v),
-            None => Value::Null,
-        });
-    }
-    if let Some(raw) = &patch.ambience_focal_y {
-        columns.push("ambience_focal_y");
-        values.push(match raw {
-            Some(v) => Value::Integer(*v),
-            None => Value::Null,
-        });
-    }
-
-    if let Some(raw) = &patch.rating {
-        columns.push("rating");
-        values.push(match raw {
-            Some(v) => Value::Real(*v),
-            None => Value::Null,
-        });
-    }
-    if let Some(raw) = &patch.votecount {
-        columns.push("votecount");
-        values.push(match raw {
-            Some(v) => Value::Integer(*v),
-            None => Value::Null,
-        });
-    }
-    if let Some(raw) = &patch.length_minutes {
-        columns.push("length_minutes");
-        values.push(match raw {
-            Some(v) => Value::Integer(*v),
-            None => Value::Null,
-        });
-    }
-
-    if let Some(raw) = &patch.cover_focal_x {
-        columns.push("cover_focal_x");
-        values.push(match raw {
-            Some(v) => Value::Integer(*v),
-            None => Value::Null,
-        });
-    }
-    if let Some(raw) = &patch.cover_focal_y {
-        columns.push("cover_focal_y");
-        values.push(match raw {
-            Some(v) => Value::Integer(*v),
-            None => Value::Null,
-        });
-    }
-
-    if let Some(raw) = &patch.titles {
-        columns.push("titles");
-        values.push(match raw {
-            Some(v) => Value::Text(to_json(v)?),
-            None => Value::Null,
-        });
-    }
-    if let Some(raw) = &patch.tags {
-        columns.push("tags");
-        values.push(match raw {
-            Some(v) => Value::Text(to_json(v)?),
-            None => Value::Null,
-        });
-    }
-    if let Some(raw) = &patch.developers {
-        columns.push("developers");
-        values.push(match raw {
-            Some(v) => Value::Text(to_json(v)?),
-            None => Value::Null,
-        });
-    }
-    if let Some(raw) = &patch.staff {
-        columns.push("staff");
-        values.push(match raw {
-            Some(v) => Value::Text(to_json(v)?),
-            None => Value::Null,
-        });
-    }
-
-    Ok((columns, values))
-}
-
-fn to_json<T: Serialize>(value: &T) -> Result<String> {
-    Ok(serde_json::to_string(value)?)
 }
 
 fn game_exists(conn: &Connection, id: &str) -> Result<bool> {
