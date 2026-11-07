@@ -23,6 +23,7 @@ fn push(log: &Mutex<EventLog>, phase: &str, done: Option<i64>, total: Option<i64
             error: None,
             run_id: 0,
             game_id: None,
+            seq: 0,
         },
     );
 }
@@ -53,6 +54,7 @@ async fn sse补读缓冲里的历史事件() {
     assert!(text.contains("id: 1"), "首帧缺 id：{text}");
     assert!(text.contains("event: vndb-sync"), "首帧缺事件名：{text}");
     assert!(text.contains("\"phase\":\"meta\""), "首帧缺数据：{text}");
+    assert!(text.contains("\"seq\":1"), "首帧数据缺序号：{text}");
 }
 
 #[tokio::test]

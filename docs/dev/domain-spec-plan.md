@@ -156,6 +156,7 @@
 | 2 | **评估后不做通用 merge 抽象** | — | 四路写路径处理的是不同实体（元数据 / 用户状态 / 角色），硬塞进一个 `merge()` 会造成类型擦除与参数遍地；字段级规则已由 `source` / `blank` / `editable` 单一来源。`user_override` 上锁属于 provenance，并入步 5 |
 | 3 | 完成 | 本批 | 生成前端 `metadata-fields.js`（`METADATA_FIELDS` / `PATCH_KEYS` / `FORM_KEYS`），新增 2 条前后端键名契约测试；前端 309→311 例 |
 | 4 | 完成 | 本批 | 抽出 `backfill-projection.js` 纯函数做事件投影，`onEvent` 不再丢弃 payload；全量重拉只在终态/错误时触发；前端 311→315 例 |
+| 4b | 完成 | 本批 | `TaskEvent` 加 `seq`（`EventLog::push` 分配并写回事件），推送事件直接进日志；删掉 `pulling`/`pullAgain` 单飞，`pullLogs` 退化为首次订阅后补历史并按序号合并去重；后端 337→338、前端 315→320 例 |
 | 5 | 完成 | 本批 | 新增 `docs/dev/architecture.md`（骨架 / 不变量台账 / 影响面矩阵 / 性能边界），修 `view-contracts.md` 里并不存在的 selector 层，`AGENTS.md` 加索引；provenance 评估后不做 |
 
 **步 5 的 provenance 决定**：不落 `field_sources` / `locked_fields` 列，不改 FDD:413。理由：没有消费方的来源列就是死代码；FDD:413「批量仍保持仅空白」是明确的产品决策，本任务约定默认行为不变、不擅自改产品语义；规格表已用 `source` / `editable` 声明了字段来源与可编辑性，将来真要支持多源或「改绑后重算」，加列与写入来源是局部增量，不需要现在预付。这项判断连同步 2 的决定一并留档，供将来重审。
@@ -164,9 +165,11 @@
 
 全部 5 步完成。提交序列：`6ea48f5`（步 0）→ `c3a86ce` / `202f10a` / `d9440cd`（步 1）→ `5243baf`（步 3）→ `590e1ce`（步 4）→ 本批（步 5）；步 2 经评估不做通用 `merge()` 抽象。
 
-最终基线：后端 **337 passed / 5 skipped**，前端 **31 文件 315 例**，`check:rust` / `check:frontend` / `check:generated` / `git diff --check` 全过。元数据字段从 8 份手写清单收敛为 `spec/metadata.json` 一处，Rust 与 JS 两侧代码由 `build.rs` 生成；加一个字段只需改规格一行，再加该字段特有的上游映射与 UI 控件。
+最终基线：后端 **338 passed / 5 skipped**（步 4b 后），前端 **31 文件 320 例**，`check:rust` / `check:frontend` / `check:generated` / `git diff --check` 全过。步 5 收尾时为后端 337 / 前端 315。元数据字段从 8 份手写清单收敛为 `spec/metadata.json` 一处，Rust 与 JS 两侧代码由 `build.rs` 生成；加一个字段只需改规格一行，再加该字段特有的上游映射与 UI 控件。
 
-步 4 的范围说明：核查发现 `vndb-backfill` / `vndb-sync` / `scan` 共有 8 处订阅者，且后端 `tasks.rs:149` 与 `commands.rs:481,542` 发的都是 `TaskEvent`（devhttp 的 SSE 另用 `id` 带 seq）。**改 payload 为 `LoggedEvent` 会破坏所有消费者**，故本步不动 IPC 契约，只让前端消费已有的 `phase/done/total/game_id/error`：进度与当前条目实时投影进 `backfillStore.status`，`needsReload()` 把全量重拉收敛到 `finished/failed/unmatched/resolve/rate-limited/paused` 与带 error 的事件。`seq` 竞态、`pulling` 单飞、`watchers` 引用计数保留（订阅生命周期与首次/重连补历史仍需要），没有为了「删代码」而牺牲正确性。
+步 4 的范围说明：核查发现 `vndb-backfill` / `vndb-sync` / `scan` 共有 8 处订阅者，且后端 `tasks.rs:149` 与 `commands.rs:481,542` 发的都是 `TaskEvent`（devhttp 的 SSE 另用 `id` 带 seq）。**改 payload 形状为 `LoggedEvent` 会破坏所有消费者**，故本步不动 IPC 契约，只让前端消费已有的 `phase/done/total/game_id/error`：进度与当前条目实时投影进 `backfillStore.status`，`needsReload()` 把全量重拉收敛到终态与带 error 的事件。`load()` 的 `seq` 竞态与 `watchers` 引用计数保留，没有为了「删代码」而牺牲正确性。
+
+步 4b 的追加优化：不改 payload **形状**，而是走加法给 `TaskEvent` 补 `seq: u64`，由 `EventLog::push` 分配并写回事件，因此 Tauri `app.emit` 与 devhttp SSE 的 `json_data` 同时带上序号，8 处订阅者一行都不用改（多一个字段无害）。前端 `onEvent` 用 `appendEvent` 把事件直接包成日志行，`mergeLogRows` 按序号去重合并；`eventsSince` 从「每个终态都拉」退化为「首次订阅后补历史」，`pulling` / `pullAgain` 单飞整片删除。SSE 断线重连仍由 `id` / `?since` 补发历史事件，经同一合并函数进日志，两条通道行为一致。`tests/devhttp.rs` 新增 `data` 带 seq 的断言、`tasks.rs` 新增 push 后事件序号一致的用例，`backfill-projection.test.js` 新增 5 条合并/去重/裁剪用例。
 
 步 3 的范围说明：`vn-merge.js` 的 `FIELDS` 用的是**表单字段名**（`lengthMinutes` / `coverPath` / `name`），与元数据表的 `length_minutes` / `image_path` 不是同一概念，`name` 甚至来自 `games` 表；`read` 映射与 `same` 判定是业务规则，强行由规格生成会引入 camelCase 映射表和规则枚举，收益低于风险。因此本步聚焦真正会漂移的部分——**前后端补丁键名契约**：`form-metadata.js::buildMetadataPatch` 产出的 17 个键由生成的 `FORM_KEYS` 断言守住，正是 `null` 清空那类跨层 bug 的护栏。`check:generated` 已同时覆盖 Rust 与 JS 两侧生成物。
 

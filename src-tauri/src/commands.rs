@@ -473,6 +473,7 @@ pub async fn sync_vndb(
             error: None,
             run_id: 0,
             game_id: None,
+            seq: 0,
         };
         let logged = match log.inner().lock() {
             Ok(mut log) => log.push(SYNC_PROGRESS, event),
@@ -534,6 +535,7 @@ pub async fn apply_sync_plan(
                 error: None,
                 run_id: 0,
                 game_id: None,
+                seq: 0,
             };
             let logged = match log.inner().lock() {
                 Ok(mut log) => log.push(SYNC_PROGRESS, event),

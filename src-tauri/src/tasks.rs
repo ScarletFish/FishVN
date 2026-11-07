@@ -31,8 +31,9 @@ pub struct EventLog {
 }
 
 impl EventLog {
-    pub fn push(&mut self, name: &str, event: TaskEvent) -> LoggedEvent {
+    pub fn push(&mut self, name: &str, mut event: TaskEvent) -> LoggedEvent {
         self.next += 1;
+        event.seq = self.next;
         let logged = LoggedEvent {
             seq: self.next,
             name: name.to_owned(),
@@ -142,6 +143,7 @@ impl Task {
                     error,
                     game_id,
                     run_id: self.run_id,
+                    seq: 0,
                 },
             ),
             Err(_) => return,
@@ -219,7 +221,19 @@ mod tests {
             error: None,
             run_id: 0,
             game_id: None,
+            seq: 0,
         }
+    }
+
+    #[test]
+    fn 推送的事件自带与日志一致的序号() {
+        let mut log = EventLog::default();
+        let first = log.push("t", event("a"));
+        let second = log.push("t", event("b"));
+
+        assert_eq!(first.event.seq, first.seq);
+        assert_eq!(second.event.seq, second.seq);
+        assert_eq!(log.since(first.seq)[0].event.seq, second.seq);
     }
 
     #[test]

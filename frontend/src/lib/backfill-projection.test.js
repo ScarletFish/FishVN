@@ -1,5 +1,10 @@
 import { expect, test } from 'vitest';
-import { needsReload, projectEvent } from './backfill-projection.js';
+import {
+  appendEvent,
+  mergeLogRows,
+  needsReload,
+  projectEvent,
+} from './backfill-projection.js';
 
 function status() {
   return {
@@ -46,4 +51,43 @@ test('只有终态与错误才需要重拉权威状态', () => {
   }
   expect(needsReload({ phase: 'meta', error: '超时' })).toBe(true);
   expect(needsReload(null)).toBe(false);
+});
+
+test('带序号的推送事件直接成为日志行', () => {
+  const ev = { phase: 'images', seq: 7, done: 3, total: 5 };
+  expect(appendEvent([], ev)).toEqual([
+    { seq: 7, name: 'vndb-backfill', event: ev },
+  ]);
+});
+
+test('没有序号的事件不写日志', () => {
+  const logs = [{ seq: 1, event: { phase: 'meta' } }];
+  expect(appendEvent(logs, { phase: 'meta' })).toBe(logs);
+  expect(appendEvent(logs, null)).toBe(logs);
+});
+
+test('历史补读与实时事件按序号去重并保持有序', () => {
+  const live = { seq: 3, event: { phase: 'images' } };
+  const history = [
+    { seq: 3, event: { phase: 'images' } },
+    { seq: 2, event: { phase: 'meta' } },
+  ];
+  const rows = mergeLogRows([live], history);
+  expect(rows.map((row) => row.seq)).toEqual([2, 3]);
+  expect(rows).toHaveLength(2);
+});
+
+test('缺序号的行被忽略', () => {
+  expect(mergeLogRows([], [{ event: {} }, { seq: 2, event: {} }]).map((r) => r.seq)).toEqual([2]);
+});
+
+test('日志只保留序号最大的 400 条', () => {
+  const rows = Array.from({ length: 405 }, (_, i) => ({
+    seq: i + 1,
+    event: { phase: 'meta' },
+  }));
+  const kept = mergeLogRows([], rows);
+  expect(kept).toHaveLength(400);
+  expect(kept[0].seq).toBe(6);
+  expect(kept.at(-1).seq).toBe(405);
 });

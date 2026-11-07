@@ -1,7 +1,7 @@
 import { api } from './api.js';
 import { subscribe } from './events.js';
 import { BACKFILL_REFRESH } from './task-events.js';
-import { needsReload, projectEvent } from './backfill-projection.js';
+import { appendEvent, mergeLogRows, needsReload, projectEvent } from './backfill-projection.js';
 
 export const backfillStore = $state({
   status: null,
@@ -19,8 +19,6 @@ let unsub = null;
 let watchers = 0;
 let timer = null;
 let seq = 0;
-let pulling = false;
-let pullAgain = false;
 
 async function load() {
   const mine = ++seq;
@@ -45,35 +43,27 @@ function schedule() {
   timer = setTimeout(() => {
     timer = null;
     load();
-    pullLogs();
   }, 200);
 }
 
-async function pullLogs() {
-  if (pulling) {
-    pullAgain = true;
-    return;
-  }
-  pulling = true;
+async function pullLogs(after) {
   try {
-    const rows = await api.eventsSince(backfillStore.lastSeq);
-    if (rows.length) {
-      backfillStore.lastSeq = rows[rows.length - 1].seq;
-      backfillStore.logs = [...backfillStore.logs, ...rows].slice(-400);
-    }
+    const rows = await api.eventsSince(after);
+    if (!rows.length) return;
+    backfillStore.logs = mergeLogRows(backfillStore.logs, rows);
+    const last = rows[rows.length - 1]?.seq ?? 0;
+    backfillStore.lastSeq = Math.max(backfillStore.lastSeq, last);
   } catch {
-  } finally {
-    pulling = false;
-    if (pullAgain) {
-      pullAgain = false;
-      if (watchers > 0) pullLogs();
-    }
   }
 }
 
 function onEvent(ev) {
   if (!ev) return;
   backfillStore.status = projectEvent(backfillStore.status, ev);
+  backfillStore.logs = appendEvent(backfillStore.logs, ev);
+  if (Number.isFinite(ev.seq)) {
+    backfillStore.lastSeq = Math.max(backfillStore.lastSeq, ev.seq);
+  }
   if (needsReload(ev)) schedule();
 }
 
@@ -81,8 +71,9 @@ export async function watchBackfill() {
   watchers += 1;
   if (watchers === 1) {
     await load();
-    await pullLogs();
+    const after = backfillStore.lastSeq;
     unsub = await subscribe('vndb-backfill', onEvent);
+    await pullLogs(after);
     window.addEventListener(BACKFILL_REFRESH, schedule);
   }
 }
@@ -97,7 +88,6 @@ export function unwatchBackfill() {
     clearTimeout(timer);
     timer = null;
   }
-  pullAgain = false;
 }
 
 export { load as reloadBackfill };
