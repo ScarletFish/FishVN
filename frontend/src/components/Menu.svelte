@@ -1,7 +1,7 @@
 <script>
   import { DropdownMenu } from 'bits-ui';
 
-  let { items = [], label, variant = 'btn', open = $bindable(false), trigger = null } = $props();
+  let { items = [], label, variant = 'btn', open = $bindable(false), trigger = null, align = 'end' } = $props();
 </script>
 
 <div class="menu" data-variant={variant}>
@@ -27,7 +27,7 @@
       {/snippet}
     </DropdownMenu.Trigger>
     <DropdownMenu.Portal to="#modal-root">
-      <DropdownMenu.Content class="menu__list" align="end" sideOffset={4}>
+      <DropdownMenu.Content class="menu__list" align={align} sideOffset={4}>
         {#each items as item (item.label)}
           <DropdownMenu.Item class="menu__item" onSelect={() => item.onclick()}>
             {item.label}

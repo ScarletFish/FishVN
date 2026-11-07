@@ -17,8 +17,8 @@
     onLibraryItemsThrottled,
     LIBRARY_CHANGED,
   } from '../lib/library-events.js';
+  import { openForm } from '../lib/add-game.svelte.js';
   import GameCard from '../components/GameCard.svelte';
-  import GameForm from '../components/GameForm.svelte';
   import StatusSection from '../components/StatusSection.svelte';
 
   let { onopen, scroll = 0 } = $props();
@@ -34,8 +34,6 @@
   let error = $state(null);
   let scrollEl = $state(null);
   let headEl = $state(null);
-  let formOpen = $state(false);
-  let formGameId = $state(null);
 
   const moduleLabel = (id) => {
     const known = DASHBOARD_MODULES.find((m) => m.id === id);
@@ -62,11 +60,6 @@
     );
     if (card) captureHero(card);
     onopen(item.id);
-  }
-
-  function openForm(id) {
-    formGameId = id;
-    formOpen = true;
   }
 
   async function deleteGame(item) {
@@ -274,5 +267,3 @@
     {/if}
   {/if}
 </section>
-
-<GameForm bind:open={formOpen} bind:gameId={formGameId} />

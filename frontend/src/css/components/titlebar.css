@@ -56,6 +56,20 @@
   color: var(--accent);
 }
 
+.titlebar__brandbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  margin-left: calc(-1 * var(--space-1));
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
 .titlebar__back {
   height: 26px;
   display: flex;

@@ -16,7 +16,6 @@
   import { playHero, discardHero } from '../lib/hero-transition.js';
   import { tagLabel } from '../lib/tag-label.svelte.js';
   import { requestSearchQuery } from '../lib/search-query.js';
-  import { getFormTab, setFormTab } from '../lib/form-tab-pref.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
   import { classifyTags } from '../lib/tag-order.svelte.js';
   import {
@@ -25,11 +24,11 @@
     notifyLibraryTagsChanged,
     onLibraryItemUpdated,
   } from '../lib/library-events.js';
+  import { addGame, openForm } from '../lib/add-game.svelte.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import DetailStaff from './DetailStaff.svelte';
   import DetailPlayLog from './DetailPlayLog.svelte';
   import DetailNotes from './DetailNotes.svelte';
-  import GameForm from '../components/GameForm.svelte';
   import Menu from '../components/Menu.svelte';
 
   let { gameId, onname, onclose, autostart = false, focusCharacter = null } = $props();
@@ -40,8 +39,6 @@
   let defaultDirId = $state(null);
   let loading = $state(true);
   let failed = $state(false);
-  let formOpen = $state(false);
-  let formTab = $state(getFormTab());
   let menuOpen = $state(false);
   let coverUrl = $state(null);
   let coverBroken = $state(false);
@@ -479,10 +476,6 @@
   let lastAmbienceKey = null;
 
   $effect(() => {
-    setFormTab(formTab);
-  });
-
-  $effect(() => {
     const custom = (meta?.ambience_path ?? '').trim();
     const source = custom || (meta?.image_path ?? '');
     const mode = ambienceMode;
@@ -530,8 +523,8 @@
   let formWasOpen = false;
 
   $effect(() => {
-    if (formWasOpen && !formOpen) refreshPlay().catch(() => {});
-    formWasOpen = formOpen;
+    if (formWasOpen && !addGame.formOpen) refreshPlay().catch(() => {});
+    formWasOpen = addGame.formOpen;
   });
 
   function handleSideMouse(e) {
@@ -652,8 +645,7 @@
             class="menu__item"
             disabled={!hasBannerImage}
             onSelect={() => {
-              formTab = 'tags';
-              formOpen = true;
+              openForm(gameId, { tab: 'tags' });
             }}
           >
             {t('gameForm.ambience.focalJump')}
@@ -712,7 +704,7 @@
                       {
                         label: t('common.actionEdit'),
                         onclick: () => {
-                          formOpen = true;
+                          openForm(gameId);
                         },
                       },
                       { label: t('detail.actionDelete'), onclick: removeGame },
@@ -859,8 +851,7 @@
                 style="animation-delay: 0.29s"
                 data-tooltip={t('detail.installDefaultTip')}
                 onclick={() => {
-                  formTab = 'installations';
-                  formOpen = true;
+                  openForm(gameId, { tab: 'installations' });
                 }}
               >
                 <span class="detail-install-label">{t('detail.installDefault')}</span>
@@ -890,5 +881,3 @@
     <DetailNotes {gameId} />
   {/if}
 </section>
-
-<GameForm bind:open={formOpen} gameId={gameId} initialTab={formTab} bind:tab={formTab} />

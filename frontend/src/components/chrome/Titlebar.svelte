@@ -1,6 +1,8 @@
 <script>
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import SearchBar from './SearchBar.svelte';
+  import Menu from '../Menu.svelte';
+  import { openForm, addFromFile, addFromScan } from '../../lib/add-game.svelte.js';
   import { t } from '../../lib/i18n.js';
 
   let { mode = 'default', title = '', onback, onsettings } = $props();
@@ -64,12 +66,32 @@
       </button>
       <span class="titlebar__title">{title}</span>
     {:else}
-      <span class="titlebar__mark">
-        <svg viewBox="18 18 547 307"><use href="#fishvn-fish"></use></svg>
-      </span>
-      <span class="titlebar__brand"
-        ><span class="titlebar__brand-fish">Fish</span><span class="titlebar__brand-vn">VN</span></span
+      <Menu
+        label={t('mylist.add')}
+        align="start"
+        items={[
+          { label: t('mylist.addManual'), onclick: () => openForm(null) },
+          { label: t('mylist.addFromFile'), onclick: addFromFile },
+          { label: t('mylist.addScan'), onclick: addFromScan },
+        ]}
       >
+        {#snippet trigger(props)}
+          <button
+            {...props}
+            type="button"
+            class="titlebar__brandbtn"
+            aria-label={t('mylist.add')}
+            data-tooltip={t('mylist.add')}
+          >
+            <span class="titlebar__mark">
+              <svg viewBox="18 18 547 307"><use href="#fishvn-fish"></use></svg>
+            </span>
+            <span class="titlebar__brand"
+              ><span class="titlebar__brand-fish">Fish</span><span class="titlebar__brand-vn">VN</span></span
+            >
+          </button>
+        {/snippet}
+      </Menu>
     {/if}
   </div>
 

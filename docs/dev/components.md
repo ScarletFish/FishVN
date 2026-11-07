@@ -2,6 +2,7 @@
 
 - **原名优先**：人名与作品名在界面上展示 `original`，罗马音 `name` 用作配对与检索身份。VNDB 同步填进表单的展示名按「官方中文标题 → 原文标题（alttitle）→ 主标题（title）」选择，别名放主标题；新增任何展示 VNDB 名字的位置都沿用这一优先级。
 - **`GameForm` 的保存顺序是「内容先行，绑定殿后」**：安装、状态、元数据、角色全部写成功后，最后一步才写 `vndb_id`，绑定始终与已落库的内容一致。新建条目在创建返回后立刻切到更新通道，失败重试落在同一条上。选中搜索命中先查库内占用，已有条目绑定同一作品就当场提示，校验通过才进入拉取。
+- **`add-game.svelte.js`：添加/编辑表单的全局单例状态**。`GameForm` 与 `ScanAddDialog` 只在 `App` 挂一份，`openForm(id, { tab })` / `openPrefilled(path)` / `addFromFile` / `addFromScan` 是唯一驱动入口，各视图不持有自己的表单实例。新建（`id == null`）固定从「基本」页开始并覆写记忆标签页；编辑未指定 tab 沿用记忆页；详情页跳指定页（标签 / 安装）走 `tab` 参数。标签页记忆由 `App` 的 `$effect` 统一落地 `form-tab-pref`。扫描完成的刷新走 `LIBRARY_CHANGED` 广播，视图各自订阅。
 - **bits-ui 是无头行为层，视觉全部留在自家 CSS**：`Select`（`SelectDd` 内部）、`DropdownMenu`（`Menu` 内部）、`Tabs`（两处 tablist）、`ContextMenu`（横幅）都只借它的键盘导航、焦点管理与 ARIA，DOM 结构和类名是我们渲染的（`child` snippet / `class` 透传 / `ContentStatic` 文档流定位）。组件上不能写 `class:` 指令，动态类名用三元拼进 `class`。受控状态走函数绑定 `bind:value={() => v, set}`，API 与调用方约定不变。**以装好的包为准，别照官方文档站抄新 API**——文档站常跑到 npm 发布前面（`Select.ItemText` 在 2.20.3 里不存在，输入过滤走 `Item` 的 `label` prop），照抄就是静默渲染成空。
 - **`Menu`**：内部是 bits-ui `DropdownMenu`，浮层**必须**套 `Portal` 后由 Floating UI 定位（`align="end"` 保持右对齐、防溢出翻转）——卡片 hover 有 `transform` 过渡，不套 Portal 的 `position: fixed` 会被 transform 祖先劫持成相对卡片定位，悬浮态一变菜单就整块跑偏。开合状态仍可由调用方 `bind:open` 持有。它只管 ⋮ 那种挂在宿主右下角的下拉，不跟鼠标点。
 - **右键菜单走 bits-ui 的 `ContextMenu`**（横幅是当前唯一入口）。硬约束：触发区必须挂在 `.detail-banner` 上，`.detail-ambience` 是 `pointer-events: none` 又压在横幅容器之下，右键永远落不到它；菜单内容是**状态面板**，用表单那套控件（`forms.css` 的 `.seg-radio-group`、`.toggle-switch`）而不是 menuitem 动作条目，点选天然不关菜单；单选钮是半受控的——选项值由 meta 派生，选「自定义」后取消文件对话框不触发重渲染，DOM 会卡在视觉选中态，靠 `{#key}` 重挂载回弹；面板视觉在 `menus.css` 的 `.menu__list` 规则组上做 `.context-menu--panel` 变体，底压到 surface 是因为段控件的提亮语言（现在是明度对比）需要容器比选中格暗一档。若将来要用回 `RadioItem` / `CheckboxItem`，必须套在 `Group` / `RadioGroup` 里，否则渲染时抛 `Context not found`——错误只在控制台，DOM 一片空白。给封面单独做菜单，在内部再套一个 `Root` 就够——内层开菜单时会 `preventDefault`，外层见到 `defaultPrevented` 不再开。
@@ -13,7 +14,6 @@
 - **详情页感想的就地编辑**：文本框定高、`resize: none`，内容在框内滚动，长度不推挤下面的按钮行；宽度向左侧出血，让正文左缘与展示态、与上面的简介同一条线，右缘仍与标题行的铅笔对齐，滚动条落位也与展开态一致 —— 进出编辑文字不横向跳。边框用 `1px` 的 `box-shadow` 画在盒外，不占内容宽，hover / focus 只改描边深浅。取消与保存按钮在 `mousedown` 上挡掉焦点转移，否则点按钮会先触发失焦保存，取消变成「先存再撤」。
 - **`tooltip.js` / `side-tip.js`**：`data-tooltip` 走前者（跟随光标），`data-tip` 走后者（锚定侧栏条目，文案随属性变）。两条禁令：**不要把气泡做成每节点一枚**——只有单例（`document` 委托 + 一个 `current`）才结构性地排除「相邻两项同时亮」，action 版做得到挂起，但没人仲裁谁该熄；**主题切换时不要试图保住气泡**——`startViewTransition` 期间指针状态不保证连续，`side-tip` 顺势在主题广播时瞬时收起，消失并入整页淡入，加坐标或 `:hover` 守卫只会把真正的离开一起吞掉。悬停提示只有这两条通道，**禁止原生 `title=`**，不再引入第三套气泡。
 - **`Detail`**：鼠标侧键 3 是后退，4 不接。
-- **`MyList`**：打开表单前先落 `gameId`，`GameForm` 的 `$effect` 与 `open` 在同一帧读到的是最终值。
 - **`DetailCharacters` / `CharacterEditor`**：立绘走封面那条 `coverSrc` 管线 —— 缩图与 asset 协议授权都在那边做过。
 - **`VnMergeDialog`**：单一取舍面板承载两层分区——元数据字段行与角色冲突行。角色区立绘随元数据区一起预取，面板关掉时结果作废。
 - **`CharacterEditor`**：回选只在「角色列表变化」时发生（加载 / 增删 / 保存回填），用 `untrack` 让它只依赖 `characters`、不追踪 `selectedId`，用户手动点开或收起不会被抢回。

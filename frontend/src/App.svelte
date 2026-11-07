@@ -26,9 +26,13 @@
   import { syncShowCardTitle } from './lib/card-prefs.js';
   import { notifyConfigChanged } from './lib/config-events.js';
   import { getScrollViewport } from './lib/scrollbars.js';
+  import { addGame } from './lib/add-game.svelte.js';
+  import { setFormTab } from './lib/form-tab-pref.js';
   import Sidebar from './components/Sidebar.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import Titlebar from './components/chrome/Titlebar.svelte';
+  import GameForm from './components/GameForm.svelte';
+  import ScanAddDialog from './components/ScanAddDialog.svelte';
   import Toaster from './components/Toaster.svelte';
   import MyList from './views/MyList.svelte';
   import Backfill from './views/Backfill.svelte';
@@ -56,6 +60,10 @@
         syncAccent(config.accent);
       })
       .catch(() => {});
+  });
+
+  $effect(() => {
+    setFormTab(addGame.formTab);
   });
 
   async function onAppQuitRequested() {
@@ -250,4 +258,12 @@
   onopen={() => (current = 'backfill')}
 />
 <SettingsDialog bind:open={settingsOpen} onbackfill={() => (current = 'backfill')} />
+<GameForm
+  bind:open={addGame.formOpen}
+  bind:gameId={addGame.formGameId}
+  initialTab={addGame.formTab}
+  bind:tab={addGame.formTab}
+  prefill={addGame.prefill}
+/>
+<ScanAddDialog bind:open={addGame.scanOpen} path={addGame.scanPath} ondone={notifyLibraryChanged} />
 <Toaster />

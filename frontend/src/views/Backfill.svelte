@@ -18,7 +18,7 @@
   } from '../lib/backfill-store.svelte.js';
   import BackfillPanel from '../components/backfill/BackfillPanel.svelte';
   import BackfillLog from '../components/backfill/BackfillLog.svelte';
-  import GameForm from '../components/GameForm.svelte';
+  import { openForm } from '../lib/add-game.svelte.js';
 
   let { scroll = 0 } = $props();
 
@@ -51,8 +51,6 @@
   let starting = $state(false);
   let stopping = $state(false);
   let restored = $state(false);
-  let formOpen = $state(false);
-  let formGameId = $state(null);
 
   onMount(async () => {
     await watchBackfill();
@@ -75,11 +73,6 @@
 
   function pick(it) {
     backfillStore.selected = backfillStore.selected === it.game_id ? null : it.game_id;
-  }
-
-  function openForm(id) {
-    formGameId = id;
-    formOpen = true;
   }
 
   function setFilter(key) {
@@ -387,5 +380,3 @@
     </div>
   {/if}
 </section>
-
-<GameForm bind:open={formOpen} bind:gameId={formGameId} />
