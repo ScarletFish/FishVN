@@ -1,21 +1,9 @@
 
-export function computeColsFor(el, { baselineW = 320, gap } = {}) {
-  const cs = getComputedStyle(el);
-  const g = gap ?? (parseFloat(cs.gap) || parseFloat(cs.columnGap) || 12);
-  const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
-  const contentW = Math.max(0, el.clientWidth - padX);
-  if (contentW <= 0) return parseInt(el.style.getPropertyValue('--cols'), 10) || 1;
-  return Math.max(1, Math.floor((contentW + g) / (baselineW + g)));
-}
-
-export function cardStep(contentW, cols, gap) {
-  return (contentW - gap * (cols - 1)) / cols + gap;
-}
+import { cardStep, computeColsFor } from './grid-metrics.js';
 
 export function initScrollDots({ scroll, total, dotsParent, initialIndex }) {
   if (!scroll || !dotsParent || total === 0) return () => {};
 
-  const getBaselineW = () => parseFloat(getComputedStyle(scroll).getPropertyValue('--card-w')) || 320;
   const getGap = () => {
     const cs = getComputedStyle(scroll);
     return parseFloat(cs.gap) || parseFloat(cs.columnGap) || 12;
@@ -26,8 +14,7 @@ export function initScrollDots({ scroll, total, dotsParent, initialIndex }) {
     return Math.max(0, scroll.clientWidth - padX);
   };
   const computeCols = () => {
-    if (getContentW() <= 0) return parseInt(scroll.style.getPropertyValue('--cols'), 10) || 1;
-    const cols = computeColsFor(scroll, { baselineW: getBaselineW(), gap: getGap() });
+    const cols = computeColsFor(scroll, { gap: getGap() });
     const prev = scroll.style.getPropertyValue('--cols');
     if (String(cols) !== prev) scroll.style.setProperty('--cols', String(cols));
     return cols;

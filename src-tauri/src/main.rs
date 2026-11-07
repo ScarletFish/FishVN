@@ -52,6 +52,30 @@ fn log_level() -> log::LevelFilter {
         .unwrap_or(log::LevelFilter::Info)
 }
 
+fn fit_window_to_monitor(window: &tauri::WebviewWindow) {
+    let monitor = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| window.primary_monitor().ok().flatten());
+    let (Some(monitor), Ok(inner), Ok(outer)) = (monitor, window.inner_size(), window.outer_size())
+    else {
+        return;
+    };
+    let area = monitor.work_area().size;
+    let frame_w = outer.width.saturating_sub(inner.width);
+    let frame_h = outer.height.saturating_sub(inner.height);
+    let max_w = area.width.saturating_sub(frame_w);
+    let max_h = area.height.saturating_sub(frame_h);
+    if inner.width <= max_w && inner.height <= max_h {
+        return;
+    }
+    let next = tauri::PhysicalSize::new(inner.width.min(max_w), inner.height.min(max_h));
+    if window.set_size(next).is_ok() {
+        let _ = window.center();
+    }
+}
+
 fn main() {
     let started = std::time::Instant::now();
     tauri::Builder::default()
@@ -88,6 +112,7 @@ fn main() {
             };
             if let Some(window) = main_window {
                 let _ = window.set_background_color(Some(window_color));
+                fit_window_to_monitor(&window);
             }
             let fallback = app.handle().clone();
             std::thread::spawn(move || {

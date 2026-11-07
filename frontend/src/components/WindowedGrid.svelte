@@ -1,6 +1,7 @@
 <script>
   import { createVirtualizer } from '@tanstack/svelte-virtual';
   import { getScrollViewport } from '../lib/scrollbars.js';
+  import { cardWidth, computeColsFor } from '../lib/grid-metrics.js';
 
   let { items, children } = $props();
 
@@ -30,17 +31,11 @@
       const width = el.clientWidth;
       if (width <= 0 || width === lastWidth) return;
       lastWidth = width;
-      const style = getComputedStyle(el);
-      const gap = parseFloat(style.rowGap) || 0;
-      const raw = style.getPropertyValue('--card-w').trim();
-      const base = parseFloat(style.fontSize) || 16;
-      let card = parseFloat(raw);
-      if (raw.endsWith('rem')) card *= base;
-      if (!Number.isFinite(card) || card <= 0) return;
-      card = Math.min(card, width);
-      cols = Math.max(1, Math.floor((width + gap) / (card + gap)));
-      rowH = Math.round(card * (4 / 3) + gap);
-      colTemplate = `repeat(${cols}, min(var(--card-w), 100%))`;
+      const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
+      cols = computeColsFor(el, { gap });
+      const card = cardWidth(width, cols, gap);
+      rowH = card * (4 / 3) + gap;
+      colTemplate = `repeat(${cols}, minmax(0, 1fr))`;
       scrollMargin = Math.round(
         el.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop
       );
