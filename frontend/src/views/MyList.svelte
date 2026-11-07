@@ -8,6 +8,7 @@
   import { createScrollAnim } from '../lib/scroll-anim.js';
   import { captureHero } from '../lib/hero-transition.js';
   import {
+    notifyAddMenuSummon,
     notifyLibraryChanged,
     notifyLibraryTagsChanged,
     onLibraryItemsThrottled,
@@ -170,6 +171,10 @@
         <rect x="14" y="14" width="7" height="7" rx="1"></rect>
       </svg>
       <p>{t('mylist.empty')}</p>
+      <p class="mylist-empty__hint">{t('dashboard.emptyHint')}</p>
+      <button type="button" class="btn btn-primary" onclick={notifyAddMenuSummon}>
+        {t('mylist.add')}
+      </button>
     </div>
   {:else if filtered.length === 0}
     <div class="mylist-empty">

@@ -3,9 +3,21 @@
   import SearchBar from './SearchBar.svelte';
   import Menu from '../Menu.svelte';
   import { openForm, addFromFile, addFromScan } from '../../lib/add-game.svelte.js';
+  import { ADD_MENU_SUMMON } from '../../lib/library-events.js';
   import { t } from '../../lib/i18n.js';
 
   let { mode = 'default', title = '', onback, onsettings } = $props();
+
+  let addMenuOpen = $state(false);
+
+  $effect(() => {
+    function onSummon() {
+      addMenuOpen = true;
+    }
+
+    window.addEventListener(ADD_MENU_SUMMON, onSummon);
+    return () => window.removeEventListener(ADD_MENU_SUMMON, onSummon);
+  });
 
   let tauriWin = null;
   try {
@@ -69,6 +81,7 @@
       <Menu
         label={t('mylist.add')}
         align="start"
+        bind:open={addMenuOpen}
         items={[
           { label: t('mylist.addManual'), onclick: () => openForm(null) },
           { label: t('mylist.addFromFile'), onclick: addFromFile },

@@ -6,6 +6,8 @@ export const LIBRARY_ITEM_UPDATED = 'fishvn:library-item-updated';
 
 export const LIBRARY_CHANGED = 'fishvn:library-changed';
 
+export const ADD_MENU_SUMMON = 'fishvn:add-menu-summon';
+
 export function notifyLibraryTagsChanged() {
   window.dispatchEvent(new CustomEvent(LIBRARY_TAGS_CHANGED));
 }
@@ -20,6 +22,10 @@ export function notifyLibraryItemUpdated(gameId) {
 
 export function notifyLibraryChanged() {
   window.dispatchEvent(new CustomEvent(LIBRARY_CHANGED));
+}
+
+export function notifyAddMenuSummon() {
+  window.dispatchEvent(new CustomEvent(ADD_MENU_SUMMON));
 }
 
 export function onLibraryItemUpdated(handler) {

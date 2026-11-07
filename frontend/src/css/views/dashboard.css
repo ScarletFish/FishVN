@@ -19,6 +19,11 @@
   opacity: 0.5;
 }
 
+.dashboard-empty__hint {
+  margin-top: calc(-1 * var(--space-3));
+  font-size: var(--text-sm);
+}
+
 .dashboard-empty p {
   margin: 0;
   font-size: var(--text-base);

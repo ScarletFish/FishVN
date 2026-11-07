@@ -12,6 +12,7 @@
   import { DASHBOARD_MODULES } from '../lib/dashboard-layout.js';
   import { CONFIG_CHANGED } from '../lib/config-events.js';
   import {
+    notifyAddMenuSummon,
     notifyLibraryChanged,
     notifyLibraryTagsChanged,
     onLibraryItemsThrottled,
@@ -261,8 +262,9 @@
             rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg
         >
         <p>{t('dashboard.emptyTitle')}</p>
-        <button type="button" class="btn btn-primary" onclick={() => openForm(null)}>
-          {t('dashboard.emptyAdd')}
+        <p class="dashboard-empty__hint">{t('dashboard.emptyHint')}</p>
+        <button type="button" class="btn btn-primary" onclick={notifyAddMenuSummon}>
+          {t('mylist.add')}
         </button>
       </div>
     {/if}

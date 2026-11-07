@@ -38,6 +38,16 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
+  transform-origin: top;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.menu__list[data-starting-style],
+.context-menu[data-starting-style] {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
 }
 
 .menu__list {

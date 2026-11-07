@@ -109,8 +109,8 @@ export const DICT_ZH = {
     statWeekTime: '本周时长',
     statPlayCount: '游玩次数',
     error: '读取统计数据失败',
-    emptyTitle: '游戏库是空的',
-    emptyAdd: '添加游戏',
+    emptyTitle: '还没有游戏',
+    emptyHint: '扫描文件夹或手动添加',
     continueOpen: '查看详情',
     continueStart: '启动游戏',
     tagCloud: {

@@ -105,6 +105,11 @@
   opacity: 0.5;
 }
 
+.mylist-empty__hint {
+  margin-top: calc(-1 * var(--space-2));
+  font-size: var(--text-sm);
+}
+
 .mylist-note {
   padding: var(--space-4) 0;
   font-size: var(--text-sm);
