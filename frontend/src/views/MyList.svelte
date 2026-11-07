@@ -14,6 +14,8 @@
     LIBRARY_CHANGED,
   } from '../lib/library-events.js';
   import { openForm } from '../lib/add-game.svelte.js';
+  import { gameComparator, myListSort } from '../lib/list-sort.svelte.js';
+  import SortSelect from '../components/SortSelect.svelte';
   import GameCard from '../components/GameCard.svelte';
   import StatusSection from '../components/StatusSection.svelte';
 
@@ -82,8 +84,6 @@
     unwatchItems?.();
   });
 
-  const byName = (a, b) => a.name.localeCompare(b.name, 'zh-CN');
-
   const counts = $derived.by(() => {
     const all = { all: games.length };
     for (const s of STATUS_KEYS) all[s] = 0;
@@ -92,7 +92,7 @@
   });
 
   const filtered = $derived(
-    (filter === 'all' ? games : games.filter((g) => g.status === filter)).slice().sort(byName)
+    (filter === 'all' ? games : games.filter((g) => g.status === filter)).slice().sort(gameComparator(myListSort.by))
   );
 
   const sections = $derived(
@@ -152,6 +152,9 @@
 
   <header class="view-header">
     <h1>{t('mylist.title')}</h1>
+    <div class="view-header-right">
+      <SortSelect bind:value={myListSort.by} />
+    </div>
   </header>
 
   {#if loading}

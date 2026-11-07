@@ -10,7 +10,7 @@
   import { queryStore } from '../lib/query-store.svelte.js';
   import { getSpoilerLevel } from '../lib/config-store.svelte.js';
   import { spoilerThreshold } from '../lib/tag-order.svelte.js';
-  import SelectDd from '../components/SelectDd.svelte';
+  import SortSelect from '../components/SortSelect.svelte';
   import GameCard from '../components/GameCard.svelte';
   import WindowedGrid from '../components/WindowedGrid.svelte';
   import ConditionCard from '../components/query/ConditionCard.svelte';
@@ -422,14 +422,7 @@
         <span class="query-count">
           <b>{sorted.length}</b>{shownIsChar ? t('query.matchCountChar') : t('query.matchCount')}
         </span>
-        <label class="query-sort">
-          <span class="query-sort__label">{t('query.sort')}</span>
-          <SelectDd
-            options={SORT_OPTIONS}
-            bind:value={queryStore.sortBy}
-            ariaLabel={t('query.sort')}
-          />
-        </label>
+        <SortSelect options={SORT_OPTIONS} bind:value={queryStore.sortBy} />
       </div>
 
       {#if loading}

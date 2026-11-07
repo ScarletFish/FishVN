@@ -46,6 +46,10 @@
   padding-left: var(--space-3);
 }
 
+.dashboard-module-header .sort-select {
+  margin-left: auto;
+}
+
 .dashboard-module-header::before {
   content: '';
   position: absolute;

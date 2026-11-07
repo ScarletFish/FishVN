@@ -18,6 +18,8 @@
     LIBRARY_CHANGED,
   } from '../lib/library-events.js';
   import { openForm } from '../lib/add-game.svelte.js';
+  import { dashboardSort, gameComparator } from '../lib/list-sort.svelte.js';
+  import SortSelect from '../components/SortSelect.svelte';
   import GameCard from '../components/GameCard.svelte';
   import StatusSection from '../components/StatusSection.svelte';
 
@@ -40,8 +42,6 @@
     return known ? t(known.label) : id;
   };
 
-  const byName = (a, b) => a.name.localeCompare(b.name, 'zh-CN');
-
   const localSections = $derived(
     HOME_STATUS_KEYS.map((status) => ({
       status,
@@ -50,7 +50,7 @@
         .filter(
           (game) => game.status === status && (includeUninstalled || game.installation_count > 0)
         )
-        .sort(byName),
+        .sort(gameComparator(dashboardSort.by)),
     })).filter((section) => section.items.length > 0)
   );
 
@@ -238,6 +238,7 @@
         <div class="dashboard-section">
           <div class="dashboard-module-header">
             <span class="dashboard-section-title">{moduleLabel(module.id)}</span>
+            <SortSelect bind:value={dashboardSort.by} />
           </div>
           {#each localSections as section (section.status)}
             <StatusSection variant="dashboard" label={section.label} items={section.items}>

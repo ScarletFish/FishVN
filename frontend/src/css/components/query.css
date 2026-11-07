@@ -521,17 +521,6 @@ body.is-col-resizing {
   margin-right: var(--space-1);
 }
 
-.query-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.query-sort__label {
-  font-size: var(--text-xs);
-  color: var(--fg-muted);
-}
-
 .query-note {
   font-size: var(--text-sm);
   color: var(--fg-muted);
