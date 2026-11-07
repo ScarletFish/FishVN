@@ -29,7 +29,7 @@ use crate::installations;
 use crate::settings::{self, AppConfig, TimeMetric};
 use crate::types::{GamePlayLog, Installation, MagpieMode, PlaySession, Status};
 use crate::{new_id, now};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_log::log;
 
 const TICK: Duration = Duration::from_millis(1000);
@@ -144,6 +144,11 @@ pub fn launch(shared: Arc<Mutex<Connection>>, game_id: &str, app: Option<AppHand
     if let Err(e) = job.attach(child.id()) {
         let _ = child.kill();
         return Err(e);
+    }
+    if config.minimize_on_launch {
+        if let Some(window) = app.as_ref().and_then(|a| a.get_webview_window("main")) {
+            let _ = window.minimize();
+        }
     }
     let magpie_job = magpie_path
         .as_ref()
@@ -281,7 +286,8 @@ fn watch(
     }
     store(&shared, &session_id, alive_at, foreground, Some(alive_at));
     if let Ok(conn) = shared.lock() {
-        let (seconds, metric) = match settings::current().time_metric {
+        let config = settings::current();
+        let (seconds, metric) = match config.time_metric {
             TimeMetric::Foreground => (foreground, "前台"),
             TimeMetric::Alive => (alive_at - started_at, "存活"),
         };
@@ -295,10 +301,25 @@ fn watch(
         }
         if seconds > 0 {
             if let Some(app) = &app {
+                restore_window(app, config.minimize_on_launch);
                 let _ = app.emit("session-ended", SessionEnded { seconds });
             }
         }
     }
+}
+
+fn restore_window(app: &AppHandle, enabled: bool) {
+    if !enabled {
+        return;
+    }
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    if !window.is_minimized().unwrap_or(false) {
+        return;
+    }
+    let _ = window.unminimize();
+    let _ = window.set_focus();
 }
 
 fn store(

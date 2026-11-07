@@ -145,6 +145,8 @@ pub struct AppConfig {
     pub le_path: Option<String>,
     #[serde(default)]
     pub quit_behavior: QuitBehavior,
+    #[serde(default = "default_true")]
+    pub minimize_on_launch: bool,
     #[serde(default)]
     pub backup_retention_days: Option<u64>,
 }
@@ -166,6 +168,7 @@ pub struct ConfigPatch {
     pub magpie_path: Option<String>,
     pub le_path: Option<String>,
     pub quit_behavior: Option<QuitBehavior>,
+    pub minimize_on_launch: Option<bool>,
     pub backup_retention_days: Option<Option<u64>>,
 }
 
@@ -186,6 +189,7 @@ pub struct ConfigView {
     pub magpie_path: Option<String>,
     pub le_path: Option<String>,
     pub quit_behavior: QuitBehavior,
+    pub minimize_on_launch: bool,
     pub backup_retention_days: Option<u64>,
 }
 
@@ -272,6 +276,9 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     if let Some(value) = patch.quit_behavior {
         config.quit_behavior = value;
     }
+    if let Some(value) = patch.minimize_on_launch {
+        config.minimize_on_launch = value;
+    }
     if let Some(value) = patch.backup_retention_days {
         config.backup_retention_days = value;
     }
@@ -335,6 +342,7 @@ pub fn view() -> ConfigView {
         magpie_path: config.magpie_path.clone(),
         le_path: config.le_path.clone(),
         quit_behavior: config.quit_behavior,
+        minimize_on_launch: config.minimize_on_launch,
         backup_retention_days: config.backup_retention_days,
     }
 }

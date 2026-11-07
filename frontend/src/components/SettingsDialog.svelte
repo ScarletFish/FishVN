@@ -71,6 +71,7 @@
   let syncActive = 0;
   let resultOpen = $state(false);
   let quitBehavior = $state('quit');
+  let minimizeOnLaunch = $state(true);
 
   let backupRetentionMode = $state('off');
   let backupRetentionOpen = $state(false);
@@ -137,6 +138,7 @@
           magpiePathError = '';
           lePathError = '';
           quitBehavior = config.quit_behavior === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
+          minimizeOnLaunch = config.minimize_on_launch !== false;
           backupRetentionMode = (config.backup_retention_days ?? null) == null
             ? 'off'
             : String(config.backup_retention_days);
@@ -305,6 +307,15 @@
     quitBehavior = value;
     api
       .updateConfig({ quit_behavior: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  function onMinimizeOnLaunchChange(e) {
+    const value = e.target.checked;
+    minimizeOnLaunch = value;
+    api
+      .updateConfig({ minimize_on_launch: value })
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
   }
@@ -780,6 +791,22 @@
           </label>
         </div>
         <p class="form-hint">{t('settings.quitBehaviorHint')}</p>
+      </div>
+
+      <div class="form-group">
+        <div class="form-row">
+          <span class="form-row-label">{t('settings.minimizeOnLaunch')}</span>
+          <label class="toggle-switch" for="settings-minimize-on-launch">
+            <input
+              id="settings-minimize-on-launch"
+              type="checkbox"
+              aria-label={t('settings.minimizeOnLaunch')}
+              checked={minimizeOnLaunch}
+              onchange={onMinimizeOnLaunchChange}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
     </div>
 
