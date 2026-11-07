@@ -1,10 +1,12 @@
 <script>
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { onMount, onDestroy, tick, untrack } from 'svelte';
   import { t } from '../lib/i18n.js';
   import { api } from '../lib/api.js';
+  import { report } from '../lib/frontend-log.js';
   import { STATUS_KEYS, statusLabel } from '../lib/status.js';
   import { captureHero } from '../lib/hero-transition.js';
   import { onLibraryItemsThrottled } from '../lib/library-events.js';
+  import { createQueryRunner } from '../lib/query-runner.js';
   import { getScrollViewport } from '../lib/scrollbars.js';
   import { dimFilled, emptyQueryUi, hasActive, uiToSpec } from '../lib/query-spec.js';
   import { queryStore } from '../lib/query-store.svelte.js';
@@ -28,8 +30,19 @@
 
   let loading = $state(queryStore.lastJson[queryStore.ui.subject] === null);
   let error = $state(null);
-  let reqSeq = 0;
   let unwatch = null;
+
+  const runner = createQueryRunner({
+    query: (s) => (s.subject === 'character' ? api.queryCharacters(s) : api.queryGames(s)),
+    store: queryStore,
+    onSettled: (err, info) => {
+      if (!info) return;
+      loading = false;
+      error = err;
+      if (err) report('warn', `筛选页查询失败：${info.subject}：${err}`);
+      else report('debug', `筛选页查询：${info.subject} ${info.rows} 行 ${info.ms}ms`);
+    },
+  });
 
   const isChar = $derived(ui.subject === 'character');
   const shownIsChar = $derived(queryStore.resultsSubject === 'character');
@@ -74,35 +87,10 @@
 
   $effect(() => {
     const s = spec;
-    const seq = ++reqSeq;
-    const json = JSON.stringify(s);
-    const subject = s.subject;
-    if (queryStore.lastJson[subject] === json) {
-      if (queryStore.resultsSubject !== subject) {
-        queryStore.results = queryStore.resultsCache[subject];
-        queryStore.resultsSubject = subject;
-      }
-      loading = false;
-      error = null;
-      return;
-    }
-    if (queryStore.resultsSubject !== subject) loading = true;
-    const timer = setTimeout(async () => {
-      try {
-        const rows = subject === 'character' ? await api.queryCharacters(s) : await api.queryGames(s);
-        if (seq !== reqSeq) return;
-        queryStore.resultsCache[subject] = rows;
-        queryStore.results = rows;
-        queryStore.resultsSubject = subject;
-        queryStore.lastJson[subject] = json;
-        error = null;
-      } catch (e) {
-        if (seq !== reqSeq) return;
-        error = e.message;
-      } finally {
-        if (seq === reqSeq) loading = false;
-      }
-    }, 100);
+    untrack(() => {
+      loading = !runner.paint(s);
+    });
+    const timer = setTimeout(() => runner.load(s), 100);
     return () => clearTimeout(timer);
   });
 
@@ -123,28 +111,22 @@
 
   onMount(() => {
     unwatch = onLibraryItemsThrottled(reload);
+    const subject = queryStore.ui.subject;
+    const cached = queryStore.resultsCache[subject]?.length ?? 0;
+    report('info', `筛选页挂载：${subject}，条件${active ? '已设' : '未设'}，缓存 ${cached} 行`);
   });
 
-  onDestroy(() => unwatch?.());
+  onDestroy(() => {
+    unwatch?.();
+    const s = runner.stats();
+    report(
+      'info',
+      `筛选页卸载：推送重载 ${s.reloads} 次，查询共 ${s.queries} 次，生效 ${s.applied}，作废 ${s.dropped}，失败 ${s.failed}`,
+    );
+  });
 
-  async function reload() {
-    const seq = ++reqSeq;
-    try {
-      const rows =
-        spec.subject === 'character'
-          ? await api.queryCharacters(spec)
-          : await api.queryGames(spec);
-      if (seq !== reqSeq) return;
-      const subject = spec.subject;
-      queryStore.resultsCache[subject] = rows;
-      queryStore.results = rows;
-      queryStore.resultsSubject = subject;
-      queryStore.lastJson[subject] = JSON.stringify(spec);
-      error = null;
-    } catch (e) {
-      if (seq !== reqSeq) return;
-      error = e.message;
-    }
+  function reload() {
+    return runner.load(spec, { push: true });
   }
 
   function setSubject(next) {

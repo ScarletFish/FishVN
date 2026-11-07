@@ -4,6 +4,7 @@
   import { cubicOut } from 'svelte/easing';
   import { api } from '../lib/api.js';
   import { subscribe } from '../lib/events.js';
+  import { report } from '../lib/frontend-log.js';
   import { t } from '../lib/i18n.js';
   import {
     notifyLibraryChanged,
@@ -23,6 +24,8 @@
   let dock = $state(createDockState());
   let unsub = null;
   let hideTimer = null;
+  let seenItems = 0;
+  let sentNotifies = 0;
 
   let shown = $derived(dockVisible(dock, { closedRun, hidden }));
 
@@ -32,7 +35,11 @@
 
   onMount(async () => {
     await syncStatus();
-    unsub = await subscribe('vndb-backfill', onEvent);
+    try {
+      unsub = await subscribe('vndb-backfill', onEvent);
+    } catch (e) {
+      report('error', `任务事件订阅失败：${e?.message ?? e}`);
+    }
     window.addEventListener(BACKFILL_REFRESH, onRefreshEvent);
   });
 
@@ -48,14 +55,23 @@
 
   function onEvent(ev) {
     const freshRun = Boolean(ev?.run_id) && ev.run_id !== dock.runId;
-    if (freshRun) closedRun = 0;
-    const prevDone = freshRun ? 0 : dock.done;
+    if (freshRun) {
+      closedRun = 0;
+      seenItems = 0;
+      sentNotifies = 0;
+    }
     dock = reduce(dock, ev);
-    if (ev?.phase === 'backfill' && dock.done > prevDone) notifyLibraryItemUpdated(ev.game_id);
+    if (ev?.phase === 'backfill') {
+      seenItems += 1;
+      sentNotifies += 1;
+      report('debug', `任务事件：done=${ev.done} → 发出库变更通知 ${ev.game_id ?? ''}`);
+      notifyLibraryItemUpdated(ev.game_id);
+    }
     if (ev?.phase === 'finished') onFinished();
   }
 
   async function onFinished() {
+    report('info', `补全收尾：收到 ${seenItems} 项事件，发出 ${sentNotifies} 次库变更通知`);
     try {
       const s = await api.backfillStatus();
       if (s?.finished) {

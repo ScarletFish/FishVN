@@ -1,3 +1,5 @@
+import { report } from './frontend-log.js';
+
 export const LIBRARY_TAGS_CHANGED = 'fishvn:library-tags-changed';
 
 export const LIBRARY_TRAITS_CHANGED = 'fishvn:library-traits-changed';
@@ -44,12 +46,18 @@ export function onLibraryItemsThrottled(handler, interval = 5000) {
   function fire() {
     timer = null;
     last = Date.now();
+    report('debug', '库变更节流：触发');
     handler();
   }
 
   function onEvent() {
-    if (timer) return;
-    timer = setTimeout(fire, Math.max(0, last + interval - Date.now()));
+    if (timer) {
+      report('debug', '库变更事件：已在队列，合并');
+      return;
+    }
+    const delay = Math.max(0, last + interval - Date.now());
+    report('debug', `库变更事件：${delay}ms 后触发`);
+    timer = setTimeout(fire, delay);
   }
 
   window.addEventListener(LIBRARY_ITEM_UPDATED, onEvent);

@@ -401,6 +401,7 @@ pub fn log_frontend(level: String, message: String) {
     match level.as_str() {
         "error" => log::error!(target: "webview", "{message}"),
         "warn" => log::warn!(target: "webview", "{message}"),
+        "debug" => log::debug!(target: "webview", "{message}"),
         _ => log::info!(target: "webview", "{message}"),
     }
 }
