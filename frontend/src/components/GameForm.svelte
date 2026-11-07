@@ -378,7 +378,7 @@
     characters = result.characters.map(toDraft);
   }
 
-  const isDirty = $derived(baseline !== '' && formSnapshot() !== baseline);
+  const isDirty = $derived(open && baseline !== '' && formSnapshot() !== baseline);
 
   $effect(() => {
     quitGuard.dirty = isDirty;
