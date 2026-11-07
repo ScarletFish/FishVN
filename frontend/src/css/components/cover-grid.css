@@ -102,7 +102,8 @@
 }
 
 .cover-card:hover .cover-card__overlay,
-.cover-card:focus-within .cover-card__overlay {
+.cover-card:focus-within .cover-card__overlay,
+.cover-card:has(.menu.is-open) .cover-card__overlay {
   opacity: 1;
   transform: translateY(0);
 }
@@ -154,7 +155,8 @@ html[data-card-title='on'] .cover-card__overlay {
 }
 
 .cover-card:hover .cover-card__score--mine,
-.cover-card:focus-within .cover-card__score--mine {
+.cover-card:focus-within .cover-card__score--mine,
+.cover-card:has(.menu.is-open) .cover-card__score--mine {
   bottom: calc(var(--space-2) + var(--menu-plain-size) + var(--space-1));
 }
 
@@ -163,7 +165,8 @@ html[data-card-title='on'] .cover-card__score--mine {
 }
 
 .cover-card:has(.cover-card__score--vndb):hover .cover-card__score--mine,
-.cover-card:has(.cover-card__score--vndb):focus-within .cover-card__score--mine {
+.cover-card:has(.cover-card__score--vndb):focus-within .cover-card__score--mine,
+.cover-card:has(.cover-card__score--vndb):has(.menu.is-open) .cover-card__score--mine {
   visibility: hidden;
   opacity: 0;
 }
@@ -179,7 +182,8 @@ html[data-card-title='on'] .cover-card__score--mine {
 }
 
 .cover-card:hover .cover-card__score--vndb,
-.cover-card:focus-within .cover-card__score--vndb {
+.cover-card:focus-within .cover-card__score--vndb,
+.cover-card:has(.menu.is-open) .cover-card__score--vndb {
   opacity: 1;
   visibility: visible;
   transition:

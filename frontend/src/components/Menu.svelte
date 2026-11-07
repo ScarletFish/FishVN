@@ -4,7 +4,7 @@
   let { items = [], label, variant = 'btn', open = $bindable(false), trigger = null, align = 'end' } = $props();
 </script>
 
-<div class="menu" data-variant={variant}>
+<div class="menu" data-variant={variant} class:is-open={open}>
   <DropdownMenu.Root bind:open>
     <DropdownMenu.Trigger>
       {#snippet child({ props })}
