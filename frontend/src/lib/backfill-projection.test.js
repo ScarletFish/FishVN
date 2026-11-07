@@ -1,8 +1,10 @@
 import { expect, test } from 'vitest';
 import {
   appendEvent,
+  isItemDone,
   mergeLogRows,
   needsReload,
+  patchItem,
   projectEvent,
 } from './backfill-projection.js';
 
@@ -51,6 +53,32 @@ test('只有终态与错误才需要重拉权威状态', () => {
   }
   expect(needsReload({ phase: 'meta', error: '超时' })).toBe(true);
   expect(needsReload(null)).toBe(false);
+});
+
+test('只有单条完成的事件需要回取该条结果', () => {
+  expect(isItemDone({ phase: 'backfill', game_id: 'a', done: 1 })).toBe(true);
+  expect(isItemDone({ phase: 'backfill', done: 3, total: 3 })).toBe(false);
+  expect(isItemDone({ phase: 'images', game_id: 'a' })).toBe(false);
+  expect(isItemDone({ phase: 'finished' })).toBe(false);
+  expect(isItemDone(null)).toBe(false);
+});
+
+test('单条回取只替换该行，其余条目与引用保持', () => {
+  const base = status();
+  const next = patchItem(base, { game_id: 'a', state: 'ok', filled: ['简介'], characters: 4 });
+
+  expect(next).not.toBe(base);
+  expect(base.items[0]).toEqual({ game_id: 'a', state: 'pending' });
+  expect(next.items[0].state).toBe('ok');
+  expect(next.items[1]).toBe(base.items[1]);
+  expect(next.done).toBe(base.done);
+});
+
+test('回取的条目不在这批目标里时状态不动', () => {
+  const base = status();
+  expect(patchItem(base, { game_id: 'zzz', state: 'ok' })).toBe(base);
+  expect(patchItem(base, null)).toBe(base);
+  expect(patchItem(null, { game_id: 'a' })).toBe(null);
 });
 
 test('带序号的推送事件直接成为日志行', () => {

@@ -68,6 +68,6 @@ export function markFinished(state, report) {
 
 export function dockVisible(state, ui) {
   if (ui.hidden) return false;
-  if (state.finished) return ui.closedRun !== state.runId;
-  return state.running && state.runId !== 0;
+  if (state.finished) return !state.finished.cancelled && ui.closedRun !== state.runId;
+  return state.running && !state.pausedIdle && state.runId !== 0;
 }

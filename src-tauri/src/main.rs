@@ -217,6 +217,7 @@ fn main() {
             commands::start_backfill,
             commands::backfill_single,
             commands::backfill_status,
+            commands::backfill_item,
             commands::pause_backfill,
             commands::resume_backfill,
             commands::inspect_path,

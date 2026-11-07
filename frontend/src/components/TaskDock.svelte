@@ -63,8 +63,13 @@
         notifyLibraryChanged();
         notifyLibraryTagsChanged();
         notifyLibraryTraitsChanged();
-        if (hidden) toast(backfillSummaryText(s.finished), 'success');
-        else if (closedRun !== dock.runId) armHideTimer();
+        if (hidden) {
+          toast(backfillSummaryText(s.finished), s.finished.cancelled ? 'info' : 'success');
+        } else if (s.finished.cancelled) {
+          closedRun = dock.runId;
+        } else if (closedRun !== dock.runId) {
+          armHideTimer();
+        }
       }
     } catch {}
   }
@@ -74,7 +79,7 @@
       const s = await api.backfillStatus();
       if (s?.running || s?.finished) {
         dock = seedFromStatus(dock, s);
-        if (s.finished) armHideTimer();
+        if (s.finished && !s.finished.cancelled) armHideTimer();
         else clearHideTimer();
       } else {
         dock = createDockState();
@@ -112,9 +117,6 @@
 
   function handleText() {
     if (!dock.running) return t('backfillPage.doneHint');
-    if (dock.pausedIdle) {
-      return `${t('mylist.backfillPaused')} · ${dock.done ?? 0}/${dock.total ?? 0}`;
-    }
     if (dock.rateLimited) return t('mylist.backfillRateLimitedShort');
     return t('mylist.backfillRunning', { done: dock.done ?? 0, total: dock.total ?? 0 });
   }
@@ -132,11 +134,7 @@
       aria-label={t('mylist.backfillShow')}
       onclick={open}
     >
-      <span
-        class="task-dock__dot"
-        class:is-paused={dock.pausedIdle}
-        class:is-done={!dock.running}
-      ></span>
+      <span class="task-dock__dot" class:is-done={!dock.running}></span>
       <span class="task-dock__handle-text">{handleText()}</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="m9 18 6-6-6-6"></path>

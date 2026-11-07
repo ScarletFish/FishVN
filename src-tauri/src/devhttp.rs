@@ -545,6 +545,11 @@ async fn backfill_status(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -
     run(&dev, backfill::status_or_plan)
 }
 
+async fn backfill_item(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let game_id = a.game_id.unwrap_or_default();
+    finish(Ok(backfill::item_state(&game_id)))
+}
+
 async fn events_since(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     let after = a.after.unwrap_or_default();
     let entries = match dev.events.lock() {
@@ -626,6 +631,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/start_backfill", post(start_backfill))
         .route("/backfill_single", post(backfill_single))
         .route("/backfill_status", post(backfill_status))
+        .route("/backfill_item", post(backfill_item))
         .route("/pause_backfill", post(pause_backfill))
         .route("/resume_backfill", post(resume_backfill))
         .route("/events", get(events))
@@ -688,6 +694,7 @@ pub const COMMANDS: &[&str] = &[
     "start_backfill",
     "backfill_single",
     "backfill_status",
+    "backfill_item",
     "pause_backfill",
     "resume_backfill",
 ];

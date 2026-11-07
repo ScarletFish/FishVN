@@ -12,6 +12,20 @@ export function needsReload(ev) {
   return Boolean(ev.error) || TERMINAL_PHASES.has(ev.phase);
 }
 
+export function isItemDone(ev) {
+  return Boolean(ev) && ev.phase === 'backfill' && Boolean(ev.game_id);
+}
+
+export function patchItem(status, item) {
+  if (!status || !item) return status;
+  const items = status.items ?? [];
+  const at = items.findIndex((it) => it.game_id === item.game_id);
+  if (at < 0) return status;
+  const next = items.slice();
+  next[at] = item;
+  return { ...status, items: next };
+}
+
 export function projectEvent(status, ev) {
   if (!status || !ev) return status;
   const done = ev.done ?? status.done;

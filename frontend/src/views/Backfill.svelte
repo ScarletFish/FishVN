@@ -301,7 +301,6 @@
   {:else if !hasItems}
     <div class="bf-empty">
       <p>{t('backfillPage.empty')}</p>
-      <p class="bf-empty__hint">{t('backfillPage.emptyHint')}</p>
     </div>
   {:else}
     <div class="bf-body">

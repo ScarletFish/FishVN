@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { subscribe } from './events.js';
 import { LIBRARY_CHANGED } from './library-events.js';
 import { BACKFILL_REFRESH } from './task-events.js';
-import { appendEvent, mergeLogRows, needsReload, projectEvent } from './backfill-projection.js';
+import { appendEvent, isItemDone, mergeLogRows, needsReload, patchItem, projectEvent } from './backfill-projection.js';
 
 export const backfillStore = $state({
   status: null,
@@ -81,6 +81,17 @@ async function pullLogs(after) {
   }
 }
 
+function refreshItem(gameId) {
+  const runId = backfillStore.status?.run_id;
+  api
+    .backfillItem(gameId)
+    .then((item) => {
+      if (backfillStore.status?.run_id !== runId) return;
+      backfillStore.status = patchItem(backfillStore.status, item);
+    })
+    .catch(() => {});
+}
+
 function onEvent(ev) {
   if (!ev) return;
   backfillStore.status = projectEvent(backfillStore.status, ev);
@@ -88,6 +99,7 @@ function onEvent(ev) {
   if (Number.isFinite(ev.seq)) {
     backfillStore.lastSeq = Math.max(backfillStore.lastSeq, ev.seq);
   }
+  if (isItemDone(ev)) refreshItem(ev.game_id);
   if (needsReload(ev)) schedule();
 }
 

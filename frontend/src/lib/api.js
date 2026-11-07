@@ -81,6 +81,7 @@ export const api = {
   startBackfill: (gameIds) => call('start_backfill', { gameIds }),
   backfillSingle: (gameId) => call('backfill_single', { gameId }),
   backfillStatus: () => call('backfill_status'),
+  backfillItem: (gameId) => call('backfill_item', { gameId }),
   eventsSince: (after) => call('events_since', { after }),
   pauseBackfill: () => call('pause_backfill'),
   resumeBackfill: () => call('resume_backfill'),

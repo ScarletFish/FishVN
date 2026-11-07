@@ -618,6 +618,11 @@ pub fn backfill_status(
 }
 
 #[tauri::command]
+pub fn backfill_item(game_id: String) -> Option<backfill::BackfillItemState> {
+    backfill::item_state(&game_id)
+}
+
+#[tauri::command]
 pub fn pause_backfill() -> backfill::BackfillStatus {
     backfill::set_paused(true)
 }

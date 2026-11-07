@@ -452,11 +452,6 @@
   color: var(--fg-secondary);
 }
 
-.bf-empty__hint {
-  font-size: var(--text-xs);
-  color: var(--fg-muted);
-}
-
 .bf-panel-slot {
   position: sticky;
   top: 0;

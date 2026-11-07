@@ -47,11 +47,6 @@
   animation: task-handle-pulse 1.6s var(--ease-out) infinite;
 }
 
-.task-dock__dot.is-paused {
-  background: var(--fg-muted);
-  animation: none;
-}
-
 .task-dock__dot.is-done {
   background: var(--success);
   animation: none;

@@ -144,6 +144,16 @@ pub fn status() -> BackfillStatus {
         .unwrap_or_default()
 }
 
+pub fn item_state(game_id: &str) -> Option<BackfillItemState> {
+    let guard = status_cell().lock().ok()?;
+    guard
+        .as_ref()?
+        .items
+        .iter()
+        .find(|item| item.game_id == game_id)
+        .cloned()
+}
+
 fn set_status(f: impl FnOnce(&mut BackfillStatus)) {
     if let Ok(mut guard) = status_cell().lock() {
         f(guard.get_or_insert_with(BackfillStatus::default));
@@ -1014,6 +1024,11 @@ mod tests {
         assert_eq!(after.items[0].state, ItemState::Pending);
         assert_eq!(after.items[1].state, ItemState::Ok);
         assert_eq!(after.items[1].filled, vec!["简介", "封面"]);
+
+        let one = item_state("g1").expect("应取到该条");
+        assert_eq!(one.state, ItemState::Ok);
+        assert_eq!(one.filled, vec!["简介", "封面"]);
+        assert!(item_state("nope").is_none());
 
         assert!(!set_paused(true).paused_idle);
         assert!(set_paused(true).paused);

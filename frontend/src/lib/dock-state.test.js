@@ -89,6 +89,23 @@ test('没有在途任务时隐藏', () => {
   expect(dockVisible(createDockState(), ui())).toBe(false);
 });
 
+test('主动暂停时不显示，下一部开始又显示', () => {
+  let s = reduce(createDockState(), ev('backfill', { done: 3, total: 62 }));
+  s = reduce(s, ev('paused'));
+  expect(s.running).toBe(true);
+  expect(dockVisible(s, ui())).toBe(false);
+
+  s = reduce(s, ev('backfill', { done: 4, total: 62 }));
+  expect(dockVisible(s, ui())).toBe(true);
+});
+
+test('取消的完结不显示汇总', () => {
+  let s = reduce(createDockState(), ev('backfill', { done: 20, total: 62 }));
+  s = markFinished(s, { total: 62, fetched: 18, unmatched: 1, failed: 1, cancelled: true });
+  expect(dockVisible(s, ui())).toBe(false);
+  expect(dockVisible(s, ui({ closedRun: s.runId }))).toBe(false);
+});
+
 test('完结汇总默认显示，关掉该轮 run_id 才隐藏', () => {
   let s = reduce(createDockState(), ev('backfill', { done: 62, total: 62 }));
   s = markFinished(s, { total: 62, fetched: 60, unmatched: 1, failed: 1, cancelled: false });
