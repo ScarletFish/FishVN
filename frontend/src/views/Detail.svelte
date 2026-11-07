@@ -19,7 +19,12 @@
   import { getFormTab, setFormTab } from '../lib/form-tab-pref.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
   import { classifyTags } from '../lib/tag-order.svelte.js';
-  import { LIBRARY_CHANGED, notifyLibraryTagsChanged, onLibraryItemUpdated } from '../lib/library-events.js';
+  import {
+    LIBRARY_CHANGED,
+    notifyLibraryChanged,
+    notifyLibraryTagsChanged,
+    onLibraryItemUpdated,
+  } from '../lib/library-events.js';
   import DetailCharacters from './DetailCharacters.svelte';
   import DetailStaff from './DetailStaff.svelte';
   import DetailPlayLog from './DetailPlayLog.svelte';
@@ -124,6 +129,7 @@
       const ok = await confirm('deleteGame', { name: game?.name ?? '' });
       if (!ok) return;
       await api.deleteGame(gameId);
+      notifyLibraryChanged();
       notifyLibraryTagsChanged();
       toast(t('detail.deleted'));
       onclose?.();

@@ -1,13 +1,17 @@
 import { api } from './api.js';
 import { subscribe } from './events.js';
+import { LIBRARY_CHANGED } from './library-events.js';
 import { BACKFILL_REFRESH } from './task-events.js';
 import { appendEvent, mergeLogRows, needsReload, projectEvent } from './backfill-projection.js';
 
 export const backfillStore = $state({
   status: null,
+  games: [],
+  targetIds: [],
+  localOverlay: {},
   loading: true,
   error: null,
-  filter: 'all',
+  filter: 'todo',
   onlyNoId: false,
   selected: null,
   logs: [],
@@ -19,6 +23,7 @@ let unsub = null;
 let watchers = 0;
 let timer = null;
 let seq = 0;
+let frozenRun = null;
 
 async function load() {
   const mine = ++seq;
@@ -27,14 +32,33 @@ async function load() {
     if (mine !== seq) return;
     backfillStore.status = fresh;
     backfillStore.error = null;
-    if (backfillStore.selected && !fresh.items.some((it) => it.game_id === backfillStore.selected)) {
-      backfillStore.selected = null;
+    if (frozenRun !== fresh.run_id) {
+      frozenRun = fresh.run_id;
+      backfillStore.targetIds = (fresh.items ?? []).map((it) => it.game_id);
     }
   } catch (e) {
     if (mine !== seq) return;
     backfillStore.error = e.message;
   } finally {
     if (mine === seq) backfillStore.loading = false;
+  }
+}
+
+async function loadGames() {
+  try {
+    const games = await api.listGames();
+    backfillStore.games = games;
+    const alive = new Set(games.map((g) => g.id));
+    const overlay = { ...backfillStore.localOverlay };
+    for (const id of Object.keys(overlay)) {
+      if (!alive.has(id)) delete overlay[id];
+    }
+    backfillStore.localOverlay = overlay;
+    if (backfillStore.selected && !alive.has(backfillStore.selected)) {
+      backfillStore.selected = null;
+    }
+  } catch (e) {
+    backfillStore.error = e.message;
   }
 }
 
@@ -70,11 +94,14 @@ function onEvent(ev) {
 export async function watchBackfill() {
   watchers += 1;
   if (watchers === 1) {
+    frozenRun = null;
     await load();
+    await loadGames();
     const after = backfillStore.lastSeq;
     unsub = await subscribe('vndb-backfill', onEvent);
     await pullLogs(after);
     window.addEventListener(BACKFILL_REFRESH, schedule);
+    window.addEventListener(LIBRARY_CHANGED, loadGames);
   }
 }
 
@@ -84,6 +111,7 @@ export function unwatchBackfill() {
   unsub?.();
   unsub = null;
   window.removeEventListener(BACKFILL_REFRESH, schedule);
+  window.removeEventListener(LIBRARY_CHANGED, loadGames);
   if (timer) {
     clearTimeout(timer);
     timer = null;
@@ -92,32 +120,16 @@ export function unwatchBackfill() {
 
 export { load as reloadBackfill };
 
-export function backfillCounts(status) {
-  const items = status?.items ?? [];
-  const counts = { all: items.length, pending: 0, active: 0, ok: 0, unmatched: 0, failed: 0 };
-  for (const it of items) counts[it.state] = (counts[it.state] ?? 0) + 1;
-  return counts;
-}
-
-export function backfillVisible(status, filter, onlyNoId) {
-  let list = status?.items ?? [];
-  if (filter !== 'all') list = list.filter((it) => it.state === filter);
-  if (onlyNoId) list = list.filter((it) => it.bind_source === 'search');
-  return list;
-}
-
-export function backfillItem(status, gameId) {
-  if (!gameId) return null;
-  return (status?.items ?? []).find((it) => it.game_id === gameId) ?? null;
-}
-
 export function mergeBackfillItem(patch) {
-  const status = backfillStore.status;
-  if (!status || !patch?.game_id) return;
-  const items = status.items ?? [];
-  if (!items.some((it) => it.game_id === patch.game_id)) return;
-  backfillStore.status = {
-    ...status,
-    items: items.map((it) => (it.game_id === patch.game_id ? { ...it, ...patch } : it)),
+  const id = patch?.game_id;
+  if (!id) return;
+  const at = backfillStore.games.findIndex((g) => g.id === id);
+  if (at < 0) return;
+  if (Object.hasOwn(patch, 'vndb_id')) {
+    backfillStore.games[at].vndb_id = patch.vndb_id;
+  }
+  backfillStore.localOverlay = {
+    ...backfillStore.localOverlay,
+    [id]: { ...(backfillStore.localOverlay[id] ?? {}), ...patch },
   };
 }

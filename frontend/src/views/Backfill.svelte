@@ -8,14 +8,12 @@
   import { notifyBackfillRefresh } from '../lib/task-events.js';
   import { STATE_BADGE, STATE_DOT, STATE_LABEL } from '../lib/backfill-labels.js';
   import { mergeProgress } from '../lib/backfill-log.js';
+  import { countsOf, mergeCatalog, pickRow, visibleRows } from '../lib/backfill-list.js';
   import {
     backfillStore,
     watchBackfill,
     unwatchBackfill,
     reloadBackfill,
-    backfillCounts,
-    backfillVisible,
-    backfillItem,
     mergeBackfillItem,
   } from '../lib/backfill-store.svelte.js';
   import BackfillPanel from '../components/backfill/BackfillPanel.svelte';
@@ -24,23 +22,25 @@
   let { scroll = 0 } = $props();
 
   const status = $derived(backfillStore.status);
-  const counts = $derived(backfillCounts(status));
-  const items = $derived(
-    backfillVisible(status, backfillStore.filter, backfillStore.onlyNoId),
+  const rows = $derived(
+    mergeCatalog(backfillStore.games, status?.items, backfillStore.localOverlay),
   );
-  const selected = $derived(backfillItem(status, backfillStore.selected));
+  const counts = $derived(countsOf(rows, backfillStore.targetIds));
+  const items = $derived(
+    visibleRows(rows, backfillStore.filter, backfillStore.targetIds, backfillStore.onlyNoId),
+  );
+  const selected = $derived(pickRow(rows, backfillStore.selected));
   const running = $derived(Boolean(status?.running));
   const paused = $derived(Boolean(status?.paused));
-  const hasItems = $derived((status?.items?.length ?? 0) > 0);
+  const hasItems = $derived(rows.length > 0);
   const total = $derived(status?.total ?? 0);
   const done = $derived(status?.done ?? 0);
   const ratio = $derived(total > 0 ? Math.min(1, done / total) : 0);
-  const activeItem = $derived((status?.items ?? []).find((it) => it.state === 'active') ?? null);
+  const activeItem = $derived(rows.find((it) => it.state === 'active') ?? null);
 
   const FILTERS = [
+    { key: 'todo', label: 'backfillPage.filter.todo' },
     { key: 'all', label: 'backfillPage.filter.all' },
-    { key: 'pending', label: 'backfillPage.filter.pending' },
-    { key: 'active', label: 'backfillPage.filter.active' },
     { key: 'ok', label: 'backfillPage.filter.ok' },
     { key: 'unmatched', label: 'backfillPage.filter.unmatched' },
     { key: 'failed', label: 'backfillPage.filter.failed' },
@@ -76,14 +76,14 @@
   function setFilter(key) {
     backfillStore.filter = key;
     if (!backfillStore.selected) return;
-    const next = backfillVisible(status, key, backfillStore.onlyNoId);
+    const next = visibleRows(rows, key, backfillStore.targetIds, backfillStore.onlyNoId);
     if (!next.some((it) => it.game_id === backfillStore.selected)) backfillStore.selected = null;
   }
 
   function toggleNoId() {
     backfillStore.onlyNoId = !backfillStore.onlyNoId;
     if (!backfillStore.selected) return;
-    const next = backfillVisible(status, backfillStore.filter, backfillStore.onlyNoId);
+    const next = visibleRows(rows, backfillStore.filter, backfillStore.targetIds, backfillStore.onlyNoId);
     if (!next.some((it) => it.game_id === backfillStore.selected)) backfillStore.selected = null;
   }
 
@@ -127,7 +127,7 @@
   }
 
   async function retryFailed() {
-    const ids = (status?.items ?? [])
+    const ids = rows
       .filter((it) => it.state === 'failed' || it.state === 'unmatched')
       .map((it) => it.game_id);
     if (!ids.length || running) return;
@@ -213,7 +213,7 @@
         <button
           type="button"
           class="btn btn-primary btn-sm"
-          disabled={starting || !hasItems}
+          disabled={starting || counts.todo === 0}
           onclick={start}
         >
           {t('backfillPage.start')}
@@ -337,7 +337,9 @@
                 <span class="bf-row__sub">{it.vndb_id ?? ''}</span>
               {/if}
             </span>
-            <span class="bf-badge {STATE_BADGE[it.state]}">{t(STATE_LABEL[it.state])}</span>
+            {#if it.state}
+              <span class="bf-badge {STATE_BADGE[it.state]}">{t(STATE_LABEL[it.state])}</span>
+            {/if}
           </button>
         {/each}
       </div>

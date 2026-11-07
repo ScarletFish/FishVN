@@ -236,9 +236,13 @@
 </script>
 
 <div class="bf-panel__head">
-  <span class="bf-badge {STATE_BADGE[item.state]}">
-    {t(STATE_LABEL[item.state])}
-  </span>
+  {#if item.state}
+    <span class="bf-badge {STATE_BADGE[item.state]}">
+      {t(STATE_LABEL[item.state])}
+    </span>
+  {:else}
+    <span class="bf-badge bf-badge--pending">{t('backfillPage.library')}</span>
+  {/if}
   <button type="button" class="bf-panel__close" aria-label={t('common.close')} onclick={onclose}>
     ×
   </button>

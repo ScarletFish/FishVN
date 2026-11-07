@@ -10,6 +10,7 @@
   import { createScrollAnim } from '../lib/scroll-anim.js';
   import { captureHero } from '../lib/hero-transition.js';
   import {
+    notifyLibraryChanged,
     notifyLibraryTagsChanged,
     onLibraryItemsThrottled,
     LIBRARY_CHANGED,
@@ -44,6 +45,7 @@
     const ok = await confirm('deleteGame', { name: item.name });
     if (!ok) return;
     await api.deleteGame(item.id);
+    notifyLibraryChanged();
     notifyLibraryTagsChanged();
     await load();
   }

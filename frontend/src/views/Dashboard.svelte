@@ -12,6 +12,7 @@
   import { DASHBOARD_MODULES } from '../lib/dashboard-layout.js';
   import { CONFIG_CHANGED } from '../lib/config-events.js';
   import {
+    notifyLibraryChanged,
     notifyLibraryTagsChanged,
     onLibraryItemsThrottled,
     LIBRARY_CHANGED,
@@ -72,6 +73,7 @@
     const ok = await confirm('deleteGame', { name: item.name });
     if (!ok) return;
     await api.deleteGame(item.id);
+    notifyLibraryChanged();
     notifyLibraryTagsChanged();
     await load();
   }
