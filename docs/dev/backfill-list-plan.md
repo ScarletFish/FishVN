@@ -88,7 +88,7 @@ BACKFILL_REFRESH：只重拉 status
 
 | 风险 | 缓解 |
 |---|---|
-| 三处 delete 补通知后，`Detail.svelte:108` 的 `onLibrary → refreshMeta()` 会刷新已删除条目 | `notifyLibraryChanged()` 放在 `onclose?.()` 之后；或让 `refreshMeta` 容错 |
+| 三处 delete 补通知后，`Detail.svelte:108` 的 `onLibrary → refreshMeta()` 会刷新已删除条目 | 核实 `refreshMeta` 自带 `try/catch` 与 `if (!g) return`，风险不成立；通知放在原位置 |
 | 备份还原整体换库，overlay 里大批 id 失效 | 重取 `games` 时同步清掉 `localOverlay` 里不在新 games 的 id；后端幽灵 overlay 不会显示（合并视图只遍历 games） |
 | 修正非目标集条目时后端 `set_item` 找不到会静默丢弃 | 全部走前端 `localOverlay`，不调后端 |
 | 任务完成（TaskDock）也发 `LIBRARY_CHANGED`，可能让列表闪动 | 排序确定 + keyed each 用 `game_id`，仅字段更新，不重建其它节点 |
@@ -99,11 +99,14 @@ BACKFILL_REFRESH：只重拉 status
 
 | 步 | 状态 | 提交 | 备注 |
 |---|---|---|---|
-| 0 | 完成 | 本批 | 台账落盘 |
-| 1 | 未开始 | — | |
-| 2 | 未开始 | — | |
-| 3 | 未开始 | — | |
-| 4 | 未开始 | — | |
+| 0 | 完成 | `68c62eb` | 台账落盘 |
+| 1 | 完成 | `339297c` | `backfill-list.js` + 10 条表驱动测试；前端 320→330 例 |
+| 2+3 | 完成 | `7ac2d5f` | 原步 2/3 强耦合，合并为一个可运行提交：store 数据所有权、视图筛选、三处删除通知、i18n |
+| 4 | 完成 | 本批 | FDD 407/413/419-421/933、`architecture.md` 不变量台账与影响面矩阵、本台账收尾 |
+
+**执行调整**：步 2 与步 3 强耦合（store 导出变更后视图必须同时切换，单独提交会让 `vite build` 因引用旧导出失败），合并为一次可运行提交。
+
+**风险核实**：`Detail.svelte:93` 的 `refreshMeta` 自带 `try/catch` 与 `if (!g) return`，三处 delete 补通知不会让已删除条目的刷新报错，通知放在原 `notifyLibraryTagsChanged()` 旁即可，无需调整派发顺序。
 
 ## 九、验收清单（交给用户验证）
 
@@ -115,3 +118,13 @@ BACKFILL_REFRESH：只重拉 status
 6. 备份还原后不出现幽灵徽章
 
 前端表现（布局、文案、徽章样式）由用户验证后再细修正，本轮只保证行为正确。
+
+## 十、收尾状态
+
+全部完成。提交序列：`68c62eb`（步 0）→ `339297c`（步 1）→ `7ac2d5f`（步 2+3）→ 本批（步 4）。
+
+最终基线：后端 **338 passed / 5 skipped**（本轮后端零改动）、前端 **32 文件 330 例**，`check:frontend` / `check:rust` / `check:generated` / `git diff --check` 全过。
+
+明确未做：字段完整性追踪、provenance、队列持久化、localStorage、通用 merge 抽象、后端改动。列表成员资格只由冻结的目标集决定，唯一允许的移出是库内条目被删除（由 `LIBRARY_CHANGED` 驱动）。
+
+接手指引：先看本文件第六、七节与 `backfill-list.js` 的纯函数契约，再跑 `git log -4 --oneline`；细修正前端表现时不要重新引入「从字段反推成员资格」的判据。
