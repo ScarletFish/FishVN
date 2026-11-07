@@ -13,9 +13,9 @@ use crate::{new_id, now};
 
 const DEFAULT_STATUS: Status = Status::Wishlist;
 
-pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
-    let mut stmt = conn.prepare(
-        "SELECT g.id, g.name, g.vndb_id, g.created_at,
+pub const GAME_ORDER_SQL: &str = "ORDER BY g.name COLLATE NOCASE, g.id";
+
+const LIST_GAMES_SQL: &str = "SELECT g.id, g.name, g.vndb_id, g.created_at,
                 s.status, s.user_rating,
                 COUNT(i.id) AS installation_count,
                 MAX(CASE WHEN i.entry_path IS NOT NULL THEN 1 ELSE 0 END) AS can_launch,
@@ -32,9 +32,11 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
          JOIN user_game_state s ON s.game_id = g.id
          LEFT JOIN installations i ON i.game_id = g.id
          LEFT JOIN game_metadata m ON m.game_id = g.id
-         GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y, m.alias, m.rating
-         ORDER BY g.created_at DESC, g.id",
-    )?;
+         GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y, m.alias, m.rating";
+
+pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
+    let sql = format!("{LIST_GAMES_SQL} {GAME_ORDER_SQL}");
+    let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map([], |row| {
         Ok(GameListItem {
             id: row.get("id")?,

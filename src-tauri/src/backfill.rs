@@ -56,7 +56,7 @@ const SCAN_SQL: &str = "SELECT g.id, g.name, g.vndb_id
         OR COALESCE(m.image_path, '') = ''
         OR NOT EXISTS (SELECT 1 FROM characters c WHERE c.game_id = g.id)";
 
-const BY_IDS_PREFIX: &str = "SELECT id, name, vndb_id FROM games WHERE id IN (";
+const BY_IDS_PREFIX: &str = "SELECT g.id, g.name, g.vndb_id FROM games AS g WHERE g.id IN (";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BackfillItem {
@@ -214,7 +214,8 @@ pub fn set_paused(paused: bool) -> BackfillStatus {
 }
 
 pub fn scan(conn: &Connection) -> Result<Vec<BackfillItem>> {
-    let mut stmt = conn.prepare(SCAN_SQL)?;
+    let sql = format!("{SCAN_SQL} {}", crate::games::GAME_ORDER_SQL);
+    let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map([], |row| {
         Ok(BackfillItem {
             game_id: row.get("id")?,
@@ -230,7 +231,11 @@ pub fn items_by_ids(conn: &Connection, ids: &[String]) -> Result<Vec<BackfillIte
     if ids.is_empty() {
         return Ok(Vec::new());
     }
-    let sql = format!("{BY_IDS_PREFIX}{})", vec!["?"; ids.len()].join(", "));
+    let sql = format!(
+        "{BY_IDS_PREFIX}{}) {}",
+        vec!["?"; ids.len()].join(", "),
+        crate::games::GAME_ORDER_SQL,
+    );
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(params_from_iter(ids.iter()), |row| {
         Ok(BackfillItem {

@@ -12,14 +12,14 @@
 
 ### 六条设计边界（最终版）
 
-1. 列表 = `listGames()` 全量，沿用 `ORDER BY created_at DESC, id`，永不重建（除库内事实变化）
+1. 列表 = `listGames()` 全量，按名称排序（`games.rs::GAME_ORDER_SQL`），永不重建（除库内事实变化）
 2. `BackfillStatus.items` 降为按 `game_id` 索引的 overlay，只决定徽章与修正台内容
 3. 默认筛选「本次」= 冻结的目标集 id；成功/失败/未匹配全留在里面；「全部」= 全量；其余是只读条件
 4. 任务推进只改 overlay，列表成员与顺序不动
 5. 修正台可选中任意库内条目，局部 overlay 前端自己记，不写回后端 `items`
 6. `LIBRARY_CHANGED` 是列表成员变更的唯一来源；补三处删除通知 + 工作台订阅 + 选中项失效与还原时的 overlay 清理
 
-**后端零改动**：`ApplyReport.created_ids` 已存在（`SettingsDialog.svelte:496` 已用它调 `startBackfill(created)`），`list_games` 已有稳定排序，`start_backfill(game_ids)` 已支持传 id，`status_or_plan()` 已提供冻结的计划清单。
+**步 0 判定时后端零改动（后续因排序反馈有追加，见第十一节）**：`ApplyReport.created_ids` 已存在（`SettingsDialog.svelte:496` 已用它调 `startBackfill(created)`），`list_games` 已有稳定排序，`start_backfill(game_ids)` 已支持传 id，`status_or_plan()` 已提供冻结的计划清单。
 
 ## 二、现状根因
 
@@ -37,7 +37,7 @@
 ## 三、目标数据流
 
 ```
-listGames()  ── 全量 games（稳定排序，唯一列表源）──┐
+listGames()  ── 全量 games（按名称稳定排序，唯一列表源）──┐
                                                   ├─ mergeCatalog → rows → visibleRows → 列表 / 修正台
 BackfillStatus.items ── overlay（按 id）───────────┤
 localOverlay ── 修正非目标集条目的局部状态 ──────────┘
@@ -128,3 +128,13 @@ BACKFILL_REFRESH：只重拉 status
 明确未做：字段完整性追踪、provenance、队列持久化、localStorage、通用 merge 抽象、后端改动。列表成员资格只由冻结的目标集决定，唯一允许的移出是库内条目被删除（由 `LIBRARY_CHANGED` 驱动）。
 
 接手指引：先看本文件第六、七节与 `backfill-list.js` 的纯函数契约，再跑 `git log -4 --oneline`；细修正前端表现时不要重新引入「从字段反推成员资格」的判据。
+
+## 十一、追加变更：默认排序改名称并锚定执行顺序
+
+用户验证阶段反馈「补全不是从列表第一条开始」。核实为 `list_games` 按 `created_at DESC, id` 排，而 `SCAN_SQL` / `items_by_ids` 没有 ORDER BY（实际按插入顺序），两者错位；且 `now()` 是秒级，同批新建条目 `created_at` 相同，列表按 UUID 排，视觉上像随机。用户推测「根据名称」，并指出若任务自上而下推进，成功条目自然落在上方，无需置顶。
+
+- 默认排序改为按名称：`games.rs::GAME_ORDER_SQL = "ORDER BY g.name COLLATE NOCASE, g.id"`。ASCII 大小写不敏感，`id` 兜底保证确定性；中文/日文按 Unicode 码点（UTF-8 字节）排，不是拼音，未引入 ICU
+- 该常量同时被 `list_games`、`backfill::scan`、`backfill::items_by_ids` 使用，任务从列表第一条往下推进；成功的条目原位变绿并集中在上方，列表全程不重排
+- **全局影响**：`listGames()` 还被 MyList / Dashboard / SearchBar / GameForm / BackfillPanel 使用，这些视图的顺序也改为按名称
+- `tests/backfill.rs` 新增 1 条用例：断言库内列表按名称排序，且 `scan` / `items_by_ids` 的 id 序列与 `list_games` 完全一致
+- 验证：后端 339 passed / 5 skipped，前端 32 文件 330 例，`check:rust` / `check:frontend` 全过

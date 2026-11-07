@@ -15,6 +15,29 @@ fn full_meta_patch() -> MetadataPatch {
 }
 
 #[test]
+fn 库内列表按名称排序且任务顺序锚定同一规则() {
+    let db = Db::new();
+    for name in ["Zulu", "alpha", "中文", "Beta", "Aurora"] {
+        new_game(&db, name);
+    }
+    let games = fishvn::games::list_games(&db).unwrap();
+    let names: Vec<String> = games.iter().map(|g| g.name.clone()).collect();
+    let mut sorted = names.clone();
+    sorted.sort_by_key(|n| n.to_lowercase());
+    assert_eq!(names, sorted, "库内列表应按名称大小写不敏感排序");
+
+    let listed: Vec<String> = games.into_iter().map(|g| g.id).collect();
+    let scanned: Vec<String> = scan(&db).unwrap().into_iter().map(|i| i.game_id).collect();
+    assert_eq!(scanned, listed, "批量扫描顺序应与列表一致");
+    let by_ids: Vec<String> = items_by_ids(&db, &listed)
+        .unwrap()
+        .into_iter()
+        .map(|i| i.game_id)
+        .collect();
+    assert_eq!(by_ids, listed, "按 id 启动的顺序应与列表一致");
+}
+
+#[test]
 fn 扫描只收资料有空白的作品() {
     let db = Db::new();
     let bare = new_game(&db, "啥都没有");

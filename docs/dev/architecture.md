@@ -43,7 +43,7 @@
 | 任务日志不重复、不丢序 | 推送与历史补读各写各的，日志重复或缺行 | `TaskEvent.seq` 由 `EventLog::push` 分配并随 Tauri emit 与 SSE 两条通道下发；`mergeLogRows` 按序号去重合并，`eventsSince` 只在首次订阅后补历史 |
 | 备份还原中途失败不留下空连接 | 磁盘库被覆盖且内存库为空 | `backup.rs` 的 `Reopen` RAII 与 `restore_files` 顺序 |
 | 四类同步 UPDATE 幽灵 id 一律报错 | 静默成功还计数 | `sync.rs::update_one` 统一检查 `changes == 0` |
-| 补全页列表稳定 | 任务推进重建列表、选中丢失 | `listGames()` 全量稳定排序为唯一列表源；`targetIds` 仅在 run_id 变化时冻结；任务状态只作 overlay；`backfill-list.test.js` 断言 pending→ok 时默认集合不变 |
+| 补全页列表稳定、且任务从第一条往下跑 | 任务推进重建列表、选中丢失；进度不从顶部开始 | `listGames()` 全量按名称稳定排序为唯一列表源；`games.rs::GAME_ORDER_SQL` 单一常量锚定 `scan` 与 `items_by_ids`，`tests/backfill.rs` 断言三者 id 序列相等；`targetIds` 仅在 run_id 变化时冻结；任务状态只作 overlay；`backfill-list.test.js` 断言 pending→ok 时默认集合不变 |
 | 库内条目删除后工作台同步 | 删了游戏列表还留着幽灵行 | `LIBRARY_CHANGED` 是列表成员变更唯一来源；三处 delete 补通知，`loadGames` 清理失效 overlay 与选中 |
 
 ## 改动影响面矩阵
@@ -58,6 +58,7 @@
 | 改同步规则 | `sync.rs` 的判定与应用 + [vndb-sync.md](./vndb-sync.md) | `npm test` |
 | 改标签展示/过滤 | [tags.md](./tags.md) 的规则与 `tagdict` | `check:frontend` + `npm test` |
 | 改补全页列表或筛选 | `backfill-list.js` 纯函数 + `backfill-store.svelte.js` 的 games/targetIds/localOverlay + `Backfill.svelte`；新增库内成员变化入口要补 `notifyLibraryChanged` | `npm test -w frontend` + `check:frontend` |
+| 改库内列表顺序 | `games.rs::GAME_ORDER_SQL` 单一常量（同时被 `scan` / `items_by_ids` 使用）；**全局影响** MyList / Dashboard / SearchBar，须确认任务顺序仍与列表一致 | `npm test`（含顺序一致性用例）+ `check:frontend` |
 
 ## 性能边界
 
