@@ -13,6 +13,8 @@
 
 拉丁走 DM Sans：可变字体拉丁子集打包在 `assets/fonts/dm-sans-latin.woff2`（OFL 许可文本同目录存放），`fonts.css` 声明 `@font-face`，字重轴 100–1000 全覆盖，新字重直接取用。CJK 走 `@fontsource-variable/noto-sans-sc`（OFL，族名 `Noto Sans SC Variable`）：101 个按 `unicode-range` 切片的可变字体，在 `fonts.css` 里 `@import`，构建时进 `dist`，浏览器按用到的字符取片；升级换版本即换包。`--font-sans` 中 CJK 族排在系统字体之前；两族之外的字符（斜体、扩展区汉字）回落字体栈里的系统字体。
 
+DM Sans 的 `@font-face` 带度量覆盖：`ascent-override: 106% / descent-override: 30% / line-gap-override: 0%`。显式行高下基线位置只由 ascent−descent 决定，0.76em 让 CJK 字形在行盒内视觉居中，中英混排错位在度量层一次修掉，不要在组件里打 translate 补丁；1.36em 总高是刻意保留，normal 行盒高度不变（项目全部显式行高，总高不参与布局）。改这三个值前先想清楚这层。
+
 这份 DM Sans 子集不带 `tnum` 特性，`font-variant-numeric: tabular-nums` 对它无效——写了不报错，数字宽度仍随字形变（「1」明显窄于「0」）。需要数字定宽的地方（详情页评分这类会随数据整条切换的数值）逐字符渲染，每个字符给 `width: 1ch` 的格子，等于手工补等宽；不要改用固定 `rem` 的列宽兜——那只会把差额堆到列尾，表现为数字与后面标注之间偶尔多出一截空隙，切换时更像抖动。
 
 ## 字号阶层
