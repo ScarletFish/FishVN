@@ -179,9 +179,13 @@ BACKFILL_REFRESH：只重拉 status
 
 **执行调整**：步 1~3 都落在同一批前端改动上，且 `BackfillPanel` 新增的 `onopenform` 与视图挂载必须同时存在才能跑通，因此合并为一次可运行提交（含台账落盘），不做三次拆分。
 
-**两处实现细节**：
+**实现细节**：
 - `review` 判据放在 `onlyNoId` 之前并直接返回，因为自动绑定把 `vndb_id` 写回 `games` 表后，原本的「仅看无 ID」会把最该复核的条目排除掉；视图在 review 时禁用该开关，避免亮着却不生效
 - `BackfillPanel.retry()` 回传补 `bind_source: item.bind_source ?? state.bind_source`：后端 `fill_single` 对不在目标集里的条目返回 `unwrap_or_default()`，来源为空，若不补会把待复核条目误标成已确认
 - 「在编辑表单中打开」用补全页局部挂载一份 `GameForm`（与 Dashboard / Detail / MyList 同构），没有引入跨视图 store；表单保存会发 `LIBRARY_CHANGED`，补全页按既有机制重取全量
+
+**文案修订（用户反馈）**：右栏对 `existing` 条目原写「按已绑定的 ID 直接拉取，不会自动搜索」，是描述实现机制而非回答用户真正的问题「这条要不要我管」。改为「已绑定 VNDB 条目，作品身份确定，无需核对」，与 `search` 行的「按本地名搜索匹配，可能选错，建议核对并可在上方改绑」形成行动结论上的对照；列表行标签「沿用」→「已绑定」、「搜索」→「搜索匹配」，同为一组口径统一。
+
+核实后有一处不能写死：`vndb_id` 并非只来自账户同步，`GameForm.svelte:386`（用户手动选中）、`backfill.rs:569`（上一轮自动绑定写回）、`games.rs:161`（通用 update）都会写它。所以文案与 FDD:414 都不断言「来自同步」或「id 一定正确」，只表达「本次任务未对这条做匹配决策」——这与 `bind_source` 的实际语义一致，也仍然支持用户「这类条目无需复核」的心智。
 
 最终基线：后端 **339 passed / 5 skipped**（本批后端零改动）、前端 **32 文件 333 例**，`check:frontend` / `check:rust` / `check:generated` / `git diff --check` 全过。接手时先看本节与 `backfill-list.js` 的 `review` 判据；第 3 项「抽共享编排消除 GameForm 与 BackfillPanel 的重复实现」仍未做，等用户验证行为后再排。
