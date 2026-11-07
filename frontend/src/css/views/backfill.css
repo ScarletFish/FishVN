@@ -496,11 +496,9 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bf-panel-slot,
-  .bf-panel {
-    animation: none;
-  }
+:root[data-reduce-motion='on'] .bf-panel-slot,
+:root[data-reduce-motion='on'] .bf-panel {
+  animation: none;
 }
 
 .bf-panel.is-log .bf-loglist {

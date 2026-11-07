@@ -4,6 +4,7 @@
   import { api } from '../lib/api.js';
   import { initScrollDots } from '../lib/scroll-dots.svelte.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
+  import { shouldReduceMotion } from '../lib/motion.js';
   import { coverSrc } from '../lib/cover-src.js';
   import { pickImage } from '../lib/pick-path.js';
   import {
@@ -165,7 +166,7 @@
   const SCROLL_SECONDS = 0.3;
   const CARD_SECONDS = 0.3;
 
-  const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduceMotion = shouldReduceMotion;
   const stripCards = () => scrollEl?.querySelectorAll('.char-card:not(.char-card--add)');
 
   const layoutLeft = (node) => node.offsetLeft;

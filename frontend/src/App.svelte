@@ -24,6 +24,7 @@
     viewTransition,
   } from './lib/theme.js';
   import { syncShowCardTitle } from './lib/card-prefs.js';
+  import { syncReduceMotion } from './lib/motion.js';
   import { notifyConfigChanged } from './lib/config-events.js';
   import { getScrollViewport } from './lib/scrollbars.js';
   import { addGame } from './lib/add-game.svelte.js';
@@ -51,6 +52,7 @@
   $effect(() => {
     syncFontScale();
     syncShowCardTitle();
+    syncReduceMotion();
     loadTagDict();
     loadConfig();
     api

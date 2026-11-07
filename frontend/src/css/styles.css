@@ -1,4 +1,5 @@
 @import "./fonts.css";
+@import "./motion-reduce.css";
 @import "./tokens.css";
 @import "overlayscrollbars/overlayscrollbars.css";
 @import "./layouts/shell.css";

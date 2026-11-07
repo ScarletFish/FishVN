@@ -15,6 +15,7 @@
   } from '../lib/theme.js';
   import { t } from '../lib/i18n.js';
   import { getShowCardTitle, setShowCardTitle } from '../lib/card-prefs.js';
+  import { getReduceMotion, setReduceMotion } from '../lib/motion.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { api } from '../lib/api.js';
@@ -42,6 +43,7 @@
   let timeMetric = $state('foreground');
   let hideR18 = $state(false);
   let showCardTitle = $state(false);
+  let reduceMotion = $state(false);
   let spoilerLevel = $state('hide_all');
   let excludedTags = $state([]);
   let poolOpen = $state(false);
@@ -109,6 +111,7 @@
       accent = getAccent();
       fontScale = getFontScale();
       showCardTitle = getShowCardTitle();
+      reduceMotion = getReduceMotion();
       hideR18 = getHideR18Tags();
       spoilerLevel = getSpoilerLevel();
       excludedTags = getExcludedTags();
@@ -291,6 +294,10 @@
 
   function onShowCardTitleChange(e) {
     showCardTitle = setShowCardTitle(e.target.checked);
+  }
+
+  function onReduceMotionChange(e) {
+    reduceMotion = setReduceMotion(e.target.checked);
   }
 
   function onQuitBehaviorChange(e) {
@@ -618,6 +625,23 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-row">
+          <span class="form-row-label">{t('settings.reduceMotion')}</span>
+          <label class="toggle-switch" for="settings-reduce-motion">
+            <input
+              id="settings-reduce-motion"
+              type="checkbox"
+              aria-label={t('settings.reduceMotion')}
+              checked={reduceMotion}
+              onchange={onReduceMotionChange}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <p class="form-hint">{t('settings.reduceMotionHint')}</p>
       </div>
 
       <div class="form-group">

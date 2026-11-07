@@ -1058,17 +1058,15 @@ button.info-rating {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .detail-rise,
-  .detail-fade,
-  .detail-enter-chars .detail-section-header,
-  .detail-enter-staff,
-  .detail-enter-playlog,
-  .detail-enter-notes {
-    animation: none;
-  }
+:root[data-reduce-motion='on'] .detail-rise,
+:root[data-reduce-motion='on'] .detail-fade,
+:root[data-reduce-motion='on'] .detail-enter-chars .detail-section-header,
+:root[data-reduce-motion='on'] .detail-enter-staff,
+:root[data-reduce-motion='on'] .detail-enter-playlog,
+:root[data-reduce-motion='on'] .detail-enter-notes {
+  animation: none;
+}
 
-  .info-length {
-    transition: none;
-  }
+:root[data-reduce-motion='on'] .info-length {
+  transition: none;
 }

@@ -1,3 +1,5 @@
+import { shouldReduceMotion } from './motion.js';
+
 const SCROLLER = '.shell__main';
 
 export function createScrollAnim() {
@@ -29,7 +31,7 @@ export function createScrollAnim() {
     kill();
     const gsap = globalThis.gsap;
     if (!gsap || !gsap.ScrollTrigger) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (shouldReduceMotion()) return;
     const scroller = document.querySelector(SCROLLER);
     if (!scroller) return;
 

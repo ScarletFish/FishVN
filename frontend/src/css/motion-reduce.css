@@ -1,0 +1,26 @@
+:root[data-reduce-motion='on'] :is(.menu__list, .context-menu, .select-dd-menu, .cal-pop__menu) {
+  transition-property: opacity;
+}
+
+:root[data-reduce-motion='on']
+  :is(.menu__list, .context-menu, .select-dd-menu, .cal-pop__menu)[data-starting-style] {
+  transform: none;
+}
+
+:root[data-reduce-motion='on'] .modal-panel {
+  animation-name: modal-panel-in-fade;
+}
+
+@keyframes modal-panel-in-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:root[data-reduce-motion='on'] .toast,
+:root[data-reduce-motion='on'] .toast.dismissing {
+  animation-duration: 1ms;
+}

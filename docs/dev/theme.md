@@ -17,6 +17,10 @@ DM Sans 的 `@font-face` 带度量覆盖：`ascent-override: 106% / descent-over
 
 这份 DM Sans 子集不带 `tnum` 特性，`font-variant-numeric: tabular-nums` 对它无效——写了不报错，数字宽度仍随字形变（「1」明显窄于「0」）。需要数字定宽的地方（详情页评分这类会随数据整条切换的数值）逐字符渲染，每个字符给 `width: 1ch` 的格子，等于手工补等宽；不要改用固定 `rem` 的列宽兜——那只会把差额堆到列尾，表现为数字与后面标注之间偶尔多出一截空隙，切换时更像抖动。
 
+## 动效与减少动画
+
+减少动画的判定源统一在 `lib/motion.js`：应用内设置存 `fishvn.reduceMotion`，开启即强制减少；未开启跟随系统 `prefers-reduced-motion` 并实时同步系统变化。判定结果由它落到 `<html data-reduce-motion>`，CSS 只按这个属性降级（`motion-reduce.css`），不再各处写 media query；JS 消费方（`scroll-anim`、`hero-transition`、`theme.js` 的 `viewTransition`、`CharacterEditor`）读 `shouldReduceMotion()`，reduce 时直接跳过而不是降级。降级原则：去掉位移与缩放，保留淡入淡出；加载指示器（spinner、进度）是功能性状态，不参与减少。
+
 ## 字号阶层
 
 字号一律引用 `--text-*` token；SVG 内文字与 DOM 文字同样适用（SVG 按 1:1 渲染时 rem 即屏幕像素）。阶层与用途：

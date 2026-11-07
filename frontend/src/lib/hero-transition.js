@@ -1,3 +1,5 @@
+import { shouldReduceMotion } from './motion.js';
+
 let pending = null;
 
 function bgSrc(el) {
@@ -9,7 +11,7 @@ function bgSrc(el) {
 export function captureHero(sourceEl, opts = {}) {
   const gsap = globalThis.gsap;
   if (!gsap) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (shouldReduceMotion()) return;
   const img = sourceEl?.querySelector(opts.img ?? '.cover-card__media img');
   if (img && (!img.complete || img.naturalWidth === 0)) return;
   const bgEl = img ? null : sourceEl?.querySelector(opts.bg ?? '.continue-bg');

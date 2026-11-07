@@ -1,3 +1,5 @@
+import { shouldReduceMotion } from './motion.js';
+
 const KEY = 'fishvn.theme';
 const ACCENT_KEY = 'fishvn.accent';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
@@ -54,7 +56,7 @@ function paintAccent(accent) {
 }
 
 export function viewTransition(update) {
-  if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (document.startViewTransition && !shouldReduceMotion()) {
     document.startViewTransition(update);
   } else {
     update();

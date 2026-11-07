@@ -425,6 +425,8 @@ export const DICT_ZH = {
     fontSize: '字体大小',
     fontSizeHint: '影响全部界面文字与控件',
     cardTitle: '封面卡片常显标题',
+    reduceMotion: '减少动画',
+    reduceMotionHint: '跳过位移动画与转场，保留淡入淡出；默认跟随系统设置。',
     hideR18: '隐藏成人向标签',
     hideR18Hint: '仅影响展示，不修改数据',
     spoilerLevel: '剧透标签',
