@@ -68,7 +68,7 @@ fn spawn_next_image(
     };
     let data_dir = data_dir.to_path_buf();
     set.spawn(async move {
-        let path = fetch_image(image_http(), Some(&url), Some(&id), &data_dir)
+        let path = fetch_image(image_http(), Some(&url), None, Some(&id), &data_dir)
             .await
             .ok()
             .flatten();
@@ -94,9 +94,21 @@ impl ImageError {
     }
 }
 
+fn download_candidates(url: &str, thumb: Option<&str>) -> Vec<String> {
+    let mut targets = Vec::with_capacity(2);
+    if let Some(thumb) = thumb {
+        if thumb != url {
+            targets.push(thumb.to_owned());
+        }
+    }
+    targets.push(url.to_owned());
+    targets
+}
+
 pub(super) async fn fetch_image(
     http: &reqwest::Client,
     url: Option<&str>,
+    thumb: Option<&str>,
     id: Option<&str>,
     data_dir: &std::path::Path,
 ) -> std::result::Result<Option<String>, ImageError> {
@@ -116,24 +128,56 @@ pub(super) async fn fetch_image(
         return Err(ImageError::Local);
     }
 
+    let targets = download_candidates(url, thumb);
+
     let mut last_err = None;
-    for attempt in 1..=IMAGE_RETRIES {
-        match download_image(http, url).await {
-            Ok(bytes) => {
-                if std::fs::write(&dst, &bytes).is_err() {
-                    return Err(ImageError::Local);
+    for target in &targets {
+        for attempt in 1..=IMAGE_RETRIES {
+            let started = std::time::Instant::now();
+            match download_image(http, target).await {
+                Ok(bytes) => {
+                    tauri_plugin_log::log::debug!(
+                        target: "backfill",
+                        "图片：第 {attempt} 次 {} KB {}ms {target}",
+                        bytes.len() / 1024,
+                        started.elapsed().as_millis()
+                    );
+                    if std::fs::write(&dst, &bytes).is_err() {
+                        return Err(ImageError::Local);
+                    }
+                    return Ok(Some(dst.to_string_lossy().into_owned()));
                 }
-                return Ok(Some(dst.to_string_lossy().into_owned()));
-            }
-            Err(e) => {
-                if let ImageError::Http(code) = e {
-                    tauri_plugin_log::log::warn!("图片下载失败 {url}：HTTP {code}");
-                    return Err(e);
-                }
-                last_err = Some(e);
-                if attempt < IMAGE_RETRIES {
-                    tokio::time::sleep(Duration::from_millis(IMAGE_BACKOFF_MS * attempt as u64))
-                        .await;
+                Err(e) => {
+                    tauri_plugin_log::log::debug!(
+                        target: "backfill",
+                        "图片失败：第 {attempt} 次 {} {}ms {target}",
+                        e.code(),
+                        started.elapsed().as_millis()
+                    );
+                    let http_code = match &e {
+                        ImageError::Http(code) => Some(*code),
+                        _ => None,
+                    };
+                    match http_code {
+                        Some(404) => {
+                            last_err = Some(e);
+                            break;
+                        }
+                        Some(code) => {
+                            tauri_plugin_log::log::warn!("图片下载失败 {target}：HTTP {code}");
+                            return Err(e);
+                        }
+                        None => {
+                            if attempt < IMAGE_RETRIES {
+                                tokio::time::sleep(Duration::from_millis(
+                                    IMAGE_BACKOFF_MS * attempt as u64,
+                                ))
+                                .await;
+                            } else {
+                                return Err(e);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -166,5 +210,40 @@ fn transport_error(e: &reqwest::Error) -> ImageError {
         ImageError::Timeout
     } else {
         ImageError::Network
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::download_candidates;
+
+    #[test]
+    fn thumbnail_comes_first() {
+        let targets = download_candidates(
+            "https://t.vndb.org/cv/76/93476.jpg",
+            Some("https://t.vndb.org/cv.t/76/93476.jpg"),
+        );
+        assert_eq!(
+            targets,
+            vec![
+                "https://t.vndb.org/cv.t/76/93476.jpg",
+                "https://t.vndb.org/cv/76/93476.jpg"
+            ]
+        );
+    }
+
+    #[test]
+    fn no_thumbnail_falls_back_to_original() {
+        let targets = download_candidates("https://t.vndb.org/ch/16/38016.jpg", None);
+        assert_eq!(targets, vec!["https://t.vndb.org/ch/16/38016.jpg"]);
+    }
+
+    #[test]
+    fn same_url_is_not_fetched_twice() {
+        let targets = download_candidates(
+            "https://t.vndb.org/cv/76/93476.jpg",
+            Some("https://t.vndb.org/cv/76/93476.jpg"),
+        );
+        assert_eq!(targets, vec!["https://t.vndb.org/cv/76/93476.jpg"]);
     }
 }

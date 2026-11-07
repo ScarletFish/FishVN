@@ -1,4 +1,5 @@
 use serde_json::json;
+use tauri_plugin_log::log;
 
 use crate::error::{AppError, Result};
 use crate::tasks::Progress;
@@ -19,7 +20,7 @@ use dto::{AuthInfo, CharRow, LabelList};
 
 const SEARCH_FIELDS: &str = "id,title,alttitle,released,olang,image{id,thumbnail,thumbnail_dims}";
 
-const META_FIELDS: &str = "id,title,alttitle,olang,released,devstatus,rating,votecount,length_minutes,description,titles{lang,title,latin,official,main},image{id,url,dims},tags{id,name,category,rating,spoiler,lie,vn_count},developers{id,name,original,type},staff{role,name,original,note},va{character{id},staff{id,name,original},note}";
+const META_FIELDS: &str = "id,title,alttitle,olang,released,devstatus,rating,votecount,length_minutes,description,titles{lang,title,latin,official,main},image{id,url,dims,thumbnail},tags{id,name,category,rating,spoiler,lie,vn_count},developers{id,name,original,type},staff{role,name,original,note},va{character{id},staff{id,name,original},note}";
 
 const CHAR_FIELDS: &str = "id,name,original,aliases,description,gender,age,birthday,blood_type,height,weight,bust,waist,hips,cup,image{id,url,dims},traits{id,name,group_name,spoiler,lie},vns{role,spoiler}";
 
@@ -69,27 +70,36 @@ pub async fn fetch_sync(
         return Err(AppError::Cancelled);
     }
     progress.report("meta", None, None);
+    let meta_start = std::time::Instant::now();
     let (vn, rows) = tokio::select! {
         res = async { tokio::join!(fetch_vn(http, vndb_id), fetch_character_rows(http, vndb_id)) } => res,
         _ = crate::tasks::wait_cancel(progress) => {
             return Err(AppError::Cancelled);
         }
     };
+    let meta_ms = meta_start.elapsed().as_millis();
     let mut vn = vn?;
     let rows = rows?;
     if progress.cancelled() {
         return Err(AppError::Cancelled);
     }
+    let mut cover_ms = 0u128;
     if let Some(img) = vn.image.as_mut() {
         if img.url.is_some() && img.id.is_some() {
             progress.report("cover", None, None);
             if progress.cancelled() {
                 return Err(AppError::Cancelled);
             }
+            let cover_start = std::time::Instant::now();
+            let thumb = match crate::settings::current().cover_quality {
+                crate::settings::CoverQuality::Thumbnail => img.thumbnail.as_deref(),
+                crate::settings::CoverQuality::Original => None,
+            };
             let fetched = tokio::select! {
                 res = images::fetch_image(
                     client::image_http(),
                     img.url.as_deref(),
+                    thumb,
                     img.id.as_deref(),
                     data_dir,
                 ) => res,
@@ -110,12 +120,15 @@ pub async fn fetch_sync(
                     None
                 }
             };
+            cover_ms = cover_start.elapsed().as_millis();
         }
     }
     if progress.cancelled() {
         return Err(AppError::Cancelled);
     }
     progress.report_note("characters", &format!("{} 位", rows.len()));
+    let chars_start = std::time::Instant::now();
+    let chars_expected = rows.len();
     let characters = characters::map_characters(
         rows,
         vn.va.as_deref().unwrap_or_default(),
@@ -123,6 +136,11 @@ pub async fn fetch_sync(
         progress,
     )
     .await?;
+    log::debug!(
+        target: "backfill",
+        "请求分解：元数据 {meta_ms}ms 封面 {cover_ms}ms 角色 {}ms（{chars_expected} 位）",
+        chars_start.elapsed().as_millis()
+    );
     Ok(VnSync { vn, characters })
 }
 

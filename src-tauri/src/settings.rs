@@ -63,6 +63,14 @@ pub enum QuitBehavior {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+pub enum CoverQuality {
+    #[default]
+    Thumbnail,
+    Original,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Theme {
     #[default]
     Light,
@@ -132,6 +140,8 @@ pub struct AppConfig {
     #[serde(default = "default_excluded_tags")]
     pub excluded_tags: Vec<String>,
     #[serde(default)]
+    pub cover_quality: CoverQuality,
+    #[serde(default)]
     pub vndb_sync_mode: VndbSyncMode,
     #[serde(default)]
     pub vndb_sync_wishlist: bool,
@@ -161,6 +171,7 @@ pub struct ConfigPatch {
     pub hide_r18_tags: Option<bool>,
     pub spoiler_level: Option<SpoilerLevel>,
     pub excluded_tags: Option<Vec<String>>,
+    pub cover_quality: Option<CoverQuality>,
     pub vndb_sync_mode: Option<VndbSyncMode>,
     pub vndb_sync_wishlist: Option<bool>,
     pub vndb_sync_rating: Option<bool>,
@@ -182,6 +193,7 @@ pub struct ConfigView {
     pub hide_r18_tags: bool,
     pub spoiler_level: SpoilerLevel,
     pub excluded_tags: Vec<String>,
+    pub cover_quality: CoverQuality,
     pub vndb_sync_mode: VndbSyncMode,
     pub vndb_sync_wishlist: bool,
     pub vndb_sync_rating: bool,
@@ -247,6 +259,9 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     }
     if let Some(value) = patch.excluded_tags {
         config.excluded_tags = value;
+    }
+    if let Some(value) = patch.cover_quality {
+        config.cover_quality = value;
     }
     if patch.vndb_sync_mode.is_some()
         || patch.vndb_sync_wishlist.is_some()
@@ -335,6 +350,7 @@ pub fn view() -> ConfigView {
         hide_r18_tags: config.hide_r18_tags,
         spoiler_level: config.spoiler_level,
         excluded_tags: config.excluded_tags,
+        cover_quality: config.cover_quality,
         vndb_sync_mode: config.vndb_sync_mode,
         vndb_sync_wishlist: config.vndb_sync_wishlist,
         vndb_sync_rating: config.vndb_sync_rating,

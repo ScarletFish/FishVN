@@ -363,6 +363,12 @@ export const DICT_ZH = {
       confirm: '开始补全',
       cancel: '稍后',
     },
+    coverOriginal: {
+      title: '警告',
+      message: '启用原图下载会显著增加图片加载与下载耗时',
+      confirm: '确认',
+      cancel: '取消',
+    },
     backfillStop: {
       title: '停止补全',
       message: '已完成 {done}/{total} 部。已补好的资料会保留，未处理的条目下次还会被扫描进来',
@@ -441,6 +447,10 @@ export const DICT_ZH = {
     excludedBrowse: '从库内标签挑选',
     excludedPoolEmpty: '库内暂无可排除的标签',
     excludedRemove: '移出排除池',
+    coverQuality: '封面画质',
+    coverThumbnail: '缩略图',
+    coverOriginal: '原图',
+    coverQualityHint: '从 VNDB 下载封面的图片质量',
     tools: {
       magpie: 'Magpie 可执行文件路径',
       magpieHint: '放大游戏画面用；选择 Magpie.exe',

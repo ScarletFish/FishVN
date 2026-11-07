@@ -164,7 +164,7 @@ va{character{id},staff{id,name,original},note}
 `vns.role` 给（`main` / `primary` / `side` / `appears`），不必反查角色属于哪部作品。
 
 `gender` 按 release 逐条返回，同一角色多个 release 会让数组出现重复值，取用前去重。
-`image` 没有 `thumbnail`，角色图固定限 256×300，缩图要走 `url` 自己派生。
+角色图的 `image` 没有 `thumbnail`，固定限 256×300，缩图要走 `url` 自己派生。
 
 `birthday` 是 `[月, 日]` 两元素整数数组（如 `[12, 15]`），没有值时为 `null`。
 `/kana/schema` 对它不给类型声明，与 `released` 同性质，只能靠实测确认。
@@ -222,7 +222,12 @@ ismain 事实备用：`/staff` 每条记录按名字返回多行，`ismain=true`
 
 ### 封面与图片
 
-封面一律下 `url` 不下 `thumbnail`：thumbnail 宽度不足以覆盖 2× 屏（要 554 宽）。
+封面走 `cover_quality` 设置（`thumbnail` 默认 / `original`）：
+
+- `thumbnail` 取 `image.thumbnail`（`cv.t`，宽 256），`original` 取 `image.url`
+- 两者与 `dims` 一起从 `image{id,url,dims,thumbnail}` 一次取回，不自己拼 `cv.t` 路径
+- 缩略图请求返回 404 时回退 `url`——VNDB 只对原图大于 256×400 的封面生成缩略图
+- 落盘统一为 `{image_id}.jpg`，一档一份；换档不覆盖已有文件，只影响之后的下载
 
 图片在 `t.vndb.org` 这个 CDN 上，与 `api.vndb.org` 的限流额度是两套，客户端另开一个连接：
 超时用 `read_timeout`（`IMAGE_TIMEOUT` 8 秒，读体每收到一块就重置；等响应头是一次性 8 秒死线），

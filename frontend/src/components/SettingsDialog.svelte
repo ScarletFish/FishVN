@@ -72,6 +72,7 @@
   let resultOpen = $state(false);
   let quitBehavior = $state('quit');
   let minimizeOnLaunch = $state(true);
+  let coverQuality = $state('thumbnail');
 
   let backupRetentionMode = $state('off');
   let backupRetentionOpen = $state(false);
@@ -139,6 +140,7 @@
           lePathError = '';
           quitBehavior = config.quit_behavior === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
           minimizeOnLaunch = config.minimize_on_launch !== false;
+          coverQuality = config.cover_quality === 'original' ? 'original' : 'thumbnail';
           backupRetentionMode = (config.backup_retention_days ?? null) == null
             ? 'off'
             : String(config.backup_retention_days);
@@ -316,6 +318,26 @@
     minimizeOnLaunch = value;
     api
       .updateConfig({ minimize_on_launch: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  async function onCoverQualityChange(e) {
+    const input = e.target;
+    const value = input.value === 'original' ? 'original' : 'thumbnail';
+    if (value === 'original') {
+      const ok = await confirm('coverOriginal');
+      if (!ok) {
+        const prev = input
+          .closest('.seg-radio-group')
+          ?.querySelector(`input[value="${coverQuality}"]`);
+        if (prev) prev.checked = true;
+        return;
+      }
+    }
+    coverQuality = value;
+    api
+      .updateConfig({ cover_quality: value })
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
   }
@@ -899,6 +921,33 @@
         {:else}
           <p class="form-hint">{t('settings.excludedEmpty')}</p>
         {/if}
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.coverQuality')}</div>
+        <div class="seg-radio-group" role="radiogroup" aria-label={t('settings.coverQuality')}>
+          <label class="seg-radio-item">
+            <input
+              type="radio"
+              name="settings-cover-quality"
+              value="thumbnail"
+              checked={coverQuality === 'thumbnail'}
+              onchange={onCoverQualityChange}
+            />
+            {t('settings.coverThumbnail')}
+          </label>
+          <label class="seg-radio-item">
+            <input
+              type="radio"
+              name="settings-cover-quality"
+              value="original"
+              checked={coverQuality === 'original'}
+              onchange={onCoverQualityChange}
+            />
+            {t('settings.coverOriginal')}
+          </label>
+        </div>
+        <p class="form-hint">{t('settings.coverQualityHint')}</p>
       </div>
     </div>
 

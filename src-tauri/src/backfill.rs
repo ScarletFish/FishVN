@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use rusqlite::{Connection, params_from_iter};
 use serde::Serialize;
+use tauri_plugin_log::log;
 
 use crate::characters;
 use crate::error::{AppError, Result};
@@ -561,6 +562,7 @@ async fn backfill_one(
     item: &BackfillItem,
     report: &mut BackfillReport,
 ) -> Result<()> {
+    let started = std::time::Instant::now();
     let Some(vndb_id) = resolve_vndb_id(task, rate, item, report).await? else {
         return Ok(());
     };
@@ -603,14 +605,22 @@ async fn backfill_one(
             }
         }
     }
+    let bind_ms = started.elapsed().as_millis();
     let mut rounds = FREEZE_ROUNDS;
+    let mut rate_ms = 0u128;
+    let mut fetch_ms = 0u128;
     let sync = loop {
+        let wait_start = std::time::Instant::now();
         rate.acquire().await;
         rate.acquire().await;
+        rate_ms += wait_start.elapsed().as_millis();
         if task.cancelled() {
             return Err(AppError::Cancelled);
         }
-        match vndb::fetch_sync(vndb::http(), &vndb_id, dir, task).await {
+        let fetch_start = std::time::Instant::now();
+        let fetched = vndb::fetch_sync(vndb::http(), &vndb_id, dir, task).await;
+        fetch_ms += fetch_start.elapsed().as_millis();
+        match fetched {
             Ok(sync) => break sync,
             Err(AppError::RateLimited) if rounds > 0 => {
                 rounds -= 1;
@@ -627,6 +637,7 @@ async fn backfill_one(
     };
     let vn_title = sync.vn.title.clone();
     let vn_released = sync.vn.released.clone();
+    let write_start = std::time::Instant::now();
     match apply_sync(conn, &item.game_id, &sync).await {
         Ok((filled, char_count)) => {
             report.fetched += 1;
@@ -647,6 +658,13 @@ async fn backfill_one(
         }
         Err(e) => fail(report, task, "failed", &item.game_id, &item.name, &e),
     }
+    let write_ms = write_start.elapsed().as_millis();
+    log::debug!(
+        target: "backfill",
+        "单部耗时：{} 绑定 {bind_ms}ms 限速 {rate_ms}ms 请求 {fetch_ms}ms 落库 {write_ms}ms 合计 {}ms",
+        item.name,
+        started.elapsed().as_millis()
+    );
     Ok(())
 }
 
