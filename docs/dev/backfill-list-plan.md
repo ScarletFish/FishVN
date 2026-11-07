@@ -189,3 +189,45 @@ BACKFILL_REFRESH：只重拉 status
 核实后有一处不能写死：`vndb_id` 并非只来自账户同步，`GameForm.svelte:386`（用户手动选中）、`backfill.rs:569`（上一轮自动绑定写回）、`games.rs:161`（通用 update）都会写它。所以文案与 FDD:414 都不断言「来自同步」或「id 一定正确」，只表达「本次任务未对这条做匹配决策」——这与 `bind_source` 的实际语义一致，也仍然支持用户「这类条目无需复核」的心智。
 
 最终基线：后端 **339 passed / 5 skipped**（本批后端零改动）、前端 **32 文件 333 例**，`check:frontend` / `check:rust` / `check:generated` / `git diff --check` 全过。接手时先看本节与 `backfill-list.js` 的 `review` 判据；第 3 项「抽共享编排消除 GameForm 与 BackfillPanel 的重复实现」仍未做，等用户验证行为后再排。
+
+## 十三、抽取共同抽象：`createVnMergeFlow()`
+
+用户确认执行第 3 项。核实后重复的边界是：
+
+| 两边逐行相同 | 两边本就不同（保留） |
+|---|---|
+| `pulling` / `syncProgress` / `syncNotice` / `syncCancelled` 一组状态 | 搜索 UI（`VndbAside` vs `bf-search` + `bf-cands`） |
+| `api.listGames()` 查 `vndb_id` 占用 + `vndbTaken` 提示 | `current` 来源（表单编辑态 vs 读库 `toFields`） |
+| 订阅 `vndb-sync` → 进度/错误投影 → `off?.()` 清理 | 冲突确认后的写入（写表单态等保存 vs 立即写库 + 回传 overlay） |
+| `fetchVnMetadata` → `conflictRows` → `planCharacters` | `coverFocalX/Y` 只在表单的取舍面板里传 |
+| `applyIncoming` / `applyCharacters` 的应用与状态清理 | `retry()` 走 `vndb-backfill` 通道，不产生冲突行 |
+
+**设计**：新增 `frontend/src/lib/vn-merge-flow.svelte.js`，与既有 `createVndbSearch()` 同风格的无头 rune 控制器。
+
+- `run(channel, task, filter)`：单飞 + 订阅 + 进度/错误 + 取消 + `finally` 清理，三处拉取（GameForm `pickHit`、BackfillPanel `pick` 与 `retry`）共用
+- `pick(id, load)`：`load()` 由宿主提供 `{ ownId, current, characters }`（可异步），内部完成占用检查、拉取、冲突计算；成功返回 `true`
+- `accept(picked, charPicked)`：返回 `{ fields, characters, id, previous }`，**只计算不写入**，由宿主决定写表单还是写库
+- `cancel()` / `reset()`；对话框开关仍由宿主各持一个 `$state`（`VnMergeDialog.open` 是 `$bindable`，不塞进控制器）
+
+**一处刻意的行为统一**：原 GameForm 在无冲突时会打开一个空的合并对话框，BackfillPanel 会 toast「没有可应用的新数据」。统一为 toast，属于消除无意义交互，不是回归。
+
+**验证**：`check:frontend`（含 339 例前端测试、注释/CSS/死 CSS/vite build）与 `git diff --check`；后端零改动，不跑 Rust 全量。
+
+### 进度台账
+
+| 步 | 状态 | 提交 | 备注 |
+|---|---|---|---|
+| 1 | 完成 | 本批 | `vn-merge-flow.svelte.js`（136 行）+ 6 条表驱动测试；前端 333→339 例 |
+| 2 | 完成 | 本批 | `GameForm.svelte` 接入，删 74 行加 23 行；`pickHit` / `cancelSync` / `acceptMerge` 变薄 |
+| 3 | 完成 | 本批 | `BackfillPanel.svelte` 接入，`pick` / `accept` / `retry` 都走 flow，删掉整套本地拉取状态 |
+| 4 | 完成 | 本批 | 全量验证、本节收尾、提交 |
+
+**收尾状态**：
+- 三处拉取（GameForm `pickHit`、BackfillPanel `pick` 与 `retry`）共用 `run()` 的单飞 / 订阅 / 进度投影 / 取消 / `finally` 清理；`冲突计算 → 取舍 → 应用`只在 `vn-merge-flow.svelte.js` 一处，以后改 `vn-merge` / `char-merge` 的接入方式不用同步两个组件
+- `GameForm` 与 `BackfillPanel` 仍各自保留搜索 UI 与最终写入，这是本就不同的部分，没有强行统一
+- `VnMergeDialog.open` 是 `$bindable`，对话框开关仍由宿主各持一个 `$state`，没塞进控制器
+- **行数净增**（新增控制器 136 行 + 测试 131 行，两个组件净减约 93 行）：换来的是原本零覆盖的拉取编排有了 6 条表驱动用例，以及规则单一来源
+- 一处细微统一：原 GameForm 把所有非 error 事件都当进度，现与 BackfillPanel 一致只认带 `phase` 的事件；`TaskEvent` 都带 phase，无实际影响
+- 最终基线：前端 **33 文件 339 例**，`check:frontend` / `git diff --check` 全过；后端零改动
+
+至此第 3 项完成，本台账的全部计划项（0~4、排序锚定、复核筛选、共同抽象）均已落地。

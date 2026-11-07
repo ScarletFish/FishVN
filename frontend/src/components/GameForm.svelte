@@ -4,12 +4,11 @@
   import Modal from './Modal.svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
-  import { subscribe } from '../lib/events.js';
   import { createVndbSearch } from '../lib/vndb-search.svelte.js';
+  import { createVnMergeFlow } from '../lib/vn-merge-flow.svelte.js';
   import { buildMetadataPatch, buildStatePatch, clampRating } from '../lib/form-metadata.js';
   import { errorFieldId, errorTab, shownErrors, validateGameForm } from '../lib/form-validation.js';
   import { DEFAULT_STATUS } from '../lib/status.js';
-  import { applyIncoming, conflictRows } from '../lib/vn-merge.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
   import CharacterEditor from './CharacterEditor.svelte';
   import InstallationList from './InstallationList.svelte';
@@ -20,7 +19,6 @@
     toInstallationDraft,
     toInstallationPayload,
   } from '../lib/installations.js';
-  import { applyCharacters, planCharacters } from '../lib/char-merge.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { confirm } from '../lib/confirm.svelte.js';
@@ -97,14 +95,6 @@
   let defaultInstallKey = $state(null);
   
   let mergeOpen = $state(false);
-  let mergeRows = $state([]);
-  let charMergeRows = $state([]);
-  let incomingCharacters = $state([]);
-  let pulling = $state(false);
-  let syncProgress = $state(null);
-  let syncCancelled = $state(false);
-  let syncNotice = $state('');
-  let incoming = $state(null);
 
   let statusOpen = $state(false);
   let staffRoleOpen = $state(null);
@@ -114,6 +104,7 @@
   let selectedCharId = $state(null);
   let baseline = $state('');
   const search = createVndbSearch();
+  const flow = createVnMergeFlow();
 
   const formErrors = $derived(
     validateGameForm({ name, rating, votecount, lengthMinutes, installations })
@@ -268,14 +259,7 @@
     asideMode = 'search';
     selectedCharId = null;
     mergeOpen = false;
-    mergeRows = [];
-    charMergeRows = [];
-    incomingCharacters = [];
-    incoming = null;
-    pulling = false;
-    syncProgress = null;
-    syncCancelled = false;
-    syncNotice = '';
+    flow.reset();
     search.reset();
     loading = Boolean(gameId);
     loadTagDict();
@@ -357,55 +341,25 @@
   }
 
   async function pickHit(id) {
-    if (pulling) return;
-    pulling = true;
-    syncProgress = null;
-    syncCancelled = false;
-    syncNotice = '';
-    let off = null;
-    try {
-      const games = await api.listGames();
-      const owner = games.find((g) => g.vndb_id === id && g.id !== gameId);
-      if (owner) {
-        toast(t('gameForm.error.vndbTaken', { name: owner.name }), 'error');
-        return;
-      }
-      off = await subscribe('vndb-sync', (event) => {
-        if (event.error) {
-          syncNotice = event.error;
-        } else {
-          syncProgress = event;
-        }
-      });
-      incoming = await api.fetchVnMetadata(id);
-      if (syncCancelled) {
-        incoming = null;
-        incomingCharacters = [];
-        return;
-      }
-      vndbId = id;
-      incomingCharacters = incoming?.characters ?? [];
-      mergeRows = conflictRows(formFields(), incoming);
-      charMergeRows = planCharacters(characters.map(toPayload), incomingCharacters).conflicts;
-      mergeOpen = true;
-    } catch (err) {
-      incoming = null;
-      incomingCharacters = [];
-      if (!syncCancelled) toast(err.message, 'error');
-    } finally {
-      off?.();
-      pulling = false;
-      syncProgress = null;
-    }
+    const ok = await flow.pick(id, () => ({
+      ownId: gameId,
+      current: formFields(),
+      characters: characters.map(toPayload),
+    }));
+    if (!ok) return;
+    vndbId = flow.selectedId;
+    mergeOpen = true;
   }
 
   async function cancelSync() {
-    syncCancelled = true;
-    await api.cancelTask('vndb-sync');
+    await flow.cancel();
   }
 
   function acceptMerge(picked, charPicked) {
-    const next = applyIncoming(formFields(), incoming, picked);
+    const result = flow.accept(picked, charPicked);
+    mergeOpen = false;
+    if (!result) return;
+    const next = result.fields;
     name = next.name;
     alias = next.alias;
     released = next.released;
@@ -421,12 +375,7 @@
       coverFocalX = 50;
       coverFocalY = 50;
     }
-    characters = applyCharacters(characters.map(toPayload), incomingCharacters, charPicked).map(
-      toDraft
-    );
-    mergeOpen = false;
-    incoming = null;
-    incomingCharacters = [];
+    characters = result.characters.map(toDraft);
   }
 
   const isDirty = $derived(baseline !== '' && formSnapshot() !== baseline);
@@ -701,10 +650,10 @@
     {:else}
       <VndbAside
         {search}
-        {pulling}
-        {syncProgress}
-        {syncNotice}
-        {syncCancelled}
+        pulling={flow.pulling}
+        syncProgress={flow.progress}
+        syncNotice={flow.notice}
+        syncCancelled={flow.cancelled}
         selectedId={vndbId}
         onpick={pickHit}
         oncancel={cancelSync}
@@ -716,8 +665,8 @@
 
 <VnMergeDialog
   bind:open={mergeOpen}
-  rows={mergeRows}
-  charRows={charMergeRows}
+  rows={flow.rows}
+  charRows={flow.charRows}
   coverFocalX={coverFocalX}
   coverFocalY={coverFocalY}
   onaccept={acceptMerge}

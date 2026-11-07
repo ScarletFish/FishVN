@@ -2,10 +2,8 @@
   import { t } from '../../lib/i18n.js';
   import { api } from '../../lib/api.js';
   import { toast } from '../../lib/toast.svelte.js';
-  import { subscribe } from '../../lib/events.js';
   import { createVndbSearch } from '../../lib/vndb-search.svelte.js';
-  import { applyIncoming, conflictRows } from '../../lib/vn-merge.js';
-  import { applyCharacters, planCharacters } from '../../lib/char-merge.js';
+  import { createVnMergeFlow } from '../../lib/vn-merge-flow.svelte.js';
   import { buildMetadataPatch } from '../../lib/form-metadata.js';
   import { BANNER_FOCAL } from '../../lib/cover-focal.js';
   import { openExternal } from '../../lib/open-external.js';
@@ -23,18 +21,10 @@
 
   let keyword = $state(item.name ?? '');
   const search = createVndbSearch();
+  const flow = createVnMergeFlow();
   let searched = $state(false);
-  let pulling = $state(false);
   let busy = $state(false);
-  let syncProgress = $state(null);
-  let syncNotice = $state('');
   let mergeOpen = $state(false);
-  let mergeRows = $state([]);
-  let charMergeRows = $state([]);
-  let current = $state(null);
-  let currentCharacters = $state([]);
-  let incoming = $state(null);
-  let incomingCharacters = $state([]);
   let done = $state(null);
 
   let lastId = null;
@@ -43,6 +33,7 @@
     lastId = item.game_id;
     keyword = item.name ?? '';
     search.reset();
+    flow.reset();
     searched = false;
     done = null;
   });
@@ -77,14 +68,17 @@
   );
 
   const pullText = $derived.by(() => {
-    if (!syncProgress) return t('backfillPage.pulling');
-    const label = t(PHASES[syncProgress.phase] ?? 'backfillPage.pulling');
-    if (syncProgress.total == null) return label;
-    return `${label} ${syncProgress.done ?? 0}/${syncProgress.total}`;
+    const progress = flow.progress;
+    if (!progress) return t('backfillPage.pulling');
+    const label = t(PHASES[progress.phase] ?? 'backfillPage.pulling');
+    if (progress.total == null) return label;
+    return `${label} ${progress.done ?? 0}/${progress.total}`;
   });
 
   const pullRatio = $derived(
-    syncProgress?.total ? Math.min(1, (syncProgress.done ?? 0) / syncProgress.total) : null,
+    flow.progress?.total
+      ? Math.min(1, (flow.progress.done ?? 0) / flow.progress.total)
+      : null,
   );
 
   const doneText = $derived.by(() => {
@@ -97,7 +91,7 @@
 
   function runSearch() {
     const term = (keyword ?? '').trim();
-    if (!term || pulling) return;
+    if (!term || flow.pulling) return;
     searched = true;
     search.search(term);
   }
@@ -126,80 +120,56 @@
   }
 
   async function pick(id) {
-    if (pulling || busy || running) return;
-    pulling = true;
-    syncProgress = null;
-    syncNotice = '';
+    if (flow.pulling || busy || running) return;
     mergeOpen = false;
     done = null;
-    let off = null;
-    try {
-      const [game, meta, chars, games] = await Promise.all([
+    const ok = await flow.pick(id, async () => {
+      const [game, meta, chars] = await Promise.all([
         api.getGame(item.game_id),
         api.getGameMetadata(item.game_id),
         api.listGameCharacters(item.game_id).catch(() => []),
-        api.listGames(),
       ]);
-      const owner = games.find((g) => g.vndb_id === id && g.id !== item.game_id);
-      if (owner) {
-        toast(t('gameForm.error.vndbTaken', { name: owner.name }), 'error');
-        return;
-      }
-      off = await subscribe('vndb-sync', (ev) => {
-        if (ev.error) syncNotice = ev.error;
-        else syncProgress = ev;
-      });
-      const sync = await api.fetchVnMetadata(id);
-      current = toFields(game, meta);
-      currentCharacters = chars;
-      incoming = sync;
-      incomingCharacters = sync.characters ?? [];
-      mergeRows = conflictRows(current, sync);
-      charMergeRows = planCharacters(currentCharacters, incomingCharacters).conflicts;
-      if (!mergeRows.length && !charMergeRows.length) {
-        toast(t('backfillPage.fixNone'));
-        return;
-      }
-      mergeOpen = true;
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      off?.();
-      pulling = false;
-      syncProgress = null;
-    }
+      return {
+        ownId: item.game_id,
+        current: toFields(game, meta),
+        characters: chars,
+      };
+    });
+    if (ok) mergeOpen = true;
   }
 
   async function accept(picked, charPicked) {
     mergeOpen = false;
-    if (!incoming || !current) return;
+    const result = flow.accept(picked, charPicked);
+    if (!result) return;
     busy = true;
     try {
-      const next = applyIncoming(current, incoming, picked);
-      const merged = applyCharacters(currentCharacters, incomingCharacters, charPicked);
-      const kept = merged.filter((c) => (c.name ?? '').trim() || (c.original ?? '').trim());
-      const coverChanged = next.coverPath !== current.coverPath;
-      await api.updateGame(item.game_id, { name: next.name, vndb_id: incoming.id });
+      const next = result.fields;
+      const kept = result.characters.filter(
+        (c) => (c.name ?? '').trim() || (c.original ?? '').trim(),
+      );
+      const coverChanged = next.coverPath !== result.previous.coverPath;
+      await api.updateGame(item.game_id, { name: next.name, vndb_id: result.id });
       await api.updateGameMetadata(
         item.game_id,
         buildMetadataPatch({
           ...next,
-          focusX: coverChanged ? 50 : current.focusX,
-          focusY: coverChanged ? 50 : current.focusY,
+          focusX: coverChanged ? 50 : result.previous.focusX,
+          focusY: coverChanged ? 50 : result.previous.focusY,
         }),
       );
       await api.saveGameCharacters(item.game_id, kept);
       done = { fields: picked.size, characters: kept.length };
       const patch = {
         game_id: item.game_id,
-        vndb_id: incoming.id,
+        vndb_id: result.id,
         state: 'ok',
         bind_source: 'existing',
         characters: kept.length,
         error: null,
       };
-      if (incoming.title) patch.hit_title = incoming.title;
-      if (incoming.released) patch.hit_released = incoming.released;
+      if (result.incoming.title) patch.hit_title = result.incoming.title;
+      if (result.incoming.released) patch.hit_released = result.incoming.released;
       onchanged?.(patch);
     } catch (e) {
       toast(e.message, 'error');
@@ -209,32 +179,20 @@
   }
 
   async function retry() {
-    if (busy || pulling || running || !item.vndb_id) return;
-    pulling = true;
-    syncProgress = null;
-    syncNotice = '';
+    if (busy || flow.pulling || running || !item.vndb_id) return;
     done = null;
-    let off = null;
-    try {
-      off = await subscribe('vndb-backfill', (ev) => {
-        if (ev.game_id && ev.game_id !== item.game_id) return;
-        if (ev.error) syncNotice = ev.error;
-        else if (ev.phase) syncProgress = ev;
-      });
-      const state = await api.backfillSingle(item.game_id);
-      onchanged?.({ ...state, bind_source: item.bind_source ?? state.bind_source });
-      if (state.state === 'failed') {
-        toast(state.error ?? t('backfillPage.retryFailedShort'), 'error');
-        return;
-      }
-      done = { fields: state.filled?.length ?? 0, characters: state.characters ?? 0 };
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      off?.();
-      pulling = false;
-      syncProgress = null;
+    const state = await flow.run(
+      'vndb-backfill',
+      () => api.backfillSingle(item.game_id),
+      (ev) => !ev.game_id || ev.game_id === item.game_id,
+    );
+    if (!state) return;
+    onchanged?.({ ...state, bind_source: item.bind_source ?? state.bind_source });
+    if (state.state === 'failed') {
+      toast(state.error ?? t('backfillPage.retryFailedShort'), 'error');
+      return;
     }
+    done = { fields: state.filled?.length ?? 0, characters: state.characters ?? 0 };
   }
 
   function openVndb() {
@@ -273,7 +231,7 @@
     <button
       type="button"
       class="btn btn-ghost btn-sm"
-      disabled={search.searching || pulling || !(keyword ?? '').trim()}
+      disabled={search.searching || flow.pulling || !(keyword ?? '').trim()}
       onclick={runSearch}
     >
       {search.searching ? t('gameForm.search.loading') : t('backfillPage.searchAction')}
@@ -281,7 +239,7 @@
   </div>
 {/if}
 
-{#if pulling}
+{#if flow.pulling}
   <div class="bf-pull">
     <span class="bf-pull__text">{pullText}</span>
     <div
@@ -296,8 +254,8 @@
         style={pullRatio == null ? undefined : `width: ${pullRatio * 100}%`}
       ></span>
     </div>
-    {#if syncNotice}
-      <span class="bf-field__value bf-field__value--error">{syncNotice}</span>
+    {#if flow.notice}
+      <span class="bf-field__value bf-field__value--error">{flow.notice}</span>
     {/if}
   </div>
 {/if}
@@ -310,7 +268,7 @@
           type="button"
           class="bf-cand"
           class:is-current={cand.id === item.vndb_id}
-          disabled={pulling || busy || running}
+          disabled={flow.pulling || busy || running}
           onclick={() => pick(cand.id)}
         >
           <span class="bf-cand__cover">
@@ -331,7 +289,7 @@
       </li>
     {/each}
   </ul>
-{:else if searched && !search.searching && !search.searchError && !pulling}
+{:else if searched && !search.searching && !search.searchError && !flow.pulling}
   <p class="bf-field__muted">{t('backfillPage.candidatesEmpty')}</p>
 {/if}
 
@@ -409,7 +367,7 @@
   <button
     type="button"
     class="btn btn-ghost btn-sm"
-    disabled={busy || pulling || running || !item.vndb_id}
+    disabled={busy || flow.pulling || running || !item.vndb_id}
     onclick={retry}
   >
     {t('backfillPage.retryOne')}
@@ -417,7 +375,7 @@
   <button
     type="button"
     class="btn btn-ghost btn-sm"
-    disabled={busy || pulling || running}
+    disabled={busy || flow.pulling || running}
     onclick={() => onopenform?.(item.game_id)}
   >
     {t('backfillPage.openInForm')}
@@ -426,8 +384,8 @@
 
 <VnMergeDialog
   bind:open={mergeOpen}
-  rows={mergeRows}
-  charRows={charMergeRows}
+  rows={flow.rows}
+  charRows={flow.charRows}
   onaccept={accept}
   oncancel={() => (mergeOpen = false)}
 />
