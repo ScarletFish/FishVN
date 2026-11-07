@@ -12,7 +12,7 @@
   import VnMergeDialog from '../VnMergeDialog.svelte';
   import { STATE_BADGE, STATE_LABEL } from '../../lib/backfill-labels.js';
 
-  let { item, running = false, onchanged, onclose } = $props();
+  let { item, running = false, onchanged, onopenform, onclose } = $props();
 
   const PHASES = {
     meta: 'gameForm.search.phaseMeta',
@@ -47,6 +47,14 @@
     done = null;
   });
 
+  const guessed = $derived(item.bind_source === 'search');
+  const hint = $derived(
+    item.state === null
+      ? 'backfillPage.panelLibrary'
+      : guessed
+        ? 'backfillPage.panelGuessed'
+        : 'backfillPage.panelDirect',
+  );
   const bound = $derived(item.hit_title ?? '');
   const year = $derived(item.hit_released ? item.hit_released.slice(0, 4) : '');
 
@@ -214,7 +222,7 @@
         else if (ev.phase) syncProgress = ev;
       });
       const state = await api.backfillSingle(item.game_id);
-      onchanged?.(state);
+      onchanged?.({ ...state, bind_source: item.bind_source ?? state.bind_source });
       if (state.state === 'failed') {
         toast(state.error ?? t('backfillPage.retryFailedShort'), 'error');
         return;
@@ -248,26 +256,30 @@
   </button>
 </div>
 
-<div class="bf-search">
-  <input
-    class="bf-input"
-    type="text"
-    bind:value={keyword}
-    placeholder={t('backfillPage.searchPlaceholder')}
-    aria-label={t('backfillPage.searchPlaceholder')}
-    onkeydown={(e) => {
-      if (e.key === 'Enter' && !e.isComposing) runSearch();
-    }}
-  />
-  <button
-    type="button"
-    class="btn btn-ghost btn-sm"
-    disabled={search.searching || pulling || !(keyword ?? '').trim()}
-    onclick={runSearch}
-  >
-    {search.searching ? t('gameForm.search.loading') : t('backfillPage.searchAction')}
-  </button>
-</div>
+<p class="bf-note">{t(hint)}</p>
+
+{#if guessed}
+  <div class="bf-search">
+    <input
+      class="bf-input"
+      type="text"
+      bind:value={keyword}
+      placeholder={t('backfillPage.searchPlaceholder')}
+      aria-label={t('backfillPage.searchPlaceholder')}
+      onkeydown={(e) => {
+        if (e.key === 'Enter' && !e.isComposing) runSearch();
+      }}
+    />
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm"
+      disabled={search.searching || pulling || !(keyword ?? '').trim()}
+      onclick={runSearch}
+    >
+      {search.searching ? t('gameForm.search.loading') : t('backfillPage.searchAction')}
+    </button>
+  </div>
+{/if}
 
 {#if pulling}
   <div class="bf-pull">
@@ -290,7 +302,7 @@
   </div>
 {/if}
 
-{#if candidates.length}
+{#if guessed && candidates.length}
   <ul class="bf-cands">
     {#each candidates as cand (cand.id)}
       <li>
@@ -323,7 +335,7 @@
   <p class="bf-field__muted">{t('backfillPage.candidatesEmpty')}</p>
 {/if}
 
-{#if search.searchError}
+{#if guessed && search.searchError}
   <p class="bf-field__value bf-field__value--error">{search.searchError}</p>
 {/if}
 
@@ -401,6 +413,14 @@
     onclick={retry}
   >
     {t('backfillPage.retryOne')}
+  </button>
+  <button
+    type="button"
+    class="btn btn-ghost btn-sm"
+    disabled={busy || pulling || running}
+    onclick={() => onopenform?.(item.game_id)}
+  >
+    {t('backfillPage.openInForm')}
   </button>
 </div>
 

@@ -138,3 +138,50 @@ BACKFILL_REFRESH：只重拉 status
 - **全局影响**：`listGames()` 还被 MyList / Dashboard / SearchBar / GameForm / BackfillPanel 使用，这些视图的顺序也改为按名称
 - `tests/backfill.rs` 新增 1 条用例：断言库内列表按名称排序，且 `scan` / `items_by_ids` 的 id 序列与 `list_games` 完全一致
 - 验证：后端 339 passed / 5 skipped，前端 32 文件 330 例，`check:rust` / `check:frontend` 全过
+
+## 十二、追加变更：复核「猜测绑定」与右栏按来源分支
+
+### 背景判定
+
+用户指出批量补全实际有两条路径，后者的错配风险是**客观存在的复杂度，不是过度设计**：
+
+| | 判据 | `resolve_vndb_id` 行为 | `bind_source` |
+|---|---|---|---|
+| 同步来的 id / 已有绑定 | `vndb_id.is_some()` | 直拉，不搜索 | `existing` |
+| 本地目录 / 手输名 | 无 id | `vndb::search(name)` 取第一条自动绑定，并把 id 写回 `games` 表；记 `hit_count` / `hit_title` / `candidates` | `search` |
+
+因此上一轮「删掉右栏 409 行、统一跳表单」的结论**只对第一条路径成立**：路径 2 猜错时，右栏是唯一的就地改绑入口（`fill_single` 要求已有 id、不重新搜索；补全页原本没有打开表单的入口），且它直接复用了本次 run 已经搜好的前 3 个候选与本地名，比去表单重新输词少两步。页面职责收敛为「无人值守填充 + 对猜测绑定的集中复核」，后者按 `bind_source` 条件出现，不是全体条目的默认负担。
+
+### 实现清单
+
+| 步 | 内容 | 验证 |
+|---|---|---|
+| 1 | `backfill-list.js` 加 `review` 筛选（`state === 'ok' && bind_source === 'search'`）与 `review` 计数；该判据**不受 `onlyNoId` 影响**（自动绑定后 id 已写回库，`onlyNoId` 会把最该复核的条目排掉）；表驱动测试守住「人工改绑后自动退出、列表成员不变」 | `npm test -w frontend` |
+| 2 | `i18n-zh.js` 补 `filter.review` / `reviewHint` / `panelGuessed` / `panelDirect` / `openInForm`；`Backfill.svelte` 筛选器加「需复核」，review 时禁用「仅看无 ID」开关，列表行在 `hit_count > 1` 时显示命中数 | `check:frontend` |
+| 3 | `BackfillPanel.svelte` 加 `guessed = bind_source === 'search'`：`search` 行保留搜索框/候选/逐字段覆盖，`existing` 与库内条目只给结果摘要；两者都加「在编辑表单中打开」，`Backfill.svelte` 局部挂载一份 `GameForm`（与 Dashboard/Detail/MyList 同构）；`retry()` 回传补回 `bind_source`，避免把待复核条目误标成已确认 | `check:frontend` |
+| 4 | FDD:413 备注补复核入口、`architecture.md` 不变量台账加一行、本台账收尾 | 全量校验 |
+
+### 边界
+
+- **不加** schema、provenance、持久化、「标记已复核」写操作；自清洁靠 `accept()` 现成的 `bind_source: 'existing'` patch，任何非 `search` 值都表示这条不再是机器猜测
+- **不重排**：需复核是筛选维度，不是置顶；列表稳定与 `GAME_ORDER_SQL` 锚定不变
+- 后端零改动（`BindSource::Search` / `Existing`、`candidates`、`hit_count` 都已存在）
+- 第 3 项（抽共享编排，消除 GameForm 与 BackfillPanel 的重复实现）**本轮不做**，等用户验证行为后再排
+
+### 进度台账
+
+| 步 | 状态 | 提交 | 备注 |
+|---|---|---|---|
+| 1 | 完成 | 本批 | `review` 筛选与计数 + 3 条表驱动用例；前端 330→333 例 |
+| 2 | 完成 | 本批 | i18n 6 个 key、筛选器加「需复核」、review 时禁用「仅看无 ID」、列表行在 `hit_count > 1` 时显示命中数 |
+| 3 | 完成 | 本批 | 右栏按 `bind_source` 分支（`search` / `existing` / 库内三态各有说明文案）、局部挂载 `GameForm`、`retry` 保住来源标记 |
+| 4 | 完成 | 本批 | FDD:413 备注、`architecture.md` 不变量台账、本节收尾 |
+
+**执行调整**：步 1~3 都落在同一批前端改动上，且 `BackfillPanel` 新增的 `onopenform` 与视图挂载必须同时存在才能跑通，因此合并为一次可运行提交（含台账落盘），不做三次拆分。
+
+**两处实现细节**：
+- `review` 判据放在 `onlyNoId` 之前并直接返回，因为自动绑定把 `vndb_id` 写回 `games` 表后，原本的「仅看无 ID」会把最该复核的条目排除掉；视图在 review 时禁用该开关，避免亮着却不生效
+- `BackfillPanel.retry()` 回传补 `bind_source: item.bind_source ?? state.bind_source`：后端 `fill_single` 对不在目标集里的条目返回 `unwrap_or_default()`，来源为空，若不补会把待复核条目误标成已确认
+- 「在编辑表单中打开」用补全页局部挂载一份 `GameForm`（与 Dashboard / Detail / MyList 同构），没有引入跨视图 store；表单保存会发 `LIBRARY_CHANGED`，补全页按既有机制重取全量
+
+最终基线：后端 **339 passed / 5 skipped**（本批后端零改动）、前端 **32 文件 333 例**，`check:frontend` / `check:rust` / `check:generated` / `git diff --check` 全过。接手时先看本节与 `backfill-list.js` 的 `review` 判据；第 3 项「抽共享编排消除 GameForm 与 BackfillPanel 的重复实现」仍未做，等用户验证行为后再排。

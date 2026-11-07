@@ -103,11 +103,54 @@ test('计数覆盖本次、全部与各结果状态', () => {
   );
   expect(countsOf(rows, ['a', 'c'])).toEqual({
     todo: 2,
+    review: 0,
     all: 3,
     ok: 1,
     unmatched: 1,
     failed: 1,
   });
+});
+
+test('需复核只收搜索绑定且成功的条目', () => {
+  const rows = mergeCatalog(
+    GAMES,
+    [
+      item('a', 'ok', { bind_source: 'existing' }),
+      item('b', 'ok', { bind_source: 'search', hit_count: 3 }),
+      item('c', 'failed', { bind_source: 'search' }),
+    ],
+    {},
+  );
+  const all = ['a', 'b', 'c'];
+  expect(visibleRows(rows, 'review', all, false).map((r) => r.game_id)).toEqual(['b']);
+  expect(countsOf(rows, all).review).toBe(1);
+});
+
+test('需复核不受仅看无 ID 影响', () => {
+  const rows = mergeCatalog(
+    GAMES,
+    [
+      item('b', 'ok', { bind_source: 'search' }),
+      item('c', 'ok', { bind_source: 'search' }),
+    ],
+    {},
+  );
+  const all = ['a', 'b', 'c'];
+  expect(visibleRows(rows, 'review', all, false).map((r) => r.game_id)).toEqual(['b', 'c']);
+  expect(visibleRows(rows, 'review', all, true).map((r) => r.game_id)).toEqual(['b', 'c']);
+});
+
+test('人工改绑后自动退出需复核，列表成员不变', () => {
+  const targetIds = ['a', 'b'];
+  const before = mergeCatalog(GAMES, [item('b', 'ok', { bind_source: 'search' })], {});
+  const after = mergeCatalog(GAMES, [item('b', 'ok', { bind_source: 'search' })], {
+    b: { bind_source: 'existing', hit_title: '人工选中的作品' },
+  });
+  expect(visibleRows(before, 'review', targetIds, false).map((r) => r.game_id)).toEqual(['b']);
+  expect(visibleRows(after, 'review', targetIds, false)).toEqual([]);
+  expect(visibleRows(after, 'todo', targetIds, false).map((r) => r.game_id)).toEqual(
+    visibleRows(before, 'todo', targetIds, false).map((r) => r.game_id),
+  );
 });
 
 test('按 id 取选中行，空 id 返回 null', () => {

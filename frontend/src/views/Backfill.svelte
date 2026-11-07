@@ -18,6 +18,7 @@
   } from '../lib/backfill-store.svelte.js';
   import BackfillPanel from '../components/backfill/BackfillPanel.svelte';
   import BackfillLog from '../components/backfill/BackfillLog.svelte';
+  import GameForm from '../components/GameForm.svelte';
 
   let { scroll = 0 } = $props();
 
@@ -40,6 +41,7 @@
 
   const FILTERS = [
     { key: 'todo', label: 'backfillPage.filter.todo' },
+    { key: 'review', label: 'backfillPage.filter.review' },
     { key: 'all', label: 'backfillPage.filter.all' },
     { key: 'ok', label: 'backfillPage.filter.ok' },
     { key: 'unmatched', label: 'backfillPage.filter.unmatched' },
@@ -49,6 +51,8 @@
   let starting = $state(false);
   let stopping = $state(false);
   let restored = $state(false);
+  let formOpen = $state(false);
+  let formGameId = $state(null);
 
   onMount(async () => {
     await watchBackfill();
@@ -71,6 +75,11 @@
 
   function pick(it) {
     backfillStore.selected = backfillStore.selected === it.game_id ? null : it.game_id;
+  }
+
+  function openForm(id) {
+    formGameId = id;
+    formOpen = true;
   }
 
   function setFilter(key) {
@@ -257,6 +266,7 @@
             class:is-active={backfillStore.filter === f.key}
             role="tab"
             aria-selected={backfillStore.filter === f.key}
+            data-tooltip={f.key === 'review' ? t('backfillPage.reviewHint') : undefined}
             onclick={() => setFilter(f.key)}
           >
             {t(f.label)}<b>{counts[f.key] ?? 0}</b>
@@ -274,6 +284,7 @@
           class="bf-toggle"
           class:is-active={backfillStore.onlyNoId}
           aria-pressed={backfillStore.onlyNoId}
+          disabled={backfillStore.filter === 'review'}
           data-tooltip={t('backfillPage.onlyNoIdHint')}
           onclick={toggleNoId}
         >
@@ -319,7 +330,9 @@
                   {#if it.hit_released}<span>{it.hit_released.slice(0, 4)}</span>{/if}
                   {#if it.filled.length}<span>{t('backfillPage.filledCount', { count: it.filled.length })}</span>{/if}
                   {#if it.bind_source === 'search'}
-                    <span class="bf-row__src">{t('backfillPage.sourceSearch')}</span>
+                    <span class="bf-row__src">
+                      {t('backfillPage.sourceSearch')}{#if it.hit_count > 1} · {t('backfillPage.hits', { count: it.hit_count })}{/if}
+                    </span>
                   {:else if it.bind_source === 'existing'}
                     <span>{t('backfillPage.sourceExisting')}</span>
                   {/if}
@@ -365,6 +378,7 @@
                 item={selected}
                 {running}
                 onchanged={mergeBackfillItem}
+                onopenform={openForm}
                 onclose={() => (backfillStore.selected = null)}
               />
             {/if}
@@ -374,3 +388,5 @@
     </div>
   {/if}
 </section>
+
+<GameForm bind:open={formOpen} bind:gameId={formGameId} />

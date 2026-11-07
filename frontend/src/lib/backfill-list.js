@@ -30,6 +30,7 @@ export function mergeCatalog(games, statusItems, localOverlay) {
 export function visibleRows(rows, filter, targetIds, onlyNoId) {
   const targets = new Set(targetIds ?? []);
   return (rows ?? []).filter((row) => {
+    if (filter === 'review') return row.state === 'ok' && row.bind_source === 'search';
     if (onlyNoId && row.vndb_id) return false;
     if (filter === 'todo') return targets.has(row.game_id);
     if (filter === 'ok') return row.state === 'ok';
@@ -41,10 +42,11 @@ export function visibleRows(rows, filter, targetIds, onlyNoId) {
 
 export function countsOf(rows, targetIds) {
   const targets = new Set(targetIds ?? []);
-  const counts = { todo: 0, all: 0, ok: 0, unmatched: 0, failed: 0 };
+  const counts = { todo: 0, review: 0, all: 0, ok: 0, unmatched: 0, failed: 0 };
   for (const row of rows ?? []) {
     counts.all += 1;
     if (targets.has(row.game_id)) counts.todo += 1;
+    if (row.state === 'ok' && row.bind_source === 'search') counts.review += 1;
     if (Object.hasOwn(counts, row.state)) counts[row.state] += 1;
   }
   return counts;
