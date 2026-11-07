@@ -1059,6 +1059,7 @@
   .char-strip {
     --card-w: 180px;
     padding-bottom: var(--space-2);
+    scroll-snap-type: none;
   }
 
   .char-editor-head {
