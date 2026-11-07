@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 vi.mock('./env.js', () => ({ DEV_HTTP: true, DEV_HTTP_BASE: '/dev-http' }));
-vi.mock('./dev-backend.js', () => ({ ensureBackend: async () => {} }));
+vi.mock('./dev-backend.js', () => ({
+  ensureBackend: vi.fn(async () => {}),
+  recheckBackend: vi.fn(async () => {}),
+}));
 
 class FakeEventSource {
   static instances = [];
@@ -11,6 +14,8 @@ class FakeEventSource {
     this.handlers = new Map();
     FakeEventSource.instances.push(this);
   }
+
+  close() {}
 
   addEventListener(type, fn) {
     const set = this.handlers.get(type) ?? new Set();
@@ -73,4 +78,22 @@ test('退订后不再收到', async () => {
   source.emit('vndb-sync', { phase: 'characters' });
 
   expect(seen).toEqual([{ phase: 'meta' }]);
+});
+
+test('断线重连先重新等后端就绪，不直连', async () => {
+  vi.useFakeTimers();
+  try {
+    await subscribe('vndb-sync', () => {});
+    source = FakeEventSource.instances.at(-1);
+    const dev = await import('./dev-backend.js');
+
+    source.onerror();
+    expect(dev.recheckBackend).toHaveBeenCalledTimes(1);
+    expect(FakeEventSource.instances).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(FakeEventSource.instances).toHaveLength(2);
+  } finally {
+    vi.useRealTimers();
+  }
 });

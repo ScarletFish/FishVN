@@ -1,6 +1,6 @@
 import { listen } from '@tauri-apps/api/event';
 import { DEV_HTTP, DEV_HTTP_BASE } from './env.js';
-import { ensureBackend } from './dev-backend.js';
+import { ensureBackend, recheckBackend } from './dev-backend.js';
 
 let source = null;
 let lastId = 0;
@@ -18,7 +18,9 @@ async function connect() {
   source.onerror = () => {
     source.close();
     source = null;
-    if (handlers.size > 0) setTimeout(connect, 1000);
+    if (handlers.size === 0) return;
+    recheckBackend();
+    setTimeout(connect, 1000);
   };
 }
 

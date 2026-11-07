@@ -14,3 +14,8 @@ export function ensureBackend() {
   ready ??= wait();
   return ready;
 }
+
+export function recheckBackend() {
+  ready = wait();
+  return ready;
+}

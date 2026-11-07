@@ -9,7 +9,7 @@
     <DropdownMenu.Trigger>
       {#snippet child({ props })}
         {#if trigger}
-          {@render trigger()}
+          {@render trigger(props)}
         {:else}
           <button
             {...props}

@@ -19,7 +19,7 @@
     cover: 'gameForm.search.phaseCover',
   };
 
-  let keyword = $state(item.name ?? '');
+  let keyword = $state('');
   const search = createVndbSearch();
   const flow = createVnMergeFlow();
   let searched = $state(false);

@@ -31,7 +31,6 @@
   let formOpen = $state(false);
   let formGameId = $state(null);
   let prefill = $state(null);
-  let addMenuOpen = $state(false);
   let scanOpen = $state(false);
   let scanPath = $state('');
 
@@ -197,7 +196,6 @@
     <h1>{t('mylist.title')}</h1>
     <div class="view-header-right">
       <Menu
-        bind:open={addMenuOpen}
         label={t('mylist.add')}
         items={[
           { label: t('mylist.addManual'), onclick: () => openForm(null) },
@@ -205,18 +203,13 @@
           { label: t('mylist.addScan'), onclick: addFromScan },
         ]}
       >
-        {#snippet trigger()}
+        {#snippet trigger(props)}
           <button
+            {...props}
             type="button"
             class="mylist-add"
-            aria-haspopup="menu"
-            aria-expanded={addMenuOpen}
             aria-label={t('mylist.add')}
             data-tooltip={t('mylist.add')}
-            onclick={() => (addMenuOpen = !addMenuOpen)}
-            onblur={(e) => {
-              if (!e.currentTarget.parentElement.contains(e.relatedTarget)) addMenuOpen = false;
-            }}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <line x1="12" y1="5" x2="12" y2="19"></line>
