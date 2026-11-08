@@ -228,22 +228,22 @@ ismain 事实备用：`/staff` 每条记录按名字返回多行，`ismain=true`
 （`Authorization: token <t>` 头），`user` 参数认证后默认本人，省略即可。本节形状已经
 本项目实测（真实 token 拉取两页 128 条核对）。
 
-请求体与通用查询格式一致，本项目只取四个字段：
+请求体与通用查询格式一致，本项目一次取回状态、评分与整条标题链：
 
 ```json
-{ "fields": "vn.title,labels{id,label},vote,lastmod", "results": 100, "page": 1 }
+{ "fields": "vn.title,vn.alttitle,vn.olang,vn.titles{lang,title,official},labels{id,label},vote,lastmod", "results": 100, "page": 1 }
 ```
 
 | 字段 | JSON 形状 | 说明 |
 |---|---|---|
 | `id` | string | **条目顶层 `id` 即 vn id**（`"v10"`）。注意它不在 `vn` 子对象里——`vn.id` 请求了也不会出现在 `vn` 下，DTO 从顶层取 |
-| `vn` | object | 只展开 `vn.title`（主标题）；`vn.*` 下所有 VN 字段都可选，点号与花括号两种写法等价 |
+| `vn` | object | `vn.*` 下所有 VN 字段都可选，点号与花括号两种写法等价；嵌套数组字段用花括号写子字段，`vn.titles{lang,title,official}` 实测可用。非法字段名返回 400 `Invalid 'fields' member`，带公开 `user` 参数时无需 token 即可校验字段串 |
 | `labels` | object[] | 每项 `{id,label}`；`label` 是首字母大写的显示名（`Playing` / `Finished` / `Stalled` / `Dropped` / `Wishlist`），id 小于 10 是预定义标签且对所有用户相同；`Voted`(7) 随 `vote` 自动加减，与状态标签叠加出现在同一 `labels` 数组里（如 `[Finished, Voted]`），映射时跳过它继续找状态标签 |
 | `vote` | int \| null | 10..100，无评分为 null；与本地 `user_rating` 同为百分制、同刻度 |
 | `lastmod` | int | unix 时间戳，该列表条目最后修改时间 |
 
 翻页用 `results`（上限 100）+ `page`，响应 `more` 为 true 就续页；结果默认按 `id` 排序。
-列表条目的标题随 `vn.title` 内联返回，建壳不需要再按 id 批量查 `/vn` 补名称。
+标题链随 `vn.*` 一次返回，建壳不需要再按 id 批量查 `/vn` 补名称。
 
 写操作用 `PATCH /ulist/<id>`：`labels_set` / `labels_unset` 是标签 id 数组，`vote` 取 10..100 的整数、传 `null` 清空；条目不在列表里时 PATCH 会顺带新建。删条目用 `DELETE`，本项目不做删除。
 

@@ -295,6 +295,16 @@ scope 够不着，必须走 `allow_local_file`。
 批量补全首次填封面）就强制把焦点写回 50/50，无视 patch 里带的焦点值——旧焦点对新图没有
 意义。用户只调焦点不换图时正常生效。
 
+### 外部 API 的测试
+
+与外部 API 相关的改动**优先走 fixture / 本地 mock**，不把「手动拉一次真实接口」当验收手段：CI 无网络、凭证不可得，人工实测也不留下回归保护。上游响应形状与字段串口径见 [vndb-api.md](./vndb-api.md)。
+
+- 实抓一次**未裁剪**的上游响应存 `src-tauri/tests/fixtures/`，作为形状契约。改请求字段串、DTO、解析或取名逻辑时由它驱动测试；上游形状变了才重抓一份，日常回归全程离线。
+- 覆盖三层：请求字段串与响应里实际出现的字段对齐 → `serde_json` 反序列化接住每个字段 → 响应贯通到判定与落库（`plan_ulist` / `patch_for` 这类入口）。只测纯函数等于跳过上游契约。
+- 要测分页、鉴权头、限流、错误码等 HTTP 编排，复用 `vndb/images.rs` 里 axum 本地 server 的起法（`TcpListener::bind("127.0.0.1:0")` + `axum::serve`），零新依赖、不改生产代码的 URL 构造。`src-tauri/tests/**` 一律不发真实网络请求。
+- 「上游是否接受某个字段串」mock 测不了——mock 只会复述我们自己的假设。这是一次性核对，结论固化进 fixture 就够；真实 API 只用于刷新 fixture 与偶尔看界面观感。
+- 前端同口径：`vi.mock` 掉 `api.js` 的调用，用同形状的响应对象驱动合并与展示测试。
+
 ### 注释
 
 代码里不写注释，知识写进本文与 [vndb-api.md](./vndb-api.md)。规则与例外见 [comments.md](./comments.md)。
@@ -309,5 +319,6 @@ scope 够不着，必须走 `allow_local_file`。
 - [ ] 外键列判了空串
 - [ ] 长任务经 `Progress` 播进度、经 `Tasks` 注册表收取消；best-effort 失败走 `report_error` 而非吞掉
 - [ ] 新增测试指向临时库，文件系统用例有真目录树
+- [ ] 涉及外部 API 的改动有 fixture / 本地 mock 测试，不依赖真实网络
 - [ ] 注释过了 comments.md 的判据
 - [ ] 跑过 `npm run check:rust` + `npm test`

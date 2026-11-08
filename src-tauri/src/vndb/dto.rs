@@ -13,6 +13,9 @@ pub struct VnEnvelope<T> {
 #[serde(default)]
 pub struct UlistVn {
     pub title: Option<String>,
+    pub alttitle: Option<String>,
+    pub olang: Option<String>,
+    pub titles: Option<Vec<VnTitle>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]

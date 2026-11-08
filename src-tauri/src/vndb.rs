@@ -9,8 +9,10 @@ mod characters;
 mod client;
 mod dto;
 mod images;
+mod titles;
 
 pub use characters::role_in;
+pub use titles::{chain, ulist_chain};
 pub use client::{http, take_slot, RateLimiter};
 pub use dto::{
     CharVn, ImageJob, ImageKind, UlistEntry, UlistLabel, UlistVn, VnDeveloper, VnEnvelope, VnImage,
@@ -38,7 +40,7 @@ pub const BATCH_SIZE: usize = 20;
 
 const SEARCH_RESULTS: usize = 25;
 
-const ULIST_FIELDS: &str = "vn.title,labels{id,label},vote,lastmod";
+const ULIST_FIELDS: &str = "vn.title,vn.alttitle,vn.olang,vn.titles{lang,title,official},labels{id,label},vote,lastmod";
 
 const ULIST_RESULTS: usize = 100;
 
@@ -541,6 +543,28 @@ mod tests {
 
     fn found(vns: Vec<VnMetadata>) -> std::collections::HashMap<String, VnMetadata> {
         vns.into_iter().map(|vn| (vn.id.clone(), vn)).collect()
+    }
+
+    #[test]
+    fn ulist字段串覆盖实抓响应的标题字段() {
+        const FIXTURE: &str = include_str!("../tests/fixtures/ulist.json");
+        let payload: serde_json::Value = serde_json::from_str(FIXTURE).unwrap();
+        let vn = &payload["results"][0]["vn"];
+        for (key, field) in [
+            ("title", "vn.title"),
+            ("alttitle", "vn.alttitle"),
+            ("olang", "vn.olang"),
+            ("titles", "vn.titles{lang,title,official}"),
+        ] {
+            assert!(ULIST_FIELDS.contains(field), "ULIST_FIELDS 漏了 {field}");
+            assert!(vn.get(key).is_some(), "实抓响应里没有 {key}");
+        }
+        for key in ["lang", "title", "official"] {
+            assert!(vn["titles"][0].get(key).is_some(), "titles 缺 {key}");
+        }
+        for field in ["labels{id,label}", "vote", "lastmod"] {
+            assert!(ULIST_FIELDS.contains(field), "ULIST_FIELDS 漏了 {field}");
+        }
     }
 
     #[test]

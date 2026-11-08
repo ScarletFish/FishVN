@@ -1,6 +1,6 @@
 # 组件与交互惯例 — Components
 
-- **原名优先**：人名与作品名在界面上展示 `original`，罗马音 `name` 用作配对与检索身份。VNDB 同步填进表单的展示名按「官方中文标题 → 原文标题（alttitle）→ 主标题（title）」选择，别名放主标题；新增任何展示 VNDB 名字的位置都沿用这一优先级。
+- **原名优先**：人名与作品名在界面上展示 `original`，罗马音 `name` 用作配对与检索身份。VNDB 标题按「官方中文 → 日文原名 → 罗马音主标题」组成候选链，去空去重；主标题取链上第一项，副标题取下一个不同的项，只剩一项时副标题为空。前后端共用的链由 `src-tauri/spec/display-titles.json` 生成；新增任何展示 VNDB 名字的位置都沿用这一条链。
 - **`GameForm` 的保存顺序是「内容先行，绑定殿后」**：安装、状态、元数据、角色全部写成功后，最后一步才写 `vndb_id`，绑定始终与已落库的内容一致。新建条目在创建返回后立刻切到更新通道，失败重试落在同一条上。选中搜索命中先查库内占用，已有条目绑定同一作品就当场提示，校验通过才进入拉取。
 - **`add-game.svelte.js`：添加/编辑表单的全局单例状态**。`GameForm` 与 `ScanAddDialog` 只在 `App` 挂一份，`openForm(id, { tab })` / `openPrefilled(path)` / `addFromFile` / `addFromScan` 是唯一驱动入口，各视图不持有自己的表单实例。新建（`id == null`）固定从「基本」页开始并覆写记忆标签页；编辑未指定 tab 沿用记忆页；详情页跳指定页（标签 / 安装）走 `tab` 参数。标签页记忆由 `App` 的 `$effect` 统一落地 `form-tab-pref`。扫描完成的刷新走 `LIBRARY_CHANGED` 广播，视图各自订阅。
 - **bits-ui 是无头行为层，视觉全部留在自家 CSS**：`Select`（`SelectDd` 内部）、`DropdownMenu`（`Menu` 内部）、`Tabs`（两处 tablist）、`ContextMenu`（横幅）都只借它的键盘导航、焦点管理与 ARIA，DOM 结构和类名是我们渲染的（`child` snippet / `class` 透传 / `ContentStatic` 文档流定位）。组件上不能写 `class:` 指令，动态类名用三元拼进 `class`。受控状态走函数绑定 `bind:value={() => v, set}`，API 与调用方约定不变。**以装好的包为准，别照官方文档站抄新 API**——文档站常跑到 npm 发布前面（`Select.ItemText` 在 2.20.3 里不存在，输入过滤走 `Item` 的 `label` prop），照抄就是静默渲染成空。

@@ -1,0 +1,7 @@
+{
+  "zhLangs": ["zh-Hans", "zh-Hant"],
+  "jaLangs": ["ja"],
+  "zhOfficialFirst": true,
+  "jaOlang": "ja",
+  "latinField": "latin"
+}

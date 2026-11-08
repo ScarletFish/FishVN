@@ -11,7 +11,7 @@ use fishvn::sync::{
     PlanDecision, PlanUpdate, RatingDecision, StatusDecision, SyncPlan,
 };
 use fishvn::types::{GamePatch, NewGame, StatePatch, Status};
-use fishvn::vndb::{UlistEntry, UlistLabel, UlistVn};
+use fishvn::vndb::{UlistEntry, UlistLabel, UlistVn, VnEnvelope};
 use rusqlite::params;
 
 // 计划缓存是进程级全局，直接读写它的用例和 apply 落库（末尾即使之失效）的用例
@@ -29,6 +29,7 @@ fn entry(vndb_id: &str, label: &str, vote: Option<i64>) -> UlistEntry {
         id: vndb_id.to_owned(),
         vn: UlistVn {
             title: Some("测试作品".to_owned()),
+            ..Default::default()
         },
         labels: vec![UlistLabel {
             id: 1,
@@ -44,6 +45,7 @@ fn voted_entry(vndb_id: &str, vote: Option<i64>) -> UlistEntry {
         id: vndb_id.to_owned(),
         vn: UlistVn {
             title: Some("测试作品".to_owned()),
+            ..Default::default()
         },
         labels: vec![UlistLabel {
             id: 6,
@@ -242,6 +244,23 @@ fn 新_vndb_id_查不到标题时用_id_兜底() {
 
     assert_eq!(plan.creates.len(), 1);
     assert_eq!(plan.creates[0].name, "v7");
+}
+
+#[test]
+fn 实抓ulist响应建壳取标题链第一项() {
+    const FIXTURE: &str = include_str!("fixtures/ulist.json");
+    let env: VnEnvelope<UlistEntry> = serde_json::from_str(FIXTURE).unwrap();
+    let db = Db::new();
+
+    let plan = plan_ulist(&db, &env.results, false, VndbSyncMode::Download, true).unwrap();
+
+    assert_eq!(plan.creates.len(), 3);
+    let names: Vec<&str> = plan.creates.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(
+        names,
+        vec!["みんなでニャンニャン", "加奈…欢迎回来!!", "传颂之物"]
+    );
+    assert_eq!(games_count(&db), 0, "plan 阶段不建库");
 }
 
 #[test]

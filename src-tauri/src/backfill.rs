@@ -15,7 +15,7 @@ use crate::metadata;
 use crate::tasks::{EventLog, Progress, Task, Tasks};
 use crate::types::{GameMetadata, GamePatch, LocalizedTitle, MetadataPatch, MetadataStaff, MetadataTag};
 use crate::vndb::{
-    self, download_images, ImageJob, ImageKind, RateLimiter, VnMetadata, VnSync, VnTitle,
+    self, download_images, ImageJob, ImageKind, RateLimiter, VnMetadata, VnSync,
     IMAGE_CONCURRENCY,
 };
 
@@ -276,41 +276,6 @@ fn fill<T>(blank: bool, remote: Option<T>) -> Option<Option<T>> {
     (blank && remote.is_some()).then_some(remote)
 }
 
-fn display_title(vn: &VnMetadata) -> String {
-    if let Some(titles) = &vn.titles {
-        let zh: Vec<&VnTitle> = titles
-            .iter()
-            .filter(|t| t.lang == "zh-Hans" || t.lang == "zh-Hant")
-            .collect();
-        let preferred = zh
-            .iter()
-            .find(|t| t.official != Some(false))
-            .or_else(|| zh.first());
-        if let Some(t) = preferred {
-            if let Some(title) = t.title.as_deref().and_then(clean_text) {
-                return title;
-            }
-        }
-    }
-    if vn.olang.as_deref() == Some("ja") {
-        if let Some(alt) = vn.alttitle.as_deref().and_then(clean_text) {
-            return alt;
-        }
-    }
-    vn.title.trim().to_owned()
-}
-
-fn alias_title(vn: &VnMetadata) -> Option<String> {
-    let display = display_title(vn);
-    let title = vn.title.trim();
-    let raw = if display == title {
-        vn.alttitle.as_deref()
-    } else {
-        Some(title)
-    };
-    raw.and_then(clean_text)
-}
-
 fn map_titles(vn: &VnMetadata) -> Option<Vec<LocalizedTitle>> {
     let titles = vn.titles.as_ref()?;
     let out: Vec<LocalizedTitle> = titles
@@ -376,7 +341,10 @@ pub fn patch_for(current: Option<&GameMetadata>, sync: &VnSync) -> Option<Metada
     let vn = &sync.vn;
     let cur = current.cloned().unwrap_or_default();
     let patch = MetadataPatch {
-        alias: fill(is_blank_current(&cur, "alias"), alias_title(vn)),
+        alias: fill(
+            is_blank_current(&cur, "alias"),
+            vndb::chain(vn).into_iter().nth(1),
+        ),
         released: fill(
             is_blank_current(&cur, "released"),
             vn.released.as_deref().and_then(clean_text),
@@ -1043,7 +1011,7 @@ fn finish_run(task: &Task, total: i64, done: i64, mut report: BackfillReport) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vndb::{VnDeveloper, VnImage, VnTag};
+    use crate::vndb::{VnDeveloper, VnImage, VnTag, VnTitle};
 
     fn vn() -> VnMetadata {
         VnMetadata {
@@ -1105,28 +1073,54 @@ mod tests {
     }
 
     #[test]
-    fn 标题显示优先中文官方别名回落() {
+    fn 标题链按中文日文罗马音回落() {
         let v = vn();
-        assert_eq!(display_title(&v), "命运之夜");
-        assert_eq!(alias_title(&v), Some("Fate/stay night".into()));
+        assert_eq!(
+            vndb::chain(&v),
+            vec!["命运之夜", "フェイト/ステイナイト", "Fate/stay night"]
+        );
 
         let mut no_zh = vn();
         no_zh.titles = None;
-        assert_eq!(display_title(&no_zh), "フェイト/ステイナイト");
-        assert_eq!(alias_title(&no_zh), Some("Fate/stay night".into()));
+        assert_eq!(
+            vndb::chain(&no_zh),
+            vec!["フェイト/ステイナイト", "Fate/stay night"]
+        );
 
         let mut en = vn();
         en.titles = None;
         en.olang = Some("en".into());
         en.alttitle = None;
-        assert_eq!(display_title(&en), "Fate/stay night");
-        assert_eq!(alias_title(&en), None);
+        assert_eq!(vndb::chain(&en), vec!["Fate/stay night"]);
+    }
+
+    #[test]
+    fn 中文原作的罗马字别名不算日语档() {
+        let mut zh = vn();
+        zh.titles = None;
+        zh.olang = Some("zh".into());
+        zh.alttitle = Some("Ming Yun Zhi Ye".into());
+        assert_eq!(vndb::chain(&zh), vec!["Fate/stay night"]);
+    }
+
+    #[test]
+    fn 日文标题与原文别名相同时只保留一次() {
+        let mut v = vn();
+        v.titles = Some(vec![VnTitle {
+            lang: "ja".into(),
+            title: Some("フェイト/ステイナイト".into()),
+            ..VnTitle::default()
+        }]);
+        assert_eq!(
+            vndb::chain(&v),
+            vec!["フェイト/ステイナイト", "Fate/stay night"]
+        );
     }
 
     #[test]
     fn 全新游戏所有空白字段一次填齐() {
         let patch = patch_for(None, &sync()).expect("空库必须产出补丁");
-        assert_eq!(patch.alias, Some(Some("Fate/stay night".into())));
+        assert_eq!(patch.alias, Some(Some("フェイト/ステイナイト".into())));
         assert_eq!(patch.released, Some(Some("2004-01-30".into())));
         assert_eq!(patch.rating, Some(Some(82.34)));
         assert_eq!(patch.votecount, Some(Some(1200)));
@@ -1213,7 +1207,7 @@ mod tests {
         assert_eq!(patch.description, None);
         assert_eq!(patch.image_path, None);
         assert_eq!(patch.released, None);
-        assert_eq!(patch.alias, Some(Some("Fate/stay night".into())));
+        assert_eq!(patch.alias, Some(Some("フェイト/ステイナイト".into())));
     }
 
     fn items(n: usize) -> Vec<BackfillItem> {

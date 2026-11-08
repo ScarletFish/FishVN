@@ -715,7 +715,7 @@
             </div>
             <div class="detail-info" class:detail-info--plate={ambiencePlate && ambienceMode === 'clear'}>
               <h1 class="detail-rise" style="animation-delay: 0.04s">{game.name}</h1>
-              {#if alias}
+              {#if alias && alias !== game.name}
                 <p class="detail-alias detail-rise" style="animation-delay: 0.09s">{alias}</p>
               {/if}
               {#if ratingShown || lengthText || releaseYear || developer}

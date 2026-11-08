@@ -1,5 +1,6 @@
 
 import { tagLabel } from './tag-label.svelte.js';
+import { titleChain } from './generated/display-titles.js';
 
 function stripTags(text) {
   return text
@@ -45,16 +46,21 @@ export function bbcodeParagraphs(raw) {
 
 const devName = (d) => d.name || d.original || '';
 
+function candidates(vn) {
+  return titleChain({
+    titles: vn.titles ?? [],
+    alttitle: vn.alttitle,
+    olang: vn.olang,
+    latin: vn.title ?? '',
+  });
+}
+
 function displayTitle(vn) {
-  const zh = (vn.titles ?? []).filter((x) => x.lang === 'zh-Hans' || x.lang === 'zh-Hant');
-  const preferred = zh.find((x) => x.official !== false) ?? zh[0];
-  if (preferred) return preferred.title ?? '';
-  if (vn.olang === 'ja') return vn.alttitle || vn.title || '';
-  return vn.title ?? '';
+  return candidates(vn)[0] ?? '';
 }
 
 function aliasTitle(vn) {
-  return displayTitle(vn) === (vn.title ?? '') ? (vn.alttitle ?? '') : (vn.title ?? '');
+  return candidates(vn)[1] ?? '';
 }
 
 function devList(value) {

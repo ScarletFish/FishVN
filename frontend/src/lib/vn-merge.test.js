@@ -124,7 +124,7 @@ test('本地为空的字段也进面板，勾选才填', () => {
   expect(untouched.coverPath).toBe('');
 });
 
-test('展示名取官方中文标题，别名放主标题', () => {
+test('主标题取官方中文标题，副标题自动回退日文原名', () => {
   const vn = {
     ...VN,
     titles: [
@@ -134,22 +134,38 @@ test('展示名取官方中文标题，别名放主标题', () => {
   };
   const next = applyIncoming(form(), vn, new Set(['name', 'alias']));
   expect(next.name).toBe('命运长夜');
-  expect(next.alias).toBe('Fate/stay night');
+  expect(next.alias).toBe('フェイト／ステイナイト');
 });
 
-test('中文标题只挑非官方的时也采用，别名仍回主标题', () => {
+test('非官方中文标题也采用，副标题仍回退日文原名', () => {
   const vn = {
     ...VN,
     titles: [{ lang: 'zh-Hant', title: 'Fate／stay night', official: false }],
   };
-  const next = applyIncoming(form(), vn, new Set(['name']));
+  const next = applyIncoming(form(), vn, new Set(['name', 'alias']));
   expect(next.name).toBe('Fate／stay night');
+  expect(next.alias).toBe('フェイト／ステイナイト');
 });
 
-test('非中文非日文的原作沿用主标题', () => {
-  const vn = { ...VN, olang: 'en', alttitle: null };
-  const next = applyIncoming(form(), vn, new Set(['name']));
+test('没有任何本地化标题时副标题为空', () => {
+  const vn = { ...VN, olang: 'en', alttitle: null, titles: [] };
+  const next = applyIncoming(form(), vn, new Set(['name', 'alias']));
   expect(next.name).toBe('Fate/stay night');
+  expect(next.alias).toBe('');
+});
+
+test('中文原作的罗马字别名不算日文原名', () => {
+  const vn = { ...VN, olang: 'zh', titles: [], alttitle: 'Ming Yun Zhi Ye' };
+  const next = applyIncoming(form(), vn, new Set(['name', 'alias']));
+  expect(next.name).toBe('Fate/stay night');
+  expect(next.alias).toBe('');
+});
+
+test('没有中文时主标题取日文原文，副标题回落罗马音', () => {
+  const vn = { ...VN, titles: [] };
+  const next = applyIncoming(form(), vn, new Set(['name', 'alias']));
+  expect(next.name).toBe('フェイト／ステイナイト');
+  expect(next.alias).toBe('Fate/stay night');
 });
 
 test('平均时长本地为空进面板，有值且不同也进冲突', () => {

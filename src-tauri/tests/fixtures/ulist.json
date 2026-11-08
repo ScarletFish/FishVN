@@ -1,0 +1,64 @@
+{
+  "more": true,
+  "results": [
+    {
+      "id": "v1",
+      "labels": [
+        { "id": 4, "label": "Dropped" },
+        { "id": 7, "label": "Voted" }
+      ],
+      "lastmod": 1218014781,
+      "vn": {
+        "alttitle": "みんなでニャンニャン",
+        "olang": "ja",
+        "title": "Minna de Nyan Nyan",
+        "titles": [
+          { "lang": "en", "official": true, "title": "Let's Meow Meow!" },
+          { "lang": "ja", "official": true, "title": "みんなでニャンニャン" }
+        ]
+      },
+      "vote": 30
+    },
+    {
+      "id": "v2",
+      "labels": [
+        { "id": 2, "label": "Finished" },
+        { "id": 7, "label": "Voted" }
+      ],
+      "lastmod": 1218014807,
+      "vn": {
+        "alttitle": "加奈～いもうと～",
+        "olang": "ja",
+        "title": "Kana ~Imouto~",
+        "titles": [
+          { "lang": "en", "official": true, "title": "Kana -Little Sister-" },
+          { "lang": "ja", "official": true, "title": "加奈～いもうと～" },
+          { "lang": "vi", "official": false, "title": "Kana ~Em gái tôi~" },
+          { "lang": "zh-Hans", "official": false, "title": "加奈…欢迎回来!!" }
+        ]
+      },
+      "vote": 60
+    },
+    {
+      "id": "v3",
+      "labels": [
+        { "id": 2, "label": "Finished" },
+        { "id": 7, "label": "Voted" }
+      ],
+      "lastmod": 1218014257,
+      "vn": {
+        "alttitle": "うたわれるもの",
+        "olang": "ja",
+        "title": "Utawarerumono",
+        "titles": [
+          { "lang": "en", "official": false, "title": "Utawarerumono" },
+          { "lang": "ja", "official": true, "title": "うたわれるもの" },
+          { "lang": "ko", "official": false, "title": "칭송받는 자" },
+          { "lang": "zh-Hans", "official": false, "title": "传颂之物" },
+          { "lang": "zh-Hant", "official": false, "title": "受讚頌者" }
+        ]
+      },
+      "vote": 90
+    }
+  ]
+}

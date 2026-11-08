@@ -249,11 +249,9 @@ pub fn plan_ulist(
                 plan.skipped += 1;
                 continue;
             }
-            let name = entry
-                .vn
-                .title
-                .clone()
-                .filter(|t| !t.trim().is_empty())
+            let name = crate::vndb::ulist_chain(&entry.vn)
+                .into_iter()
+                .next()
                 .unwrap_or_else(|| vndb_id.to_owned());
             plan.creates.push(PlanCreate {
                 vndb_id: vndb_id.to_owned(),
@@ -663,7 +661,7 @@ pub fn invalidate_plan() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vndb::{UlistEntry, UlistLabel, UlistVn};
+    use crate::vndb::{UlistEntry, UlistLabel, UlistVn, VnTitle};
     use rusqlite::Connection;
 
     fn db() -> Connection {
@@ -707,6 +705,7 @@ mod tests {
             id: vndb_id.into(),
             vn: UlistVn {
                 title: Some("远端名".into()),
+                ..Default::default()
             },
             labels: vec![UlistLabel {
                 id: 1,
@@ -715,6 +714,35 @@ mod tests {
             vote,
             lastmod,
         }
+    }
+
+    #[test]
+    fn 新建条目名称按中文日文罗马音回落() {
+        let conn = db();
+        let mut zh = entry("v1", "finished", None, None);
+        zh.vn = UlistVn {
+            title: Some("Fate/stay night".into()),
+            alttitle: Some("フェイト/ステイナイト".into()),
+            olang: Some("ja".into()),
+            titles: Some(vec![VnTitle {
+                lang: "zh-Hans".into(),
+                title: Some("命运之夜".into()),
+                ..Default::default()
+            }]),
+        };
+        let plan = plan_ulist(&conn, &[zh.clone()], false, VndbSyncMode::Download, true).unwrap();
+        assert_eq!(plan.creates[0].name, "命运之夜");
+
+        let mut no_zh = zh.clone();
+        no_zh.vn.titles = None;
+        let plan = plan_ulist(&conn, &[no_zh.clone()], false, VndbSyncMode::Download, true).unwrap();
+        assert_eq!(plan.creates[0].name, "フェイト/ステイナイト");
+
+        let mut latin = no_zh;
+        latin.vn.olang = Some("en".into());
+        latin.vn.alttitle = None;
+        let plan = plan_ulist(&conn, &[latin], false, VndbSyncMode::Download, true).unwrap();
+        assert_eq!(plan.creates[0].name, "Fate/stay night");
     }
 
     #[test]

@@ -1,5 +1,6 @@
 //! 不发真实网络请求：CI 无网络会挂。反序列化用例锁住我们与真实响应的契约，
-//! JSON 片段用 META_FIELDS / SEARCH_FIELDS / ulist 向 api.vndb.org 实抓后裁剪而成。
+//! JSON 片段用 META_FIELDS / SEARCH_FIELDS / ulist 向 api.vndb.org 实抓后裁剪而成；
+//! 未裁剪的 ulist 响应存在 fixtures/ulist.json，上游形状变化时换掉这份即可。
 
 mod common;
 
@@ -8,8 +9,8 @@ use std::time::{Duration, Instant};
 
 use fishvn::settings::CharacterScope;
 use fishvn::vndb::{
-    role_in, take_slot, validate_keyword, validate_vn_id, CharVn, RateLimiter, UlistEntry,
-    VnEnvelope, VnMetadata,
+    role_in, take_slot, ulist_chain, validate_keyword, validate_vn_id, CharVn, RateLimiter,
+    UlistEntry, VnEnvelope, VnMetadata,
 };
 
 fn char_vn(vn: &str, role: &str) -> CharVn {
@@ -316,4 +317,44 @@ fn ulist响应能反序列化_顶层_id_即_vn_id() {
     assert_eq!(playing.vn.title.as_deref(), Some("CROSS†CHANNEL"));
     assert_eq!(playing.labels.len(), 1);
     assert_eq!(playing.vote, None);
+}
+
+#[test]
+fn 实抓ulist响应接得住标题链新增字段() {
+    const FIXTURE: &str = include_str!("fixtures/ulist.json");
+    let env: VnEnvelope<UlistEntry> =
+        serde_json::from_str(FIXTURE).expect("实抓 ulist 响应解析不开");
+    assert!(env.more);
+    assert_eq!(env.results.len(), 3);
+
+    let vn = &env.results[1].vn;
+    assert_eq!(vn.title.as_deref(), Some("Kana ~Imouto~"));
+    assert_eq!(vn.alttitle.as_deref(), Some("加奈～いもうと～"));
+    assert_eq!(vn.olang.as_deref(), Some("ja"));
+    let titles = vn.titles.as_ref().expect("titles 没反序列化出来");
+    assert_eq!(titles.len(), 4);
+    assert!(titles
+        .iter()
+        .any(|t| t.lang == "zh-Hans" && t.official == Some(false)));
+    assert!(titles.iter().all(|t| t.official.is_some()));
+}
+
+#[test]
+fn 实抓响应按中文日文罗马音排出主副标题() {
+    const FIXTURE: &str = include_str!("fixtures/ulist.json");
+    let env: VnEnvelope<UlistEntry> = serde_json::from_str(FIXTURE).unwrap();
+    for (id, primary, secondary) in [
+        ("v1", "みんなでニャンニャン", "Minna de Nyan Nyan"),
+        ("v2", "加奈…欢迎回来!!", "加奈～いもうと～"),
+        ("v3", "传颂之物", "うたわれるもの"),
+    ] {
+        let entry = env
+            .results
+            .iter()
+            .find(|e| e.id == id)
+            .expect("fixture 缺条目");
+        let chain = ulist_chain(&entry.vn);
+        assert_eq!(chain.first().map(String::as_str), Some(primary), "{id} 主标题");
+        assert_eq!(chain.get(1).map(String::as_str), Some(secondary), "{id} 副标题");
+    }
 }

@@ -56,6 +56,7 @@ fn main() {
     );
     generate_metadata_spec();
     generate_character_roles();
+    generate_display_titles();
     generate_module_index();
 }
 
@@ -472,12 +473,73 @@ fn generate_character_roles() {
     write_if_changed(&js_path, &js, "frontend generated/character-roles.js");
 }
 
+fn string_array(values: &[serde_json::Value]) -> String {
+    let items: Vec<String> = values
+        .iter()
+        .map(|v| format!("\"{}\"", v.as_str().expect("语言标签必须是字符串")))
+        .collect();
+    format!("[{}]", items.join(", "))
+}
+
+fn generate_display_titles() {
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let spec = root.join("spec/display-titles.json");
+    println!("cargo:rerun-if-changed={}", spec.display());
+
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&spec).expect("读取 display titles spec 失败"))
+            .expect("display titles spec 不是合法 JSON");
+    let zh = string_array(doc["zhLangs"].as_array().expect("zhLangs 必须是数组"));
+    let ja = string_array(doc["jaLangs"].as_array().expect("jaLangs 必须是数组"));
+    let official_first = doc["zhOfficialFirst"]
+        .as_bool()
+        .expect("zhOfficialFirst 必须是布尔");
+    let ja_olang = doc["jaOlang"].as_str().expect("jaOlang 必须是字符串");
+    let latin_field = doc["latinField"].as_str().expect("latinField 必须是字符串");
+
+    let mut rs = String::new();
+    rs.push_str(&format!("pub const ZH_LANGS: &[&str] = &{zh};\n"));
+    rs.push_str(&format!("pub const JA_LANGS: &[&str] = &{ja};\n"));
+    rs.push_str(&format!(
+        "pub const ZH_OFFICIAL_FIRST: bool = {official_first};\n\n"
+    ));
+    rs.push_str("#[derive(Debug, Clone, Default)]\npub struct TitleCandidate {\n    pub lang: String,\n    pub title: Option<String>,\n    pub official: Option<bool>,\n}\n\n");
+    rs.push_str(&format!("#[derive(Debug, Clone, Default)]\npub struct TitleInput {{\n    pub titles: Vec<TitleCandidate>,\n    pub alttitle: Option<String>,\n    pub olang: Option<String>,\n    pub {latin_field}: String,\n}}\n\n"));
+    rs.push_str("fn push_unique(out: &mut Vec<String>, raw: Option<&str>) {\n    let text = raw.unwrap_or_default().trim().to_owned();\n    if !text.is_empty() && !out.iter().any(|used| used == &text) {\n        out.push(text);\n    }\n}\n\n");
+    rs.push_str("pub fn title_chain(input: &TitleInput) -> Vec<String> {\n    let mut out = Vec::new();\n    let zh: Vec<&TitleCandidate> = input.titles.iter().filter(|t| ZH_LANGS.contains(&t.lang.as_str())).collect();\n    let preferred = if ZH_OFFICIAL_FIRST {\n        zh.iter().find(|t| t.official != Some(false)).copied().or_else(|| zh.first().copied())\n    } else {\n        zh.first().copied()\n    };\n    if let Some(t) = preferred {\n        push_unique(&mut out, t.title.as_deref());\n    }\n    for t in input.titles.iter().filter(|t| JA_LANGS.contains(&t.lang.as_str())) {\n        push_unique(&mut out, t.title.as_deref());\n    }\n");
+    rs.push_str(&format!("    if input.olang.as_deref() == Some(\"{ja_olang}\") {{\n        push_unique(&mut out, input.alttitle.as_deref());\n    }}\n"));
+    rs.push_str(&format!(
+        "    push_unique(&mut out, Some(input.{latin_field}.as_str()));\n    out\n}}\n"
+    ));
+
+    let rs_path = root.join("src/generated/display_titles.rs");
+    write_if_changed(&rs_path, &rs, "generated/display_titles.rs");
+
+    let mut js = String::new();
+    js.push_str(&format!("export const ZH_LANGS = {zh};\n"));
+    js.push_str(&format!("export const JA_LANGS = {ja};\n"));
+    js.push_str(&format!(
+        "export const ZH_OFFICIAL_FIRST = {official_first};\n\n"
+    ));
+    js.push_str("export function titleChain(input) {\n  const out = [];\n  const push = (raw) => {\n    const text = String(raw ?? \"\").trim();\n    if (text && !out.includes(text)) out.push(text);\n  };\n  const titles = input.titles ?? [];\n  const zh = titles.filter((t) => ZH_LANGS.includes(t.lang));\n  const preferred = ZH_OFFICIAL_FIRST\n    ? zh.find((t) => t.official !== false) ?? zh[0]\n    : zh[0];\n  if (preferred) push(preferred.title);\n  for (const t of titles.filter((t) => JA_LANGS.includes(t.lang))) push(t.title);\n");
+    js.push_str(&format!(
+        "  if (input.olang === \"{ja_olang}\") push(input.alttitle);\n"
+    ));
+    js.push_str(&format!("  push(input.{latin_field});\n  return out;\n}}\n"));
+
+    let js_path = root
+        .parent()
+        .unwrap()
+        .join("frontend/src/lib/generated/display-titles.js");
+    write_if_changed(&js_path, &js, "frontend generated/display-titles.js");
+}
+
 fn generate_module_index() {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let path = root.join("src/generated/mod.rs");
     write_if_changed(
         &path,
-        "pub mod character_roles;\npub mod metadata;\n",
+        "pub mod character_roles;\npub mod display_titles;\npub mod metadata;\n",
         "generated/mod.rs",
     );
 }
