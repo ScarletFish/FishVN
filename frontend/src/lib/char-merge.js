@@ -1,3 +1,4 @@
+import { roleTier } from './generated/character-roles.js';
 
 const asText = (v) => (v === null || v === undefined ? '' : String(v).trim());
 
@@ -76,13 +77,6 @@ export function planCharacters(local, incoming) {
   return { added, conflicts, kept };
 }
 
-const ROLE_TIERS = ['main', 'primary', 'side', 'appears'];
-
-function tier(c) {
-  const index = ROLE_TIERS.indexOf(asText(c?.role));
-  return index === -1 ? ROLE_TIERS.length : index;
-}
-
 export function applyCharacters(local, incoming, adopted) {
   const incomingMap = indexByKey(incoming);
   const merged = [];
@@ -99,6 +93,6 @@ export function applyCharacters(local, incoming, adopted) {
 
   return merged
     .map((c, i) => ({ c, i }))
-    .sort((a, b) => tier(a.c) - tier(b.c) || a.i - b.i)
+    .sort((a, b) => roleTier(a.c.role) - roleTier(b.c.role) || a.i - b.i)
     .map(({ c }, i) => ({ ...c, sort_order: i }));
 }

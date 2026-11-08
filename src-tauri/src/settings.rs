@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 
+pub use crate::generated::character_roles::CharacterScope;
+
 const FILE_NAME: &str = "config.json";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -142,6 +144,8 @@ pub struct AppConfig {
     #[serde(default)]
     pub cover_quality: CoverQuality,
     #[serde(default)]
+    pub character_scope: CharacterScope,
+    #[serde(default)]
     pub vndb_sync_mode: VndbSyncMode,
     #[serde(default)]
     pub vndb_sync_wishlist: bool,
@@ -172,6 +176,7 @@ pub struct ConfigPatch {
     pub spoiler_level: Option<SpoilerLevel>,
     pub excluded_tags: Option<Vec<String>>,
     pub cover_quality: Option<CoverQuality>,
+    pub character_scope: Option<CharacterScope>,
     pub vndb_sync_mode: Option<VndbSyncMode>,
     pub vndb_sync_wishlist: Option<bool>,
     pub vndb_sync_rating: Option<bool>,
@@ -194,6 +199,7 @@ pub struct ConfigView {
     pub spoiler_level: SpoilerLevel,
     pub excluded_tags: Vec<String>,
     pub cover_quality: CoverQuality,
+    pub character_scope: CharacterScope,
     pub vndb_sync_mode: VndbSyncMode,
     pub vndb_sync_wishlist: bool,
     pub vndb_sync_rating: bool,
@@ -262,6 +268,9 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     }
     if let Some(value) = patch.cover_quality {
         config.cover_quality = value;
+    }
+    if let Some(value) = patch.character_scope {
+        config.character_scope = value;
     }
     if patch.vndb_sync_mode.is_some()
         || patch.vndb_sync_wishlist.is_some()
@@ -351,6 +360,7 @@ pub fn view() -> ConfigView {
         spoiler_level: config.spoiler_level,
         excluded_tags: config.excluded_tags,
         cover_quality: config.cover_quality,
+        character_scope: config.character_scope,
         vndb_sync_mode: config.vndb_sync_mode,
         vndb_sync_wishlist: config.vndb_sync_wishlist,
         vndb_sync_rating: config.vndb_sync_rating,
@@ -776,5 +786,44 @@ mod tests {
         let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
         assert!(text.contains("LEProc.exe"));
         assert!(text.contains("\"magpie_path\": null"));
+    }
+
+    #[test]
+    fn 角色范围默认仅主要且客串始终排除() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        assert_eq!(current().character_scope, CharacterScope::MainOnly);
+        assert!(CharacterScope::MainOnly.allows("main"));
+        assert!(CharacterScope::MainOnly.allows("primary"));
+        assert!(!CharacterScope::MainOnly.allows("side"));
+        assert!(!CharacterScope::MainOnly.allows("appears"));
+        assert!(CharacterScope::WithSide.allows("side"));
+        assert!(!CharacterScope::WithSide.allows("appears"));
+
+        let config = patch(
+            tmp.path(),
+            ConfigPatch {
+                character_scope: Some(CharacterScope::WithSide),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(config.character_scope, CharacterScope::WithSide);
+        assert_eq!(view().character_scope, CharacterScope::WithSide);
+
+        init(tmp.path());
+        assert_eq!(current().character_scope, CharacterScope::WithSide);
+        let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
+        assert!(text.contains("\"with_side\""));
+    }
+
+    #[test]
+    fn 旧配置无角色范围字段时回落默认() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join(FILE_NAME), r#"{"theme":"dark"}"#).unwrap();
+        init(tmp.path());
+        assert_eq!(current().character_scope, CharacterScope::MainOnly);
     }
 }

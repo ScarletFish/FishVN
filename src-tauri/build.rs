@@ -55,6 +55,8 @@ fn main() {
         std::env::var("CARGO_MANIFEST_DIR").unwrap()
     );
     generate_metadata_spec();
+    generate_character_roles();
+    generate_module_index();
 }
 
 fn text<'a>(field: &'a serde_json::Value, key: &str) -> &'a str {
@@ -345,6 +347,139 @@ fn generate_metadata_spec() {
         .unwrap()
         .join("frontend/src/lib/generated/metadata-fields.js");
     write_if_changed(&js_path, &js, "frontend generated/metadata-fields.js");
+}
+
+fn role_id(v: &serde_json::Value) -> &str {
+    text(v, "id")
+}
+
+fn scope_variant(v: &serde_json::Value) -> &str {
+    text(v, "variant")
+}
+
+fn scope_rank(v: &serde_json::Value) -> u8 {
+    v["rank"].as_u64().expect("rank 必须是非负整数") as u8
+}
+
+fn role_tier_value(v: &serde_json::Value) -> u64 {
+    v["tier"].as_u64().expect("tier 必须是非负整数")
+}
+
+fn min_scope(v: &serde_json::Value) -> Option<&str> {
+    v.get("minScope").and_then(serde_json::Value::as_str)
+}
+
+fn generate_character_roles() {
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let spec = root.join("spec/character-roles.json");
+    println!("cargo:rerun-if-changed={}", spec.display());
+
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&spec).expect("读取 character roles spec 失败"))
+            .expect("character roles spec 不是合法 JSON");
+    let scopes = doc["scopes"].as_array().expect("scopes 必须是数组");
+    let roles = doc["roles"].as_array().expect("roles 必须是数组");
+
+    let mut rs = String::new();
+    rs.push_str("#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]\npub enum CharacterScope {\n");
+    for scope in scopes {
+        if flag(scope, "default") {
+            rs.push_str("    #[default]\n");
+        }
+        rs.push_str(&format!(
+            "    #[serde(rename = \"{}\")]\n    {},\n",
+            role_id(scope),
+            scope_variant(scope)
+        ));
+    }
+    rs.push_str("}\n\n");
+    rs.push_str("#[derive(Debug, Clone, Copy)]\npub struct RoleSpec {\n    pub id: &'static str,\n    pub tier: usize,\n    pub min_scope: Option<CharacterScope>,\n}\n\n");
+    rs.push_str("pub const ROLE_SPECS: &[RoleSpec] = &[\n");
+    for role in roles {
+        let min = match min_scope(role) {
+            Some(id) => {
+                let scope = scopes
+                    .iter()
+                    .find(|s| role_id(s) == id)
+                    .unwrap_or_else(|| panic!("未知 minScope {id}"));
+                format!("Some(CharacterScope::{})", scope_variant(scope))
+            }
+            None => "None".to_owned(),
+        };
+        let tier = role_tier_value(role);
+        rs.push_str(&format!(
+            "    RoleSpec {{ id: \"{}\", tier: {tier}, min_scope: {min} }},\n",
+            role_id(role)
+        ));
+    }
+    rs.push_str("];\n\n");
+    rs.push_str(&format!("pub const UNKNOWN_ROLE_TIER: usize = {};\n\n", roles.len()));
+    rs.push_str("impl CharacterScope {\n    pub fn rank(self) -> u8 {\n        match self {\n");
+    for scope in scopes {
+        rs.push_str(&format!(
+            "            Self::{} => {},\n",
+            scope_variant(scope),
+            scope_rank(scope)
+        ));
+    }
+    rs.push_str("        }\n    }\n\n");
+    rs.push_str("    pub fn allows(self, role: &str) -> bool {\n        ROLE_SPECS\n            .iter()\n            .find(|spec| spec.id == role)\n            .and_then(|spec| spec.min_scope)\n            .is_some_and(|min| min.rank() <= self.rank())\n    }\n}\n\n");
+    rs.push_str("pub fn role_tier(role: Option<&str>) -> usize {\n    role.and_then(|id| ROLE_SPECS.iter().find(|spec| spec.id == id).map(|spec| spec.tier))\n        .unwrap_or(UNKNOWN_ROLE_TIER)\n}\n");
+
+    let rs_path = root.join("src/generated/character_roles.rs");
+    write_if_changed(&rs_path, &rs, "generated/character_roles.rs");
+
+    let mut js = String::from("export const CHARACTER_SCOPES = [\n");
+    for scope in scopes {
+        js.push_str(&format!(
+            "  {{ id: \"{}\", rank: {}, default: {} }},\n",
+            role_id(scope),
+            scope_rank(scope),
+            flag(scope, "default")
+        ));
+    }
+    js.push_str("];\n\n");
+    let default_scope = scopes
+        .iter()
+        .find(|s| flag(s, "default"))
+        .unwrap_or_else(|| panic!("必须有一个 default scope"));
+    js.push_str(&format!(
+        "export const DEFAULT_CHARACTER_SCOPE = \"{}\";\n\n",
+        role_id(default_scope)
+    ));
+    js.push_str("export const ROLE_SPECS = [\n");
+    for role in roles {
+        let min = min_scope(role)
+            .map(|id| format!("\"{id}\""))
+            .unwrap_or_else(|| "null".to_owned());
+        let tier = role_tier_value(role);
+        js.push_str(&format!(
+            "  {{ id: \"{}\", tier: {tier}, minScope: {min} }},\n",
+            role_id(role)
+        ));
+    }
+    js.push_str("];\n\n");
+    js.push_str(&format!(
+        "export const UNKNOWN_ROLE_TIER = {};\n\n",
+        roles.len()
+    ));
+    js.push_str("export function roleTier(role) {\n  const id = String(role ?? \"\").trim();\n  return ROLE_SPECS.find((spec) => spec.id === id)?.tier ?? UNKNOWN_ROLE_TIER;\n}\n");
+
+    let js_path = root
+        .parent()
+        .unwrap()
+        .join("frontend/src/lib/generated/character-roles.js");
+    write_if_changed(&js_path, &js, "frontend generated/character-roles.js");
+}
+
+fn generate_module_index() {
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let path = root.join("src/generated/mod.rs");
+    write_if_changed(
+        &path,
+        "pub mod character_roles;\npub mod metadata;\n",
+        "generated/mod.rs",
+    );
 }
 
 fn write_if_changed(path: &std::path::Path, content: &str, label: &str) {

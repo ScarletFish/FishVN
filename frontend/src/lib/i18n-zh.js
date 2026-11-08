@@ -453,6 +453,12 @@ export const DICT_ZH = {
     coverThumbnail: '缩略图',
     coverOriginal: '原图',
     coverQualityHint: '从 VNDB 下载封面的图片质量',
+    characterScope: {
+      label: '角色范围',
+      hint: '从 VNDB 下载哪些角色；含配角会明显增加立绘下载量。客串角色始终不下载，设置只影响之后的下载。',
+      main_only: '仅主要角色',
+      with_side: '含配角',
+    },
     tools: {
       magpie: 'Magpie 可执行文件路径',
       magpieHint: '放大游戏画面用；选择 Magpie.exe',

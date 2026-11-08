@@ -6,6 +6,7 @@ mod common;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
+use fishvn::settings::CharacterScope;
 use fishvn::vndb::{
     role_in, take_slot, validate_keyword, validate_vn_id, CharVn, RateLimiter, UlistEntry,
     VnEnvelope, VnMetadata,
@@ -22,24 +23,31 @@ fn char_vn(vn: &str, role: &str) -> CharVn {
 fn 一个角色多条release时按入库档位挑而不是取首条() {
     let vns = vec![char_vn("v1", "side"), char_vn("v1", "main")];
     assert_eq!(
-        role_in(Some(&vns), "v1"),
+        role_in(Some(&vns), "v1", CharacterScope::MainOnly),
         Some("main"),
         "档位在后的那条也得被找到"
     );
 
     let only_side = vec![char_vn("v1", "side")];
     assert_eq!(
-        role_in(Some(&only_side), "v1"),
+        role_in(Some(&only_side), "v1", CharacterScope::MainOnly),
         None,
-        "全不在入库档位就当没有"
+        "仅主要档不收配角"
+    );
+    assert_eq!(
+        role_in(Some(&only_side), "v1", CharacterScope::WithSide),
+        Some("side"),
+        "含配角档收配角"
     );
 }
 
 #[test]
 fn 别的作品的档位不影响本部判定() {
     let vns = vec![char_vn("v1", "side"), char_vn("v2", "main")];
-    assert_eq!(role_in(Some(&vns), "v1"), None);
-    assert_eq!(role_in(Some(&vns), "v2"), Some("main"));
+    assert_eq!(role_in(Some(&vns), "v1", CharacterScope::MainOnly), None);
+    assert_eq!(role_in(Some(&vns), "v2", CharacterScope::MainOnly), Some("main"));
+    assert_eq!(role_in(Some(&vns), "v1", CharacterScope::WithSide), Some("side"));
+    assert_eq!(role_in(Some(&vns), "v2", CharacterScope::WithSide), Some("main"));
 }
 
 #[test]

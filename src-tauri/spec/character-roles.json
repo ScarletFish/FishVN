@@ -1,0 +1,12 @@
+{
+  "scopes": [
+    { "id": "main_only", "variant": "MainOnly", "rank": 0, "default": true },
+    { "id": "with_side", "variant": "WithSide", "rank": 1, "default": false }
+  ],
+  "roles": [
+    { "id": "main", "tier": 0, "minScope": "main_only" },
+    { "id": "primary", "tier": 1, "minScope": "main_only" },
+    { "id": "side", "tier": 2, "minScope": "with_side" },
+    { "id": "appears", "tier": 3, "minScope": null }
+  ]
+}

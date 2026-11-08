@@ -96,7 +96,9 @@ pub async fn fetch_sync(
     progress.report_note("characters", &format!("{} 位", rows.len()));
     let chars_start = std::time::Instant::now();
     let chars_expected = rows.len();
-    let (characters, images) = characters::map_characters(rows, vn.va.as_deref().unwrap_or_default(), vndb_id);
+    let scope = crate::settings::current().character_scope;
+    let (characters, images) =
+        characters::map_characters(rows, vn.va.as_deref().unwrap_or_default(), vndb_id, scope);
     let jobs = sync_jobs(game_id, &vn, &images);
     log::debug!(
         target: "backfill",
@@ -214,6 +216,7 @@ fn assemble(
         bucket.dedup();
     }
 
+    let scope = crate::settings::current().character_scope;
     let mut out = Vec::with_capacity(items.len());
     let mut missing = Vec::new();
     for item in items {
@@ -225,8 +228,12 @@ fn assemble(
             .get(item.vndb_id.as_str())
             .map(|idx| idx.iter().map(|i| rows[*i].clone()).collect())
             .unwrap_or_default();
-        let (characters, images) =
-            characters::map_characters(picked, vn.va.as_deref().unwrap_or_default(), &item.vndb_id);
+        let (characters, images) = characters::map_characters(
+            picked,
+            vn.va.as_deref().unwrap_or_default(),
+            &item.vndb_id,
+            scope,
+        );
         log::debug!(
             target: "backfill",
             "组装：{} {} 位角色 {} 张图",

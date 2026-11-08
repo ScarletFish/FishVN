@@ -188,6 +188,12 @@ va{character{id},staff{id,name,original},note}
 （`main` / `primary` / `side` / `appears`），但要先按 `vns.id` 定位到本作品：`vns` 列的是该角色
 出现过的所有 VN，role 只对它自己那条 VN 成立。
 
+收录档位由 `character_scope` 设置决定（`main_only` 默认 / `with_side`）：默认收 `main` / `primary`，
+含配角档多收 `side`，`appears` 两档都排除——客串常在别的作品是 `main`，只看 role 会把别作主角
+按本作角色落库。档位表与顺序在 `src-tauri/spec/character-roles.json` 单一定义，由 `build.rs`
+生成前后端两份产物；手动同步与批量补全共用 `role_in`，补全结果按档位稳定排序，作为角色列表
+的默认顺序。读取层不改 `sort_order`，编辑表单的上移/下移仍是用户语义。
+
 `gender` 按 release 逐条返回，同一角色多个 release 会让数组出现重复值，取用前去重。
 角色图的 `image` 没有 `thumbnail`，固定限 256×300，缩图要走 `url` 自己派生。
 

@@ -22,6 +22,7 @@
   import { pickExecutable } from '../lib/pick-path.js';
   import { DASHBOARD_MODULES, moveModule, setModuleEnabled, reorderModule } from '../lib/dashboard-layout.js';
   import { notifyConfigChanged } from '../lib/config-events.js';
+  import { CHARACTER_SCOPES, DEFAULT_CHARACTER_SCOPE } from '../lib/generated/character-roles.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
   import { loadLibraryTags, toTagItems } from '../lib/library-tags.svelte.js';
   import { tagKeyLabel } from '../lib/tag-label.svelte.js';
@@ -73,6 +74,7 @@
   let quitBehavior = $state('quit');
   let minimizeOnLaunch = $state(true);
   let coverQuality = $state('thumbnail');
+  let characterScope = $state(DEFAULT_CHARACTER_SCOPE);
 
   let backupRetentionMode = $state('off');
   let backupRetentionOpen = $state(false);
@@ -141,6 +143,9 @@
           quitBehavior = config.quit_behavior === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
           minimizeOnLaunch = config.minimize_on_launch !== false;
           coverQuality = config.cover_quality === 'original' ? 'original' : 'thumbnail';
+          characterScope = CHARACTER_SCOPES.some((s) => s.id === config.character_scope)
+            ? config.character_scope
+            : DEFAULT_CHARACTER_SCOPE;
           backupRetentionMode = (config.backup_retention_days ?? null) == null
             ? 'off'
             : String(config.backup_retention_days);
@@ -338,6 +343,17 @@
     coverQuality = value;
     api
       .updateConfig({ cover_quality: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  function onCharacterScopeChange(e) {
+    const value = CHARACTER_SCOPES.some((s) => s.id === e.target.value)
+      ? e.target.value
+      : DEFAULT_CHARACTER_SCOPE;
+    characterScope = value;
+    api
+      .updateConfig({ character_scope: value })
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
   }
@@ -948,6 +964,25 @@
           </label>
         </div>
         <p class="form-hint">{t('settings.coverQualityHint')}</p>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.characterScope.label')}</div>
+        <div class="seg-radio-group" role="radiogroup" aria-label={t('settings.characterScope.label')}>
+          {#each CHARACTER_SCOPES as scope (scope.id)}
+            <label class="seg-radio-item">
+              <input
+                type="radio"
+                name="settings-character-scope"
+                value={scope.id}
+                checked={characterScope === scope.id}
+                onchange={onCharacterScopeChange}
+              />
+              {t(`settings.characterScope.${scope.id}`)}
+            </label>
+          {/each}
+        </div>
+        <p class="form-hint">{t('settings.characterScope.hint')}</p>
       </div>
     </div>
 

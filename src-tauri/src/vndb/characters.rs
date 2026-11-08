@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
 use super::dto::{CharRow, CharVn, VnVa};
+use crate::settings::CharacterScope;
 use crate::types::{CharacterVa, GameCharacter};
-
-const SYNCED_ROLES: [&str; 2] = ["main", "primary"];
 
 pub(super) struct CharacterImage {
     pub character_id: String,
@@ -11,11 +10,16 @@ pub(super) struct CharacterImage {
     pub url: String,
 }
 
-pub fn role_in<'a>(vns: Option<&'a [CharVn]>, vn_id: &str) -> Option<&'a str> {
+pub fn role_in<'a>(
+    vns: Option<&'a [CharVn]>,
+    vn_id: &str,
+    scope: CharacterScope,
+) -> Option<&'a str> {
     vns.and_then(|list| {
         list.iter()
             .filter(|v| v.id.as_deref() == Some(vn_id))
-            .find_map(|v| v.role.as_deref().filter(|role| SYNCED_ROLES.contains(role)))
+            .filter_map(|v| v.role.as_deref().filter(|role| scope.allows(role)))
+            .min_by_key(|role| crate::generated::character_roles::role_tier(Some(*role)))
     })
 }
 
@@ -23,12 +27,13 @@ pub(super) fn map_characters(
     rows: Vec<CharRow>,
     va: &[VnVa],
     vn_id: &str,
+    scope: CharacterScope,
 ) -> (Vec<GameCharacter>, Vec<CharacterImage>) {
     let va_by_character = index_va(va);
     let mut out = Vec::with_capacity(rows.len());
     let mut images = Vec::new();
     for row in rows {
-        let Some(role) = role_in(row.vns.as_deref(), vn_id).map(str::to_owned) else {
+        let Some(role) = role_in(row.vns.as_deref(), vn_id, scope).map(str::to_owned) else {
             continue;
         };
         if let Some((Some(url), Some(id))) = row.image.as_ref().map(|i| (&i.url, &i.id)) {
@@ -41,6 +46,7 @@ pub(super) fn map_characters(
         let entry = va_by_character.get(&row.id).map(Vec::as_slice);
         out.push(to_game_character(row, role, entry));
     }
+    out.sort_by_key(|c| crate::generated::character_roles::role_tier(c.role.as_deref()));
     (out, images)
 }
 
@@ -174,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn role只取主要档且首条是配角时继续往后找() {
+    fn role只取当前档位内的角色且首条不合时继续往后找() {
         for (roles, expected) in [
             (vec!["main", "side"], Some("main")),
             (vec!["main"], Some("main")),
@@ -185,10 +191,51 @@ mod tests {
         ] {
             let shown = format!("{roles:?}");
             let r = row("c1", vec![], roles);
-            assert_eq!(role_in(r.vns.as_deref(), "v1"), expected, "{shown}");
+            assert_eq!(
+                role_in(r.vns.as_deref(), "v1", CharacterScope::MainOnly),
+                expected,
+                "{shown}"
+            );
         }
-        assert_eq!(role_in(None, "v1"), None);
-        assert_eq!(role_in(Some(&[]), "v1"), None);
+        assert_eq!(role_in(None, "v1", CharacterScope::MainOnly), None);
+        assert_eq!(role_in(Some(&[]), "v1", CharacterScope::MainOnly), None);
+    }
+
+    #[test]
+    fn 含配角档放行side但客串两档都不收() {
+        for (roles, main_only, with_side) in [
+            (vec!["main"], Some("main"), Some("main")),
+            (vec!["side"], None, Some("side")),
+            (vec!["appears"], None, None),
+            (vec!["side", "primary"], Some("primary"), Some("primary")),
+        ] {
+            let shown = format!("{roles:?}");
+            let r = row("c1", vec![], roles);
+            assert_eq!(
+                role_in(r.vns.as_deref(), "v1", CharacterScope::MainOnly),
+                main_only,
+                "{shown}"
+            );
+            assert_eq!(
+                role_in(r.vns.as_deref(), "v1", CharacterScope::WithSide),
+                with_side,
+                "{shown}"
+            );
+        }
+    }
+
+    #[test]
+    fn 同一作品多条档位时取最高档() {
+        let r = row("c1", vec![], vec!["side", "main"]);
+        assert_eq!(
+            role_in(r.vns.as_deref(), "v1", CharacterScope::WithSide),
+            Some("main")
+        );
+        let r = row("c1", vec![], vec!["primary", "main"]);
+        assert_eq!(
+            role_in(r.vns.as_deref(), "v1", CharacterScope::MainOnly),
+            Some("main")
+        );
     }
 
     #[test]
@@ -207,8 +254,10 @@ mod tests {
             ]),
             ..CharRow::default()
         };
-        assert_eq!(role_in(r.vns.as_deref(), "v1"), None);
-        assert_eq!(role_in(r.vns.as_deref(), "v2"), Some("main"));
+        assert_eq!(role_in(r.vns.as_deref(), "v1", CharacterScope::MainOnly), None);
+        assert_eq!(role_in(r.vns.as_deref(), "v2", CharacterScope::MainOnly), Some("main"));
+        assert_eq!(role_in(r.vns.as_deref(), "v1", CharacterScope::WithSide), Some("side"));
+        assert_eq!(role_in(r.vns.as_deref(), "v2", CharacterScope::WithSide), Some("main"));
     }
 
     #[test]
@@ -267,5 +316,48 @@ mod tests {
             },
         ];
         assert!(index_va(&va).is_empty());
+    }
+
+    #[test]
+    fn 批量补全的默认顺序先主要后次要() {
+        let (got, images) = map_characters(
+            vec![
+                row("c1", vec![], vec!["side"]),
+                row("c2", vec![], vec!["main"]),
+                row("c3", vec![], vec!["primary"]),
+            ],
+            &[],
+            "v1",
+            CharacterScope::WithSide,
+        );
+        assert_eq!(
+            got.iter().map(|c| c.role.as_deref()).collect::<Vec<_>>(),
+            vec![Some("main"), Some("primary"), Some("side")]
+        );
+        assert!(images.is_empty());
+    }
+
+    #[test]
+    fn 仅主要档丢掉配角且客串永不入库() {
+        let (got, _) = map_characters(
+            vec![
+                row("c1", vec![], vec!["side"]),
+                row("c2", vec![], vec!["appears"]),
+                row("c3", vec![], vec!["main"]),
+            ],
+            &[],
+            "v1",
+            CharacterScope::MainOnly,
+        );
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].role.as_deref(), Some("main"));
+
+        let (got, _) = map_characters(
+            vec![row("c1", vec![], vec!["appears"])],
+            &[],
+            "v1",
+            CharacterScope::WithSide,
+        );
+        assert!(got.is_empty());
     }
 }
