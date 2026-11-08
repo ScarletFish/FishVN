@@ -65,14 +65,6 @@ pub enum QuitBehavior {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum CoverQuality {
-    #[default]
-    Thumbnail,
-    Original,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
 pub enum Theme {
     #[default]
     Light,
@@ -142,8 +134,6 @@ pub struct AppConfig {
     #[serde(default = "default_excluded_tags")]
     pub excluded_tags: Vec<String>,
     #[serde(default)]
-    pub cover_quality: CoverQuality,
-    #[serde(default)]
     pub character_scope: CharacterScope,
     #[serde(default)]
     pub vndb_sync_mode: VndbSyncMode,
@@ -175,7 +165,6 @@ pub struct ConfigPatch {
     pub hide_r18_tags: Option<bool>,
     pub spoiler_level: Option<SpoilerLevel>,
     pub excluded_tags: Option<Vec<String>>,
-    pub cover_quality: Option<CoverQuality>,
     pub character_scope: Option<CharacterScope>,
     pub vndb_sync_mode: Option<VndbSyncMode>,
     pub vndb_sync_wishlist: Option<bool>,
@@ -198,7 +187,6 @@ pub struct ConfigView {
     pub hide_r18_tags: bool,
     pub spoiler_level: SpoilerLevel,
     pub excluded_tags: Vec<String>,
-    pub cover_quality: CoverQuality,
     pub character_scope: CharacterScope,
     pub vndb_sync_mode: VndbSyncMode,
     pub vndb_sync_wishlist: bool,
@@ -265,9 +253,6 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     }
     if let Some(value) = patch.excluded_tags {
         config.excluded_tags = value;
-    }
-    if let Some(value) = patch.cover_quality {
-        config.cover_quality = value;
     }
     if let Some(value) = patch.character_scope {
         config.character_scope = value;
@@ -359,7 +344,6 @@ pub fn view() -> ConfigView {
         hide_r18_tags: config.hide_r18_tags,
         spoiler_level: config.spoiler_level,
         excluded_tags: config.excluded_tags,
-        cover_quality: config.cover_quality,
         character_scope: config.character_scope,
         vndb_sync_mode: config.vndb_sync_mode,
         vndb_sync_wishlist: config.vndb_sync_wishlist,

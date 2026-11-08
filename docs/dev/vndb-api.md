@@ -253,12 +253,13 @@ ismain 事实备用：`/staff` 每条记录按名字返回多行，`ismain=true`
 
 ### 封面与图片
 
-封面走 `cover_quality` 设置（`thumbnail` 默认 / `original`）：
+封面固定取 `image.url` 原图落盘，不提供画质档位：
 
-- `thumbnail` 取 `image.thumbnail`（`cv.t`，宽 256），`original` 取 `image.url`
-- 两者与 `dims` 一起从 `image{id,url,dims,thumbnail}` 一次取回，不自己拼 `cv.t` 路径
-- 缩略图请求返回 404 时回退 `url`——VNDB 只对原图大于 256×400 的封面生成缩略图
-- 落盘统一为 `{image_id}.jpg`，一档一份；换档不覆盖已有文件，只影响之后的下载
+- `image{id,url,dims,thumbnail}` 一次取回，不自己拼 `cv.t` 路径；`thumbnail`（`cv.t`，宽 256）仅作原图 404 时的兜底候选，VNDB 只对原图大于 256×400 的封面生成它
+- 候选顺序由 `download_candidates` 定死为原图优先、缩略图兜底，有单测守住，避免以后改回缩略图优先
+- 界面预览不走落盘文件：搜索候选用 `SEARCH_FIELDS` 的 `image.thumbnail`，本地封面经 `thumbs::cached` 另生成缩图，只有清晰档氛围图这类场景读原文件
+- 图片池 16 并发承担下载，固定原图的代价只在一次下载的流量与磁盘；界面加载不受影响
+- 落盘统一为 `{image_id}.jpg`；已有文件不覆盖，只影响之后的下载
 
 图片在 `t.vndb.org` 这个 CDN 上，与 `api.vndb.org` 的限流额度是两套，客户端另开一个连接：
 超时用 `read_timeout`（`IMAGE_TIMEOUT` 8 秒，读体每收到一块就重置；等响应头是一次性 8 秒死线），

@@ -97,12 +97,12 @@ impl ImageError {
 
 fn download_candidates(url: &str, thumb: Option<&str>) -> Vec<String> {
     let mut targets = Vec::with_capacity(2);
+    targets.push(url.to_owned());
     if let Some(thumb) = thumb {
         if thumb != url {
             targets.push(thumb.to_owned());
         }
     }
-    targets.push(url.to_owned());
     targets
 }
 
@@ -302,9 +302,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn 缩略图不存在时回退原图() {
+    async fn 封面优先取原图且不请求缩略图() {
+        let thumb_hits = Arc::new(AtomicUsize::new(0));
+        let counter = thumb_hits.clone();
         let app = Router::new()
-            .route("/cv.t01.jpg", get(|| async { StatusCode::NOT_FOUND }))
+            .route(
+                "/cv.t01.jpg",
+                get(move || {
+                    let counter = counter.clone();
+                    async move {
+                        counter.fetch_add(1, Ordering::SeqCst);
+                        vec![9u8; 8]
+                    }
+                }),
+            )
             .route("/cv01.jpg", get(|| async { vec![7u8; 24] }));
         let base = serve(app).await;
         let dir = tempfile::tempdir().unwrap();
@@ -318,9 +329,32 @@ mod tests {
         )
         .await
         .unwrap()
-        .expect("回退原图后应落盘");
+        .expect("原图应直接落盘");
 
         assert_eq!(std::fs::read(path).unwrap(), vec![7u8; 24]);
+        assert_eq!(thumb_hits.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn 原图404时回落缩略图() {
+        let app = Router::new()
+            .route("/cv01.jpg", get(|| async { StatusCode::NOT_FOUND }))
+            .route("/cv.t01.jpg", get(|| async { vec![9u8; 8] }));
+        let base = serve(app).await;
+        let dir = tempfile::tempdir().unwrap();
+
+        let path = fetch_image(
+            &client(),
+            Some(&format!("{base}/cv01.jpg")),
+            Some(&format!("{base}/cv.t01.jpg")),
+            Some("cv1"),
+            dir.path(),
+        )
+        .await
+        .unwrap()
+        .expect("回落缩略图后应落盘");
+
+        assert_eq!(std::fs::read(path).unwrap(), vec![9u8; 8]);
     }
 
     #[tokio::test]
@@ -391,7 +425,7 @@ mod tests {
     }
 
     #[test]
-    fn thumbnail_comes_first() {
+    fn 原图优先缩略图兜底() {
         let targets = download_candidates(
             "https://t.vndb.org/cv/76/93476.jpg",
             Some("https://t.vndb.org/cv.t/76/93476.jpg"),
@@ -399,20 +433,20 @@ mod tests {
         assert_eq!(
             targets,
             vec![
-                "https://t.vndb.org/cv.t/76/93476.jpg",
-                "https://t.vndb.org/cv/76/93476.jpg"
+                "https://t.vndb.org/cv/76/93476.jpg",
+                "https://t.vndb.org/cv.t/76/93476.jpg"
             ]
         );
     }
 
     #[test]
-    fn no_thumbnail_falls_back_to_original() {
+    fn 没有缩略图时只取原图() {
         let targets = download_candidates("https://t.vndb.org/ch/16/38016.jpg", None);
         assert_eq!(targets, vec!["https://t.vndb.org/ch/16/38016.jpg"]);
     }
 
     #[test]
-    fn same_url_is_not_fetched_twice() {
+    fn 缩略图同址时不重复请求() {
         let targets = download_candidates(
             "https://t.vndb.org/cv/76/93476.jpg",
             Some("https://t.vndb.org/cv/76/93476.jpg"),

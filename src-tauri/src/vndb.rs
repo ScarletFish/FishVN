@@ -120,10 +120,7 @@ fn cover_job(game_id: &str, vn: &VnMetadata) -> Option<ImageJob> {
         kind: ImageKind::Cover,
         image_id: id.to_owned(),
         url: url.to_owned(),
-        thumb: match crate::settings::current().cover_quality {
-            crate::settings::CoverQuality::Thumbnail => img.thumbnail.clone(),
-            crate::settings::CoverQuality::Original => None,
-        },
+        thumb: img.thumbnail.clone(),
     })
 }
 
