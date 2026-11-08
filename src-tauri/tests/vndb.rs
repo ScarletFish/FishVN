@@ -7,26 +7,39 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use fishvn::vndb::{
-    role_of, take_slot, validate_keyword, validate_vn_id, CharVn, RateLimiter, UlistEntry,
+    role_in, take_slot, validate_keyword, validate_vn_id, CharVn, RateLimiter, UlistEntry,
     VnEnvelope, VnMetadata,
 };
 
+fn char_vn(vn: &str, role: &str) -> CharVn {
+    CharVn {
+        id: Some(vn.into()),
+        role: Some(role.into()),
+    }
+}
+
 #[test]
 fn 一个角色多条release时按入库档位挑而不是取首条() {
-    let vns = vec![
-        CharVn {
-            role: Some("side".into()),
-        },
-        CharVn {
-            role: Some("main".into()),
-        },
-    ];
-    assert_eq!(role_of(Some(&vns)), Some("main"), "档位在后的那条也得被找到");
+    let vns = vec![char_vn("v1", "side"), char_vn("v1", "main")];
+    assert_eq!(
+        role_in(Some(&vns), "v1"),
+        Some("main"),
+        "档位在后的那条也得被找到"
+    );
 
-    let only_side = vec![CharVn {
-        role: Some("side".into()),
-    }];
-    assert_eq!(role_of(Some(&only_side)), None, "全不在入库档位就当没有");
+    let only_side = vec![char_vn("v1", "side")];
+    assert_eq!(
+        role_in(Some(&only_side), "v1"),
+        None,
+        "全不在入库档位就当没有"
+    );
+}
+
+#[test]
+fn 别的作品的档位不影响本部判定() {
+    let vns = vec![char_vn("v1", "side"), char_vn("v2", "main")];
+    assert_eq!(role_in(Some(&vns), "v1"), None);
+    assert_eq!(role_in(Some(&vns), "v2"), Some("main"));
 }
 
 #[test]

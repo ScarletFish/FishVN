@@ -134,6 +134,9 @@
   function handleText() {
     if (!dock.running) return t('backfillPage.doneHint');
     if (dock.rateLimited) return t('mylist.backfillRateLimitedShort');
+    if (dock.stage === 'images') {
+      return t('mylist.backfillImages', { done: dock.imagesDone ?? 0, total: dock.imagesTotal ?? 0 });
+    }
     return t('mylist.backfillRunning', { done: dock.done ?? 0, total: dock.total ?? 0 });
   }
 </script>

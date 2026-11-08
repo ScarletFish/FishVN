@@ -266,7 +266,21 @@ async fn fetch_vn_metadata(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) 
         dev.tasks.register(commands::VNDB_SYNC),
         0,
     );
-    finish(vndb::fetch_sync(vndb::http(), &vndb_id, &dir, &task).await)
+    let mut pair = vndb::fetch_sync(vndb::http(), "", &vndb_id, &task).await;
+    if let Ok((sync, jobs)) = &mut pair {
+        if let Ok(results) = vndb::download_images(
+            vndb::image_client(),
+            jobs.clone(),
+            vndb::IMAGE_CONCURRENCY,
+            &dir,
+            &task,
+        )
+        .await
+        {
+            vndb::fill_image_paths(sync, &results);
+        }
+    }
+    finish(pair.map(|(sync, _)| sync))
 }
 
 async fn cancel_task(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {

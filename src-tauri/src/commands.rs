@@ -320,7 +320,21 @@ pub async fn fetch_vn_metadata(
     );
     let started = std::time::Instant::now();
     log::info!("VNDB 同步开始 {vndb_id}");
-    let result = vndb::fetch_sync(vndb::http(), &vndb_id, &dir, &task).await;
+    let mut pair = vndb::fetch_sync(vndb::http(), "", &vndb_id, &task).await;
+    if let Ok((sync, jobs)) = &mut pair {
+        if let Ok(results) = vndb::download_images(
+            vndb::image_client(),
+            jobs.clone(),
+            vndb::IMAGE_CONCURRENCY,
+            &dir,
+            &task,
+        )
+        .await
+        {
+            vndb::fill_image_paths(sync, &results);
+        }
+    }
+    let result = pair.map(|(sync, _)| sync);
     match &result {
         Ok(_) => log::info!("VNDB 同步完成 {vndb_id}：{} ms", started.elapsed().as_millis()),
         Err(AppError::Cancelled) => {

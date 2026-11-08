@@ -14,7 +14,10 @@ use crate::generated::metadata::is_blank_current;
 use crate::metadata;
 use crate::tasks::{EventLog, Progress, Task, Tasks};
 use crate::types::{GameMetadata, GamePatch, LocalizedTitle, MetadataPatch, MetadataStaff, MetadataTag};
-use crate::vndb::{self, RateLimiter, VnMetadata, VnSync, VnTitle};
+use crate::vndb::{
+    self, download_images, ImageJob, ImageKind, RateLimiter, VnMetadata, VnSync, VnTitle,
+    IMAGE_CONCURRENCY,
+};
 
 pub const BACKFILL: &str = "vndb-backfill";
 
@@ -48,6 +51,7 @@ pub fn busy() -> bool {
 const FREEZE: Duration = Duration::from_secs(300);
 const FREEZE_ROUNDS: u32 = 3;
 const PAUSE_TICK: Duration = Duration::from_millis(250);
+const BATCH_ATTEMPTS: u32 = 2;
 
 const SCAN_SQL: &str = "SELECT g.id, g.name, g.vndb_id
      FROM games g
@@ -127,6 +131,9 @@ pub struct BackfillStatus {
     pub unmatched: i64,
     pub failed: i64,
     pub rate_limited: bool,
+    pub stage: String,
+    pub images_done: i64,
+    pub images_total: i64,
     pub run_id: u64,
     pub items: Vec<BackfillItemState>,
     pub finished: Option<BackfillReport>,
@@ -198,6 +205,7 @@ pub fn reset(items: &[BackfillItem]) -> u64 {
         *guard = Some(BackfillStatus {
             running: true,
             total: items.len() as i64,
+            stage: "fetch".to_owned(),
             run_id,
             items: states,
             ..Default::default()
@@ -554,118 +562,59 @@ async fn apply_sync(
     .map_err(|e| AppError::Upstream(format!("补全任务失败：{e}")))?
 }
 
-async fn backfill_one(
+async fn bind_item(
     task: &Task,
     conn: &Arc<Mutex<Connection>>,
     rate: &RateLimiter,
-    dir: &Path,
     item: &BackfillItem,
     report: &mut BackfillReport,
-) -> Result<()> {
-    let started = std::time::Instant::now();
+) -> Result<Option<String>> {
     let Some(vndb_id) = resolve_vndb_id(task, rate, item, report).await? else {
-        return Ok(());
+        return Ok(None);
     };
-    if item.vndb_id.is_none() {
-        let bound = tauri::async_runtime::spawn_blocking({
-            let conn = conn.clone();
-            let game_id = item.game_id.clone();
-            let id = vndb_id.clone();
-            move || {
-                let guard = crate::db::lock(&conn)?;
-                games::update_game(
-                    &guard,
-                    &game_id,
-                    &GamePatch {
-                        name: None,
-                        vndb_id: Some(Some(id)),
-                    },
-                )?;
-                Ok::<(), AppError>(())
-            }
-        })
-        .await
-        .map_err(|e| AppError::Upstream(format!("补全任务失败：{e}")))?;
-        match bound {
-            Ok(()) => report.bound += 1,
-            Err(AppError::Conflict(_)) => {
-                fail(
-                    report,
-                    task,
-                    "failed",
-                    &item.game_id,
-                    &item.name,
-                    &AppError::Conflict("vndb_id 已被其他游戏占用".into()),
-                );
-                return Ok(());
-            }
-            Err(e) => {
-                fail(report, task, "failed", &item.game_id, &item.name, &e);
-                return Ok(());
-            }
+    if item.vndb_id.is_some() {
+        return Ok(Some(vndb_id));
+    }
+    let bound = tauri::async_runtime::spawn_blocking({
+        let conn = conn.clone();
+        let game_id = item.game_id.clone();
+        let id = vndb_id.clone();
+        move || {
+            let guard = crate::db::lock(&conn)?;
+            games::update_game(
+                &guard,
+                &game_id,
+                &GamePatch {
+                    name: None,
+                    vndb_id: Some(Some(id)),
+                },
+            )?;
+            Ok::<(), AppError>(())
+        }
+    })
+    .await
+    .map_err(|e| AppError::Upstream(format!("补全任务失败：{e}")))?;
+    match bound {
+        Ok(()) => {
+            report.bound += 1;
+            Ok(Some(vndb_id))
+        }
+        Err(AppError::Conflict(_)) => {
+            fail(
+                report,
+                task,
+                "failed",
+                &item.game_id,
+                &item.name,
+                &AppError::Conflict("vndb_id 已被其他游戏占用".into()),
+            );
+            Ok(None)
+        }
+        Err(e) => {
+            fail(report, task, "failed", &item.game_id, &item.name, &e);
+            Ok(None)
         }
     }
-    let bind_ms = started.elapsed().as_millis();
-    let mut rounds = FREEZE_ROUNDS;
-    let mut rate_ms = 0u128;
-    let mut fetch_ms = 0u128;
-    let sync = loop {
-        let wait_start = std::time::Instant::now();
-        rate.acquire().await;
-        rate.acquire().await;
-        rate_ms += wait_start.elapsed().as_millis();
-        if task.cancelled() {
-            return Err(AppError::Cancelled);
-        }
-        let fetch_start = std::time::Instant::now();
-        let fetched = vndb::fetch_sync(vndb::http(), &vndb_id, dir, task).await;
-        fetch_ms += fetch_start.elapsed().as_millis();
-        match fetched {
-            Ok(sync) => break sync,
-            Err(AppError::RateLimited) if rounds > 0 => {
-                rounds -= 1;
-                if !freeze(task).await {
-                    return Err(AppError::Cancelled);
-                }
-            }
-            Err(AppError::Cancelled) => return Err(AppError::Cancelled),
-            Err(e) => {
-                fail(report, task, "failed", &item.game_id, &item.name, &e);
-                return Ok(());
-            }
-        }
-    };
-    let vn_title = sync.vn.title.clone();
-    let vn_released = sync.vn.released.clone();
-    let write_start = std::time::Instant::now();
-    match apply_sync(conn, &item.game_id, &sync).await {
-        Ok((filled, char_count)) => {
-            report.fetched += 1;
-            set_item(&item.game_id, |it| {
-                it.state = ItemState::Ok;
-                it.filled = filled;
-                it.characters = char_count;
-                if it.vndb_id.is_none() {
-                    it.vndb_id = Some(vndb_id);
-                }
-                if it.hit_title.is_none() {
-                    it.hit_title = Some(vn_title);
-                }
-                if it.hit_released.is_none() {
-                    it.hit_released = vn_released;
-                }
-            });
-        }
-        Err(e) => fail(report, task, "failed", &item.game_id, &item.name, &e),
-    }
-    let write_ms = write_start.elapsed().as_millis();
-    log::debug!(
-        target: "backfill",
-        "单部耗时：{} 绑定 {bind_ms}ms 限速 {rate_ms}ms 请求 {fetch_ms}ms 落库 {write_ms}ms 合计 {}ms",
-        item.name,
-        started.elapsed().as_millis()
-    );
-    Ok(())
 }
 
 fn failed_single(game_id: &str, name: &str, err: &AppError) -> BackfillItemState {
@@ -710,11 +659,11 @@ pub async fn fill_single(
     let task = Task::new(BACKFILL, app, events, tasks.register(BACKFILL), 0);
     task.enter(&game_id);
     let mut rounds = FREEZE_ROUNDS;
-    let sync = loop {
+    let (mut sync, jobs) = loop {
         rate.acquire().await;
         rate.acquire().await;
-        match vndb::fetch_sync(vndb::http(), &vndb_id, &dir, &task).await {
-            Ok(sync) => break sync,
+        match vndb::fetch_sync(vndb::http(), &game_id, &vndb_id, &task).await {
+            Ok(pair) => break pair,
             Err(AppError::RateLimited) if rounds > 0 => {
                 rounds -= 1;
                 if !freeze(&task).await {
@@ -728,6 +677,9 @@ pub async fn fill_single(
             }
         }
     };
+    if let Ok(results) = download_images(vndb::image_client(), jobs, IMAGE_CONCURRENCY, &dir, &task).await {
+        vndb::fill_image_paths(&mut sync, &results);
+    }
     let applied = apply_sync(&conn, &game_id, &sync).await;
     task.leave();
     let (filled, char_count) = match applied {
@@ -790,33 +742,294 @@ pub async fn run(
             return report;
         }
     };
+    set_status(|s| s.stage = "fetch".to_owned());
+    let names: std::collections::HashMap<&str, &str> = items
+        .iter()
+        .map(|item| (item.game_id.as_str(), item.name.as_str()))
+        .collect();
+
     let mut processed = 0i64;
-    for (idx, item) in items.iter().enumerate() {
+    let mut jobs: Vec<ImageJob> = Vec::new();
+    let mut cancelled = false;
+
+    let mut ready: Vec<vndb::BatchItem> = Vec::new();
+    for item in &items {
         if task.cancelled() {
+            cancelled = true;
             break;
         }
         wait_resume(&task).await;
         if task.cancelled() {
+            cancelled = true;
             break;
         }
-        task.enter(&item.game_id);
-        set_item(&item.game_id, |it| it.state = ItemState::Active);
-        let outcome = backfill_one(&task, &conn, &rate, &dir, item, &mut report).await;
-        task.leave();
-        if let Err(AppError::Cancelled) = outcome {
-            set_item(&item.game_id, |it| it.state = ItemState::Pending);
-            break;
+        let searching = item.vndb_id.is_none();
+        if searching {
+            task.enter(&item.game_id);
+            set_item(&item.game_id, |it| it.state = ItemState::Active);
         }
-        let done = idx as i64 + 1;
-        processed = done;
-        set_status(|s| s.done = done);
-        task.report_item("backfill", Some(done), Some(total), &item.game_id);
+        let outcome = bind_item(&task, &conn, &rate, item, &mut report).await;
+        if searching {
+            task.leave();
+        }
+        match outcome {
+            Ok(Some(vndb_id)) => ready.push(vndb::BatchItem {
+                game_id: item.game_id.clone(),
+                vndb_id,
+            }),
+            Ok(None) => {
+                if searching {
+                    processed += 1;
+                    set_status(|s| s.done = processed);
+                }
+            }
+            Err(AppError::Cancelled) => {
+                cancelled = true;
+                if searching {
+                    set_item(&item.game_id, |it| it.state = ItemState::Pending);
+                }
+                break;
+            }
+            Err(_) => {
+                if searching {
+                    processed += 1;
+                    set_status(|s| s.done = processed);
+                }
+            }
+        }
     }
+
+    let mut start = 0usize;
+    while !cancelled && start < ready.len() {
+        if task.cancelled() {
+            cancelled = true;
+            break;
+        }
+        wait_resume(&task).await;
+        if task.cancelled() {
+            cancelled = true;
+            break;
+        }
+        let end = (start + vndb::BATCH_SIZE).min(ready.len());
+        let chunk = &ready[start..end];
+        start = end;
+        for entry in chunk {
+            set_item(&entry.game_id, |it| it.state = ItemState::Active);
+        }
+        let started = std::time::Instant::now();
+        match fetch_chunk(&task, &rate, chunk).await {
+            Ok((synced, missing)) => {
+                for vndb_id in missing {
+                    let Some(entry) = chunk.iter().find(|entry| entry.vndb_id == vndb_id) else {
+                        continue;
+                    };
+                    fail(
+                        &mut report,
+                        &task,
+                        "failed",
+                        &entry.game_id,
+                        names.get(entry.game_id.as_str()).copied().unwrap_or_default(),
+                        &AppError::NotFound("VNDB 未返回这条记录".into()),
+                    );
+                }
+                for entry in &synced {
+                    let name = names
+                        .get(entry.game_id.as_str())
+                        .copied()
+                        .unwrap_or_default();
+                    let vn_title = entry.sync.vn.title.clone();
+                    let vn_released = entry.sync.vn.released.clone();
+                    match apply_sync(&conn, &entry.game_id, &entry.sync).await {
+                        Ok((filled, char_count)) => {
+                            report.fetched += 1;
+                            set_item(&entry.game_id, |it| {
+                                it.state = ItemState::Ok;
+                                it.filled = filled;
+                                it.characters = char_count;
+                                if it.vndb_id.is_none() {
+                                    it.vndb_id = Some(entry.vndb_id.clone());
+                                }
+                                if it.hit_title.is_none() {
+                                    it.hit_title = Some(vn_title);
+                                }
+                                if it.hit_released.is_none() {
+                                    it.hit_released = vn_released;
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            fail(&mut report, &task, "failed", &entry.game_id, name, &e);
+                        }
+                    }
+                    jobs.extend(entry.jobs.iter().cloned());
+                }
+            }
+            Err(AppError::Cancelled) => {
+                cancelled = true;
+                break;
+            }
+            Err(e) => {
+                for entry in chunk {
+                    fail(
+                        &mut report,
+                        &task,
+                        "failed",
+                        &entry.game_id,
+                        names.get(entry.game_id.as_str()).copied().unwrap_or_default(),
+                        &e,
+                    );
+                }
+            }
+        }
+        processed += chunk.len() as i64;
+        set_status(|s| s.done = processed);
+        for entry in chunk {
+            task.report_item("backfill", Some(processed), Some(total), &entry.game_id);
+        }
+        log::debug!(
+            target: "backfill",
+            "批次完成：{} 部，累计 {processed}/{total}，{}ms",
+            chunk.len(),
+            started.elapsed().as_millis()
+        );
+    }
+
+    if cancelled {
+        set_status(|s| {
+            for item in s.items.iter_mut() {
+                if item.state == ItemState::Active {
+                    item.state = ItemState::Pending;
+                }
+            }
+        });
+    }
+
+    if !cancelled && !jobs.is_empty() {
+        set_status(|s| {
+            s.stage = "images".to_owned();
+            s.images_done = 0;
+            s.images_total = jobs.len() as i64;
+        });
+        let mirror = StatusMirror(&task);
+        let touched = apply_images(&conn, jobs, &dir, &mirror).await;
+        for id in touched {
+            task.report_item("backfill", Some(processed), Some(total), &id);
+        }
+    }
+
     finish_run(&task, total, processed, report);
     report
 }
 
+async fn fetch_chunk(
+    task: &Task,
+    rate: &RateLimiter,
+    chunk: &[vndb::BatchItem],
+) -> Result<(Vec<vndb::BatchSync>, Vec<String>)> {
+    let mut rounds = FREEZE_ROUNDS;
+    let mut attempts = 0u32;
+    loop {
+        match vndb::fetch_batch(vndb::http(), rate, chunk, task).await {
+            Ok(pair) => return Ok(pair),
+            Err(AppError::RateLimited) if rounds > 0 => {
+                rounds -= 1;
+                if !freeze(task).await {
+                    return Err(AppError::Cancelled);
+                }
+            }
+            Err(AppError::Cancelled) => return Err(AppError::Cancelled),
+            Err(e) if attempts < BATCH_ATTEMPTS => {
+                attempts += 1;
+                log::warn!(
+                    target: "backfill",
+                    "整批取数失败，第 {attempts} 次重试：{e}"
+                );
+                tokio::time::sleep(Duration::from_millis(500 * attempts as u64)).await;
+            }
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+struct StatusMirror<'a>(&'a Task);
+
+impl Progress for StatusMirror<'_> {
+    fn report(&self, phase: &str, done: Option<i64>, total: Option<i64>) {
+        if phase == "images" {
+            set_status(|s| {
+                if let Some(done) = done {
+                    s.images_done = done;
+                }
+                if let Some(total) = total {
+                    s.images_total = total;
+                }
+            });
+        }
+        self.0.report(phase, done, total);
+    }
+
+    fn report_item(&self, phase: &str, done: Option<i64>, total: Option<i64>, game_id: &str) {
+        self.0.report_item(phase, done, total, game_id);
+    }
+
+    fn report_error(&self, phase: &str, message: &str) {
+        self.0.report_error(phase, message);
+    }
+
+    fn report_note(&self, phase: &str, detail: &str) {
+        self.0.report_note(phase, detail);
+    }
+
+    fn cancelled(&self) -> bool {
+        self.0.cancelled()
+    }
+}
+
+async fn apply_images(
+    conn: &Arc<Mutex<Connection>>,
+    jobs: Vec<ImageJob>,
+    dir: &Path,
+    progress: &dyn Progress,
+) -> Vec<String> {
+    if jobs.is_empty() {
+        return Vec::new();
+    }
+    let Ok(results) = download_images(vndb::image_client(), jobs, IMAGE_CONCURRENCY, dir, progress).await else {
+        return Vec::new();
+    };
+    if results.is_empty() {
+        return Vec::new();
+    }
+    let conn = conn.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let Ok(guard) = conn.lock() else {
+            return Vec::new();
+        };
+        let mut touched: Vec<String> = Vec::new();
+        for (job, path) in results {
+            let Some(path) = path else { continue };
+            let changed = match &job.kind {
+                ImageKind::Cover => guard.execute(
+                    "UPDATE game_metadata SET image_path = ?1 WHERE game_id = ?2 AND COALESCE(image_path, '') = ''",
+                    rusqlite::params![path, job.game_id],
+                ),
+                ImageKind::Character { character_id } => guard.execute(
+                    "UPDATE characters SET image_path = ?1 WHERE game_id = ?2 AND id = ?3 AND COALESCE(image_path, '') = ''",
+                    rusqlite::params![path, job.game_id, character_id],
+                ),
+            };
+            if matches!(changed, Ok(n) if n > 0) && !touched.contains(&job.game_id) {
+                touched.push(job.game_id.clone());
+            }
+        }
+        touched
+    })
+    .await
+    .unwrap_or_default()
+}
+
 fn finish_run(task: &Task, total: i64, done: i64, mut report: BackfillReport) {
+    set_status(|s| s.stage.clear());
     task.report("backfill", Some(done), Some(total));
     task.report("finished", None, None);
     report.cancelled = task.cancelled();

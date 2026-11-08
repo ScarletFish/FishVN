@@ -124,6 +124,30 @@ POST JSON body，`Content-Type: application/json`。响应恒为 JSON，`Accept`
 
 同步一批作品合并成一个请求，而不是每部各发一次。
 
+### 批量取角色要带 `vns.id`
+
+`/character` 的 `vn` 过滤器同样吃 `or` 组合，一批 20 部就是「`/vn` 一次 + `/character` 若干页」：
+
+```json
+{ "filters": ["vn", "=", ["or", ["id", "=", "v11"], ["id", "=", "v17"]]],
+  "fields": "id,name,…,vns{id,role,spoiler}", "results": 100 }
+```
+
+`vns` 必须显式取 `id`。没有它就没法把一批里的角色行分回各作品；而 `role` 是「该角色相对该 VN
+的定位」，同一角色在 A 是 `main`、在 B 是 `side`，只看 role 会把配角塞进主角位。分组要先按
+`vns[].id` 分到作品，再在该作品名下取 role。
+
+两个必须处理的行为：
+
+- **不存在的 id 静默省略**：请求 20 个只回 18 条，不报错也不给提示，只能拿请求与返回的 id
+  集合求差，把缺的判失败
+- **仍受 100 条/页上限**：一批 20 部常有 200~300 个角色行，要靠 `more` 续页；页间仍属同一次取数
+- **单次响应别太大**：20 部的角色行响应体能到几百 KB，同一条线路上会撞上客户端请求超时（表现为
+  `error decoding response body`）。按 10 部一组拆开并发取，单次体积减半、总字节不变；`/vn`
+  的批量请求同理要给足超时
+
+批大小取 20：响应体积随部数线性涨，一次失败重来要重下的字节也随部数线性涨，20 是两者的折中。
+
 ### 耗时由字段重量决定，不由批量大小决定
 
 同样 20 个 id，只取需要的字段与取全字段：
@@ -160,8 +184,9 @@ traits{id,name,group_name,spoiler,lie}
 va{character{id},staff{id,name,original},note}
 ```
 
-`note` 是版本标记（如 Realta Nua），同一角色在不同版本下会有多条。出场定位直接由
-`vns.role` 给（`main` / `primary` / `side` / `appears`），不必反查角色属于哪部作品。
+`note` 是版本标记（如 Realta Nua），同一角色在不同版本下会有多条。出场定位由 `vns.role` 给
+（`main` / `primary` / `side` / `appears`），但要先按 `vns.id` 定位到本作品：`vns` 列的是该角色
+出现过的所有 VN，role 只对它自己那条 VN 成立。
 
 `gender` 按 release 逐条返回，同一角色多个 release 会让数组出现重复值，取用前去重。
 角色图的 `image` 没有 `thumbnail`，固定限 256×300，缩图要走 `url` 自己派生。

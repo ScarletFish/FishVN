@@ -38,9 +38,20 @@ test('当前条目转为 active，其他条目保持原位', () => {
   expect(next.items[1]).toEqual({ game_id: 'b', state: 'ok' });
 });
 
+test('图片阶段的张数进度不覆盖条目进度', () => {
+  const base = status();
+  const next = projectEvent(base, { phase: 'images', done: 4, total: 10 });
+  expect(next.done).toBe(base.done);
+  expect(next.total).toBe(base.total);
+  expect(next.stage).toBe('images');
+  expect(next.images_done).toBe(4);
+  expect(next.images_total).toBe(10);
+  expect(projectEvent(next, { phase: 'images', done: 4, total: 10 })).toBe(next);
+});
+
 test('无变化的事件保持原对象引用', () => {
   const base = status();
-  expect(projectEvent(base, { phase: 'images' })).toBe(base);
+  expect(projectEvent(base, { phase: 'paused' })).toBe(base);
   expect(projectEvent(base, null)).toBe(base);
 });
 

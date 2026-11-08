@@ -6,6 +6,9 @@ export function createDockState() {
     rateLimited: false,
     done: 0,
     total: 0,
+    stage: '',
+    imagesDone: 0,
+    imagesTotal: 0,
     finished: null,
   };
 }
@@ -26,6 +29,11 @@ export function reduce(state, ev) {
       if (ev.done != null) state.done = ev.done;
       if (ev.total != null) state.total = ev.total;
       break;
+    case 'images':
+      state.stage = 'images';
+      if (ev.done != null) state.imagesDone = ev.done;
+      if (ev.total != null) state.imagesTotal = ev.total;
+      break;
     case 'paused':
       state.pausedIdle = true;
       break;
@@ -35,6 +43,7 @@ export function reduce(state, ev) {
       break;
     case 'finished':
       state.pausedIdle = false;
+      state.stage = '';
       break;
   }
 
@@ -51,12 +60,17 @@ export function seedFromStatus(state, status) {
     next.rateLimited = status.rate_limited ?? false;
     next.done = status.done ?? 0;
     next.total = status.total ?? 0;
+    next.stage = status.stage ?? '';
+    next.imagesDone = status.images_done ?? 0;
+    next.imagesTotal = status.images_total ?? 0;
     next.finished = null;
   } else if (status.finished) {
     next.running = false;
+    next.stage = '';
     next.finished = status.finished;
   } else {
     next.running = false;
+    next.stage = '';
     next.finished = null;
   }
   return next;

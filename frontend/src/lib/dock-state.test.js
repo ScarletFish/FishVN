@@ -159,6 +159,32 @@ test('seedFromStatus 接上在途任务：进度、暂停、限流一并回填',
   expect(s.finished).toBeNull();
 });
 
+test('图片阶段单独记张数进度，收尾时清掉阶段', () => {
+  let s = reduce(createDockState(), ev('backfill', { done: 10, total: 10 }));
+  s = reduce(s, ev('images', { done: 3, total: 42 }));
+  expect(s.stage).toBe('images');
+  expect(s.imagesDone).toBe(3);
+  expect(s.imagesTotal).toBe(42);
+
+  s = reduce(s, ev('finished'));
+  expect(s.stage).toBe('');
+});
+
+test('seedFromStatus 回填图片阶段进度', () => {
+  const s = seedFromStatus(createDockState(), {
+    running: true,
+    run_id: 4,
+    done: 20,
+    total: 20,
+    stage: 'images',
+    images_done: 7,
+    images_total: 30,
+  });
+  expect(s.stage).toBe('images');
+  expect(s.imagesDone).toBe(7);
+  expect(s.imagesTotal).toBe(30);
+});
+
 test('seedFromStatus 收到「未运行、无汇总」时只清运行标志', () => {
   const s = seedFromStatus(
     { ...createDockState(), runId: 3, running: true, done: 2 },

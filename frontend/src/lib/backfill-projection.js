@@ -28,6 +28,18 @@ export function patchItem(status, item) {
 
 export function projectEvent(status, ev) {
   if (!status || !ev) return status;
+  if (ev.phase === 'images') {
+    const imagesDone = ev.done ?? status.images_done ?? 0;
+    const imagesTotal = ev.total ?? status.images_total ?? 0;
+    if (
+      status.stage === 'images' &&
+      imagesDone === (status.images_done ?? 0) &&
+      imagesTotal === (status.images_total ?? 0)
+    ) {
+      return status;
+    }
+    return { ...status, stage: 'images', images_done: imagesDone, images_total: imagesTotal };
+  }
   const done = ev.done ?? status.done;
   const total = ev.total ?? status.total;
   let items = status.items ?? [];

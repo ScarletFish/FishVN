@@ -149,7 +149,22 @@ pub struct VnSync {
     pub characters: Vec<GameCharacter>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImageKind {
+    Cover,
+    Character { character_id: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImageJob {
+    pub game_id: String,
+    pub kind: ImageKind,
+    pub image_id: String,
+    pub url: String,
+    pub thumb: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default)]
 pub(crate) struct CharRow {
     pub id: String,
@@ -172,15 +187,16 @@ pub(crate) struct CharRow {
     pub vns: Option<Vec<CharVn>>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default)]
 pub(crate) struct CharImage {
     pub id: Option<String>,
     pub url: Option<String>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default)]
 pub struct CharVn {
+    pub id: Option<String>,
     pub role: Option<String>,
 }

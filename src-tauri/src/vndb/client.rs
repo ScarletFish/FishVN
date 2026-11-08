@@ -12,6 +12,8 @@ const API_BASE: &str = "https://api.vndb.org/kana";
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 
+const BATCH_TIMEOUT: Duration = Duration::from_secs(45);
+
 const IMAGE_TIMEOUT: Duration = Duration::from_secs(8);
 
 const RATE_LIMIT_MAX: usize = 100;
@@ -106,8 +108,27 @@ pub(super) async fn post<T: for<'de> Deserialize<'de>>(
     body: Value,
     token: Option<&str>,
 ) -> Result<VnEnvelope<T>> {
+    post_with(http, endpoint, body, token, REQUEST_TIMEOUT).await
+}
+
+pub(super) async fn post_batch<T: for<'de> Deserialize<'de>>(
+    http: &reqwest::Client,
+    endpoint: &str,
+    body: Value,
+) -> Result<VnEnvelope<T>> {
+    post_with(http, endpoint, body, None, BATCH_TIMEOUT).await
+}
+
+async fn post_with<T: for<'de> Deserialize<'de>>(
+    http: &reqwest::Client,
+    endpoint: &str,
+    body: Value,
+    token: Option<&str>,
+    timeout: Duration,
+) -> Result<VnEnvelope<T>> {
     let mut builder = http
         .post(format!("{API_BASE}/{endpoint}"))
+        .timeout(timeout)
         .json(&body);
     if let Some(token) = token {
         builder = builder.header("Authorization", format!("token {token}"));

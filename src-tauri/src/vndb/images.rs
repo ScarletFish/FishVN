@@ -1,81 +1,82 @@
 use std::time::Duration;
 
-use super::client::image_http;
-use crate::error::{AppError, Result};
+use super::dto::ImageJob;
+use crate::error::Result;
 use crate::tasks::Progress;
-use crate::types::GameCharacter;
-
-const IMAGE_CONCURRENCY: usize = 8;
 
 const IMAGE_RETRIES: usize = 3;
 
 const IMAGE_BACKOFF_MS: u64 = 300;
 
-pub(super) async fn download_character_images(
-    mut chars: Vec<GameCharacter>,
-    jobs: Vec<(usize, String, String)>,
+pub(crate) const IMAGE_CONCURRENCY: usize = 16;
+
+pub(crate) async fn download_images(
+    http: &reqwest::Client,
+    jobs: Vec<ImageJob>,
+    concurrency: usize,
     data_dir: &std::path::Path,
     progress: &dyn Progress,
-) -> Result<Vec<GameCharacter>> {
-    let data_dir = data_dir.to_path_buf();
+) -> Result<Vec<(ImageJob, Option<String>)>> {
     let total = jobs.len() as i64;
-    let mut done = 0_i64;
-    let mut failed = 0_i64;
+    if total == 0 {
+        return Ok(Vec::new());
+    }
+    progress.report("images", Some(0), Some(total));
+    let data_dir = data_dir.to_path_buf();
     let mut pending = jobs.into_iter();
     let mut set = tokio::task::JoinSet::new();
-    if total > 0 {
-        progress.report("images", Some(0), Some(total));
+    let width = concurrency.max(1).min(total as usize);
+    for _ in 0..width {
+        spawn_image(&mut set, &mut pending, &data_dir, http);
     }
-    for _ in 0..IMAGE_CONCURRENCY {
-        spawn_next_image(&mut set, &mut pending, &data_dir);
-    }
+    let mut done = 0_i64;
+    let mut out = Vec::with_capacity(total as usize);
     loop {
         let joined = tokio::select! {
             joined = set.join_next() => joined,
             _ = crate::tasks::wait_cancel(progress) => {
                 set.abort_all();
-                return Err(AppError::Cancelled);
+                return Ok(out);
             }
         };
         let Some(finished) = joined else { break };
-        match finished {
-            Ok((idx, path)) => {
-                let missing = path.is_none();
-                chars[idx].image_path = path;
-                if missing {
-                    failed += 1;
-                }
-            }
-            Err(_) => failed += 1,
+        if let Ok((job, path)) = finished {
+            out.push((job, path));
         }
         done += 1;
         progress.report("images", Some(done), Some(total));
-        spawn_next_image(&mut set, &mut pending, &data_dir);
+        spawn_image(&mut set, &mut pending, &data_dir, http);
     }
-    if failed > 0 {
-        progress.report_error("images", &format!("{failed} 张角色立绘下载失败，已跳过"));
-    }
-    Ok(chars)
+    Ok(out)
 }
 
-fn spawn_next_image(
-    set: &mut tokio::task::JoinSet<(usize, Option<String>)>,
-    pending: &mut std::vec::IntoIter<(usize, String, String)>,
+fn spawn_image(
+    set: &mut tokio::task::JoinSet<(ImageJob, Option<String>)>,
+    pending: &mut std::vec::IntoIter<ImageJob>,
     data_dir: &std::path::Path,
+    http: &reqwest::Client,
 ) {
-    let Some((idx, url, id)) = pending.next() else {
+    let Some(job) = pending.next() else {
         return;
     };
     let data_dir = data_dir.to_path_buf();
+    let http = http.clone();
     set.spawn(async move {
-        let path = fetch_image(image_http(), Some(&url), None, Some(&id), &data_dir)
-            .await
-            .ok()
-            .flatten();
-        (idx, path)
+        let path = fetch_image(
+            &http,
+            Some(&job.url),
+            job.thumb.as_deref(),
+            Some(&job.image_id),
+            &data_dir,
+        )
+        .await
+        .ok()
+        .flatten();
+        (job, path)
     });
 }
 
+#[derive(Debug)]
 pub(super) enum ImageError {
     Http(u16),
     Timeout,
@@ -163,9 +164,20 @@ pub(super) async fn fetch_image(
                             last_err = Some(e);
                             break;
                         }
+                        Some(code) if code >= 500 => {
+                            if attempt < IMAGE_RETRIES {
+                                tokio::time::sleep(Duration::from_millis(
+                                    IMAGE_BACKOFF_MS * attempt as u64,
+                                ))
+                                .await;
+                                continue;
+                            }
+                            tauri_plugin_log::log::warn!("图片下载失败 {target}：HTTP {code}");
+                            return Err(ImageError::Http(code));
+                        }
                         Some(code) => {
                             tauri_plugin_log::log::warn!("图片下载失败 {target}：HTTP {code}");
-                            return Err(e);
+                            return Err(ImageError::Http(code));
                         }
                         None => {
                             if attempt < IMAGE_RETRIES {
@@ -215,7 +227,168 @@ fn transport_error(e: &reqwest::Error) -> ImageError {
 
 #[cfg(test)]
 mod tests {
-    use super::download_candidates;
+    use super::*;
+    use crate::tasks::Progress;
+    use crate::vndb::ImageKind;
+    use axum::http::StatusCode;
+    use axum::routing::get;
+    use axum::Router;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    struct Silent;
+
+    impl Progress for Silent {
+        fn report(&self, _phase: &str, _done: Option<i64>, _total: Option<i64>) {}
+        fn report_error(&self, _phase: &str, _message: &str) {}
+        fn cancelled(&self) -> bool {
+            false
+        }
+    }
+
+    fn client() -> reqwest::Client {
+        reqwest::Client::builder().no_proxy().build().unwrap()
+    }
+
+    async fn serve(app: Router) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let _ = axum::serve(listener, app).await;
+        });
+        format!("http://{addr}")
+    }
+
+    fn job(base: &str, id: &str) -> ImageJob {
+        ImageJob {
+            game_id: "g1".to_owned(),
+            kind: ImageKind::Cover,
+            image_id: id.to_owned(),
+            url: format!("{base}/{id}.jpg"),
+            thumb: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn 图片池并发下载而不是逐张等待() {
+        let live = Arc::new(AtomicUsize::new(0));
+        let peak = Arc::new(AtomicUsize::new(0));
+        let (live_in, peak_in) = (live.clone(), peak.clone());
+        let app = Router::new().route(
+            "/{name}",
+            get(move || {
+                let (live, peak) = (live_in.clone(), peak_in.clone());
+                async move {
+                    let now = live.fetch_add(1, Ordering::SeqCst) + 1;
+                    peak.fetch_max(now, Ordering::SeqCst);
+                    tokio::time::sleep(Duration::from_millis(150)).await;
+                    live.fetch_sub(1, Ordering::SeqCst);
+                    vec![9u8; 16]
+                }
+            }),
+        );
+        let base = serve(app).await;
+        let dir = tempfile::tempdir().unwrap();
+        let jobs: Vec<ImageJob> = (0..16).map(|i| job(&base, &format!("i{i}"))).collect();
+
+        let out = download_images(&client(), jobs, 16, dir.path(), &Silent)
+            .await
+            .unwrap();
+
+        assert_eq!(out.len(), 16);
+        assert!(out.iter().all(|(_, path)| path.is_some()));
+        let peak = peak.load(Ordering::SeqCst);
+        assert!(peak >= 8, "16 张应同时在途，实际峰值 {peak}");
+    }
+
+    #[tokio::test]
+    async fn 缩略图不存在时回退原图() {
+        let app = Router::new()
+            .route("/cv.t01.jpg", get(|| async { StatusCode::NOT_FOUND }))
+            .route("/cv01.jpg", get(|| async { vec![7u8; 24] }));
+        let base = serve(app).await;
+        let dir = tempfile::tempdir().unwrap();
+
+        let path = fetch_image(
+            &client(),
+            Some(&format!("{base}/cv01.jpg")),
+            Some(&format!("{base}/cv.t01.jpg")),
+            Some("cv1"),
+            dir.path(),
+        )
+        .await
+        .unwrap()
+        .expect("回退原图后应落盘");
+
+        assert_eq!(std::fs::read(path).unwrap(), vec![7u8; 24]);
+    }
+
+    #[tokio::test]
+    async fn 服务端临时错误会重试到成功() {
+        let hits = Arc::new(AtomicUsize::new(0));
+        let counter = hits.clone();
+        let app = Router::new().route(
+            "/ch01.jpg",
+            get(move || {
+                let counter = counter.clone();
+                async move {
+                    let n = counter.fetch_add(1, Ordering::SeqCst);
+                    if n < 2 {
+                        (StatusCode::BAD_GATEWAY, Vec::new())
+                    } else {
+                        (StatusCode::OK, vec![1u8; 8])
+                    }
+                }
+            }),
+        );
+        let base = serve(app).await;
+        let dir = tempfile::tempdir().unwrap();
+
+        let path = fetch_image(
+            &client(),
+            Some(&format!("{base}/ch01.jpg")),
+            None,
+            Some("ch1"),
+            dir.path(),
+        )
+        .await
+        .unwrap()
+        .expect("第三次应成功");
+
+        assert_eq!(hits.load(Ordering::SeqCst), 3);
+        assert_eq!(std::fs::read(path).unwrap(), vec![1u8; 8]);
+    }
+
+    #[tokio::test]
+    async fn 本地已有同名文件时直接复用不再发请求() {
+        let app = Router::new()
+            .route("/cv.t01.jpg", get(|| async { StatusCode::NOT_FOUND }))
+            .route("/cv01.jpg", get(|| async { vec![3u8; 12] }));
+        let base = serve(app).await;
+        let dir = tempfile::tempdir().unwrap();
+
+        let first = fetch_image(
+            &client(),
+            Some(&format!("{base}/cv01.jpg")),
+            Some(&format!("{base}/cv.t01.jpg")),
+            Some("cv9"),
+            dir.path(),
+        )
+        .await
+        .unwrap();
+        assert!(first.is_some());
+
+        let again = fetch_image(
+            &client(),
+            Some("http://127.0.0.1:1/never.jpg"),
+            None,
+            Some("cv9"),
+            dir.path(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(again, first, "本地已有同名文件时直接复用，不再发请求");
+    }
 
     #[test]
     fn thumbnail_comes_first() {

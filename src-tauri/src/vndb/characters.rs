@@ -1,40 +1,47 @@
 use std::collections::HashMap;
 
 use super::dto::{CharRow, CharVn, VnVa};
-use super::images::download_character_images;
-use crate::error::Result;
-use crate::tasks::Progress;
 use crate::types::{CharacterVa, GameCharacter};
 
 const SYNCED_ROLES: [&str; 2] = ["main", "primary"];
 
-pub fn role_of(vns: Option<&[CharVn]>) -> Option<&str> {
+pub(super) struct CharacterImage {
+    pub character_id: String,
+    pub image_id: String,
+    pub url: String,
+}
+
+pub fn role_in<'a>(vns: Option<&'a [CharVn]>, vn_id: &str) -> Option<&'a str> {
     vns.and_then(|list| {
         list.iter()
+            .filter(|v| v.id.as_deref() == Some(vn_id))
             .find_map(|v| v.role.as_deref().filter(|role| SYNCED_ROLES.contains(role)))
     })
 }
 
-pub(super) async fn map_characters(
+pub(super) fn map_characters(
     rows: Vec<CharRow>,
     va: &[VnVa],
-    data_dir: &std::path::Path,
-    progress: &dyn Progress,
-) -> Result<Vec<GameCharacter>> {
+    vn_id: &str,
+) -> (Vec<GameCharacter>, Vec<CharacterImage>) {
     let va_by_character = index_va(va);
     let mut out = Vec::with_capacity(rows.len());
-    let mut jobs = Vec::new();
+    let mut images = Vec::new();
     for row in rows {
-        let Some(role) = role_of(row.vns.as_deref()).map(str::to_owned) else {
+        let Some(role) = role_in(row.vns.as_deref(), vn_id).map(str::to_owned) else {
             continue;
         };
         if let Some((Some(url), Some(id))) = row.image.as_ref().map(|i| (&i.url, &i.id)) {
-            jobs.push((out.len(), url.clone(), id.clone()));
+            images.push(CharacterImage {
+                character_id: row.id.clone(),
+                image_id: id.clone(),
+                url: url.clone(),
+            });
         }
         let entry = va_by_character.get(&row.id).map(Vec::as_slice);
         out.push(to_game_character(row, role, entry));
     }
-    download_character_images(out, jobs, data_dir, progress).await
+    (out, images)
 }
 
 type VaIndex = HashMap<String, Vec<CharacterVa>>;
@@ -126,6 +133,7 @@ mod tests {
                 roles
                     .into_iter()
                     .map(|r| CharVn {
+                        id: Some("v1".into()),
                         role: Some(r.to_owned()),
                     })
                     .collect(),
@@ -177,10 +185,30 @@ mod tests {
         ] {
             let shown = format!("{roles:?}");
             let r = row("c1", vec![], roles);
-            assert_eq!(role_of(r.vns.as_deref()), expected, "{shown}");
+            assert_eq!(role_in(r.vns.as_deref(), "v1"), expected, "{shown}");
         }
-        assert_eq!(role_of(None), None);
-        assert_eq!(role_of(Some(&[])), None);
+        assert_eq!(role_in(None, "v1"), None);
+        assert_eq!(role_in(Some(&[]), "v1"), None);
+    }
+
+    #[test]
+    fn role只看当前作品的档位() {
+        let r = CharRow {
+            id: "c1".into(),
+            vns: Some(vec![
+                CharVn {
+                    id: Some("v1".into()),
+                    role: Some("side".into()),
+                },
+                CharVn {
+                    id: Some("v2".into()),
+                    role: Some("main".into()),
+                },
+            ]),
+            ..CharRow::default()
+        };
+        assert_eq!(role_in(r.vns.as_deref(), "v1"), None);
+        assert_eq!(role_in(r.vns.as_deref(), "v2"), Some("main"));
     }
 
     #[test]

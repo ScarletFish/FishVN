@@ -37,6 +37,10 @@
   const total = $derived(status?.total ?? 0);
   const done = $derived(status?.done ?? 0);
   const ratio = $derived(total > 0 ? Math.min(1, done / total) : 0);
+  const stage = $derived(status?.stage ?? '');
+  const imagesDone = $derived(status?.images_done ?? 0);
+  const imagesTotal = $derived(status?.images_total ?? 0);
+  const imagesRatio = $derived(imagesTotal > 0 ? Math.min(1, imagesDone / imagesTotal) : 0);
   const activeItem = $derived(rows.find((it) => it.state === 'active') ?? null);
 
   const FILTERS = [
@@ -122,11 +126,14 @@
       await api.cancelTask('vndb-backfill');
       await reloadBackfill();
     } catch (e) {
-      toast(e.message, 'error');
-    } finally {
       stopping = false;
+      toast(e.message, 'error');
     }
   }
+
+  $effect(() => {
+    if (!running) stopping = false;
+  });
 
   async function retryFailed() {
     const ids = rows
@@ -232,6 +239,8 @@
             {t('backfillPage.rateLimited')}
           {:else if stopping}
             {t('backfillPage.stopping')}
+          {:else if stage === 'images'}
+            {t('backfillPage.imagesRunning', { done: imagesDone, total: imagesTotal })}
           {:else}
             {t('backfillPage.running', { done, total })}
           {/if}
@@ -243,8 +252,15 @@
           <span class="bf-running__tag">{t('backfillPage.paused')}</span>
         {/if}
       </div>
-      <div class="bf-progress" role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
-        <span class="bf-progress__bar" style:width={`${ratio * 100}%`}></span>
+      <div
+        class="bf-progress"
+        role="progressbar"
+        aria-valuenow={Math.round((stage === 'images' ? imagesRatio : ratio) * 100)}
+      >
+        <span
+          class="bf-progress__bar"
+          style:width={`${(stage === 'images' ? imagesRatio : ratio) * 100}%`}
+        ></span>
       </div>
     </div>
   {/if}
