@@ -20,6 +20,7 @@
   import SelectDd from './SelectDd.svelte';
   import TagField from './TagField.svelte';
   import { traitLabel, getTraitDict } from '../lib/tag-label.svelte.js';
+  import { staffDisplay, staffOriginal } from '../lib/staff-label.js';
   import { isValidBirthday } from '../lib/form-metadata.js';
 
   let { characters = $bindable([]), disabled = false, onTraitBrowse, selectedId = $bindable(null) } = $props();
@@ -289,16 +290,8 @@
     }
   });
 
-  function staffLabelOf(s) {
-    return s?.display_name || s?.name || '';
-  }
-
-  function staffOriginalOf(s) {
-    return s?.display_original || s?.original || '';
-  }
-
   function staffHay(s) {
-    return [s.display_name, s.name, s.display_original, s.original]
+    return [staffDisplay(s), s.name, staffOriginal(s), s.original]
       .filter(Boolean)
       .join('\n')
       .toLowerCase();
@@ -351,7 +344,7 @@
     const value = vaDraft.trim();
     if (!value || selectedIndex < 0) return;
     const hit = staffOptions.find((s) =>
-      [s.display_name, s.name, s.display_original, s.original].some(
+      [staffDisplay(s), s.name, staffOriginal(s), s.original].some(
         (n) => (n ?? '').trim().toLowerCase() === value.toLowerCase(),
       ),
     );
@@ -359,8 +352,8 @@
       pushVa({
         key: newLocalId(),
         staffId: hit.id,
-        name: staffLabelOf(hit) || value,
-        original: staffOriginalOf(hit),
+        name: staffDisplay(hit) || value,
+        original: staffOriginal(hit),
         note: '',
       });
       return;
@@ -372,8 +365,8 @@
     pushVa({
       key: newLocalId(),
       staffId: s.id,
-      name: staffLabelOf(s),
-      original: staffOriginalOf(s),
+      name: staffDisplay(s),
+      original: staffOriginal(s),
       note: '',
     });
   }
@@ -385,8 +378,8 @@
     if (!entry) return;
     vaEditingKey = key;
     const staff = staffOptions.find((s) => s.id === entry.staffId) ?? null;
-    vaNameDraft = staffLabelOf(staff) || entry.name || '';
-    vaOriginalDraft = staffOriginalOf(staff) || entry.original || '';
+    vaNameDraft = staffDisplay(staff) || entry.name || '';
+    vaOriginalDraft = staffOriginal(staff) || entry.original || '';
     vaMergeQuery = '';
   }
 
@@ -406,8 +399,8 @@
       });
       staffOptions = staffOptions.map((s) => (s.id === updated.id ? updated : s));
       patchVa(editingVa.key, {
-        name: updated.display_name || vaNameDraft.trim(),
-        original: updated.display_original || '',
+        name: updated.displayName || vaNameDraft.trim(),
+        original: updated.displayOriginal || '',
       });
     } finally {
       vaBusy = false;
@@ -427,8 +420,8 @@
         .map((s) => (s.id === updated.id ? updated : s));
       patchVa(editingVa.key, {
         staffId: updated.id,
-        name: updated.display_name || '',
-        original: updated.display_original || '',
+        name: updated.displayName || '',
+        original: updated.displayOriginal || '',
       });
       closeVaEdit();
     } finally {
@@ -874,7 +867,7 @@
                   onmousedown={(e) => e.preventDefault()}
                   onclick={() => pickVaSuggestion(suggestion)}
                 >
-                  {staffLabelOf(suggestion)}{#if staffOriginalOf(suggestion)}<span class="va-suggest__orig">（{staffOriginalOf(suggestion)}）</span>{/if}
+                  {staffDisplay(suggestion)}{#if staffOriginal(suggestion)}<span class="va-suggest__orig">（{staffOriginal(suggestion)}）</span>{/if}
                   <span class="tag-pill__count">×{suggestion.roles}</span>
                 </button>
               {/each}
@@ -953,7 +946,7 @@
                       onclick={() => mergeVaInto(target)}
                       disabled={disabled || vaBusy}
                     >
-                      {staffLabelOf(target)}
+                      {staffDisplay(target)}
                       <span class="tag-pill__count">×{target.roles}</span>
                     </button>
                   {/each}
