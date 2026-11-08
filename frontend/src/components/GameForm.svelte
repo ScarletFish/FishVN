@@ -153,7 +153,7 @@
 
   function selectTab(next) {
     tab = next;
-    asideOpen = false;
+    if (asideMode !== 'search') asideOpen = false;
   }
 
   function formSnapshot() {
@@ -219,63 +219,65 @@
   }
 
   $effect(() => {
-    if (!open || saving) return;
-    baseline = '';
-    name = '';
-    vndbId = null;
-    status = DEFAULT_STATUS;
-    userRating = null;
-    userRatingDraft = '';
-    playSeconds = 0;
-    playSecondsLoaded = 0;
-    notes = '';
-    submitAttempted = false;
-    touched = {};
-    released = '';
-    alias = '';
-    rating = '';
-    votecount = '';
-    lengthMinutes = '';
-    description = '';
-    developers = '';
-    tags = [];
-    staff = [];
-    coverPath = '';
-    coverFocalX = 50;
-    coverFocalY = 50;
-    ambiencePath = '';
-    ambienceMode = 'soft';
-    ambiencePlate = false;
-    ambienceFocalX = BANNER_FOCAL.x;
-    ambienceFocalY = BANNER_FOCAL.y;
-    tagDraft = '';
-    characters = [];
-    installations = [];
-    defaultInstallKey = null;
-    tab = initialTab;
-    statusOpen = false;
-    staffRoleOpen = null;
-    asideOpen = false;
-    asideMode = 'search';
-    selectedCharId = null;
-    mergeOpen = false;
-    flow.reset();
-    search.reset();
-    loading = Boolean(gameId);
-    loadTagDict();
-    loadLibraryTags();
-    if (gameId) {
-      loadExisting(gameId);
-    } else if (prefill) {
-      name = prefill.name;
-      const drafts = prefill.installations.map(toInstallationDraft);
-      installations = drafts;
-      defaultInstallKey = drafts[0]?.key ?? null;
-      baseline = untrack(formSnapshot);
-    } else {
-      baseline = untrack(formSnapshot);
-    }
-    tick().then(() => input?.focus());
+    if (!open) return;
+    untrack(() => {
+      baseline = '';
+      name = '';
+      vndbId = null;
+      status = DEFAULT_STATUS;
+      userRating = null;
+      userRatingDraft = '';
+      playSeconds = 0;
+      playSecondsLoaded = 0;
+      notes = '';
+      submitAttempted = false;
+      touched = {};
+      released = '';
+      alias = '';
+      rating = '';
+      votecount = '';
+      lengthMinutes = '';
+      description = '';
+      developers = '';
+      tags = [];
+      staff = [];
+      coverPath = '';
+      coverFocalX = 50;
+      coverFocalY = 50;
+      ambiencePath = '';
+      ambienceMode = 'soft';
+      ambiencePlate = false;
+      ambienceFocalX = BANNER_FOCAL.x;
+      ambienceFocalY = BANNER_FOCAL.y;
+      tagDraft = '';
+      characters = [];
+      installations = [];
+      defaultInstallKey = null;
+      tab = initialTab;
+      statusOpen = false;
+      staffRoleOpen = null;
+      asideOpen = false;
+      asideMode = 'search';
+      selectedCharId = null;
+      mergeOpen = false;
+      flow.reset();
+      search.reset();
+      loading = Boolean(gameId);
+      loadTagDict();
+      loadLibraryTags();
+      if (gameId) {
+        loadExisting(gameId);
+      } else if (prefill) {
+        name = prefill.name;
+        const drafts = prefill.installations.map(toInstallationDraft);
+        installations = drafts;
+        defaultInstallKey = drafts[0]?.key ?? null;
+        baseline = untrack(formSnapshot);
+      } else {
+        baseline = untrack(formSnapshot);
+      }
+      tick().then(() => input?.focus());
+    });
   });
 
   async function loadExisting(id) {
