@@ -69,6 +69,8 @@ pub struct Args {
     #[serde(default)]
     pub path: Option<String>,
     #[serde(default)]
+    pub contents: Option<String>,
+    #[serde(default)]
     pub config: Option<Value>,
     #[serde(default)]
     pub characters: Option<Value>,
@@ -213,6 +215,9 @@ handler!(save_installations, |c, a| {
     installations::save_installations(c, a.need(a.game_id.as_ref(), "game_id")?, &entries)
 });
 handler!(get_game_metadata, |c, a| metadata::get(c, a.id()?));
+handler!(write_text_file, |_c, a| {
+    commands::write_text_file_impl(a.need(a.path.as_ref(), "path")?, a.need(a.contents.as_ref(), "contents")?)
+});
 handler!(update_game_metadata, |c, a| {
     metadata::upsert(c, a.id()?, &a.parse(a.patch.as_ref(), "patch")?)
 });
@@ -602,6 +607,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/dashboard_playtime_top", post(dashboard_playtime_top))
         .route("/dashboard_release_eras", post(dashboard_release_eras))
         .route("/get_game", post(get_game))
+        .route("/write_text_file", post(write_text_file))
         .route("/create_game", post(create_game))
         .route("/update_game", post(update_game))
         .route("/delete_game", post(delete_game))

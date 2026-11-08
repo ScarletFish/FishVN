@@ -516,6 +516,7 @@ pub fn query_characters(conn: &Connection, spec: QuerySpec) -> Result<Vec<Charac
                     } else {
                         Some(c.gender.clone())
                     },
+                    traits: Some(visible_traits(c, threshold).cloned().collect()),
                 });
             }
         }

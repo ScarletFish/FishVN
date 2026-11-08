@@ -8,9 +8,10 @@ let traits = $state({});
 let pending = null;
 
 const labelOf = (table, item) => {
-  const id = item?.id;
-  const hit = id && table[id];
+  const id = typeof item === 'string' ? item : item?.id;
+  const hit = id ? table[id] : null;
   if (hit) return typeof hit === 'string' ? hit : hit.name;
+  if (typeof item === 'string') return item;
   return item?.name || item?.tag || '';
 };
 
@@ -30,6 +31,11 @@ export function loadTagDict() {
 
 export function tagLabel(tag) {
   return labelOf(tags, tag);
+}
+
+export function tagLabelByName(name) {
+  const lib = getLibraryTags().find((t) => (t.tag ?? t.name) === name);
+  return lib ? tagLabel(lib) : tagLabel(name);
 }
 
 export function tagKey(item) {

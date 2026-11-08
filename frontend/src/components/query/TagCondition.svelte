@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { t } from '../../lib/i18n.js';
   import { toTagItems, loadLibraryTags, getLibraryTags } from '../../lib/library-tags.svelte.js';
-  import { allTagItems, loadTagDict, tagLabel } from '../../lib/tag-label.svelte.js';
+  import { allTagItems, loadTagDict, tagLabelByName } from '../../lib/tag-label.svelte.js';
   import { TAG_GROUP_ORDER } from '../../lib/tag-order.svelte.js';
   import Modal from '../Modal.svelte';
   import TagPicker from '../game-form/TagPicker.svelte';
@@ -54,11 +54,6 @@
   function removeGroup(i) {
     if (tags.groups.length > 1) tags.groups.splice(i, 1);
   }
-
-  const labelOf = (name) => {
-    const lib = getLibraryTags().find((t) => (t.tag ?? t.name) === name);
-    return lib ? tagLabel(lib) : name;
-  };
 </script>
 
 <div class="tag-cond">
@@ -103,7 +98,7 @@
             class="tag-cond__chip"
             data-tooltip={t('query.remove')}
             onclick={() => removeFrom(group, i)}
-          >{labelOf(name)}<span class="tag-cond__chip-x">×</span></button>
+          >{tagLabelByName(name)}<span class="tag-cond__chip-x">×</span></button>
         {/each}
         <button type="button" class="tag-cond__add" onclick={() => openPicker(gi)}>
           {t('query.pickTag')}
@@ -127,7 +122,7 @@
           class="tag-cond__chip is-danger"
           data-tooltip={t('query.remove')}
           onclick={() => removeFrom(tags.exclude, i)}
-        >{labelOf(name)}<span class="tag-cond__chip-x">×</span></button>
+        >{tagLabelByName(name)}<span class="tag-cond__chip-x">×</span></button>
       {/each}
       <button type="button" class="tag-cond__add" onclick={() => openPicker('exclude')}>
         {t('query.pickTag')}

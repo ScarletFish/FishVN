@@ -27,7 +27,12 @@ const LIST_GAMES_SQL: &str = "SELECT g.id, g.name, g.vndb_id, g.created_at,
                 (SELECT GROUP_CONCAT(DISTINCT TRIM(s.name || ' ' || COALESCE(s.original, '')))
                  FROM character_va cv
                  JOIN staffs s ON s.id = cv.staff_id
-                 WHERE cv.game_id = g.id AND s.name IS NOT NULL) AS va_names
+                 WHERE cv.game_id = g.id AND s.name IS NOT NULL) AS va_names,
+                (SELECT GROUP_CONCAT(DISTINCT TRIM(COALESCE(NULLIF(s.original, ''), s.name)))
+                 FROM character_va cv
+                 JOIN staffs s ON s.id = cv.staff_id
+                 WHERE cv.game_id = g.id
+                   AND TRIM(COALESCE(NULLIF(s.original, ''), s.name, '')) <> '') AS va_original_names
          FROM games g
          JOIN user_game_state s ON s.game_id = g.id
          LEFT JOIN installations i ON i.game_id = g.id
@@ -53,6 +58,7 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
             cover_focal_x: row.get("cover_focal_x")?,
             cover_focal_y: row.get("cover_focal_y")?,
             va_names: row.get("va_names")?,
+            va_original_names: row.get("va_original_names")?,
             tag_names: None,
         })
     })?;

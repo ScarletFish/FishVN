@@ -35,6 +35,8 @@ export const DICT_ZH = {
     subjectChar: '角色',
     matchCount: '部符合',
     matchCountChar: '名角色符合',
+    export: '导出筛选结果',
+    exportHint: '将当前筛选命中的条目导出为 Markdown 文件',
     sort: '排序',
     sortVndb: 'VNDB 评分',
     sortUser: '我的评分',

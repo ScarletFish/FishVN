@@ -94,4 +94,5 @@ export const api = {
   listBackups: () => call('list_backups'),
   restoreBackup: (id) => call('restore_backup', { id }),
   deleteBackup: (id) => call('delete_backup', { id }),
+  writeTextFile: (path, contents) => call('write_text_file', { path, contents }),
 };

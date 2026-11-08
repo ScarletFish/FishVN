@@ -145,6 +145,7 @@ pub struct GameListItem {
     pub cover_focal_x: Option<i64>,
     pub cover_focal_y: Option<i64>,
     pub va_names: Option<String>,
+    pub va_original_names: Option<String>,
     pub tag_names: Option<String>,
 }
 
@@ -282,6 +283,7 @@ pub struct CharacterHit {
     pub original: Option<String>,
     pub role: Option<String>,
     pub gender: Option<Vec<String>>,
+    pub traits: Option<Vec<CharacterTrait>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

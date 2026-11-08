@@ -25,8 +25,6 @@ if (isTauri) {
     () => {
       clearTimeout(readyTimeout);
       splash?.ready();
-      const bootLabel = window.__reloaded === true ? '重载' : '启动';
-      report('info', `${bootLabel}：列表就绪 ${Math.round(performance.now())}ms`);
     },
     { once: true }
   );

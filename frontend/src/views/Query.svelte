@@ -21,6 +21,13 @@
   import VaCondition from '../components/query/VaCondition.svelte';
   import DateRangeField from '../components/query/DateRangeField.svelte';
   import NumberStepper from '../components/query/NumberStepper.svelte';
+  import { save } from '@tauri-apps/plugin-dialog';
+  import { toast } from '../lib/toast.svelte.js';
+  import { buildQueryMarkdown } from '../lib/query-export.js';
+  import { loadTagDict } from '../lib/tag-label.svelte.js';
+  import { loadLibraryTags } from '../lib/library-tags.svelte.js';
+  import { loadLibraryTraits } from '../lib/library-traits.svelte.js';
+  import { staffLabel } from '../lib/staff-label.js';
 
   let { onopen, scroll = 0 } = $props();
 
@@ -85,6 +92,42 @@
     return list;
   });
 
+  async function exportResults() {
+    if (sorted.length === 0) return;
+    if (queryStore.lastJson[queryStore.resultsSubject] !== JSON.stringify(spec)) {
+      toast('筛选结果正在更新，请稍候再导出');
+      return;
+    }
+    try {
+      const [staff] = await Promise.all([
+        api.listStaff().catch(() => []),
+        loadTagDict(),
+        loadLibraryTags(),
+        loadLibraryTraits(),
+      ]);
+      const staffById = new Map((staff ?? []).map((s) => [s.id, s]));
+      const md = buildQueryMarkdown({
+        subject: queryStore.resultsSubject,
+        ui: queryStore.ui,
+        rows: sorted,
+        labels: { va: (id) => staffLabel(staffById.get(id)) },
+      });
+      const now = new Date();
+      const p = (n) => String(n).padStart(2, '0');
+      const stamp = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}`;
+      const path = await save({
+        defaultPath: `fishvn-query-${queryStore.resultsSubject}-${stamp}.md`,
+        filters: [{ name: 'Markdown', extensions: ['md'] }],
+      });
+      if (!path) return;
+      await api.writeTextFile(path, md);
+      toast(`已导出 ${sorted.length} 条到 ${path}`);
+    } catch (e) {
+      report('warn', `导出筛选结果失败：${e}`);
+      toast('导出失败，详见日志', 'error');
+    }
+  }
+
   $effect(() => {
     const s = spec;
     untrack(() => {
@@ -111,18 +154,10 @@
 
   onMount(() => {
     unwatch = onLibraryItemsThrottled(reload);
-    const subject = queryStore.ui.subject;
-    const cached = queryStore.resultsCache[subject]?.length ?? 0;
-    report('info', `筛选页挂载：${subject}，条件${active ? '已设' : '未设'}，缓存 ${cached} 行`);
   });
 
   onDestroy(() => {
     unwatch?.();
-    const s = runner.stats();
-    report(
-      'info',
-      `筛选页卸载：推送重载 ${s.reloads} 次，查询共 ${s.queries} 次，生效 ${s.applied}，作废 ${s.dropped}，失败 ${s.failed}`,
-    );
   });
 
   function reload() {
@@ -404,7 +439,16 @@
         <span class="query-count">
           <b>{sorted.length}</b>{shownIsChar ? t('query.matchCountChar') : t('query.matchCount')}
         </span>
-        <SortSelect options={SORT_OPTIONS} bind:value={queryStore.sortBy} />
+        <div class="query-toolbar__right">
+          <SortSelect options={SORT_OPTIONS} bind:value={queryStore.sortBy} />
+          <button
+            type="button"
+            class="btn btn-sm btn-primary"
+            onclick={exportResults}
+            disabled={sorted.length === 0}
+            data-tooltip={t('query.exportHint')}
+          >{t('query.export')}</button>
+        </div>
       </div>
 
       {#if loading}

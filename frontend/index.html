@@ -136,8 +136,6 @@
         // SPLASH_AFTER 高于打包版列表就绪时间（本机 160ms 内），就绪更快时窗口直接带内容。
         const SPLASH_AFTER = 250;
         const MIN_VISIBLE = 300;
-        const now = () => Math.round(performance.now());
-        const parsedAt = now();
         const report = (level, message) =>
           internals.invoke('log_frontend', { level, message }).catch(() => {});
 
@@ -155,12 +153,6 @@
           if (reloaded) return;
           internals
             .invoke('plugin:window|show', { label: internals.metadata.currentWindow.label })
-            .then(() =>
-              report(
-                'info',
-                `启动：窗口 show 返回 ${now()}ms（解析 ${parsedAt}ms，${withSplash ? '带加载页' : '直接进内容'}）`
-              )
-            )
             .catch((e) => report('warn', `启动：窗口 show 失败 ${e}`));
         }
 

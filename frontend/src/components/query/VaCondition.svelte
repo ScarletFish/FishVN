@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { t } from '../../lib/i18n.js';
   import { api } from '../../lib/api.js';
+  import { staffLabel } from '../../lib/staff-label.js';
   import Modal from '../Modal.svelte';
   import TagPicker from '../game-form/TagPicker.svelte';
 
@@ -17,12 +18,6 @@
       staff = [];
     }
   });
-
-  function staffLabel(s) {
-    const base = s.displayName || s.name || s.original || s.id;
-    const orig = s.displayOriginal || s.original;
-    return orig && orig !== base ? `${base}（${orig}）` : base;
-  }
 
   function labelOf(id) {
     const hit = staff.find((s) => s.id === id);

@@ -219,6 +219,7 @@ fn main() {
             commands::update_installation,
             commands::delete_installation,
             commands::save_installations,
+            commands::write_text_file,
             commands::launch_game,
             commands::list_active_sessions,
             commands::game_play_log,

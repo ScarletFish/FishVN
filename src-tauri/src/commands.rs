@@ -211,6 +211,22 @@ pub fn save_installations(
 }
 
 #[tauri::command]
+pub fn write_text_file(path: String, contents: String) -> Result<()> {
+    write_text_file_impl(&path, &contents)
+}
+
+pub fn write_text_file_impl(path: &str, contents: &str) -> Result<()> {
+    let p = Path::new(path);
+    if let Some(parent) = p.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent).map_err(AppError::Io)?;
+        }
+    }
+    std::fs::write(path, contents).map_err(AppError::Io)?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn launch_game(shared: Shared<'_>, id: String, app: tauri::AppHandle) -> Result<PlaySession> {
     traced("launch_game", || {
         sessions::launch(shared.inner().clone(), &id, Some(app))
