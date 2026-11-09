@@ -31,7 +31,7 @@
 
 署名义务由 `src-tauri/resources/vndb/ATTRIBUTION.md` 承载，须随应用分发。
 
-引用写双引：**PotatoVN**（`GoldenPotato137/PotatoVN`，直接来源）与 **greasyfork 445990 VNDBTranslatorLib**（上游源头）。作者署名留待发包前核定。
+引用写双引：**PotatoVN**（`GoldenPotato137/PotatoVN`，直接来源）与 **greasyfork 445990 VNDBTranslatorLib_**（上游源头，作者 `rui li 2`）。
 
 ## 维护
 

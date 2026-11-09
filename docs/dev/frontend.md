@@ -1,9 +1,5 @@
 # 前端开发规范 — Frontend
 
-## 视觉参照
-
-组件的类名、布局、动效与交互对齐 MyAnimeDocker 的实现。不过token采用我们项目的写法。参照之前先查 [visual-ref.md](./visual-ref.md) 里的 token 对照表与语法翻译表。
-
 ## 样式的三种形态
 
 1. **Token**（`css/tokens.css`）— 颜色/间距/圆角/字体的唯一来源
@@ -27,13 +23,27 @@
 - **组件禁止直连 L1 原始值**，只能引用 L2/L3
 - **阴影与过渡只从 L2/L3 取**，不在组件里写死；要半透明色用 `color-mix(in srgb, var(--accent) 12%, transparent)`，不新增 `-rgb` 三元组
 
-## "先找后写"三步协议
+## "先找后写"
 
-新增任何 CSS 前：
+新增 CSS、lib 函数、组件或 store 前，先按要写的东西查现成资产：
 
-1. 查 `tokens.css` 有没有现成 token
-2. 查 `components/` 有没有现成类
-3. 都没有才新写，写进正确归属文件
+| 要写什么 | 先查 |
+|---|---|
+| 色值、间距、字号、阴影、过渡 | `css/tokens.css` |
+| CSS 类与同形控件 | `css/components/`、`css/views/`、`components/` |
+| 格式化、校验、映射、状态归约 | `lib/`（`format.js`、`form-metadata.js`、`playtime.js`、`*-state.js`）与 `libs.md` |
+| 弹窗、下拉、输入组、进度反馈 | `components/` 与 `components.md` |
+| 跨视图状态、事件订阅 | `lib/*.svelte.js` 与 `libs.md`「事件与刷新」 |
+
+命中就按下节判据办；都没命中才新写，落进「样式的三种形态」或 `libs.md` 对应的归属。
+
+## 重复时是否抽象
+
+同一段逻辑第二次出现时才判，判据一句话：**改一处，另一处会不会跟着错**。
+
+- **会** —— 同一份事实（字段集合、枚举顺序、格式化口径、事件载荷）或同一套交互形态：合并进已有模块，差异用 prop / 变体表达；已有模块语义不合就扩展它，并把新场景补进 `libs.md` / `components.md`。
+- **不会** —— 只是碰巧相似（两处都 `toFixed`、都要短标签，但口径与消费方不同）：各写各的，不抽公共函数。
+- **只有一处用** —— 留在原地，不为「以后可能复用」预抽（YAGNI）。
 
 ## 自动检查
 
@@ -70,6 +80,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 ## 新增 UI 组件检查清单
 
 - [ ] 新增与改动的行里没有注释（例外见 comments.md）
+- [ ] 新增函数 / 组件已按「先找后写」查过现成资产，重复处按判据判过
 - [ ] `npm run check:dead-css` 没有输出死类
 - [ ] 往 `docs/dev` 增行前先列条目过目，并按 30 秒判据筛过
 - [ ] 跑过 `npm run check:frontend`
@@ -87,4 +98,3 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 | 样式踩坑记录 | [styles.md](./styles.md) |
 | 界面文案、标签与特征译名 | [i18n.md](./i18n.md) |
 | 卡片宽度、列数与窗口化 | [grid-layout.md](./grid-layout.md) |
-| MyAnimeDocker 的 token 对照 | [visual-ref.md](./visual-ref.md) |

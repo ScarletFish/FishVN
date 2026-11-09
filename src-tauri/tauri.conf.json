@@ -34,6 +34,11 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "resources": {
+      "../LICENSE": "licenses/LICENSE",
+      "resources/vndb/ATTRIBUTION.md": "licenses/ATTRIBUTION.md",
+      "resources/licenses/OFL.txt": "licenses/OFL.txt"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
