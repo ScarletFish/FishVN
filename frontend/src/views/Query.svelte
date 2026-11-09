@@ -348,6 +348,7 @@
 
   <div class="query-body">
     <aside class="query-side" style:width="{sideWidth}px">
+      <div class="query-side__scroll">
       <div class="query-side__group">
         <span class="query-side__group-title">{t('query.groupGame')}</span>
         <span class="query-side__group-sub">
@@ -405,6 +406,7 @@
       {@render dimHeader('gender', t('query.dim.gender'))}
       {@render dimHeader('charname', t('query.dim.charname'))}
 
+      </div>
       <button type="button" class="query-side__clear" disabled={!active} onclick={clearAll}>
         {t('query.clearAll')}
       </button>

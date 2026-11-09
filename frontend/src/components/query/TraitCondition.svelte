@@ -48,6 +48,8 @@
     if (traits.groups.length > 1) traits.groups.splice(i, 1);
   }
 
+  const selectedTraits = $derived([...traits.groups.flat(), ...traits.exclude]);
+
   const pickerItems = $derived(
     traitItems().map((item) => ({ ...item, group: item.group ?? 'uncategorized' })),
   );
@@ -139,6 +141,7 @@
     allItems={pickerItems}
     groupOrder={TRAIT_GROUP_ORDER}
     groupLabel={(g) => t('detail.traitGroups.' + g)}
+    selected={selectedTraits}
     onToggle={toggleItem}
     onClose={() => (pickerOpen = false)}
   />

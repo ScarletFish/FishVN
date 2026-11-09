@@ -48,6 +48,8 @@
   function removeGroup(i) {
     if (tags.groups.length > 1) tags.groups.splice(i, 1);
   }
+
+  const selectedTags = $derived([...tags.groups.flat(), ...tags.exclude]);
 </script>
 
 <div class="tag-cond">
@@ -132,6 +134,7 @@
     allItems={allTagItems()}
     groupOrder={TAG_GROUP_ORDER}
     hiddenGroups={['tech']}
+    selected={selectedTags}
     onToggle={(_key, item) => toggleItem(item)}
     onClose={() => (pickerOpen = false)}
   />

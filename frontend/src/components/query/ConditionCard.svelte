@@ -8,20 +8,18 @@
   <header class="cond-card__head">
     <h3 class="cond-card__title">{title}</h3>
     <span class="cond-card__spacer"></span>
-    {#if filled}
-      <button
-        type="button"
-        class="cond-card__clear"
-        data-tooltip={t('query.clear')}
-        aria-label={t('query.clear')}
-        onclick={() => onclear?.()}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    {/if}
+    <button
+      type="button"
+      class="cond-card__clear"
+      data-tooltip={t('query.clear')}
+      aria-label={t('query.clear')}
+      onclick={() => onclear?.()}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
     <label class="toggle-switch toggle-switch--sm cond-card__switch">
       <input
         type="checkbox"

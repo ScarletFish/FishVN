@@ -3,12 +3,16 @@
 滚动条只有两大族，按容器选其一：
 
 - **OverlayScrollbars 族**（详情页/主区/面板，由 `lib/scrollbars.js` 驱动）：内容区、浮层、分栏统一用它，手柄尺寸与色值走 token，别处不再手写滚动条样式
-- **`.scroll-thin` 族**（小表单/文本，纯 `::-webkit-scrollbar-*`）：只给 textarea、合并面板单元格这类纯文本滚动区
+- **`.scroll-thin` 族**（纯 `::-webkit-scrollbar-*`，悬停揭示的细滚动条）：给「工具型」UI——它要的是随时可操作、指针一进容器就显形，不讲究沉浸
+
+选型看**体验**而非容器形状：沉浸式内容区（主区、详情分栏、库浏览、标签框）走 Overlay；工具型侧栏/面板（如查询页条件栏、纯文本区）优先**隐藏滚动条**——模块本身已清晰分区、无需位置提示，保留滚动但不显形；若确需位置指示，再用 `.scroll-thin` 的悬停揭示细滚动条。
 
 | 容器 | 用法 |
 |---|---|
 | 主滚动区 `.shell__main` | `useScrollbars(el)`，`autoHide: 'never'`，指针进入右边缘时手柄加粗到 12px |
-| 弹窗面板、侧栏、标签框、详情页分栏、搜索下拉 | `use:panelScrollbars`，手柄 8px，指针离开 400ms 后淡出 |
+| 弹窗面板、标签框、详情页分栏、搜索下拉 | `use:panelScrollbars`，手柄 8px，指针离开 400ms 后淡出 |
+| 工具型侧栏/面板（如查询页条件栏） | 隐藏滚动条：原生 `overflow-y: auto` + `scrollbar-width: none` / `::-webkit-scrollbar { display: none }`，保留滚动、不显形 |
+| 需要位置提示的工具型区域 | 类 `.scroll-thin`，原生 `overflow-y: auto`，悬停显形 |
 | textarea、合并面板的单元格文本、任务面板的错误列表 | 类 `.scroll-thin` |
 
 `panelScrollbars` 的宿主写法：
