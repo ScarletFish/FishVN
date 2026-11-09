@@ -449,6 +449,11 @@ pub fn tag_dictionary() -> Result<crate::tagdict::TagDictionary> {
     Ok(crate::tagdict::dictionary())
 }
 
+#[tauri::command]
+pub fn create_local_tag(shared: Shared<'_>, name: String) -> Result<String> {
+    crate::tagstore::create_local_tag(&*lock(&shared)?, &name)
+}
+
 fn data_dir_or_err(app: &tauri::AppHandle) -> Result<PathBuf> {
     crate::data_dir(app).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))
 }

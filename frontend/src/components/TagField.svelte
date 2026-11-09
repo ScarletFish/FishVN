@@ -1,5 +1,6 @@
 <script>
   import { panelScrollbars } from '../lib/scrollbars.js';
+  import { toast } from '../lib/toast.svelte.js';
 
   let {
     items = [],
@@ -19,20 +20,16 @@
     hiddenGroups = [],
     onbrowse,
     duplicateText = '',
-    dupKeyOf,
     disabled = false,
   } = $props();
 
   let listEl = $state(null);
 
-  const dupKeyFn = $derived(dupKeyOf ?? keyOf);
-
   const draftDuplicate = $derived.by(() => {
-    if (!duplicateText || disabled || typeof resolve !== 'function') return false;
-    const value = draft.trim();
+    if (!duplicateText || disabled) return false;
+    const value = draft.trim().toLowerCase();
     if (!value) return false;
-    const key = dupKeyFn(resolve(value));
-    return items.some((item) => dupKeyFn(item) === key);
+    return items.some((item) => String(labelOf(item) ?? '').toLowerCase() === value);
   });
 
   function pulse(key) {
@@ -63,18 +60,28 @@
       .map(([key, list]) => ({ key, items: list }));
   });
 
-  function addItem() {
+  let adding = $state(false);
+
+  async function addItem() {
+    if (adding) return;
     const value = draft.trim();
     if (!value) return;
-    const next = resolve(value);
-    const dupKey = dupKeyFn(next);
-    const existing = items.find((item) => dupKeyFn(item) === dupKey);
-    if (existing) {
-      pulse(keyOf(existing));
-      return;
+    adding = true;
+    try {
+      const next = await resolve(value);
+      const key = keyOf(next);
+      const existing = items.find((item) => keyOf(item) === key);
+      if (existing) {
+        pulse(key);
+        return;
+      }
+      onItemsChange([...items, next]);
+      draft = '';
+    } catch (e) {
+      toast(e?.message ?? String(e), 'error');
+    } finally {
+      adding = false;
     }
-    onItemsChange([...items, next]);
-    draft = '';
   }
 
   function onKeydown(e) {

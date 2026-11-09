@@ -4,6 +4,13 @@ use std::sync::OnceLock;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct TagEntry {
+    pub name: String,
+    pub category: Option<String>,
+    pub vn_count: Option<i64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TraitEntry {
     pub name: String,
     pub group: String,
@@ -11,7 +18,7 @@ pub struct TraitEntry {
 
 #[derive(Debug, Deserialize)]
 struct Dictionary {
-    tags: HashMap<String, String>,
+    tags: HashMap<String, TagEntry>,
     traits: HashMap<String, TraitEntry>,
 }
 
@@ -36,16 +43,16 @@ impl TagGroups {
         if self.excluded.binary_search_by(|e| e.as_str().cmp(id)).is_ok() {
             return TagScope::Hidden;
         }
-        match self.roots.get(id).map(String::as_str) {
-            Some("g22" | "g24" | "g674") => TagScope::Detail,
-            _ => TagScope::Full,
-        }
+        self.roots
+            .get(id)
+            .map(|root| crate::generated::tag_key::scope_of_root(root))
+            .unwrap_or(TagScope::Full)
     }
 }
 
 #[derive(Debug, Serialize)]
 pub struct TagDictionary {
-    pub tags: &'static HashMap<String, String>,
+    pub tags: &'static HashMap<String, TagEntry>,
     pub traits: &'static HashMap<String, TraitEntry>,
     pub tag_groups: &'static TagGroups,
 }
@@ -94,7 +101,7 @@ mod tests {
         };
         check(
             "tags",
-            d.tags.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect(),
+            d.tags.iter().map(|(k, v)| (k.as_str(), v.name.as_str())).collect(),
         );
         check(
             "traits",

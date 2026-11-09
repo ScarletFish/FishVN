@@ -1,25 +1,11 @@
-const ROOT_GROUPS = {
-  g1: 'theme',
-  g20: 'character',
-  g22: 'setting',
-  g24: 'plot',
-  g674: 'style',
-};
+import {
+  TAG_GROUP_ORDER,
+  TAG_ROUND_ROBIN,
+  scopeOfCategory,
+  tagRootCategory,
+} from './generated/tag-key.js';
 
-const SCOPE_OF = {
-  custom: 'full',
-  theme: 'full',
-  character: 'full',
-  setting: 'detail',
-  plot: 'detail',
-  style: 'detail',
-  other: 'full',
-  tech: 'hidden',
-};
-
-const ROUND_ROBIN_ORDER = ['theme', 'plot', 'character', 'setting', 'style'];
-
-export const TAG_GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
+export { TAG_GROUP_ORDER };
 
 export const TRAIT_GROUP_ORDER = [
   'Hair',
@@ -56,13 +42,13 @@ function idOf(tagOrId) {
 
 export function tagCategory(tagOrId) {
   const id = idOf(tagOrId);
-  if (!id) return 'custom';
+  if (!id || id.startsWith('u')) return 'custom';
   if (techIds?.has(id)) return 'tech';
-  return ROOT_GROUPS[roots?.[id]] ?? 'other';
+  return tagRootCategory(roots, id);
 }
 
 export function tagScope(tagOrId) {
-  return SCOPE_OF[tagCategory(tagOrId)];
+  return scopeOfCategory(tagCategory(tagOrId));
 }
 
 export function classifyTags(tags, options = {}) {
@@ -96,7 +82,7 @@ export function classifyTags(tags, options = {}) {
 }
 
 function inPool(tag, pool) {
-  return pool.has(tag.id || tag.name);
+  return pool.has(tag.id);
 }
 
 function order(items) {
@@ -112,13 +98,13 @@ function order(items) {
     tech: [],
   };
   for (const tag of items) groups[tagCategory(tag)].push(tag);
-  for (const key of ROUND_ROBIN_ORDER) {
+  for (const key of TAG_ROUND_ROBIN) {
     groups[key].sort(byRating);
   }
   const out = [...groups.custom];
-  const maxRounds = Math.max(...ROUND_ROBIN_ORDER.map((key) => groups[key].length));
+  const maxRounds = Math.max(...TAG_ROUND_ROBIN.map((key) => groups[key].length));
   for (let round = 0; round < maxRounds; round++) {
-    for (const key of ROUND_ROBIN_ORDER) {
+    for (const key of TAG_ROUND_ROBIN) {
       const bucket = groups[key];
       if (round < bucket.length) out.push(bucket[round]);
     }

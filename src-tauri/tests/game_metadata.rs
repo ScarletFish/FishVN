@@ -143,21 +143,18 @@ fn 作品不存在时两个入口都报_not_found() {
 }
 
 #[test]
-fn 标签带排序键往返不断() {
+fn 标签往返保留关联属性() {
     let db = Db::new();
     let id = new_game(&db, "带标签");
 
     let tags = vec![
         MetadataTag {
-            id: Some("p1".into()),
-            name: "作品".into(),
-            category: Some("cont".into()),
+            id: Some("g96".into()),
+            name: "Romance".into(),
             rating: Some(92.5),
-            vn_count: Some(19334),
-            spoiler: Some(0),
-            lie: Some(false),
+            spoiler: Some(1),
+            ..Default::default()
         },
-        // 用户自己加的标签没有 VNDB 编号，也没有排序键
         MetadataTag {
             name: "重玩向".into(),
             ..Default::default()
@@ -168,29 +165,42 @@ fn 标签带排序键往返不断() {
         &db,
         &id,
         &MetadataPatch {
-            tags: Some(Some(tags.clone())),
+            tags: Some(Some(tags)),
             ..Default::default()
         },
     )
     .unwrap();
 
-    assert_eq!(
-        metadata::get(&db, &id).unwrap().unwrap().tags.unwrap(),
-        tags
-    );
+    let got = metadata::get(&db, &id).unwrap().unwrap().tags.unwrap();
+    assert_eq!(got.len(), 2);
+    assert_eq!(got[0].id.as_deref(), Some("g96"));
+    assert_eq!(got[0].name, "Romance");
+    assert_eq!(got[0].rating, Some(92.5));
+    assert_eq!(got[0].spoiler, Some(1));
+    assert_eq!(got[0].category.as_deref(), Some("cont"));
+    assert!(got[0].vn_count.is_some());
+    assert_eq!(got[1].name, "重玩向");
+    assert!(got[1].id.as_deref().is_some_and(|v| v.starts_with('u')));
 }
 
-/// Option 字段缺键时 serde 补 None，只有 name 是必填的
 #[test]
-fn 标签只给名字能读出来() {
+fn 只给名字的标签分配本地id() {
     let db = Db::new();
     let id = new_game(&db, "作品");
 
-    db.execute(
-        "INSERT INTO game_metadata (game_id, tags) VALUES (?, ?)",
-        rusqlite::params![&id, r#"[{"name":"只有名字"}]"#],
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            tags: Some(Some(vec![MetadataTag {
+                name: "只有名字".into(),
+                ..Default::default()
+            }])),
+            ..Default::default()
+        },
     )
     .unwrap();
+
     let tag = metadata::get(&db, &id)
         .unwrap()
         .unwrap()
@@ -199,16 +209,7 @@ fn 标签只给名字能读出来() {
         .remove(0);
     assert_eq!(tag.name, "只有名字");
     assert_eq!(tag.rating, None);
-
-    db.execute(
-        "UPDATE game_metadata SET tags = ? WHERE game_id = ?",
-        rusqlite::params![r#"[{"category":"cont"}]"#, &id],
-    )
-    .unwrap();
-    assert!(
-        metadata::get(&db, &id).is_err(),
-        "没有 name 的标签该读不出来"
-    );
+    assert_eq!(tag.id.as_deref(), Some("u1"));
 }
 
 #[test]

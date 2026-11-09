@@ -37,6 +37,7 @@ pub struct FieldSpec {
     pub source: ValueSource,
     pub editable: bool,
     pub in_patch: bool,
+    pub joined: bool,
 }
 
 use crate::error::Result;
@@ -125,6 +126,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::System,
         editable: false,
         in_patch: false,
+        joined: false,
     },
     FieldSpec {
         key: "image_id",
@@ -136,6 +138,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::System,
         editable: false,
         in_patch: false,
+        joined: false,
     },
     FieldSpec {
         key: "alias",
@@ -147,6 +150,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "released",
@@ -158,6 +162,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "rating",
@@ -169,6 +174,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "votecount",
@@ -180,6 +186,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "length_minutes",
@@ -191,6 +198,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "description",
@@ -202,6 +210,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "image_path",
@@ -213,6 +222,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "titles",
@@ -224,6 +234,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: false,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "tags",
@@ -235,6 +246,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: true,
     },
     FieldSpec {
         key: "developers",
@@ -246,6 +258,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "staff",
@@ -257,6 +270,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Upstream,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "cover_focal_x",
@@ -268,6 +282,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Local,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "cover_focal_y",
@@ -279,6 +294,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Local,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "ambience_path",
@@ -290,6 +306,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Local,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "ambience_mode",
@@ -301,6 +318,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Local,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "ambience_plate",
@@ -312,6 +330,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Local,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "ambience_focal_x",
@@ -323,6 +342,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Local,
         editable: true,
         in_patch: true,
+        joined: false,
     },
     FieldSpec {
         key: "ambience_focal_y",
@@ -334,6 +354,7 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         source: ValueSource::Local,
         editable: true,
         in_patch: true,
+        joined: false,
     },
 ];
 
@@ -365,7 +386,7 @@ pub fn field(key: &str) -> Option<&'static FieldSpec> {
     METADATA_FIELDS.iter().find(|f| f.key == key)
 }
 
-pub const COLUMNS: &str = "game_id, image_id, alias, released, rating, votecount, length_minutes, description, image_path, titles, tags, developers, staff, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y";
+pub const COLUMNS: &str = "game_id, image_id, alias, released, rating, votecount, length_minutes, description, image_path, titles, developers, staff, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y";
 
 pub const DDL_COLUMNS: &str = r#"          game_id      TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
           image_id     TEXT,
@@ -377,7 +398,6 @@ pub const DDL_COLUMNS: &str = r#"          game_id      TEXT PRIMARY KEY REFEREN
           description  TEXT,
           image_path   TEXT,
           titles       TEXT,
-          tags         TEXT,
           developers   TEXT,
           staff        TEXT,
           cover_focal_x INTEGER NOT NULL DEFAULT 50,
@@ -443,13 +463,6 @@ pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Va
     }
     if let Some(raw) = &patch.titles {
         columns.push("titles");
-        values.push(match raw {
-            Some(v) => Value::Text(serde_json::to_string(v)?),
-            None => Value::Null,
-        });
-    }
-    if let Some(raw) = &patch.tags {
-        columns.push("tags");
         values.push(match raw {
             Some(v) => Value::Text(serde_json::to_string(v)?),
             None => Value::Null,
@@ -525,7 +538,6 @@ pub fn is_blank_current(meta: &GameMetadata, key: &str) -> bool {
         "description" => meta.description.as_deref().is_none_or(|v| v.trim().is_empty()),
         "image_path" => meta.image_path.as_deref().is_none_or(|v| v.trim().is_empty()),
         "titles" => meta.titles.as_ref().is_none_or(|v| v.is_empty()),
-        "tags" => meta.tags.as_ref().is_none_or(|v| v.is_empty()),
         "developers" => meta.developers.as_ref().is_none_or(|v| v.is_empty()),
         "staff" => meta.staff.as_ref().is_none_or(|v| v.is_empty()),
         _ => false,
@@ -543,7 +555,6 @@ pub struct MetaRow {
     pub description: Option<String>,
     pub image_path: Option<String>,
     pub titles: Option<String>,
-    pub tags: Option<String>,
     pub developers: Option<String>,
     pub staff: Option<String>,
     pub cover_focal_x: Option<i64>,
@@ -567,7 +578,6 @@ pub fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MetaRow> {
         description: row.get("description")?,
         image_path: row.get("image_path")?,
         titles: row.get("titles")?,
-        tags: row.get("tags")?,
         developers: row.get("developers")?,
         staff: row.get("staff")?,
         cover_focal_x: row.get("cover_focal_x")?,
@@ -592,7 +602,7 @@ pub fn to_api(row: &MetaRow) -> Result<GameMetadata> {
         description: row.description.clone(),
         image_path: row.image_path.clone(),
         titles: from_json::<Vec<LocalizedTitle>>(&row.titles)?,
-        tags: from_json::<Vec<MetadataTag>>(&row.tags)?,
+        tags: None,
         developers: from_json::<Vec<String>>(&row.developers)?,
         staff: from_json::<Vec<MetadataStaff>>(&row.staff)?,
         cover_focal_x: row.cover_focal_x,

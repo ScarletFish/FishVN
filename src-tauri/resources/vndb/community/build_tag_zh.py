@@ -13,6 +13,7 @@ join 规则（离线一次性换算，社区表只有英文名键，只能按 na
 而官方 dump 中是纯数字，故按前缀规则换算后作为键。
 取值过滤：值为空、或值是不在白名单内的纯英文（社区表未翻译的伪值）则拒收；
 白名单 ASCII_TERMS 内的术语（BDSM、NEET、DJ 等公认可直接用英文的词）允许纯英文值。
+一个中文名可以对应多个 id：身份是 id，译名只是显示，不做去重。
 用法：python build_tag_zh.py（可重复跑，stdlib only）
 """
 import gzip
@@ -85,7 +86,11 @@ def build(items, gap, trans, label, prefix):
             continue
         if all(ord(ch) <= 127 for ch in zh):
             ascii_hit += 1
-        out[f"{prefix}{it['id']}"] = zh
+        out[f"{prefix}{it['id']}"] = {
+            "name": zh,
+            "category": it.get("cat"),
+            "vn_count": it.get("vns"),
+        }
     print(
         f"{label}: {len(out)}/{sum(1 for x in items if x.get('applicable'))} applicable "
         f"(gap-fill {gap_hit} / name {name_hit} / alias {alias_hit}"
@@ -136,10 +141,10 @@ def main():
     if gap:
         print(f"gap-fill 自补条目: {len(gap)}")
 
-    result = {
-        "tags": build(tags, gap, trans, "tags", "g"),
-        "traits": build_traits(traits, gap, trans, byid),
-    }
+    tag_map = build(tags, gap, trans, "tags", "g")
+    trait_map = build_traits(traits, gap, trans, byid)
+
+    result = {"tags": tag_map, "traits": trait_map}
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, separators=(",", ":"))
     print(f"已写出 {OUT} ({os.path.getsize(OUT)} bytes)")

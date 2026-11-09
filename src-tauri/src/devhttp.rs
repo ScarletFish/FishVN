@@ -85,6 +85,8 @@ pub struct Args {
     #[serde(default)]
     pub statuses: Option<Value>,
     #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
     pub ratings: Option<Value>,
     #[serde(default)]
     pub decision: Option<Value>,
@@ -175,6 +177,9 @@ handler!(library_tags, |c, _a| {
     dashboard::library_tags(c, config.hide_r18_tags, config.spoiler_level, &config.excluded_tags)
 });
 handler!(library_traits, |c, _a| dashboard::library_traits(c));
+handler!(create_local_tag, |c, a| {
+    crate::tagstore::create_local_tag(c, &a.name.unwrap_or_default())
+});
 handler!(dashboard_monthly_activity, |c, a| {
     let config = settings::current();
     dashboard::monthly_activity(c, a.months.unwrap_or(12), config.time_metric)
@@ -602,6 +607,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/dashboard_recent", post(dashboard_recent))
         .route("/dashboard_tag_cloud", post(dashboard_tag_cloud))
         .route("/library_tags", post(library_tags))
+        .route("/create_local_tag", post(create_local_tag))
         .route("/library_traits", post(library_traits))
         .route("/dashboard_monthly_activity", post(dashboard_monthly_activity))
         .route("/dashboard_playtime_top", post(dashboard_playtime_top))
@@ -667,6 +673,7 @@ pub const COMMANDS: &[&str] = &[
     "dashboard_tag_cloud",
     "library_tags",
     "library_traits",
+    "create_local_tag",
     "dashboard_monthly_activity",
     "dashboard_playtime_top",
     "dashboard_release_eras",
@@ -699,6 +706,7 @@ pub const COMMANDS: &[&str] = &[
     "inspect_path",
     "scan_dir",
     "allow_local_file",
+    "write_text_file",
     "path_exists",
     "create_backup",
     "list_backups",

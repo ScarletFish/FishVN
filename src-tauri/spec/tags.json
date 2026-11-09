@@ -1,0 +1,21 @@
+{
+  "roots": {
+    "g1": "theme",
+    "g20": "character",
+    "g22": "setting",
+    "g24": "plot",
+    "g674": "style"
+  },
+  "scopes": {
+    "custom": "full",
+    "theme": "full",
+    "character": "full",
+    "setting": "detail",
+    "plot": "detail",
+    "style": "detail",
+    "other": "full",
+    "tech": "hidden"
+  },
+  "roundRobin": ["theme", "plot", "character", "setting", "style"],
+  "groupOrder": ["custom", "theme", "character", "setting", "plot", "style", "other", "tech"]
+}

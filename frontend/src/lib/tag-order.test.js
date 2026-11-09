@@ -25,8 +25,8 @@ const TECH_B = tag('g452', 'Skip Scenes', { rating: 2.5, vn_count: 8000 });
 const WILDCARD = tag('g728', 'Protagonist with a Face', { rating: 3.0, vn_count: 12305 });
 const RARE_HIGH = tag('g3005', 'Major Antagonist', { rating: 3.0, vn_count: 491 });
 const CHARACTER_B = tag('g692', 'Proactive Protagonist', { rating: 2.9, vn_count: 762 });
-const CUSTOM_A = { name: '神作' };
-const CUSTOM_B = { name: '系列补完' };
+const CUSTOM_A = { id: 'u1', name: '神作' };
+const CUSTOM_B = { id: 'u2', name: '系列补完' };
 const ERO_A = tag('g304', 'High Sexual Content', { category: 'ero', rating: 2.9, vn_count: 11000 });
 const SPOILER_A = tag('g999', '剧透结局', { spoiler: 1 });
 const CHARACTER_SPOILER = tag('g505', '剧透角色', { spoiler: 2 });
@@ -197,7 +197,7 @@ describe('classifyTags 的隐藏判定', () => {
   });
 
   it('排除池按名称命中手输标签', () => {
-    const out = classifyTags([THEME_A, CUSTOM_A], { excludedTags: ['神作'] });
+    const out = classifyTags([THEME_A, CUSTOM_A], { excludedTags: ['u1'] });
     expect(names(out.shown)).toEqual(['Romance']);
   });
 
@@ -246,7 +246,7 @@ describe('classifyTags 的剧透折叠', () => {
 describe('classifyTags 的排除计数', () => {
   it('只统计否则会可见的排除项', () => {
     const out = classifyTags([THEME_A, CHARACTER_A, CUSTOM_A], {
-      excludedTags: ['g133', '神作'],
+      excludedTags: ['g133', 'u1'],
     });
     expect(out.poolCount).toBe(2);
   });

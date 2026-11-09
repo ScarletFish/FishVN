@@ -337,7 +337,11 @@ fn map_staff(vn: &VnMetadata) -> Option<Vec<MetadataStaff>> {
     (!out.is_empty()).then_some(out)
 }
 
-pub fn patch_for(current: Option<&GameMetadata>, sync: &VnSync) -> Option<MetadataPatch> {
+pub fn patch_for(
+    current: Option<&GameMetadata>,
+    sync: &VnSync,
+    has_dict_tags: bool,
+) -> Option<MetadataPatch> {
     let vn = &sync.vn;
     let cur = current.cloned().unwrap_or_default();
     let patch = MetadataPatch {
@@ -371,7 +375,7 @@ pub fn patch_for(current: Option<&GameMetadata>, sync: &VnSync) -> Option<Metada
         ambience_focal_x: None,
         ambience_focal_y: None,
         titles: fill(is_blank_current(&cur, "titles"), map_titles(vn)),
-        tags: fill(is_blank_current(&cur, "tags"), map_tags(vn)),
+        tags: fill(!has_dict_tags, map_tags(vn)),
         developers: fill(is_blank_current(&cur, "developers"), map_developers(vn)),
         staff: fill(is_blank_current(&cur, "staff"), map_staff(vn)),
     };
@@ -514,7 +518,8 @@ async fn apply_sync(
             let guard = crate::db::lock(&conn)?;
             let current = metadata::get(&guard, &game_id)?;
             let mut filled = Vec::new();
-            if let Some(patch) = patch_for(current.as_ref(), &sync) {
+            let has_dict_tags = crate::tagstore::has_dict_tags(&guard, &game_id)?;
+            if let Some(patch) = patch_for(current.as_ref(), &sync, has_dict_tags) {
                 filled = patch.filled_labels();
                 metadata::upsert(&guard, &game_id, &patch)?;
             }
@@ -1119,7 +1124,7 @@ mod tests {
 
     #[test]
     fn 全新游戏所有空白字段一次填齐() {
-        let patch = patch_for(None, &sync()).expect("空库必须产出补丁");
+        let patch = patch_for(None, &sync(), false).expect("空库必须产出补丁");
         assert_eq!(patch.alias, Some(Some("フェイト/ステイナイト".into())));
         assert_eq!(patch.released, Some(Some("2004-01-30".into())));
         assert_eq!(patch.rating, Some(Some(82.34)));
@@ -1149,7 +1154,7 @@ mod tests {
             titles: Some(vec![]),
             ..GameMetadata::default()
         };
-        let patch = patch_for(Some(&current), &sync()).expect("还有空白字段");
+        let patch = patch_for(Some(&current), &sync(), false).expect("还有空白字段");
         assert_eq!(patch.alias, None);
         assert_eq!(patch.description, None);
         assert_eq!(patch.image_path, None);
@@ -1194,7 +1199,7 @@ mod tests {
             }]),
             ..GameMetadata::default()
         };
-        assert!(patch_for(Some(&current), &sync()).is_none());
+        assert!(patch_for(Some(&current), &sync(), true).is_none());
     }
 
     #[test]
@@ -1203,7 +1208,7 @@ mod tests {
         s.vn.description = None;
         s.vn.image = None;
         s.vn.released = None;
-        let patch = patch_for(None, &s).expect("还有别的字段可填");
+        let patch = patch_for(None, &s, false).expect("还有别的字段可填");
         assert_eq!(patch.description, None);
         assert_eq!(patch.image_path, None);
         assert_eq!(patch.released, None);

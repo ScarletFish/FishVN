@@ -86,6 +86,7 @@ export const api = {
   pauseBackfill: () => call('pause_backfill'),
   resumeBackfill: () => call('resume_backfill'),
   tagDictionary: () => call('tag_dictionary'),
+  createLocalTag: (name) => call('create_local_tag', { name }),
   listGameCharacters: (id) => call('list_game_characters', { id }),
   saveGameCharacters: (id, characters) => call('save_game_characters', { id, characters }),
   allowLocalFile: (path) => call('allow_local_file', { path }),

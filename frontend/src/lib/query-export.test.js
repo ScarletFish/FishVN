@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('./tag-label.svelte.js', () => ({
   tagLabel: (v) => (typeof v === 'object' ? v.name || v.tag || '' : ''),
-  tagLabelByName: (n) => n,
+  tagKeyLabel: (k) => k,
   traitLabel: (v) => (typeof v === 'object' ? v.name || v.id : v),
   traitKeyLabel: (k) => ({ i8: '傲娇', g1: '黑发', g2: '长发' })[k] ?? k,
 }));

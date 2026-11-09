@@ -7,7 +7,7 @@ use crate::error::{write_conflict, AppError, Result};
 use crate::metadata;
 use crate::tagdict;
 use crate::types::{
-    Game, GameListItem, GamePatch, MetadataTag, NewGame, StatePatch, Status, UserGameState,
+    Game, GameListItem, GamePatch, NewGame, StatePatch, Status, UserGameState,
 };
 use crate::{new_id, now};
 
@@ -73,35 +73,32 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
 
 fn attach_tag_names(conn: &Connection, items: &mut [GameListItem]) -> Result<()> {
     let dict = tagdict::dictionary();
-    let mut stmt = conn.prepare("SELECT game_id, tags FROM game_metadata WHERE tags IS NOT NULL")?;
+    let mut stmt = conn.prepare(
+        "SELECT gt.game_id, t.id, t.name
+           FROM game_tag gt JOIN tags t ON t.id = gt.tag_id
+          ORDER BY gt.rowid",
+    )?;
     let rows = stmt.query_map([], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
     })?;
-    let mut by_game: HashMap<String, String> = HashMap::new();
-    for (game_id, raw) in rows.flatten() {
-        let Some(text) = raw else { continue };
-        let Ok(tags) = serde_json::from_str::<Vec<MetadataTag>>(&text) else {
-            continue;
-        };
-        let names: Vec<String> = tags
-            .iter()
-            .filter_map(|t| {
-                let label = t
-                    .id
-                    .as_ref()
-                    .and_then(|id| dict.tags.get(id))
-                    .cloned()
-                    .or_else(|| Some(t.name.clone()));
-                label.filter(|s| !s.trim().is_empty())
-            })
-            .collect();
-        if !names.is_empty() {
-            by_game.insert(game_id, names.join(" "));
+    let mut by_game: HashMap<String, Vec<String>> = HashMap::new();
+    for (game_id, id, name) in rows.flatten() {
+        let label = dict
+            .tags
+            .get(&id)
+            .map(|entry| entry.name.clone())
+            .unwrap_or(name);
+        if !label.trim().is_empty() {
+            by_game.entry(game_id).or_default().push(label);
         }
     }
     for item in items.iter_mut() {
         if let Some(names) = by_game.get(&item.id) {
-            item.tag_names = Some(names.clone());
+            item.tag_names = Some(names.join(" "));
         }
     }
     Ok(())

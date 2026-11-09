@@ -24,7 +24,7 @@
   import { confirm } from '../lib/confirm.svelte.js';
   import { quitGuard } from '../lib/quit-guard.svelte.js';
   import { notifyLibraryChanged, notifyLibraryTagsChanged, notifyLibraryTraitsChanged } from '../lib/library-events.js';
-  import { tagLabel, allTagItems, loadTagDict, traitItems } from '../lib/tag-label.svelte.js';
+  import { tagKey, allTagItems, loadTagDict, traitItems } from '../lib/tag-label.svelte.js';
   import { TAG_GROUP_ORDER } from '../lib/tag-order.svelte.js';
 
   const TRAIT_GROUP_ORDER = [
@@ -116,30 +116,20 @@
     touched = { ...touched, [field]: true };
   }
 
-  const customTagNames = $derived(tags.filter((tag) => !tag.id).map((tag) => tag.name));
-
-  const customTagItems = $derived(
-    customTagNames.map((name) => ({ key: name, label: name, group: null, count: null, raw: { name } }))
+  const localTagItems = $derived(
+    tags
+      .filter((tag) => tag.id?.startsWith('u'))
+      .map((tag) => ({ key: tag.id, label: tag.name, group: null, count: null, raw: tag }))
   );
 
   const tagPickerLibrary = $derived.by(() => {
-    const seen = new Set(customTagNames);
-    return [
-      ...customTagItems,
-      ...toTagItems()
-        .map((it) => ({ ...it, key: it.label }))
-        .filter((it) => !seen.has(it.key)),
-    ];
+    const seen = new Set(localTagItems.map((it) => it.key));
+    return [...localTagItems, ...toTagItems().filter((it) => !seen.has(it.key))];
   });
 
   const tagPickerAll = $derived.by(() => {
-    const seen = new Set(customTagNames);
-    return [
-      ...customTagItems,
-      ...allTagItems()
-        .map((it) => ({ ...it, key: it.label }))
-        .filter((it) => !seen.has(it.key)),
-    ];
+    const seen = new Set(localTagItems.map((it) => it.key));
+    return [...localTagItems, ...allTagItems().filter((it) => !seen.has(it.key))];
   });
 
   const selectedTraits = $derived(
@@ -188,12 +178,11 @@
   }
 
   function toggleTag(key, item) {
-    const label = tagLabel(item);
-    if (tags.some((tag) => tagLabel(tag) === label)) {
-      tags = tags.filter((tag) => tagLabel(tag) !== label);
+    if (tags.some((tag) => tag.id === key)) {
+      tags = tags.filter((tag) => tag.id !== key);
       return;
     }
-    tags = [...tags, item.id ? { id: item.id, name: item.tag } : { name: item.tag }];
+    tags = [...tags, { id: item.id, name: item.name }];
   }
 
   function toggleTrait(key, raw) {
@@ -624,14 +613,15 @@
       <TagPicker
         libraryItems={tagPickerLibrary}
         allItems={tagPickerAll}
-        selected={tags.map(tagLabel)}
+        selected={tags.map(tagKey)}
         groupOrder={TAG_GROUP_ORDER}
         hiddenGroups={['tech']}
         allowCustom
         {saving}
         onToggle={toggleTag}
-        onAdd={(name) => {
-          if (!tags.some((tag) => tagLabel(tag) === name)) tags = [...tags, { name }];
+        onAdd={async (name) => {
+          const id = await api.createLocalTag(name);
+          if (!tags.some((tag) => tag.id === id)) tags = [...tags, { id, name }];
         }}
         onClose={() => (asideOpen = false)}
       />

@@ -28,10 +28,10 @@ if (typeof window !== 'undefined') {
 
 export function toTraitItems() {
   return getLibraryTraits().map((trait) => ({
-    key: trait.id ?? trait.name,
+    key: trait.id,
     label: traitLabel(trait),
     group: trait.group ?? null,
     count: trait.count ?? null,
-    raw: { id: trait.id ?? null, name: trait.name, group: trait.group ?? null },
+    raw: { id: trait.id, name: trait.name, group: trait.group ?? null },
   }));
 }

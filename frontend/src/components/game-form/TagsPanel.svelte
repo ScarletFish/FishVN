@@ -1,5 +1,6 @@
 <script>
   import { t } from '../../lib/i18n.js';
+  import { api } from '../../lib/api.js';
   import { getLibraryTags } from '../../lib/library-tags.svelte.js';
   import { tagKey, tagLabel } from '../../lib/tag-label.svelte.js';
   import { tagCategory } from '../../lib/tag-order.svelte.js';
@@ -34,15 +35,14 @@
 
   const GROUP_ORDER = ['custom', 'theme', 'character', 'setting', 'plot', 'style', 'other', 'tech'];
 
-  function resolveTag(text) {
+  async function resolveTag(text) {
     const q = text.toLowerCase();
     const hit = getLibraryTags().find(
-      (item) =>
-        tagLabel(item).toLowerCase() === q ||
-        String(item.tag ?? '').toLowerCase() === q ||
-        String(item.name ?? '').toLowerCase() === q
+      (item) => tagLabel(item).toLowerCase() === q || String(item.name ?? '').toLowerCase() === q
     );
-    return hit?.id ? { id: hit.id, name: hit.tag ?? hit.name ?? text } : { name: text };
+    if (hit?.id) return { id: hit.id, name: hit.name };
+    const id = await api.createLocalTag(text);
+    return { id, name: text };
   }
 
   async function browseCover() {
@@ -151,7 +151,6 @@
   removeText={t('gameForm.action.removeTag')}
   resolve={resolveTag}
   keyOf={tagKey}
-  dupKeyOf={tagLabel}
   duplicateText={t('gameForm.hint.tagExists')}
   labelOf={tagLabel}
   groupOf={tagCategory}

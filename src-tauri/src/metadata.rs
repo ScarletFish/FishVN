@@ -17,7 +17,11 @@ pub fn get(conn: &Connection, game_id: &str) -> Result<Option<GameMetadata>> {
         )
         .optional()?;
     match row {
-        Some(row) => Ok(Some(to_api(&row)?)),
+        Some(row) => {
+            let mut meta = to_api(&row)?;
+            meta.tags = Some(crate::tagstore::read_tags(conn, game_id)?);
+            Ok(Some(meta))
+        }
         None => Ok(None),
     }
 }
@@ -34,8 +38,22 @@ pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result
     }
 
     let (columns, mut values) = patch_columns(&patch)?;
-    if columns.is_empty() {
+    if columns.is_empty() && patch.tags.is_none() {
         return Err(AppError::BadRequest("没有可更新的字段".into()));
+    }
+
+    let tx = if conn.is_autocommit() {
+        Some(conn.unchecked_transaction()?)
+    } else {
+        None
+    };
+    let w = tx.as_deref().unwrap_or(conn);
+
+    if columns.is_empty() {
+        w.execute(
+            "INSERT OR IGNORE INTO game_metadata (game_id) VALUES (?1)",
+            params![game_id],
+        )?;
     }
 
     let assignments = columns
@@ -43,25 +61,37 @@ pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result
         .map(|c| format!("{c} = ?"))
         .collect::<Vec<_>>()
         .join(", ");
-    let changed = conn.execute(
-        &format!("UPDATE game_metadata SET {assignments} WHERE game_id = ?"),
-        params_from_iter(
-            values
-                .iter()
-                .chain(std::iter::once(&Value::Text(game_id.to_owned()))),
-        ),
-    )?;
+    let changed = if columns.is_empty() {
+        1
+    } else {
+        w.execute(
+            &format!("UPDATE game_metadata SET {assignments} WHERE game_id = ?"),
+            params_from_iter(
+                values
+                    .iter()
+                    .chain(std::iter::once(&Value::Text(game_id.to_owned()))),
+            ),
+        )?
+    };
 
     if changed == 0 {
         values.insert(0, Value::Text(game_id.to_owned()));
         let placeholders = vec!["?"; columns.len() + 1].join(", ");
-        conn.execute(
+        w.execute(
             &format!(
                 "INSERT INTO game_metadata (game_id, {}) VALUES ({placeholders})",
                 columns.join(", ")
             ),
             params_from_iter(values.iter()),
         )?;
+    }
+
+    if let Some(tags) = &patch.tags {
+        crate::tagstore::replace_tags(w, game_id, tags.as_deref().unwrap_or_default())?;
+    }
+
+    if let Some(tx) = tx {
+        tx.commit()?;
     }
 
     get(conn, game_id)?.ok_or_else(|| AppError::NotFound("游戏不存在".into()))

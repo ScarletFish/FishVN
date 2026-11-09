@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::error::Result;
 use crate::settings::{SpoilerLevel, TimeMetric};
 use crate::tagdict::{self, TagScope};
-use crate::types::{CharacterTrait, MetadataTag};
+
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -110,15 +110,15 @@ pub fn recent(conn: &Connection, limit: i64) -> Result<Vec<RecentPlay>> {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TagCount {
-    pub id: Option<String>,
-    pub tag: String,
+    pub id: String,
+    pub name: String,
     pub count: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LibraryTag {
-    pub id: Option<String>,
-    pub tag: String,
+    pub id: String,
+    pub name: String,
     pub count: i64,
 }
 
@@ -130,20 +130,24 @@ pub struct TagCloudView {
 }
 
 struct TagAgg {
-    id: Option<String>,
+    id: String,
     name: String,
     count: i64,
 }
 
 const CLOUD_MIN_COUNT: i64 = 2;
 
-fn keep_tag(tag: &MetadataTag, hide_r18_tags: bool, spoiler_level: SpoilerLevel) -> bool {
-    let groups = tagdict::dictionary().tag_groups;
-    let hidden = tag.lie.unwrap_or(false)
-        || spoiler_level.hides(tag.spoiler.unwrap_or(0))
-        || (hide_r18_tags && tag.category.as_deref() == Some("ero"))
-        || groups.scope(tag.id.as_deref()) != TagScope::Full;
-    !hidden
+fn keep_tag_id(id: &str, hide_r18_tags: bool) -> bool {
+    let dict = tagdict::dictionary();
+    if dict.tag_groups.scope(Some(id)) != TagScope::Full {
+        return false;
+    }
+    !(hide_r18_tags
+        && dict
+            .tags
+            .get(id)
+            .and_then(|entry| entry.category.as_deref())
+            == Some("ero"))
 }
 
 pub fn library_tags(
@@ -152,59 +156,45 @@ pub fn library_tags(
     spoiler_level: SpoilerLevel,
     excluded: &[String],
 ) -> Result<Vec<LibraryTag>> {
-    let counts = count_tags(conn, |tag| keep_tag(tag, hide_r18_tags, spoiler_level))?;
+    let counts = count_tags(conn, spoiler_level)?;
     let mut pool: Vec<LibraryTag> = counts
         .into_values()
-        .filter(|a| !is_excluded(a.id.as_deref(), &a.name, excluded))
+        .filter(|a| keep_tag_id(&a.id, hide_r18_tags))
+        .filter(|a| !excluded.iter().any(|entry| entry == &a.id))
         .map(|a| LibraryTag {
             id: a.id,
-            tag: a.name,
+            name: a.name,
             count: a.count,
         })
         .collect();
-    pool.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
+    pool.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
     Ok(pool)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LibraryTrait {
-    pub id: Option<String>,
+    pub id: String,
     pub name: String,
     pub group: Option<String>,
     pub count: i64,
 }
 
 pub fn library_traits(conn: &Connection) -> Result<Vec<LibraryTrait>> {
-    let mut counts: HashMap<String, LibraryTrait> = HashMap::new();
-    for traits in iter_character_traits(conn)? {
-        for tr in traits {
-            let Some(key) = tr.id.clone().or_else(|| tr.name.clone()).filter(|k| !k.is_empty()) else {
-                continue;
-            };
-            let entry = counts.entry(key).or_insert_with(|| LibraryTrait {
-                id: tr.id.clone(),
-                name: tr.name.clone().unwrap_or_default(),
-                group: tr.group_name.clone(),
-                count: 0,
-            });
-            entry.count += 1;
-        }
-    }
-    let mut out: Vec<LibraryTrait> = counts.into_values().collect();
+    let mut stmt = conn.prepare(
+        "SELECT t.id, t.name, t.grp, COUNT(*) AS n
+           FROM character_trait ct JOIN traits t ON t.id = ct.trait_id
+          GROUP BY t.id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(LibraryTrait {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            group: row.get(2)?,
+            count: row.get(3)?,
+        })
+    })?;
+    let mut out: Vec<LibraryTrait> = rows.flatten().collect();
     out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
-    Ok(out)
-}
-
-fn iter_character_traits(conn: &Connection) -> Result<Vec<Vec<CharacterTrait>>> {
-    let mut stmt = conn.prepare("SELECT traits FROM characters WHERE traits IS NOT NULL")?;
-    let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
-    let mut out = Vec::new();
-    for row in rows {
-        let Some(text) = row? else { continue };
-        if let Ok(traits) = serde_json::from_str::<Vec<CharacterTrait>>(&text) {
-            out.push(traits);
-        }
-    }
     Ok(out)
 }
 
@@ -215,21 +205,22 @@ pub fn tag_cloud(
     spoiler_level: SpoilerLevel,
     excluded: &[String],
 ) -> Result<TagCloudView> {
-    let counts = count_tags(conn, |tag| keep_tag(tag, hide_r18_tags, spoiler_level))?;
+    let counts = count_tags(conn, spoiler_level)?;
     let mut pool: Vec<TagAgg> = counts
         .into_values()
+        .filter(|a| keep_tag_id(&a.id, hide_r18_tags))
         .filter(|a| a.count >= CLOUD_MIN_COUNT)
         .collect();
     pool.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
     let candidates = pool.len() as i64;
     let (hidden, visible): (Vec<TagAgg>, Vec<TagAgg>) = pool
         .into_iter()
-        .partition(|a| is_excluded(a.id.as_deref(), &a.name, excluded));
+        .partition(|a| excluded.iter().any(|entry| entry == &a.id));
     let mut out: Vec<TagCount> = visible
         .into_iter()
         .map(|a| TagCount {
             id: a.id,
-            tag: a.name,
+            name: a.name,
             count: a.count,
         })
         .collect();
@@ -241,48 +232,32 @@ pub fn tag_cloud(
     })
 }
 
-fn count_tags<F>(conn: &Connection, keep: F) -> Result<HashMap<String, TagAgg>>
-where
-    F: Fn(&MetadataTag) -> bool,
-{
-    let mut counts: HashMap<String, TagAgg> = HashMap::new();
-    for tags in iter_metadata_tags(conn)? {
-        for tag in tags {
-            if !keep(&tag) {
-                continue;
-            }
-            let entry = counts.entry(tag.name.clone()).or_insert_with(|| TagAgg {
-                id: None,
-                name: tag.name.clone(),
-                count: 0,
-            });
-            if entry.id.is_none() {
-                entry.id = tag.id.clone();
-            }
-            entry.count += 1;
-        }
-    }
-    Ok(counts)
-}
-
-fn iter_metadata_tags(conn: &Connection) -> Result<Vec<Vec<MetadataTag>>> {
-    let mut stmt = conn.prepare("SELECT tags FROM game_metadata WHERE tags IS NOT NULL")?;
-    let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
-    let mut out = Vec::new();
-    for row in rows {
-        let Some(text) = row? else { continue };
-        if let Ok(tags) = serde_json::from_str::<Vec<MetadataTag>>(&text) {
-            out.push(tags);
-        }
-    }
-    Ok(out)
-}
-
-fn is_excluded(id: Option<&str>, name: &str, pool: &[String]) -> bool {
-    match id {
-        Some(id) => pool.iter().any(|entry| entry == id),
-        None => pool.iter().any(|entry| entry == name),
-    }
+fn count_tags(
+    conn: &Connection,
+    spoiler_level: SpoilerLevel,
+) -> Result<HashMap<String, TagAgg>> {
+    let threshold = match spoiler_level {
+        SpoilerLevel::HideAll => 1,
+        SpoilerLevel::HideMajor => 2,
+        SpoilerLevel::ShowAll => i64::MAX,
+    };
+    let mut stmt = conn.prepare(
+        "SELECT t.id, t.name,
+                SUM(CASE WHEN COALESCE(gt.lie, 0) = 0
+                          AND COALESCE(gt.spoiler, 0) < ?1
+                         THEN 1 ELSE 0 END) AS n
+           FROM game_tag gt JOIN tags t ON t.id = gt.tag_id
+          GROUP BY t.id
+         HAVING n > 0",
+    )?;
+    let rows = stmt.query_map([threshold], |row| {
+        Ok(TagAgg {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            count: row.get(2)?,
+        })
+    })?;
+    Ok(rows.flatten().map(|a| (a.id.clone(), a)).collect())
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -385,6 +360,7 @@ pub fn monthly_activity(conn: &Connection, months: i64, metric: TimeMetric) -> R
 mod tests {
     use super::*;
     use crate::db;
+    use crate::types::{CharacterTrait, MetadataTag};
     use crate::games::create_game;
     use crate::types::NewGame;
     use rusqlite::Connection;
@@ -536,11 +512,8 @@ mod tests {
     }
 
     fn set_tags(conn: &Connection, game_id: &str, json: &str) {
-        conn.execute(
-            "INSERT INTO game_metadata (game_id, tags) VALUES (?1, ?2)",
-            rusqlite::params![game_id, json],
-        )
-        .unwrap();
+        let tags: Vec<MetadataTag> = serde_json::from_str(json).unwrap();
+        crate::tagstore::replace_tags(conn, game_id, &tags).unwrap();
     }
 
     fn set_released(conn: &Connection, game_id: &str, released: &str) {
@@ -577,35 +550,25 @@ mod tests {
         assert_eq!(cloud.candidates, 1);
         assert_eq!(cloud.excluded, 0);
         assert_eq!(cloud.tags.len(), 1);
-        assert_eq!(cloud.tags[0].id.as_deref(), Some("g1"));
-        assert_eq!(cloud.tags[0].tag, "恋爱");
+        assert_eq!(cloud.tags[0].id, "g1");
+        assert_eq!(cloud.tags[0].name, "恋爱");
         assert_eq!(cloud.tags[0].count, 2);
     }
 
     #[test]
-    fn 词云合并手输与同步的同名标签() {
+    fn 同名标签按id分成两条不合并() {
         let conn = db();
         let a = make_game(&conn, "甲");
         set_tags(
             &conn,
             &a,
-            r#"[{"id":"g1","name":"恋爱","spoiler":0,"lie":false},{"name":"手输独占","spoiler":0,"lie":false}]"#,
-        );
-        let b = make_game(&conn, "乙");
-        set_tags(
-            &conn,
-            &b,
-            r#"[{"name":"恋爱","spoiler":0,"lie":false},{"name":"手输独占","spoiler":0,"lie":false}]"#,
+            r#"[{"id":"g96","name":"恋爱","spoiler":0,"lie":false},{"name":"恋爱","spoiler":0,"lie":false}]"#,
         );
 
-        let cloud = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
-        assert_eq!(cloud.tags.len(), 2);
-        assert_eq!(cloud.tags[0].tag, "恋爱");
-        assert_eq!(cloud.tags[0].id.as_deref(), Some("g1"));
-        assert_eq!(cloud.tags[0].count, 2);
-        assert_eq!(cloud.tags[1].tag, "手输独占");
-        assert_eq!(cloud.tags[1].id, None);
-        assert_eq!(cloud.tags[1].count, 2);
+        let all = library_tags(&conn, false, SpoilerLevel::ShowAll, &[]).unwrap();
+        let loves: Vec<_> = all.iter().filter(|t| t.name == "恋爱").collect();
+        assert_eq!(loves.len(), 2, "{all:?}");
+        assert_ne!(loves[0].id, loves[1].id);
     }
 
     #[test]
@@ -637,7 +600,7 @@ mod tests {
             set_tags(
                 &conn,
                 &id,
-                r#"[{"id":"g1","name":"恋爱","category":"cont","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g4","name":"性描写","category":"ero","rating":1.0,"vn_count":1,"spoiler":0,"lie":false}]"#,
+                r#"[{"id":"g96","name":"恋爱","spoiler":0,"lie":false},{"id":"g82","name":"女性之间做爱","spoiler":0,"lie":false}]"#,
             );
         }
 
@@ -645,7 +608,7 @@ mod tests {
         assert_eq!(shown.tags.len(), 2);
         let hidden = tag_cloud(&conn, 40, true, SpoilerLevel::HideAll, &[]).unwrap();
         assert_eq!(hidden.tags.len(), 1);
-        assert_eq!(hidden.tags[0].tag, "恋爱");
+        assert_eq!(hidden.tags[0].name, "恋爱");
     }
 
     #[test]
@@ -660,8 +623,8 @@ mod tests {
         let cloud = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
         assert_eq!(cloud.candidates, 2);
         assert_eq!(cloud.tags.len(), 2);
-        assert_eq!(cloud.tags[0].tag, "奇幻");
-        assert_eq!(cloud.tags[1].tag, "手输标签");
+        assert_eq!(cloud.tags[0].name, "奇幻");
+        assert_eq!(cloud.tags[1].name, "手输标签");
     }
 
     #[test]
@@ -677,10 +640,10 @@ mod tests {
         assert_eq!(all.tags.len(), 3);
         let major = tag_cloud(&conn, 40, false, SpoilerLevel::HideMajor, &[]).unwrap();
         assert_eq!(major.tags.len(), 2);
-        assert!(major.tags.iter().all(|t| t.tag != "严重剧透"));
+        assert!(major.tags.iter().all(|t| t.name != "严重剧透"));
         let none = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
         assert_eq!(none.tags.len(), 1);
-        assert_eq!(none.tags[0].tag, "恋爱");
+        assert_eq!(none.tags[0].name, "恋爱");
     }
 
     #[test]
@@ -695,13 +658,13 @@ mod tests {
         let cloud = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &[]).unwrap();
         assert_eq!(cloud.candidates, 2);
         assert_eq!(
-            cloud.tags.iter().map(|t| t.tag.as_str()).collect::<Vec<_>>(),
+            cloud.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>(),
             vec!["大和抚子女主角", "奇幻"]
         );
     }
 
     #[test]
-    fn 词云排除池按id与手输名命中() {
+    fn 词云排除池按id命中() {
         let conn = db();
         let tags = r#"[{"id":"g96","name":"恋爱","category":"cont","rating":3.0,"vn_count":10,"spoiler":0,"lie":false},{"id":"g64","name":"大和抚子女主角","category":"cont","rating":2.0,"vn_count":5,"spoiler":0,"lie":false},{"name":"手输备注","spoiler":0,"lie":false}]"#;
         for name in ["甲", "乙"] {
@@ -709,12 +672,12 @@ mod tests {
             set_tags(&conn, &id, tags);
         }
 
-        let pool = vec!["g96".to_owned(), "手输备注".to_owned()];
+        let pool = vec!["g96".to_owned(), "u1".to_owned()];
         let cloud = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &pool).unwrap();
         assert_eq!(cloud.candidates, 3);
         assert_eq!(cloud.excluded, 2);
         assert_eq!(cloud.tags.len(), 1);
-        assert_eq!(cloud.tags[0].tag, "大和抚子女主角");
+        assert_eq!(cloud.tags[0].name, "大和抚子女主角");
 
         let by_name = tag_cloud(&conn, 40, false, SpoilerLevel::HideAll, &["恋爱".to_owned()]).unwrap();
         assert_eq!(by_name.excluded, 0);
@@ -735,12 +698,12 @@ mod tests {
 
         let all = library_tags(&conn, false, SpoilerLevel::ShowAll, &[]).unwrap();
         assert_eq!(
-            all.iter().map(|t| (t.tag.as_str(), t.count)).collect::<Vec<_>>(),
+            all.iter().map(|t| (t.name.as_str(), t.count)).collect::<Vec<_>>(),
             vec![("奇幻", 2), ("手输标签", 1), ("支线", 1)]
         );
-        assert_eq!(all[0].id.as_deref(), Some("g2"));
-        assert_eq!(all[1].id, None);
-        assert_eq!(all[2].id, None);
+        assert_eq!(all[0].id, "g2");
+        assert!(all[1].id.starts_with('u'));
+        assert!(all[2].id.starts_with('u'));
     }
 
     #[test]
@@ -753,7 +716,7 @@ mod tests {
             r#"[{"id":"g2","name":"奇幻","spoiler":0,"lie":false},{"id":"g32","name":"ADV","spoiler":0,"lie":false},{"id":"g96","name":"恋爱","spoiler":0,"lie":false}]"#,
         );
         let out = library_tags(&conn, false, SpoilerLevel::ShowAll, &["g96".to_owned()]).unwrap();
-        let got: Vec<&str> = out.iter().map(|t| t.tag.as_str()).collect();
+        let got: Vec<&str> = out.iter().map(|t| t.name.as_str()).collect();
         assert!(got.contains(&"奇幻"), "正常标签应保留: {:?}", got);
         assert!(!got.contains(&"ADV"), "分组排除标签应隐藏: {:?}", got);
         assert!(!got.contains(&"恋爱"), "排除池标签应隐藏: {:?}", got);
@@ -855,10 +818,14 @@ mod tests {
 
     fn add_character_traits(conn: &Connection, game: &str, id: &str, traits: &str) {
         conn.execute(
-            "INSERT INTO characters (game_id, id, name, traits) VALUES (?1, ?2, ?2, ?3)",
-            rusqlite::params![game, id, traits],
+            "INSERT INTO characters (game_id, id, name) VALUES (?1, ?2, ?2)",
+            rusqlite::params![game, id],
         )
         .unwrap();
+        let Ok(parsed) = serde_json::from_str::<Vec<CharacterTrait>>(traits) else {
+            return;
+        };
+        crate::tagstore::replace_traits(conn, game, id, &parsed).unwrap();
     }
 
     #[test]
@@ -885,8 +852,8 @@ mod tests {
             vec![("黑色", 2), ("自定义", 1), ("长发", 1)]
         );
         assert_eq!(out[0].group.as_deref(), Some("头发"));
-        assert_eq!(out[0].id.as_deref(), Some("i4"));
-        assert_eq!(out[1].id, None);
+        assert_eq!(out[0].id, "i4");
+        assert!(out[1].id.starts_with('u'));
     }
 
     #[test]

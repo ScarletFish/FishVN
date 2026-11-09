@@ -39,6 +39,7 @@ pub struct FieldSpec {
     pub source: ValueSource,
     pub editable: bool,
     pub in_patch: bool,
+    pub joined: bool,
 }
 
 use crate::error::Result;
@@ -57,6 +58,7 @@ fn main() {
     generate_metadata_spec();
     generate_character_roles();
     generate_display_titles();
+    generate_tag_key();
     generate_module_index();
 }
 
@@ -78,6 +80,10 @@ fn ident(raw: &str, variants: &[(&str, &str)]) -> String {
         .find(|(value, _)| *value == raw)
         .map(|(_, name)| (*name).to_owned())
         .unwrap_or_else(|| panic!("未知枚举值 {raw}"))
+}
+
+fn joined(field: &serde_json::Value) -> bool {
+    field.get("storage").and_then(|v| v.as_str()) == Some("join")
 }
 
 fn base_ty(field: &serde_json::Value) -> String {
@@ -205,7 +211,7 @@ fn generate_metadata_spec() {
             .map(|s| format!("Some(\"{s}\")"))
             .unwrap_or_else(|| "None".to_owned());
         out.push_str(&format!(
-            "    FieldSpec {{\n        key: \"{}\",\n        sql: \"{}\",\n        ty: FieldType::{},\n        clearable: {},\n        blank: BlankRule::{},\n        label: {label},\n        source: ValueSource::{},\n        editable: {},\n        in_patch: {},\n    }},\n",
+            "    FieldSpec {{\n        key: \"{}\",\n        sql: \"{}\",\n        ty: FieldType::{},\n        clearable: {},\n        blank: BlankRule::{},\n        label: {label},\n        source: ValueSource::{},\n        editable: {},\n        in_patch: {},\n        joined: {},\n    }},\n",
             text(field, "key"),
             text(field, "sql"),
             ident(text(field, "ty"), &types),
@@ -214,6 +220,7 @@ fn generate_metadata_spec() {
             ident(text(field, "source"), &sources),
             flag(field, "editable"),
             flag(field, "in_patch"),
+            joined(field),
         ));
     }
     out.push_str("];\n\n");
@@ -229,13 +236,14 @@ fn generate_metadata_spec() {
 
     let column_list = fields
         .iter()
+        .filter(|f| !joined(f))
         .map(|f| text(f, "sql"))
         .collect::<Vec<_>>()
         .join(", ");
     out.push_str(&format!("pub const COLUMNS: &str = \"{column_list}\";\n\n"));
 
     out.push_str("pub const DDL_COLUMNS: &str = r#\"");
-    for (i, field) in fields.iter().enumerate() {
+    for (i, field) in fields.iter().filter(|f| !joined(f)).enumerate() {
         if i > 0 {
             out.push_str(",\n");
         }
@@ -248,7 +256,7 @@ fn generate_metadata_spec() {
     out.push_str("\n\"#;\n\n");
 
     out.push_str("pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {\n    let mut columns: Vec<&'static str> = Vec::new();\n    let mut values: Vec<Value> = Vec::new();\n");
-    for field in fields.iter().filter(|f| flag(f, "in_patch")) {
+    for field in fields.iter().filter(|f| flag(f, "in_patch") && !joined(f)) {
         let key = text(field, "key");
         let sql = text(field, "sql");
         let clearable = flag(field, "clearable");
@@ -268,7 +276,7 @@ fn generate_metadata_spec() {
     out.push_str("    Ok((columns, values))\n}\n\n");
 
     out.push_str("pub fn is_blank_current(meta: &GameMetadata, key: &str) -> bool {\n    match key {\n");
-    for field in fields.iter().filter(|f| flag(f, "in_patch")) {
+    for field in fields.iter().filter(|f| flag(f, "in_patch") && !joined(f)) {
         let key = text(field, "key");
         if let Some(body) = blank_expr(&format!("meta.{key}"), text(field, "blank")) {
             out.push_str(&format!("        \"{key}\" => {body},\n"));
@@ -277,7 +285,7 @@ fn generate_metadata_spec() {
     out.push_str("        _ => false,\n    }\n}\n\n");
 
     out.push_str("pub struct MetaRow {\n");
-    for field in fields {
+    for field in fields.iter().filter(|f| !joined(f)) {
         let ty = text(field, "ty");
         let row_type = if matches!(ty, "titles" | "tags" | "strings" | "staff") {
             "Option<String>".to_owned()
@@ -292,7 +300,7 @@ fn generate_metadata_spec() {
     out.push_str("}\n\n");
 
     out.push_str("pub fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MetaRow> {\n    Ok(MetaRow {\n");
-    for field in fields {
+    for field in fields.iter().filter(|f| !joined(f)) {
         out.push_str(&format!(
             "        {}: row.get(\"{}\")?,\n",
             text(field, "key"),
@@ -305,6 +313,10 @@ fn generate_metadata_spec() {
     for field in fields {
         let key = text(field, "key");
         let ty = text(field, "ty");
+        if joined(field) {
+            out.push_str(&format!("        {key}: None,\n"));
+            continue;
+        }
         let expr = match ty {
             "titles" | "tags" | "strings" | "staff" => {
                 format!("from_json::<Vec<{}>>(&row.{key})?", text(field, "item"))
@@ -328,7 +340,7 @@ fn generate_metadata_spec() {
             .map(|v| serde_json::to_string(v).unwrap())
             .unwrap_or_else(|| "null".to_owned());
         js.push_str(&format!(
-            "  {{ key: \"{}\", type: \"{}\", blank: \"{}\", label: {}, source: \"{}\", editable: {}, clearable: {}, inPatch: {} }},\n",
+            "  {{ key: \"{}\", type: \"{}\", blank: \"{}\", label: {}, source: \"{}\", editable: {}, clearable: {}, inPatch: {}, joined: {} }},\n",
             text(field, "key"),
             text(field, "ty"),
             text(field, "blank"),
@@ -337,6 +349,7 @@ fn generate_metadata_spec() {
             flag(field, "editable"),
             flag(field, "clearable"),
             flag(field, "in_patch"),
+            joined(field),
         ));
     }
     js.push_str("];\n\n");
@@ -534,12 +547,96 @@ fn generate_display_titles() {
     write_if_changed(&js_path, &js, "frontend generated/display-titles.js");
 }
 
+fn generate_tag_key() {
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let spec = root.join("spec/tags.json");
+    println!("cargo:rerun-if-changed={}", spec.display());
+
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&spec).expect("读取 tags spec 失败"))
+            .expect("tags spec 不是合法 JSON");
+    let roots = doc["roots"].as_object().expect("roots 必须是对象");
+    let scopes = doc["scopes"].as_object().expect("scopes 必须是对象");
+    let round_robin = doc["roundRobin"].as_array().expect("roundRobin 必须是数组");
+    let group_order = doc["groupOrder"].as_array().expect("groupOrder 必须是数组");
+
+    let mut detail_roots: Vec<&str> = Vec::new();
+    for (id, category) in roots {
+        let scope = scopes
+            .get(category.as_str().expect("分类必须是字符串"))
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("未知分类 {category}"));
+        if scope == "detail" {
+            detail_roots.push(id.as_str());
+        }
+    }
+    detail_roots.sort_unstable();
+
+    let mut rs = String::new();
+    rs.push_str("use crate::tagdict::TagScope;\n\n");
+    rs.push_str("pub fn scope_of_root(root: &str) -> TagScope {\n    match root {\n");
+    let arms = detail_roots
+        .iter()
+        .map(|id| format!("\"{id}\""))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    if !arms.is_empty() {
+        rs.push_str(&format!("        {arms} => TagScope::Detail,\n"));
+    }
+    rs.push_str("        _ => TagScope::Full,\n    }\n}\n");
+
+    let rs_path = root.join("src/generated/tag_key.rs");
+    write_if_changed(&rs_path, &rs, "generated/tag_key.rs");
+
+    let mut js = String::from("export const TAG_ROOT_GROUPS = {\n");
+    for (id, category) in roots {
+        js.push_str(&format!(
+            "  \"{}\": \"{}\",\n",
+            id,
+            category.as_str().unwrap()
+        ));
+    }
+    js.push_str("};\n\n");
+
+    js.push_str("export const TAG_SCOPE = {\n");
+    for (name, scope) in scopes {
+        js.push_str(&format!(
+            "  {}: \"{}\",\n",
+            name,
+            scope.as_str().unwrap()
+        ));
+    }
+    js.push_str("};\n\n");
+
+    js.push_str(&format!(
+        "export const TAG_ROUND_ROBIN = {};\n\n",
+        string_array(round_robin)
+    ));
+    js.push_str(&format!(
+        "export const TAG_GROUP_ORDER = {};\n\n",
+        string_array(group_order)
+    ));
+
+    js.push_str(
+        "export function tagRootCategory(roots, id) {\n  if (!id) return 'other';\n  return TAG_ROOT_GROUPS[roots?.[id]] ?? 'other';\n}\n",
+    );
+    js.push_str(
+        "export function scopeOfCategory(category) {\n  return TAG_SCOPE[category] ?? 'full';\n}\n",
+    );
+
+    let js_path = root
+        .parent()
+        .unwrap()
+        .join("frontend/src/lib/generated/tag-key.js");
+    write_if_changed(&js_path, &js, "frontend generated/tag-key.js");
+}
+
 fn generate_module_index() {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let path = root.join("src/generated/mod.rs");
     write_if_changed(
         &path,
-        "pub mod character_roles;\npub mod display_titles;\npub mod metadata;\n",
+        "pub mod character_roles;\npub mod display_titles;\npub mod metadata;\npub mod tag_key;\n",
         "generated/mod.rs",
     );
 }

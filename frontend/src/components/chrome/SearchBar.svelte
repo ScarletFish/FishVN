@@ -68,10 +68,10 @@
     if (!tagPool) return [];
     const out = [];
     for (const tg of tagPool) {
-      const label = tagLabel({ id: tg.id, name: tg.tag });
+      const label = tagLabel(tg);
       if (!label) continue;
       if (tagQuery && !label.toLowerCase().includes(tagQuery)) continue;
-      out.push({ id: tg.id, tag: tg.tag, count: tg.count, label });
+      out.push({ id: tg.id, name: tg.name, count: tg.count, label });
     }
     return out;
   });
@@ -283,7 +283,7 @@
         <div class="titlebar__search-empty">{t('titlebar.tagSearchEmpty')}</div>
       {:else}
         <div class="titlebar__search-group">{t('titlebar.searchGroupTags')}</div>
-        {#each tagList as tag (tag.id ?? tag.tag)}
+        {#each tagList as tag (tag.id)}
           <button
             type="button"
             class="titlebar__search-item"

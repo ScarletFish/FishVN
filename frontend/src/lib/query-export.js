@@ -1,5 +1,5 @@
 import { QUERY_DIMS, CHAR_DIMS, dimFilled } from './query-spec.js';
-import { tagLabel, traitLabel, tagLabelByName, traitKeyLabel } from './tag-label.svelte.js';
+import { tagLabel, traitLabel, tagKeyLabel, traitKeyLabel } from './tag-label.svelte.js';
 import { statusLabel } from './status.js';
 import { DICT_ZH } from './i18n-zh.js';
 
@@ -10,7 +10,7 @@ const TRAIT_GROUP_LABELS = DICT_ZH.detail.traitGroups;
 const SEXUAL_TRAIT_GROUPS = new Set(['Engages in (Sexual)', 'Subject of (Sexual)']);
 
 const defaultLabels = {
-  tag: (v) => (typeof v === 'string' ? tagLabelByName(v) : tagLabel(v)),
+  tag: (v) => (typeof v === 'string' ? tagKeyLabel(v) : tagLabel(v)),
   trait: (t) => (typeof t === 'string' ? traitKeyLabel(t) : traitLabel(t)),
   status: (k) => statusLabel(k) || k,
   gender: (k) => GENDER_LABELS[k] || k,

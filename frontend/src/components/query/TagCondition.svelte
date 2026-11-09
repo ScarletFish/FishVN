@@ -1,8 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { t } from '../../lib/i18n.js';
-  import { toTagItems, loadLibraryTags, getLibraryTags } from '../../lib/library-tags.svelte.js';
-  import { allTagItems, loadTagDict, tagLabelByName } from '../../lib/tag-label.svelte.js';
+  import { toTagItems, loadLibraryTags } from '../../lib/library-tags.svelte.js';
+  import { allTagItems, loadTagDict, tagKeyLabel } from '../../lib/tag-label.svelte.js';
   import { TAG_GROUP_ORDER } from '../../lib/tag-order.svelte.js';
   import Modal from '../Modal.svelte';
   import TagPicker from '../game-form/TagPicker.svelte';
@@ -27,20 +27,14 @@
     pickerOpen = true;
   }
 
-  function storedNameOf(item) {
-    const raw = item.raw ?? item;
-    const lib =
-      raw.id != null ? getLibraryTags().find((t) => (t.id ?? t.tag) === raw.id) : null;
-    return lib?.tag ?? raw.tag ?? raw.name;
-  }
-
   function toggleItem(item) {
-    const name = storedNameOf(item);
+    const raw = item.raw ?? item;
+    const id = raw.id;
     const list = targetList();
-    if (!name || !list) return;
-    const idx = list.indexOf(name);
+    if (!id || !list) return;
+    const idx = list.indexOf(id);
     if (idx >= 0) list.splice(idx, 1);
-    else list.push(name);
+    else list.push(id);
   }
 
   function removeFrom(list, i) {
@@ -98,7 +92,7 @@
             class="tag-cond__chip"
             data-tooltip={t('query.remove')}
             onclick={() => removeFrom(group, i)}
-          >{tagLabelByName(name)}<span class="tag-cond__chip-x">×</span></button>
+          >{tagKeyLabel(name)}<span class="tag-cond__chip-x">×</span></button>
         {/each}
         <button type="button" class="tag-cond__add" onclick={() => openPicker(gi)}>
           {t('query.pickTag')}
@@ -122,7 +116,7 @@
           class="tag-cond__chip is-danger"
           data-tooltip={t('query.remove')}
           onclick={() => removeFrom(tags.exclude, i)}
-        >{tagLabelByName(name)}<span class="tag-cond__chip-x">×</span></button>
+        >{tagKeyLabel(name)}<span class="tag-cond__chip-x">×</span></button>
       {/each}
       <button type="button" class="tag-cond__add" onclick={() => openPicker('exclude')}>
         {t('query.pickTag')}

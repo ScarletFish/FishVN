@@ -234,6 +234,7 @@ fn main() {
             commands::allow_local_file,
             commands::thumbnail,
             commands::tag_dictionary,
+            commands::create_local_tag,
             commands::get_config,
             commands::update_config,
             commands::resolve_app_quit,

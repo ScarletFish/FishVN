@@ -7,14 +7,6 @@ let tags = $state({});
 let traits = $state({});
 let pending = null;
 
-const labelOf = (table, item) => {
-  const id = typeof item === 'string' ? item : item?.id;
-  const hit = id ? table[id] : null;
-  if (hit) return typeof hit === 'string' ? hit : hit.name;
-  if (typeof item === 'string') return item;
-  return item?.name || item?.tag || '';
-};
-
 export function loadTagDict() {
   pending ??= api
     .tagDictionary()
@@ -29,36 +21,34 @@ export function loadTagDict() {
   return pending;
 }
 
-export function tagLabel(tag) {
-  return labelOf(tags, tag);
-}
+export const tagKey = (item) => item?.id ?? '';
 
-export function tagLabelByName(name) {
-  const lib = getLibraryTags().find((t) => (t.tag ?? t.name) === name);
-  return lib ? tagLabel(lib) : tagLabel(name);
-}
-
-export function tagKey(item) {
-  return item?.id ?? item?.tag ?? item?.name ?? '';
+export function tagLabel(item) {
+  const id = item?.id ?? null;
+  const name = item?.name ?? '';
+  return (id && tags[id]?.name) || name;
 }
 
 export function tagKeyLabel(key) {
-  if (tags[key]) return tags[key];
-  const lib = getLibraryTags().find((item) => (item.id ?? item.tag) === key);
-  return lib?.tag ?? key;
+  const hit = key && tags[key];
+  if (hit) return hit.name;
+  const lib = getLibraryTags().find((item) => item.id === key);
+  return lib?.name ?? key;
 }
 
 export function traitLabel(trait) {
-  return labelOf(traits, trait);
+  const id = trait?.id ?? null;
+  const name = trait?.name ?? '';
+  return (id && traits[id]?.name) || name;
 }
 
 export function allTagItems() {
-  return Object.entries(tags).map(([id, name]) => ({
+  return Object.entries(tags).map(([id, entry]) => ({
     key: id,
-    label: name,
+    label: entry.name,
     group: tagCategory(id),
     count: null,
-    raw: { id, tag: name },
+    raw: { id, name: entry.name },
   }));
 }
 
@@ -78,6 +68,6 @@ export function traitItems() {
 export function traitKeyLabel(key) {
   const hit = key && traits[key];
   if (hit) return hit.name;
-  const lib = getLibraryTraits().find((t) => (t.id ?? t.name) === key);
+  const lib = getLibraryTraits().find((t) => t.id === key);
   return lib?.name ?? key;
 }

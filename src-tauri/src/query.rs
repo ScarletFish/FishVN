@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, Result};
 use crate::games;
+use crate::tagdict;
 use crate::types::{CharacterHit, CharacterTrait, GameListItem, MetadataTag, Status};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,8 +111,40 @@ struct GameFacts {
 }
 
 fn load_facts(conn: &Connection) -> Result<HashMap<String, GameFacts>> {
+    let dict = tagdict::dictionary();
+    let mut tags_by_game: HashMap<String, Vec<MetadataTag>> = HashMap::new();
+    {
+        let mut stmt = conn.prepare(
+            "SELECT gt.game_id, t.id, t.name, gt.rating, gt.spoiler, gt.lie
+               FROM game_tag gt JOIN tags t ON t.id = gt.tag_id
+              ORDER BY gt.rowid",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<f64>>(3)?,
+                row.get::<_, Option<i64>>(4)?,
+                row.get::<_, Option<i64>>(5)?,
+            ))
+        })?;
+        for (game_id, id, name, rating, spoiler, lie) in rows.flatten() {
+            let entry = dict.tags.get(&id);
+            tags_by_game.entry(game_id).or_default().push(MetadataTag {
+                category: entry.and_then(|e| e.category.clone()),
+                vn_count: entry.and_then(|e| e.vn_count),
+                id: Some(id),
+                name,
+                rating,
+                spoiler,
+                lie: lie.map(|v| v != 0),
+            });
+        }
+    }
+
     let mut stmt = conn.prepare(
-        "SELECT s.game_id, m.tags, m.developers, m.released, m.rating, m.length_minutes,
+        "SELECT s.game_id, m.developers, m.released, m.rating, m.length_minutes,
                 s.status, s.user_rating, s.play_seconds
          FROM user_game_state s
          LEFT JOIN game_metadata m ON m.game_id = s.game_id",
@@ -121,19 +154,17 @@ fn load_facts(conn: &Connection) -> Result<HashMap<String, GameFacts>> {
             row.get::<_, String>(0)?,
             row.get::<_, Option<String>>(1)?,
             row.get::<_, Option<String>>(2)?,
-            row.get::<_, Option<String>>(3)?,
-            row.get::<_, Option<f64>>(4)?,
-            row.get::<_, Option<i64>>(5)?,
-            row.get::<_, Status>(6)?,
-            row.get::<_, Option<f64>>(7)?,
-            row.get::<_, i64>(8)?,
+            row.get::<_, Option<f64>>(3)?,
+            row.get::<_, Option<i64>>(4)?,
+            row.get::<_, Status>(5)?,
+            row.get::<_, Option<f64>>(6)?,
+            row.get::<_, i64>(7)?,
         ))
     })?;
     let mut map = HashMap::new();
     for row in rows {
         let (
             game_id,
-            tags,
             developers,
             released,
             vndb_rating,
@@ -142,16 +173,13 @@ fn load_facts(conn: &Connection) -> Result<HashMap<String, GameFacts>> {
             user_rating,
             play_seconds,
         ) = row?;
-        let tags = tags
-            .and_then(|raw| serde_json::from_str::<Vec<MetadataTag>>(&raw).ok())
-            .unwrap_or_default();
         let developers = developers
             .and_then(|raw| serde_json::from_str::<Vec<String>>(&raw).ok())
             .unwrap_or_default();
         map.insert(
-            game_id,
+            game_id.clone(),
             GameFacts {
-                tags,
+                tags: tags_by_game.remove(&game_id).unwrap_or_default(),
                 developers,
                 released,
                 vndb_rating,
@@ -165,6 +193,7 @@ fn load_facts(conn: &Connection) -> Result<HashMap<String, GameFacts>> {
     Ok(map)
 }
 
+
 fn is_iso_date(value: &str) -> bool {
     let bytes = value.as_bytes();
     bytes.len() == 10
@@ -175,12 +204,12 @@ fn is_iso_date(value: &str) -> bool {
         && bytes[8..].iter().all(u8::is_ascii_digit)
 }
 
-fn visible_tag_names(facts: &GameFacts, threshold: Option<i64>) -> HashSet<&str> {
+fn visible_tag_ids(facts: &GameFacts, threshold: Option<i64>) -> HashSet<&str> {
     facts
         .tags
         .iter()
         .filter(|t| t.spoiler.unwrap_or(0) < threshold.unwrap_or(i64::MAX))
-        .map(|t| t.name.as_str())
+        .filter_map(|t| t.id.as_deref())
         .collect()
 }
 
@@ -190,18 +219,18 @@ fn row_matches(facts: &GameFacts, row: &QueryRow, threshold: Option<i64>) -> boo
             if tags.is_empty() {
                 return true;
             }
-            let names = visible_tag_names(facts, threshold);
+            let ids = visible_tag_ids(facts, threshold);
             match mode {
-                TagMatchMode::Any => tags.iter().any(|t| names.contains(t.as_str())),
-                TagMatchMode::All => tags.iter().all(|t| names.contains(t.as_str())),
+                TagMatchMode::Any => tags.iter().any(|t| ids.contains(t.as_str())),
+                TagMatchMode::All => tags.iter().all(|t| ids.contains(t.as_str())),
             }
         }
         QueryRow::TagExclude { tags } => {
             if tags.is_empty() {
                 return true;
             }
-            let names = visible_tag_names(facts, threshold);
-            !tags.iter().any(|t| names.contains(t.as_str()))
+            let ids = visible_tag_ids(facts, threshold);
+            !tags.iter().any(|t| ids.contains(t.as_str()))
         }
         QueryRow::Status { values } => values.is_empty() || values.contains(&facts.status),
         QueryRow::Rating { source, min, max } => {
@@ -266,8 +295,40 @@ struct CharacterFacts {
 }
 
 fn load_character_facts(conn: &Connection) -> Result<HashMap<String, Vec<CharacterFacts>>> {
+    let mut traits_by: HashMap<(String, String), Vec<CharacterTrait>> = HashMap::new();
+    {
+        let mut stmt = conn.prepare(
+            "SELECT ct.game_id, ct.character_id, t.id, t.name, t.grp, ct.spoiler, ct.lie
+               FROM character_trait ct JOIN traits t ON t.id = ct.trait_id
+              ORDER BY ct.rowid",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, Option<i64>>(5)?,
+                row.get::<_, Option<i64>>(6)?,
+            ))
+        })?;
+        for (game_id, character_id, id, name, grp, spoiler, lie) in rows.flatten() {
+            traits_by
+                .entry((game_id, character_id))
+                .or_default()
+                .push(CharacterTrait {
+                    id: Some(id),
+                    name: Some(name),
+                    group_name: grp,
+                    spoiler,
+                    lie: lie.map(|v| v != 0),
+                });
+        }
+    }
+
     let mut stmt = conn.prepare(
-        "SELECT game_id, id, name, original, aliases, gender, role, traits
+        "SELECT game_id, id, name, original, aliases, gender, role
          FROM characters
          ORDER BY game_id, sort_order, id",
     )?;
@@ -280,20 +341,19 @@ fn load_character_facts(conn: &Connection) -> Result<HashMap<String, Vec<Charact
             row.get::<_, Option<String>>(4)?,
             row.get::<_, Option<String>>(5)?,
             row.get::<_, Option<String>>(6)?,
-            row.get::<_, Option<String>>(7)?,
         ))
     })?;
     let mut map: HashMap<String, Vec<CharacterFacts>> = HashMap::new();
     for row in rows {
-        let (game_id, id, name, original, aliases, gender, role, traits) = row?;
+        let (game_id, id, name, original, aliases, gender, role) = row?;
         let aliases = aliases
             .and_then(|raw| serde_json::from_str::<Vec<String>>(&raw).ok())
             .unwrap_or_default();
         let gender = gender
             .and_then(|raw| serde_json::from_str::<Vec<String>>(&raw).ok())
             .unwrap_or_default();
-        let traits = traits
-            .and_then(|raw| serde_json::from_str::<Vec<CharacterTrait>>(&raw).ok())
+        let traits = traits_by
+            .remove(&(game_id.clone(), id.clone()))
             .unwrap_or_default();
         map.entry(game_id).or_default().push(CharacterFacts {
             id,
@@ -563,11 +623,10 @@ mod tests {
         )
         .unwrap();
         conn.execute(
-            "INSERT INTO game_metadata (game_id, tags, developers, released, rating, length_minutes)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO game_metadata (game_id, developers, released, rating, length_minutes)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
                 id,
-                serde_json::to_string(tags).unwrap(),
                 serde_json::to_string(developers).unwrap(),
                 released,
                 vndb_rating,
@@ -575,6 +634,7 @@ mod tests {
             ],
         )
         .unwrap();
+        crate::tagstore::replace_tags(conn, id, tags).unwrap();
     }
 
     fn spec(rows: Vec<QueryRow>) -> QuerySpec {
@@ -611,8 +671,8 @@ mod tests {
         let gender: Vec<String> = gender.iter().map(|s| s.to_string()).collect();
         let aliases: Vec<String> = aliases.iter().map(|s| s.to_string()).collect();
         conn.execute(
-            "INSERT INTO characters (game_id, id, name, original, role, gender, aliases, traits)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO characters (game_id, id, name, original, role, gender, aliases)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 game_id,
                 id,
@@ -621,10 +681,10 @@ mod tests {
                 role,
                 serde_json::to_string(&gender).unwrap(),
                 serde_json::to_string(&aliases).unwrap(),
-                serde_json::to_string(traits).unwrap(),
             ],
         )
         .unwrap();
+        crate::tagstore::replace_traits(conn, game_id, id, traits).unwrap();
     }
 
     fn trait_(id: Option<&str>, name: &str, spoiler: Option<i64>) -> CharacterTrait {
@@ -681,7 +741,7 @@ mod tests {
             3600,
             &[
                 tag(Some("g100"), "泣きゲー"),
-                tag(None, "自制收藏"),
+                tag(Some("u1"), "自制收藏"),
             ],
             &["Key"],
             Some("2016-04-28"),
@@ -737,7 +797,7 @@ mod tests {
             &["モブ"],
             &[
                 trait_(Some("t300"), "黑毛", None),
-                trait_(Some("t100"), "伪白毛", Some(2)),
+                trait_(Some("t100"), "白毛", Some(2)),
             ],
         );
         add_character(
@@ -823,7 +883,7 @@ mod tests {
             &conn,
             spec(vec![QueryRow::TagInclude {
                 mode: TagMatchMode::Any,
-                tags: vec!["泣きゲー".into(), "自制收藏".into()],
+                tags: vec!["g100".into(), "u1".into()],
             }]),
         );
         assert_eq!(got, vec!["g1", "g3"]);
@@ -836,7 +896,7 @@ mod tests {
             &conn,
             spec(vec![QueryRow::TagInclude {
                 mode: TagMatchMode::All,
-                tags: vec!["泣きゲー".into(), "百合".into()],
+                tags: vec!["g100".into(), "g200".into()],
             }]),
         );
         assert_eq!(got, vec!["g3"]);
@@ -848,20 +908,20 @@ mod tests {
         let got = ids(
             &conn,
             spec(vec![QueryRow::TagExclude {
-                tags: vec!["百合".into()],
+                tags: vec!["g200".into()],
             }]),
         );
         assert_eq!(got, vec!["g1"]);
     }
 
     #[test]
-    fn custom_tag_matches_by_name() {
+    fn custom_tag_matches_by_id() {
         let conn = fixture();
         let got = ids(
             &conn,
             spec(vec![QueryRow::TagInclude {
                 mode: TagMatchMode::Any,
-                tags: vec!["自制收藏".into()],
+                tags: vec!["u1".into()],
             }]),
         );
         assert_eq!(got, vec!["g1"]);
@@ -973,7 +1033,7 @@ mod tests {
             spec(vec![
                 QueryRow::TagInclude {
                     mode: TagMatchMode::Any,
-                    tags: vec!["泣きゲー".into()],
+                    tags: vec!["g100".into()],
                 },
                 QueryRow::Status {
                     values: vec![Status::Wishlist],
@@ -1083,7 +1143,7 @@ mod tests {
                 None,
             ),
         );
-        assert_eq!(got, vec!["g1/c1"]);
+        assert_eq!(got, vec!["g1/c1", "g1/c2"]);
         let got = hit_keys(
             &conn,
             char_spec(
@@ -1128,6 +1188,7 @@ mod tests {
             None,
             0,
             &[MetadataTag {
+                id: Some(String::from("u2")),
                 name: String::from("剧透神器"),
                 spoiler: Some(2),
                 ..Default::default()
@@ -1143,7 +1204,7 @@ mod tests {
             char_spec(
                 vec![QueryRow::TagInclude {
                     mode: TagMatchMode::Any,
-                    tags: vec!["剧透神器".into()],
+                    tags: vec!["u2".into()],
                 }],
                 Some(2),
             ),
@@ -1154,7 +1215,7 @@ mod tests {
             char_spec(
                 vec![QueryRow::TagInclude {
                     mode: TagMatchMode::Any,
-                    tags: vec!["剧透神器".into()],
+                    tags: vec!["u2".into()],
                 }],
                 None,
             ),

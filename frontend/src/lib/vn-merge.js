@@ -117,7 +117,7 @@ const FIELDS = [
     key: 'tags',
     read: (vn) => vn.tags ?? [],
     empty: (v) => !v?.length,
-    same: (a, b) => sameNames(a, b, (list) => list.map((t) => t.name)),
+    same: (a, b) => sameNames(a, b, (list) => list.map((t) => t.id ?? t.name)),
   },
   {
     key: 'developers',

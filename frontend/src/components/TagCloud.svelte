@@ -40,7 +40,7 @@
       const ratio = (x.count - min) / span;
       return {
         id: x.id,
-        label: tagLabel({ id: x.id, name: x.tag }),
+        label: tagLabel(x),
         count: x.count,
         size: MIN_SIZE + ratio * (MAX_SIZE - MIN_SIZE),
         weight: Math.round(45 + ratio * 55),

@@ -24,8 +24,12 @@
 |---|---|
 | `src-tauri/src/generated/metadata.rs` | `GameMetadata` / `MetadataPatch` / `MetaRow` / `FieldSpec` / `METADATA_FIELDS` / `COLUMNS` / `DDL_COLUMNS` / `patch_columns` / `read_row` / `to_api` / `is_set` / `is_blank_current` / `filled_labels` |
 | `frontend/src/lib/generated/metadata-fields.js` | `METADATA_FIELDS` / `PATCH_KEYS` / `FORM_KEYS` |
+| `src-tauri/src/generated/tag_key.rs` | `scope_of_root`（五根 → 范围） |
+| `frontend/src/lib/generated/tag-key.js` | `TAG_ROOT_GROUPS` / `TAG_SCOPE` / `TAG_ROUND_ROBIN` / `TAG_GROUP_ORDER` / `tagRootCategory` / `scopeOfCategory` |
 
-字段声明 12 个属性：`key sql ty nullable item col_def clearable blank label source editable in_patch`。其中 `source`（upstream / local / system）、`editable`、`blank` 同时是合并规则的输入；`label: null` 表示本地视觉字段不参与补全报告。
+字段声明 13 个属性：`key sql ty nullable item col_def clearable blank label source editable in_patch storage`。其中 `source`（upstream / local / system）、`editable`、`blank` 同时是合并规则的输入；`label: null` 表示本地视觉字段不参与补全报告；`storage: "join"` 表示该字段不落列，由关联表组装（当前只有 `tags`）。
+
+标签与特征的身份不在元数据列里：`tags` / `game_tag` / `traits` / `character_trait` 四张表在 `db.rs` 手写，字典标签 `g`+数字、本地标签 `u`+数字同表存放。聚合、查询、排除池一律按 id；译名与分类来自 `tags_zh.json` 快照，只进渲染。
 
 同步校验：`npm run check:generated`（构建后比对生成物有无未提交改动）；CI 可用 `FISHVN_GENERATED_CHECK=1 cargo check --manifest-path src-tauri/Cargo.toml`，规格与生成物不一致时构建脚本直接失败。
 
@@ -53,6 +57,7 @@
 |---|---|---|
 | 加/改一个元数据字段 | 只改 `spec/metadata.json` 一行；生成器产出 Rust 与 JS 两侧。仍须手写上游值映射（`backfill.rs` 的 `map_*`）、表单控件（`GameForm.svelte`）、详情展示（`Detail.svelte`）——`FORM_KEYS` 契约测试与 `filled_labels` 会在字段漂移时失败 | `check:generated` + `npm test` + `check:frontend` |
 | 改表结构 | 规格里的 `col_def`；其他表仍在 `db.rs` 手写 | `npm test`（建库路径全覆盖） |
+| 改标签分类或范围 | 只改 `spec/tags.json`；生成器产出 Rust 与 JS 两侧，消费方读生成物 | `check:generated` + `npm test` + `check:frontend` |
 | 加命令 | `commands.rs` + `generate_handler!` + `devhttp.rs` 镜像 + `api.js` | parity 测试 + `check:rust` |
 | 改首屏/启动 | `index.html` 启动页、`main.js` 的 `app:ready`、`MyList` 首次加载 | `check:frontend` + FDD 第 4 节的性能口径 |
 | 加查询条件 | `query.rs` 的条件构造与 `row_matches` | `npm test` |

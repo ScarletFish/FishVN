@@ -77,6 +77,30 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
 {}
         );
 
+        CREATE TABLE IF NOT EXISTS tags (
+          id     TEXT PRIMARY KEY,
+          name   TEXT NOT NULL,
+          source TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS game_tag (
+          game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+          tag_id  TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+          rating  REAL,
+          spoiler INTEGER,
+          lie     INTEGER,
+          PRIMARY KEY (game_id, tag_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS game_tag_tag ON game_tag(tag_id);
+
+        CREATE TABLE IF NOT EXISTS traits (
+          id     TEXT PRIMARY KEY,
+          name   TEXT NOT NULL,
+          grp    TEXT,
+          source TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS characters (
           game_id     TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
           id          TEXT NOT NULL,
@@ -98,7 +122,6 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           image_id    TEXT,
           image_path  TEXT,
           sort_order  INTEGER NOT NULL DEFAULT 0,
-          traits      TEXT,
           PRIMARY KEY (game_id, id)
         );
 
@@ -121,6 +144,18 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
 
         CREATE INDEX IF NOT EXISTS character_va_staff ON character_va(staff_id);
 
+        CREATE TABLE IF NOT EXISTS character_trait (
+          game_id      TEXT NOT NULL,
+          character_id TEXT NOT NULL,
+          trait_id     TEXT NOT NULL REFERENCES traits(id) ON DELETE CASCADE,
+          spoiler      INTEGER,
+          lie          INTEGER,
+          PRIMARY KEY (game_id, character_id, trait_id),
+          FOREIGN KEY (game_id, character_id) REFERENCES characters(game_id, id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS character_trait_trait ON character_trait(trait_id);
+
         CREATE TRIGGER IF NOT EXISTS character_va_prune_staff
         AFTER DELETE ON character_va
         BEGIN
@@ -133,122 +168,5 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
         crate::generated::metadata::DDL_COLUMNS,
     ))?;
 
-    dedupe_metadata_tags(conn)?;
-
     Ok(())
-}
-
-fn dedupe_metadata_tags(conn: &Connection) -> Result<()> {
-    let rows: Vec<(String, String)> = {
-        let mut stmt =
-            conn.prepare("SELECT game_id, tags FROM game_metadata WHERE tags IS NOT NULL")?;
-        let mapped = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?;
-        mapped.collect::<std::result::Result<Vec<_>, _>>()?
-    };
-    for (game_id, json) in rows {
-        let Ok(tags) = serde_json::from_str::<Vec<crate::types::MetadataTag>>(&json) else {
-            continue;
-        };
-        let before = tags.len();
-        let mut kept: Vec<crate::types::MetadataTag> = Vec::with_capacity(before);
-        let mut seen: std::collections::HashMap<String, usize> =
-            std::collections::HashMap::new();
-        let mut changed = false;
-        for tag in tags {
-            match seen.get(&tag.name) {
-                Some(&idx) => {
-                    if kept[idx].id.is_none() && tag.id.is_some() {
-                        kept[idx] = tag;
-                        changed = true;
-                    }
-                }
-                None => {
-                    seen.insert(tag.name.clone(), kept.len());
-                    kept.push(tag);
-                }
-            }
-        }
-        if !changed && kept.len() == before {
-            continue;
-        }
-        conn.execute(
-            "UPDATE game_metadata SET tags = ?1 WHERE game_id = ?2",
-            rusqlite::params![serde_json::to_string(&kept)?, game_id],
-        )?;
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::types::MetadataTag;
-
-    fn tag(id: Option<&str>, name: &str) -> MetadataTag {
-        MetadataTag {
-            id: id.map(String::from),
-            name: String::from(name),
-            ..Default::default()
-        }
-    }
-
-    fn meta_with_tags(conn: &Connection, game_id: &str, tags: &[MetadataTag]) {
-        conn.execute(
-            "INSERT INTO games (id, name, created_at) VALUES (?1, ?2, 0)",
-            rusqlite::params![game_id, game_id],
-        )
-        .unwrap();
-        conn.execute(
-            "INSERT INTO game_metadata (game_id, tags) VALUES (?1, ?2)",
-            rusqlite::params![game_id, serde_json::to_string(tags).unwrap()],
-        )
-        .unwrap();
-    }
-
-    fn tags_of(conn: &Connection, game_id: &str) -> Vec<MetadataTag> {
-        let json: String = conn
-            .query_row(
-                "SELECT tags FROM game_metadata WHERE game_id = ?1",
-                [game_id],
-                |row| row.get(0),
-            )
-            .unwrap();
-        serde_json::from_str(&json).unwrap()
-    }
-
-    #[test]
-    fn 升级建表时标签去重规则() {
-        for (label, tags, expected_len, expected_id) in [
-            (
-                "同名时优先保留带 id 的条目",
-                vec![tag(None, "百合"), tag(Some("g1890"), "百合")],
-                1,
-                Some("g1890"),
-            ),
-            (
-                "都没 id 时只留第一条",
-                vec![tag(None, "自定义"), tag(None, "自定义")],
-                1,
-                None,
-            ),
-            (
-                "不同标签不动",
-                vec![tag(Some("g1a"), "A"), tag(None, "B")],
-                2,
-                None,
-            ),
-        ] {
-            let conn = Connection::open_in_memory().unwrap();
-            ensure_schema(&conn).unwrap();
-            meta_with_tags(&conn, "g1", &tags);
-            ensure_schema(&conn).unwrap();
-            let got = tags_of(&conn, "g1");
-            assert_eq!(got.len(), expected_len, "{label}");
-            if let Some(id) = expected_id {
-                assert_eq!(got[0].id.as_deref(), Some(id), "{label}");
-            }
-        }
-    }
 }

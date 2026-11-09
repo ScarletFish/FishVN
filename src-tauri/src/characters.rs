@@ -6,10 +6,10 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, Result};
-use crate::types::{CharacterTrait, CharacterVa, GameCharacter};
+use crate::types::{CharacterVa, GameCharacter};
 
 const CHARACTER_COLUMNS: &str = "id, name, original, aliases, description, gender, age, birthday, \
-     blood_type, height, weight, bust, waist, hips, cup, role, image_id, image_path, sort_order, traits";
+     blood_type, height, weight, bust, waist, hips, cup, role, image_id, image_path, sort_order";
 
 struct CharacterRow {
     id: String,
@@ -31,7 +31,6 @@ struct CharacterRow {
     image_id: Option<String>,
     image_path: Option<String>,
     sort_order: i64,
-    traits: Option<String>,
 }
 
 pub fn list(conn: &Connection, game_id: &str) -> Result<Vec<GameCharacter>> {
@@ -282,12 +281,18 @@ fn insert_character(
         text(&entry.image_id),
         text(&entry.image_path),
         Value::Integer(sort_order),
-        json(&entry.traits)?,
     ];
     let placeholders = vec!["?"; values.len()].join(", ");
     conn.execute(
         &format!("INSERT INTO characters (game_id, {CHARACTER_COLUMNS}) VALUES ({placeholders})"),
         params_from_iter(values.iter()),
+    )?;
+
+    crate::tagstore::replace_traits(
+        conn,
+        game_id,
+        &entry.id,
+        entry.traits.as_deref().unwrap_or_default(),
     )?;
 
     if let Some(va) = &entry.va {
@@ -367,7 +372,6 @@ fn read_row(row: &Row<'_>) -> rusqlite::Result<CharacterRow> {
         image_id: row.get("image_id")?,
         image_path: row.get("image_path")?,
         sort_order: row.get("sort_order")?,
-        traits: row.get("traits")?,
     })
 }
 
@@ -392,7 +396,7 @@ fn to_api(conn: &Connection, game_id: &str, row: &CharacterRow) -> Result<GameCh
         image_id: row.image_id.clone(),
         image_path: row.image_path.clone(),
         sort_order: row.sort_order,
-        traits: from_json::<Vec<CharacterTrait>>(&row.traits)?,
+        traits: Some(crate::tagstore::read_traits(conn, game_id, &row.id)?),
         va: load_va(conn, game_id, row.id.as_str())?,
     })
 }

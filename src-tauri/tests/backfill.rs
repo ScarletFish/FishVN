@@ -162,7 +162,7 @@ fn 按空白判定的补丁落库后旧值不动新值填上() {
         },
         characters: vec![],
     };
-    let patch = patch_for(metadata::get(&db, &id).unwrap().as_ref(), &sync).expect("还有空白字段");
+    let patch = patch_for(metadata::get(&db, &id).unwrap().as_ref(), &sync, false).expect("还有空白字段");
     metadata::upsert(&db, &id, &patch).unwrap();
 
     let after = metadata::get(&db, &id).unwrap().unwrap();
