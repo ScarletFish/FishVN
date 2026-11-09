@@ -15,6 +15,7 @@ npm-debug.log*
 .openchamber/
 
 # agent 记忆与工作区数据
+docs/dev/plans
 .workbuddy/
 
 # editor / OS
