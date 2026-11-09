@@ -102,27 +102,7 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
         );
 
         CREATE TABLE IF NOT EXISTS characters (
-          game_id     TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-          id          TEXT NOT NULL,
-          name        TEXT,
-          original    TEXT,
-          aliases     TEXT,
-          description TEXT,
-          gender      TEXT,
-          age         INTEGER,
-          birthday    TEXT,
-          blood_type  TEXT,
-          height      INTEGER,
-          weight      INTEGER,
-          bust        INTEGER,
-          waist       INTEGER,
-          hips        INTEGER,
-          cup         TEXT,
-          role        TEXT,
-          image_id    TEXT,
-          image_path  TEXT,
-          sort_order  INTEGER NOT NULL DEFAULT 0,
-          PRIMARY KEY (game_id, id)
+{}
         );
 
         CREATE TABLE IF NOT EXISTS staffs (
@@ -166,6 +146,7 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
         END;
         ",
         crate::generated::metadata::DDL_COLUMNS,
+        crate::generated::characters::CHARACTER_DDL_COLUMNS,
     ))?;
 
     Ok(())

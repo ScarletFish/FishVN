@@ -1,20 +1,12 @@
 import { cleanInteger, normalizeInteger, toInteger } from './form-metadata.js';
-
-export const CHAR_NUMERIC_FIELDS = {
-  age: { maxIntDigits: 2, max: 99 },
-  height: { maxIntDigits: 3, max: 300 },
-  weight: { maxIntDigits: 3, max: 300 },
-  bust: { maxIntDigits: 3, max: 300 },
-  waist: { maxIntDigits: 3, max: 300 },
-  hips: { maxIntDigits: 3, max: 300 },
-};
+import { CHARACTER_NUMERIC_FIELDS } from './generated/character-fields.js';
 
 export function cleanCharNumber(field, raw) {
-  return cleanInteger(raw, CHAR_NUMERIC_FIELDS[field].maxIntDigits);
+  return cleanInteger(raw, CHARACTER_NUMERIC_FIELDS[field].maxIntDigits);
 }
 
 export function normalizeCharNumber(field, raw) {
-  return normalizeInteger(raw, CHAR_NUMERIC_FIELDS[field]);
+  return normalizeInteger(raw, CHARACTER_NUMERIC_FIELDS[field]);
 }
 
 export function cleanCup(raw) {

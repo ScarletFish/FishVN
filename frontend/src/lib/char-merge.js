@@ -1,3 +1,4 @@
+import { CHARACTER_MERGE_FIELDS } from './generated/character-fields.js';
 import { roleTier } from './generated/character-roles.js';
 
 const asText = (v) => (v === null || v === undefined ? '' : String(v).trim());
@@ -21,27 +22,18 @@ const vaKey = (v) => `${asText(v.staff_id)}|${asText(v.original)}|${asText(v.not
 
 const traitKey = (t) => (typeof t === 'string' ? t : asText(t?.name ?? t?.id));
 
-const FIELDS = [
-  { key: 'name', same: sameText },
-  { key: 'original', same: sameText },
-  { key: 'description', same: sameText },
-  { key: 'birthday', same: sameText },
-  { key: 'blood_type', same: sameText },
-  { key: 'cup', same: sameText },
-  { key: 'role', same: sameText },
-  { key: 'image_id', same: sameText },
-  { key: 'image_path', same: sameText },
-  { key: 'gender', same: (a, b) => sameList(a, b) },
-  { key: 'aliases', same: (a, b) => sameList(a, b) },
-  { key: 'traits', same: (a, b) => sameList(a, b, traitKey) },
-  { key: 'va', same: (a, b) => sameList(a, b, vaKey) },
-  { key: 'age', same: sameNumber },
-  { key: 'height', same: sameNumber },
-  { key: 'weight', same: sameNumber },
-  { key: 'bust', same: sameNumber },
-  { key: 'waist', same: sameNumber },
-  { key: 'hips', same: sameNumber },
-];
+const SAME_RULES = {
+  text: sameText,
+  number: sameNumber,
+  list: (a, b) => sameList(a, b),
+  listTrait: (a, b) => sameList(a, b, traitKey),
+  listVa: (a, b) => sameList(a, b, vaKey),
+};
+
+export const MERGE_FIELDS = CHARACTER_MERGE_FIELDS.map((field) => ({
+  key: field.key,
+  same: SAME_RULES[field.same],
+}));
 
 export function charKey(c) {
   return asText(c?.original || c?.name);
@@ -54,7 +46,7 @@ function indexByKey(list) {
 }
 
 function sameCharacter(a, b) {
-  return FIELDS.every((f) => f.same(a?.[f.key], b?.[f.key]));
+  return MERGE_FIELDS.every((f) => f.same(a?.[f.key], b?.[f.key]));
 }
 
 export function planCharacters(local, incoming) {

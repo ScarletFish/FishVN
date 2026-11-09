@@ -10,6 +10,7 @@ import {
   toDraft,
   toPayload,
 } from './characters.js';
+import { CHARACTER_DRAFT_KEYS, CHARACTER_PAYLOAD_KEYS } from './generated/character-fields.js';
 
 /** VNDB 同步来的一行：带着本地表单不露出来的那些字段 */
 function syncedRow() {
@@ -32,6 +33,19 @@ function syncedRow() {
     va: [{ staff_id: 's1', name: 'Kawasumi Ayako', original: '川澄綾子', note: '' }],
   };
 }
+
+test('载荷键集合与角色字段规格一致', () => {
+  expect(Object.keys(toPayload(blankCharacter())).sort()).toEqual(
+    [...CHARACTER_PAYLOAD_KEYS].sort()
+  );
+});
+
+test('草稿键集合与角色字段规格一致', () => {
+  const expected = [...CHARACTER_DRAFT_KEYS].sort();
+
+  expect(Object.keys(blankCharacter()).sort()).toEqual(expected);
+  expect(Object.keys(toDraft(syncedRow())).sort()).toEqual(expected);
+});
 
 test('取回的行按表单口径铺开', () => {
   const draft = toDraft(syncedRow());

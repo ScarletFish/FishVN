@@ -9,6 +9,7 @@ where
     Deserialize::deserialize(d).map(Some)
 }
 
+pub use crate::generated::characters::GameCharacter;
 pub use crate::generated::metadata::{GameMetadata, MetadataPatch};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -227,32 +228,6 @@ pub struct MetadataStaff {
     pub name: Option<String>,
     pub original: Option<String>,
     pub note: Option<String>,
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct GameCharacter {
-    pub id: String,
-    pub name: Option<String>,
-    pub original: Option<String>,
-    pub aliases: Option<Vec<String>>,
-    pub description: Option<String>,
-    pub gender: Option<Vec<String>>,
-    pub age: Option<i64>,
-    pub birthday: Option<String>,
-    pub blood_type: Option<String>,
-    pub height: Option<i64>,
-    pub weight: Option<i64>,
-    pub bust: Option<i64>,
-    pub waist: Option<i64>,
-    pub hips: Option<i64>,
-    pub cup: Option<String>,
-    pub role: Option<String>,
-    pub image_id: Option<String>,
-    pub image_path: Option<String>,
-    pub sort_order: i64,
-    pub traits: Option<Vec<CharacterTrait>>,
-    pub va: Option<Vec<CharacterVa>>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]

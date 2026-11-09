@@ -1,47 +1,22 @@
 use std::collections::{HashMap, HashSet};
 
-use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Row};
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, Result};
+use crate::generated::characters::{self, CharacterRow};
 use crate::types::{CharacterVa, GameCharacter};
-
-const CHARACTER_COLUMNS: &str = "id, name, original, aliases, description, gender, age, birthday, \
-     blood_type, height, weight, bust, waist, hips, cup, role, image_id, image_path, sort_order";
-
-struct CharacterRow {
-    id: String,
-    name: Option<String>,
-    original: Option<String>,
-    aliases: Option<String>,
-    description: Option<String>,
-    gender: Option<String>,
-    age: Option<i64>,
-    birthday: Option<String>,
-    blood_type: Option<String>,
-    height: Option<i64>,
-    weight: Option<i64>,
-    bust: Option<i64>,
-    waist: Option<i64>,
-    hips: Option<i64>,
-    cup: Option<String>,
-    role: Option<String>,
-    image_id: Option<String>,
-    image_path: Option<String>,
-    sort_order: i64,
-}
 
 pub fn list(conn: &Connection, game_id: &str) -> Result<Vec<GameCharacter>> {
     if !game_exists(conn, game_id)? {
         return Err(AppError::NotFound("游戏不存在".into()));
     }
     let mut stmt = conn.prepare(&format!(
-        "SELECT {CHARACTER_COLUMNS} FROM characters WHERE game_id = ? ORDER BY sort_order, id"
+        "SELECT {} FROM characters WHERE game_id = ? ORDER BY sort_order, id",
+        characters::CHARACTER_COLUMNS
     ))?;
     let rows = stmt
-        .query_map(params![game_id], read_row)?
+        .query_map(params![game_id], characters::read_row)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     rows.iter().map(|row| to_api(conn, game_id, row)).collect()
 }
@@ -260,31 +235,13 @@ fn insert_character(
     sort_order: i64,
     kept_staff: &HashMap<String, StaffName>,
 ) -> Result<()> {
-    let values: Vec<Value> = vec![
-        Value::Text(game_id.to_owned()),
-        Value::Text(entry.id.clone()),
-        text(&entry.name),
-        text(&entry.original),
-        json(&entry.aliases)?,
-        text(&entry.description),
-        json(&entry.gender)?,
-        entry.age.map(Value::Integer).unwrap_or(Value::Null),
-        text(&entry.birthday),
-        text(&entry.blood_type),
-        entry.height.map(Value::Integer).unwrap_or(Value::Null),
-        entry.weight.map(Value::Integer).unwrap_or(Value::Null),
-        entry.bust.map(Value::Integer).unwrap_or(Value::Null),
-        entry.waist.map(Value::Integer).unwrap_or(Value::Null),
-        entry.hips.map(Value::Integer).unwrap_or(Value::Null),
-        text(&entry.cup),
-        text(&entry.role),
-        text(&entry.image_id),
-        text(&entry.image_path),
-        Value::Integer(sort_order),
-    ];
+    let values = characters::insert_values(game_id, entry, sort_order)?;
     let placeholders = vec!["?"; values.len()].join(", ");
     conn.execute(
-        &format!("INSERT INTO characters (game_id, {CHARACTER_COLUMNS}) VALUES ({placeholders})"),
+        &format!(
+            "INSERT INTO characters (game_id, {}) VALUES ({placeholders})",
+            characters::CHARACTER_COLUMNS
+        ),
         params_from_iter(values.iter()),
     )?;
 
@@ -351,54 +308,10 @@ fn game_exists(conn: &Connection, id: &str) -> Result<bool> {
     Ok(found.is_some())
 }
 
-fn read_row(row: &Row<'_>) -> rusqlite::Result<CharacterRow> {
-    Ok(CharacterRow {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        original: row.get("original")?,
-        aliases: row.get("aliases")?,
-        description: row.get("description")?,
-        gender: row.get("gender")?,
-        age: row.get("age")?,
-        birthday: row.get("birthday")?,
-        blood_type: row.get("blood_type")?,
-        height: row.get("height")?,
-        weight: row.get("weight")?,
-        bust: row.get("bust")?,
-        waist: row.get("waist")?,
-        hips: row.get("hips")?,
-        cup: row.get("cup")?,
-        role: row.get("role")?,
-        image_id: row.get("image_id")?,
-        image_path: row.get("image_path")?,
-        sort_order: row.get("sort_order")?,
-    })
-}
-
 fn to_api(conn: &Connection, game_id: &str, row: &CharacterRow) -> Result<GameCharacter> {
-    Ok(GameCharacter {
-        id: row.id.clone(),
-        name: row.name.clone(),
-        original: row.original.clone(),
-        aliases: from_json(&row.aliases)?,
-        description: row.description.clone(),
-        gender: from_json(&row.gender)?,
-        age: row.age,
-        birthday: row.birthday.clone(),
-        blood_type: row.blood_type.clone(),
-        height: row.height,
-        weight: row.weight,
-        bust: row.bust,
-        waist: row.waist,
-        hips: row.hips,
-        cup: row.cup.clone(),
-        role: row.role.clone(),
-        image_id: row.image_id.clone(),
-        image_path: row.image_path.clone(),
-        sort_order: row.sort_order,
-        traits: Some(crate::tagstore::read_traits(conn, game_id, &row.id)?),
-        va: load_va(conn, game_id, row.id.as_str())?,
-    })
+    let traits = Some(crate::tagstore::read_traits(conn, game_id, &row.id)?);
+    let va = load_va(conn, game_id, row.id.as_str())?;
+    characters::to_api(row, traits, va)
 }
 
 fn load_va(
@@ -424,25 +337,4 @@ fn load_va(
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(Some(rows))
-}
-
-fn text(value: &Option<String>) -> Value {
-    match value {
-        Some(v) => Value::Text(v.clone()),
-        None => Value::Null,
-    }
-}
-
-fn json<T: Serialize>(value: &Option<T>) -> Result<Value> {
-    match value {
-        Some(v) => Ok(Value::Text(serde_json::to_string(v)?)),
-        None => Ok(Value::Null),
-    }
-}
-
-fn from_json<T: DeserializeOwned>(raw: &Option<String>) -> Result<Option<T>> {
-    match raw {
-        Some(text) => Ok(Some(serde_json::from_str(text)?)),
-        None => Ok(None),
-    }
 }

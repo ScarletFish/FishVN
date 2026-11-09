@@ -9,7 +9,7 @@
 | IPC 入口 | 一行转发，不含业务 | `commands.rs`；开发调试镜像 `devhttp.rs` |
 | 领域 | 事务脚本与查询，按模块扁平组织 | `games` `metadata` `backfill` `sync` `query` `sessions` … |
 | 数据 | 单条 `Arc<Mutex<Connection>>`，全进程共享 | `db.rs` |
-| 契约 | IPC 结构体与数据库行映射同源 | `types.rs` + `generated/metadata.rs` |
+| 契约 | IPC 结构体与数据库行映射同源 | `types.rs` + `generated/metadata.rs` + `generated/characters.rs` |
 | 前端 | 唯一 IPC 网关 + 视图自持状态 | `api.js` / `views/` / `*.svelte.js` |
 
 允许的方向：入口 → 领域 → 数据；领域之间单向引用（编排层 `sessions` `backfill` 可引用叶子模块）。`settings` `tasks` `thumbs` `metadata` `characters` 是叶子，不反向引用入口。进程级静态只用于明确的缓存或单例（`settings::CACHE`、`sync::plan_cache`、`tagdict::DICT/GROUPS`），新增前先确认它不是可以随连接走的普通状态。
@@ -24,10 +24,14 @@
 |---|---|
 | `src-tauri/src/generated/metadata.rs` | `GameMetadata` / `MetadataPatch` / `MetaRow` / `FieldSpec` / `METADATA_FIELDS` / `COLUMNS` / `DDL_COLUMNS` / `patch_columns` / `read_row` / `to_api` / `is_set` / `is_blank_current` / `filled_labels` |
 | `frontend/src/lib/generated/metadata-fields.js` | `METADATA_FIELDS` / `PATCH_KEYS` / `FORM_KEYS` |
+| `src-tauri/src/generated/characters.rs` | `CHARACTER_FIELDS` / `CHARACTER_COLUMNS` / `CHARACTER_DDL_COLUMNS` / `CharacterFieldSpec` / `GameCharacter` / `CharacterRow` / `read_row` / `to_api` / `insert_values` |
+| `frontend/src/lib/generated/character-fields.js` | `CHARACTER_FIELDS` / `CHARACTER_DRAFT_META` / `CHARACTER_PAYLOAD_KEYS` / `CHARACTER_DRAFT_KEYS` / `CHARACTER_MERGE_KEYS` / `CHARACTER_NUMERIC_FIELDS` |
 | `src-tauri/src/generated/tag_key.rs` | `scope_of_root`（五根 → 范围） |
 | `frontend/src/lib/generated/tag-key.js` | `TAG_ROOT_GROUPS` / `TAG_SCOPE` / `TAG_ROUND_ROBIN` / `TAG_GROUP_ORDER` / `tagRootCategory` / `scopeOfCategory` |
 
 字段声明 13 个属性：`key sql ty nullable item col_def clearable blank label source editable in_patch storage`。其中 `source`（upstream / local / system）、`editable`、`blank` 同时是合并规则的输入；`label: null` 表示本地视觉字段不参与补全报告；`storage: "join"` 表示该字段不落列，由关联表组装（当前只有 `tags`）。
+
+`src-tauri/spec/characters.json` 是角色字段的唯一事实来源，与元数据共用同一条生成链；`traits` / `va` 走关联表，`sort_order` 是本地排序，`(game_id, id)` 是复合主键，三者不进前端草稿或合并比对。
 
 标签与特征的身份不在元数据列里：`tags` / `game_tag` / `traits` / `character_trait` 四张表在 `db.rs` 手写，字典标签 `g`+数字、本地标签 `u`+数字同表存放。聚合、查询、排除池一律按 id；译名与分类来自 `tags_zh.json` 快照，只进渲染。
 
@@ -40,6 +44,7 @@
 | `null` = 清空，字段缺失 = 不动 | 清空评分/备注静默失效 | `clearable` 声明生成 `double_option`；`types.rs` 三态用例；`tests/game_state.rs` 的 JSON→落库端到端 |
 | 前后端补丁键名一致 | 字段静默丢失 | `form-metadata.test.js` 断言键集合等于生成的 `FORM_KEYS` |
 | 生成物与规格同步 | 各处行为漂移 | `check:generated` 与 `FISHVN_GENERATED_CHECK` |
+| 角色字段集合由规格守住 | 合并静默漏字段、插入值串列、表单丢键 | `spec/characters.json` 生成两侧键表；`tests/character_spec.rs` 校对 DDL / 列清单 / 插入值与真实建表，`character-fields.test.js` / `characters.test.js` / `char-merge.test.js` 守住三套键集合，`vndb.rs` 请求字段与 `query.rs` 列子集各有校对用例 |
 | 命令在正式/调试两条通道都可用 | 开发环境行为不同 | `devhttp` parity 测试 |
 | 状态列表自洽 | 默认值不在主列表、报告顺序错 | `status.js` 由单一 `STATUS` 表派生 |
 | 标签词典 `excluded` 有序 | 二分查找失效 | `tagdict` 加载时排序，由构造保证 |
@@ -56,7 +61,8 @@
 | 要改什么 | 必须同步的位置 | 必跑检查 |
 |---|---|---|
 | 加/改一个元数据字段 | 只改 `spec/metadata.json` 一行；生成器产出 Rust 与 JS 两侧。仍须手写上游值映射（`backfill.rs` 的 `map_*`）、表单控件（`GameForm.svelte`）、详情展示（`Detail.svelte`）——`FORM_KEYS` 契约测试与 `filled_labels` 会在字段漂移时失败 | `check:generated` + `npm test` + `check:frontend` |
-| 改表结构 | 规格里的 `col_def`；其他表仍在 `db.rs` 手写 | `npm test`（建库路径全覆盖） |
+| 加/改一个角色字段 | 只改 `spec/characters.json` 一行；生成器同步 DDL、列清单、`GameCharacter`、`insert_values`、draft/payload/merge 键表与数值上限。仍须手写 VNDB 映射（`vndb/characters.rs`）、`query.rs` 查询列子集、编辑控件（`CharacterEditor.svelte`）、详情展示（`DetailCharacters.svelte`）；键集合契约与 VNDB/query 校对用例会在漂移时失败 | `check:generated` + `npm test` + `check:frontend` |
+| 改表结构 | 规格里的 `col_def`（元数据与角色各一份）；其他表仍在 `db.rs` 手写 | `npm test`（建库路径全覆盖） |
 | 改标签分类或范围 | 只改 `spec/tags.json`；生成器产出 Rust 与 JS 两侧，消费方读生成物 | `check:generated` + `npm test` + `check:frontend` |
 | 加命令 | `commands.rs` + `generate_handler!` + `devhttp.rs` 镜像 + `api.js` | parity 测试 + `check:rust` |
 | 改首屏/启动 | `index.html` 启动页、`main.js` 的 `app:ready`、`MyList` 首次加载 | `check:frontend` + FDD 第 4 节的性能口径 |

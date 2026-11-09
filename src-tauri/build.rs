@@ -56,6 +56,7 @@ fn main() {
         std::env::var("CARGO_MANIFEST_DIR").unwrap()
     );
     generate_metadata_spec();
+    generate_character_spec();
     generate_character_roles();
     generate_display_titles();
     generate_tag_key();
@@ -363,6 +364,299 @@ fn generate_metadata_spec() {
     write_if_changed(&js_path, &js, "frontend generated/metadata-fields.js");
 }
 
+const CHARACTER_HEADER: &str = r#"use crate::error::Result;
+use crate::types::{CharacterTrait, CharacterVa};
+use rusqlite::types::Value;
+use rusqlite::Row;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CharacterFieldType {
+    Text,
+    Integer,
+    Strings,
+    Join,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CharacterFieldSpec {
+    pub key: &'static str,
+    pub sql: &'static str,
+    pub draft: Option<&'static str>,
+    pub ty: CharacterFieldType,
+    pub item: &'static str,
+    pub identity: bool,
+    pub nullable: bool,
+    pub joined: bool,
+    pub in_ddl: bool,
+    pub in_columns: bool,
+    pub in_struct: bool,
+    pub in_draft: bool,
+    pub in_merge: bool,
+    pub same: Option<&'static str>,
+}
+
+"#;
+
+fn opt_text<'a>(field: &'a serde_json::Value, key: &str) -> Option<&'a str> {
+    field.get(key).and_then(|v| v.as_str())
+}
+
+fn rust_option_str(value: Option<&str>) -> String {
+    value
+        .map(|s| format!("Some(\"{s}\")"))
+        .unwrap_or_else(|| "None".to_owned())
+}
+
+fn js_option_str(value: Option<&str>) -> String {
+    value
+        .map(|s| format!("\"{s}\""))
+        .unwrap_or_else(|| "null".to_owned())
+}
+
+fn char_variant(field: &serde_json::Value) -> &'static str {
+    let ty = text(field, "ty");
+    let variant = match ty {
+        "text" => "Text",
+        "integer" => "Integer",
+        "strings" => "Strings",
+        "join" => "Join",
+        _ => panic!("未知角色字段类型 {ty}"),
+    };
+    if let Some(rule) = opt_text(field, "same") {
+        if !matches!(rule, "text" | "number" | "list" | "listTrait" | "listVa") {
+            panic!("未知角色比对规则 {rule}");
+        }
+    }
+    variant
+}
+
+fn char_row_ty(field: &serde_json::Value) -> String {
+    let base = match text(field, "ty") {
+        "text" | "strings" => "String".to_owned(),
+        "integer" => "i64".to_owned(),
+        other => panic!("行映射不支持 {other} 字段"),
+    };
+    if flag(field, "nullable") {
+        format!("Option<{base}>")
+    } else {
+        base
+    }
+}
+
+fn char_api_ty(field: &serde_json::Value) -> String {
+    let ty = text(field, "ty");
+    let base = match ty {
+        "text" => "String".to_owned(),
+        "integer" => "i64".to_owned(),
+        "strings" | "join" => format!("Vec<{}>", text(field, "item")),
+        other => panic!("未知角色字段类型 {other}"),
+    };
+    if matches!(ty, "strings" | "join") || flag(field, "nullable") {
+        format!("Option<{base}>")
+    } else {
+        base
+    }
+}
+
+fn char_keys(fields: &[serde_json::Value], filter: &str, key: &str, name: &str) -> String {
+    let keys = fields
+        .iter()
+        .filter(|f| flag(f, filter))
+        .map(|f| text(f, key))
+        .collect::<Vec<_>>();
+    format!(
+        "pub const {name}: &[&str] = &[{}];\n\n",
+        keys.iter()
+            .map(|k| format!("\"{k}\""))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
+fn generate_character_spec() {
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let spec = root.join("spec/characters.json");
+    println!("cargo:rerun-if-changed={}", spec.display());
+
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&spec).expect("读取 characters spec 失败"))
+            .expect("characters spec 不是合法 JSON");
+    let fields = doc["fields"].as_array().expect("fields 必须是数组");
+    let constraints = doc["constraints"].as_array().expect("constraints 必须是数组");
+    let draft_meta = doc["draftMeta"].as_array().expect("draftMeta 必须是数组");
+
+    let mut rs = String::from(CHARACTER_HEADER);
+    rs.push_str("pub const CHARACTER_FIELDS: &[CharacterFieldSpec] = &[\n");
+    for field in fields {
+        rs.push_str(&format!(
+            "    CharacterFieldSpec {{\n        key: \"{}\",\n        sql: \"{}\",\n        draft: {},\n        ty: CharacterFieldType::{},\n        item: \"{}\",\n        identity: {},\n        nullable: {},\n        joined: {},\n        in_ddl: {},\n        in_columns: {},\n        in_struct: {},\n        in_draft: {},\n        in_merge: {},\n        same: {},\n    }},\n",
+            text(field, "key"),
+            text(field, "sql"),
+            rust_option_str(opt_text(field, "draft")),
+            char_variant(field),
+            text(field, "item"),
+            flag(field, "identity"),
+            flag(field, "nullable"),
+            flag(field, "joined"),
+            flag(field, "in_ddl"),
+            flag(field, "in_columns"),
+            flag(field, "in_struct"),
+            flag(field, "in_draft"),
+            flag(field, "in_merge"),
+            rust_option_str(opt_text(field, "same")),
+        ));
+    }
+    rs.push_str("];\n\n");
+    rs.push_str("pub fn field(key: &str) -> Option<&'static CharacterFieldSpec> {\n    CHARACTER_FIELDS.iter().find(|f| f.key == key)\n}\n\n");
+
+    let columns = fields
+        .iter()
+        .filter(|f| flag(f, "in_columns"))
+        .map(|f| text(f, "sql"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    rs.push_str(&format!("pub const CHARACTER_COLUMNS: &str = \"{columns}\";\n\n"));
+
+    rs.push_str("pub const CHARACTER_DDL_COLUMNS: &str = r#\"");
+    for (i, field) in fields.iter().filter(|f| flag(f, "in_ddl")).enumerate() {
+        if i > 0 {
+            rs.push_str(",\n");
+        }
+        rs.push_str(&format!(
+            "          {:<12}{}",
+            text(field, "sql"),
+            text(field, "col_def")
+        ));
+    }
+    for constraint in constraints {
+        rs.push_str(",\n          ");
+        rs.push_str(
+            constraint
+                .as_str()
+                .expect("constraints 必须是字符串数组"),
+        );
+    }
+    rs.push_str("\"#;\n\n");
+
+    rs.push_str(&char_keys(fields, "in_draft", "key", "CHARACTER_PAYLOAD_KEYS"));
+    rs.push_str(&char_keys(fields, "in_draft", "draft", "CHARACTER_DRAFT_KEYS"));
+    rs.push_str(&char_keys(fields, "in_merge", "key", "CHARACTER_MERGE_KEYS"));
+
+    rs.push_str("#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]\n#[serde(default)]\npub struct GameCharacter {\n");
+    for field in fields.iter().filter(|f| flag(f, "in_struct")) {
+        rs.push_str(&format!(
+            "    pub {}: {},\n",
+            text(field, "key"),
+            char_api_ty(field)
+        ));
+    }
+    rs.push_str("}\n\n");
+
+    rs.push_str("pub struct CharacterRow {\n");
+    for field in fields.iter().filter(|f| flag(f, "in_columns")) {
+        rs.push_str(&format!(
+            "    pub {}: {},\n",
+            text(field, "key"),
+            char_row_ty(field)
+        ));
+    }
+    rs.push_str("}\n\n");
+
+    rs.push_str("pub fn read_row(row: &Row<'_>) -> rusqlite::Result<CharacterRow> {\n    Ok(CharacterRow {\n");
+    for field in fields.iter().filter(|f| flag(f, "in_columns")) {
+        rs.push_str(&format!(
+            "        {}: row.get(\"{}\")?,\n",
+            text(field, "key"),
+            text(field, "sql")
+        ));
+    }
+    rs.push_str("    })\n}\n\n");
+
+    rs.push_str("pub fn to_api(row: &CharacterRow, traits: Option<Vec<CharacterTrait>>, va: Option<Vec<CharacterVa>>) -> Result<GameCharacter> {\n    Ok(GameCharacter {\n");
+    for field in fields.iter().filter(|f| flag(f, "in_struct")) {
+        let key = text(field, "key");
+        let expr = match text(field, "ty") {
+            "join" => key.to_owned(),
+            "strings" => format!("from_json(&row.{key})?"),
+            "text" => format!("row.{key}.clone()"),
+            "integer" => format!("row.{key}"),
+            other => panic!("to_api 不支持 {other} 字段"),
+        };
+        if expr == key {
+            rs.push_str(&format!("        {key},\n"));
+        } else {
+            rs.push_str(&format!("        {key}: {expr},\n"));
+        }
+    }
+    rs.push_str("    })\n}\n\n");
+
+    rs.push_str("pub fn insert_values(game_id: &str, entry: &GameCharacter, sort_order: i64) -> Result<Vec<Value>> {\n    Ok(vec![\n        Value::Text(game_id.to_owned()),\n");
+    for field in fields.iter().filter(|f| flag(f, "in_columns")) {
+        let key = text(field, "key");
+        let expr = if flag(field, "identity") {
+            match text(field, "ty") {
+                "text" => format!("Value::Text(entry.{key}.clone())"),
+                "integer" => "Value::Integer(sort_order)".to_owned(),
+                other => panic!("identity 字段不支持 {other}"),
+            }
+        } else {
+            match text(field, "ty") {
+                "text" => format!("text(&entry.{key})"),
+                "integer" => format!("entry.{key}.map(Value::Integer).unwrap_or(Value::Null)"),
+                "strings" => format!("json(&entry.{key})?"),
+                other => panic!("insert_values 不支持 {other} 字段"),
+            }
+        };
+        rs.push_str(&format!("        {expr},\n"));
+    }
+    rs.push_str("    ])\n}\n\n");
+
+    rs.push_str("fn text(value: &Option<String>) -> Value {\n    match value {\n        Some(v) => Value::Text(v.clone()),\n        None => Value::Null,\n    }\n}\n\n");
+    rs.push_str("fn json<T: Serialize>(value: &Option<T>) -> Result<Value> {\n    match value {\n        Some(v) => Ok(Value::Text(serde_json::to_string(v)?)),\n        None => Ok(Value::Null),\n    }\n}\n\n");
+    rs.push_str("fn from_json<T: DeserializeOwned>(raw: &Option<String>) -> Result<Option<T>> {\n    match raw {\n        Some(text) => Ok(Some(serde_json::from_str(text)?)),\n        None => Ok(None),\n    }\n}\n");
+
+    let rs_path = root.join("src/generated/characters.rs");
+    write_if_changed(&rs_path, &rs, "generated/characters.rs");
+
+    let mut js = String::from("export const CHARACTER_FIELDS = [\n");
+    for field in fields {
+        js.push_str(&format!(
+            "  {{ key: \"{}\", sql: \"{}\", draft: {}, ty: \"{}\", same: {}, numeric: {}, identity: {}, joined: {}, inDdl: {}, inColumns: {}, inStruct: {}, inDraft: {}, inMerge: {} }},\n",
+            text(field, "key"),
+            text(field, "sql"),
+            js_option_str(opt_text(field, "draft")),
+            text(field, "ty"),
+            js_option_str(opt_text(field, "same")),
+            serde_json::to_string(&field["numeric"]).unwrap(),
+            flag(field, "identity"),
+            flag(field, "joined"),
+            flag(field, "in_ddl"),
+            flag(field, "in_columns"),
+            flag(field, "in_struct"),
+            flag(field, "in_draft"),
+            flag(field, "in_merge"),
+        ));
+    }
+    js.push_str("];\n\n");
+    js.push_str(&format!(
+        "export const CHARACTER_DRAFT_META = {};\n\n",
+        string_array(draft_meta)
+    ));
+    js.push_str("export const CHARACTER_PAYLOAD_KEYS = CHARACTER_FIELDS.filter((f) => f.inDraft).map((f) => f.key);\n\n");
+    js.push_str("export const CHARACTER_DRAFT_KEYS = [\n  ...CHARACTER_FIELDS.filter((f) => f.inDraft).map((f) => f.draft),\n  ...CHARACTER_DRAFT_META,\n];\n\n");
+    js.push_str("export const CHARACTER_MERGE_FIELDS = CHARACTER_FIELDS.filter((f) => f.inMerge);\n\n");
+    js.push_str("export const CHARACTER_MERGE_KEYS = CHARACTER_MERGE_FIELDS.map((f) => f.key);\n\n");
+    js.push_str("export const CHARACTER_NUMERIC_FIELDS = Object.fromEntries(\n  CHARACTER_FIELDS.filter((f) => f.numeric).map((f) => [f.key, f.numeric]),\n);\n");
+
+    let js_path = root
+        .parent()
+        .unwrap()
+        .join("frontend/src/lib/generated/character-fields.js");
+    write_if_changed(&js_path, &js, "frontend generated/character-fields.js");
+}
+
 fn role_id(v: &serde_json::Value) -> &str {
     text(v, "id")
 }
@@ -636,7 +930,7 @@ fn generate_module_index() {
     let path = root.join("src/generated/mod.rs");
     write_if_changed(
         &path,
-        "pub mod character_roles;\npub mod display_titles;\npub mod metadata;\npub mod tag_key;\n",
+        "pub mod character_roles;\npub mod characters;\npub mod display_titles;\npub mod metadata;\npub mod tag_key;\n",
         "generated/mod.rs",
     );
 }
@@ -647,7 +941,7 @@ fn write_if_changed(path: &std::path::Path, content: &str, label: &str) {
         .unwrap_or(false);
     if !unchanged {
         if env::var_os("FISHVN_GENERATED_CHECK").is_some() {
-            panic!("{label} 与 spec/metadata.json 不一致");
+            panic!("{label} 与规格不一致");
         }
         fs::create_dir_all(path.parent().unwrap()).unwrap_or_else(|_| panic!("创建 {label} 目录失败"));
         fs::write(path, content).unwrap_or_else(|_| panic!("写入 {label} 失败"));

@@ -1,5 +1,9 @@
 import { expect, test } from 'vitest';
-import { applyCharacters, charKey, planCharacters } from './char-merge.js';
+import { MERGE_FIELDS, applyCharacters, charKey, planCharacters } from './char-merge.js';
+import {
+  CHARACTER_MERGE_FIELDS,
+  CHARACTER_MERGE_KEYS,
+} from './generated/character-fields.js';
 
 function ch(over = {}) {
   return {
@@ -32,6 +36,29 @@ const saber = (over = {}) =>
   ch({ id: 'c33', name: 'Saber', original: 'セイバー', role: 'main', ...over });
 
 const names = (list) => list.map((c) => c.original || c.name);
+
+const CHANGED_BY_RULE = {
+  text: 'changed',
+  number: 1,
+  list: ['changed'],
+  listTrait: [{ name: 'changed' }],
+  listVa: [{ staff_id: 'changed', original: null, note: '' }],
+};
+
+test('比对字段集合与角色规格一致', () => {
+  expect(MERGE_FIELDS.map((f) => f.key).sort()).toEqual([...CHARACTER_MERGE_KEYS].sort());
+});
+
+test.each(CHARACTER_MERGE_FIELDS.map((f) => [f.key, f]))(
+  '%s 单独改动会判为冲突',
+  (key, field) => {
+    const base = ch({ original: 'Saber', name: 'Saber' });
+    const incoming = { ...base, [key]: key === 'original' ? null : CHANGED_BY_RULE[field.same] };
+
+    expect(charKey(incoming)).toBe(charKey(base));
+    expect(planCharacters([base], [incoming]).conflicts).toHaveLength(1);
+  }
+);
 
 test('配对键优先取原名', () => {
   expect(charKey(ch({ name: 'Saber', original: 'セイバー' }))).toBe('セイバー');

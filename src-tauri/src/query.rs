@@ -283,6 +283,16 @@ fn row_matches(facts: &GameFacts, row: &QueryRow, threshold: Option<i64>) -> boo
     }
 }
 
+const CHARACTER_QUERY_COLUMNS: &[&str] = &[
+    "game_id",
+    "id",
+    "name",
+    "original",
+    "aliases",
+    "gender",
+    "role",
+];
+
 struct CharacterFacts {
     id: String,
     name: Option<String>,
@@ -327,11 +337,10 @@ fn load_character_facts(conn: &Connection) -> Result<HashMap<String, Vec<Charact
         }
     }
 
-    let mut stmt = conn.prepare(
-        "SELECT game_id, id, name, original, aliases, gender, role
-         FROM characters
-         ORDER BY game_id, sort_order, id",
-    )?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {} FROM characters ORDER BY game_id, sort_order, id",
+        CHARACTER_QUERY_COLUMNS.join(", ")
+    ))?;
     let rows = stmt.query_map([], |row| {
         Ok((
             row.get::<_, String>(0)?,
@@ -590,6 +599,16 @@ mod tests {
     use crate::db::ensure_schema;
     use rusqlite::params;
 
+    const CHARACTER_FIXTURE_COLUMNS: &[&str] = &[
+        "game_id",
+        "id",
+        "name",
+        "original",
+        "role",
+        "gender",
+        "aliases",
+    ];
+
     fn tag(id: Option<&str>, name: &str) -> MetadataTag {
         MetadataTag {
             id: id.map(String::from),
@@ -671,8 +690,10 @@ mod tests {
         let gender: Vec<String> = gender.iter().map(|s| s.to_string()).collect();
         let aliases: Vec<String> = aliases.iter().map(|s| s.to_string()).collect();
         conn.execute(
-            "INSERT INTO characters (game_id, id, name, original, role, gender, aliases)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            &format!(
+                "INSERT INTO characters ({}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                CHARACTER_FIXTURE_COLUMNS.join(", ")
+            ),
             params![
                 game_id,
                 id,
@@ -815,6 +836,23 @@ mod tests {
         add_va(&conn, "g1", "c2", "s2");
         add_va(&conn, "g2", "c3", "s1");
         conn
+    }
+
+    #[test]
+    fn 角色查询与夹具所用列名都在规格列清单里() {
+        let columns = crate::generated::characters::CHARACTER_COLUMNS
+            .split(',')
+            .map(str::trim)
+            .chain(["game_id"])
+            .collect::<HashSet<_>>();
+        for list in [CHARACTER_QUERY_COLUMNS, CHARACTER_FIXTURE_COLUMNS] {
+            for column in list {
+                assert!(columns.contains(column), "{column} 不在角色列清单里");
+            }
+        }
+        for column in ["game_id", "sort_order", "id"] {
+            assert!(columns.contains(column), "排序列 {column} 不在角色列清单里");
+        }
     }
 
     #[test]

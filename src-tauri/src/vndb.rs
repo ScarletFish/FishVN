@@ -542,6 +542,56 @@ mod tests {
         vns.into_iter().map(|vn| (vn.id.clone(), vn)).collect()
     }
 
+    fn char_scalar_fields() -> Vec<&'static str> {
+        let mut depth = 0usize;
+        let mut start = 0usize;
+        let mut out = Vec::new();
+        for (i, ch) in CHAR_FIELDS.char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => depth -= 1,
+                ',' if depth == 0 => {
+                    let part = &CHAR_FIELDS[start..i];
+                    if !part.is_empty() && !part.contains('{') {
+                        out.push(part);
+                    }
+                    start = i + 1;
+                }
+                _ => {}
+            }
+        }
+        let tail = &CHAR_FIELDS[start..];
+        if !tail.is_empty() && !tail.contains('{') {
+            out.push(tail);
+        }
+        out
+    }
+
+    #[test]
+    fn 角色请求字段与规格里的上游标量字段一致() {
+        use crate::generated::characters::CHARACTER_FIELDS as SPECS;
+
+        let nested = ["role", "image_id", "image_path", "sort_order"];
+        let mut expected = SPECS
+            .iter()
+            .filter(|f| f.in_columns && !nested.contains(&f.key))
+            .map(|f| f.key)
+            .collect::<Vec<_>>();
+        expected.sort_unstable();
+
+        let mut actual = char_scalar_fields();
+        actual.sort_unstable();
+        assert_eq!(actual, expected);
+
+        for group in [
+            "image{id,url,dims}",
+            "traits{id,name,group_name,spoiler,lie}",
+            "vns{id,role,spoiler}",
+        ] {
+            assert!(CHAR_FIELDS.contains(group), "CHAR_FIELDS 漏了 {group}");
+        }
+    }
+
     #[test]
     fn ulist字段串覆盖实抓响应的标题字段() {
         const FIXTURE: &str = include_str!("../tests/fixtures/ulist.json");
