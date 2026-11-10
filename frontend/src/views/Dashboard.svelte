@@ -19,11 +19,13 @@
     LIBRARY_CHANGED,
   } from '../lib/library-events.js';
   import { openForm } from '../lib/add-game.svelte.js';
-  import { dashboardSort, gameComparator } from '../lib/list-sort.svelte.js';
+  import { dashboardSort, dashboardGroup, gameComparator } from '../lib/list-sort.svelte.js';
   import { neighborsFromSections } from '../lib/detail-nav.js';
   import SortSelect from '../components/SortSelect.svelte';
+  import Seg from '../components/Seg.svelte';
   import GameCard from '../components/GameCard.svelte';
   import StatusSection from '../components/StatusSection.svelte';
+  import WindowedGrid from '../components/WindowedGrid.svelte';
 
   let { onopen, scroll = 0 } = $props();
 
@@ -58,6 +60,7 @@
 
   const localNeighborIds = $derived(neighborsFromSections(localSections));
   const recentNeighborIds = $derived(recent.map((g) => g.id));
+  const localFlatItems = $derived(localSections.flatMap((s) => s.items));
 
   function openLocal(item) {
     const card = document.querySelector(
@@ -248,15 +251,41 @@
         <div class="dashboard-section">
           <div class="dashboard-module-header">
             <span class="dashboard-section-title">{moduleLabel(module.id)}</span>
-            <SortSelect bind:value={dashboardSort.by} />
+            <div class="dashboard-module-controls">
+              <Seg
+                label={t('dashboard.groupToggle')}
+                options={[
+                  { value: 'status', label: t('dashboard.groupStatus') },
+                  { value: 'flat', label: t('dashboard.groupFlat') },
+                ]}
+                bind:value={dashboardGroup.by}
+              />
+              <SortSelect bind:value={dashboardSort.by} />
+            </div>
           </div>
-          {#each localSections as section (section.status)}
-            <StatusSection variant="dashboard" label={section.label} items={section.items}>
-              {#snippet children(item)}
-                <GameCard {item} onopen={() => openLocal(item)} onedit={openForm} ondelet={deleteGame} />
-              {/snippet}
-            </StatusSection>
-          {/each}
+          {#if dashboardGroup.by === 'flat'}
+            {#if localFlatItems.length >= 60}
+              <WindowedGrid items={localFlatItems}>
+                {#snippet children(item)}
+                  <GameCard {item} onopen={() => openLocal(item)} onedit={openForm} ondelet={deleteGame} />
+                {/snippet}
+              </WindowedGrid>
+            {:else}
+              <div class="cover-grid">
+                {#each localFlatItems as item (item.id)}
+                  <GameCard {item} onopen={() => openLocal(item)} onedit={openForm} ondelet={deleteGame} />
+                {/each}
+              </div>
+            {/if}
+          {:else}
+            {#each localSections as section (section.status)}
+              <StatusSection variant="dashboard" label={section.label} items={section.items}>
+                {#snippet children(item)}
+                  <GameCard {item} onopen={() => openLocal(item)} onedit={openForm} ondelet={deleteGame} />
+                {/snippet}
+              </StatusSection>
+            {/each}
+          {/if}
         </div>
       {/if}
     {/each}

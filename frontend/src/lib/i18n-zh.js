@@ -115,6 +115,9 @@ export const DICT_ZH = {
     emptyHint: '扫描文件夹或手动添加',
     continueOpen: '查看详情',
     continueStart: '启动游戏',
+    groupStatus: '状态分组',
+    groupFlat: '平铺',
+    groupToggle: '切换列表分组方式',
     tagCloud: {
       title: '游玩偏好',
       sub: '候选 {count} 项',
@@ -181,6 +184,9 @@ export const DICT_ZH = {
     filter: {
       all: '全部',
     },
+    groupStatus: '状态分组',
+    groupFlat: '平铺',
+    groupToggle: '切换列表分组方式',
   },
   backfillPage: {
     title: '资料补全',

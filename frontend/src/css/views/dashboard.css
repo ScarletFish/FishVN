@@ -55,6 +55,17 @@
   margin-left: auto;
 }
 
+.dashboard-module-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.dashboard-module-controls .sort-select {
+  margin-left: 0;
+}
+
 .dashboard-module-header::before {
   content: '';
   position: absolute;

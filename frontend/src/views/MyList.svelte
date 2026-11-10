@@ -15,10 +15,12 @@
     LIBRARY_CHANGED,
   } from '../lib/library-events.js';
   import { openForm } from '../lib/add-game.svelte.js';
-  import { gameComparator, myListSort } from '../lib/list-sort.svelte.js';
+  import { gameComparator, myListSort, myListGroup } from '../lib/list-sort.svelte.js';
   import SortSelect from '../components/SortSelect.svelte';
+  import Seg from '../components/Seg.svelte';
   import GameCard from '../components/GameCard.svelte';
   import StatusSection from '../components/StatusSection.svelte';
+  import WindowedGrid from '../components/WindowedGrid.svelte';
   import { neighborsFromSections } from '../lib/detail-nav.js';
 
   let { onopen, scroll = 0, filter = $bindable('all') } = $props();
@@ -162,6 +164,14 @@
   <header class="view-header">
     <h1>{t('mylist.title')}</h1>
     <div class="view-header-right">
+      <Seg
+        label={t('mylist.groupToggle')}
+        options={[
+          { value: 'status', label: t('mylist.groupStatus') },
+          { value: 'flat', label: t('mylist.groupFlat') },
+        ]}
+        bind:value={myListGroup.by}
+      />
       <SortSelect bind:value={myListSort.by} />
     </div>
   </header>
@@ -189,12 +199,28 @@
       <p>{t('mylist.emptyFiltered', { label: filter === 'all' ? t('mylist.filter.all') : statusLabel(filter) })}</p>
     </div>
   {:else}
-    {#each sections as section (section.status)}
-      <StatusSection label={section.label} items={section.items}>
-        {#snippet children(item)}
-          <GameCard {item} onopen={() => openFromCard(item)} onedit={openForm} ondelet={deleteGame} />
-        {/snippet}
-      </StatusSection>
-    {/each}
+    {#if myListGroup.by === 'flat'}
+      {#if filtered.length >= 60}
+        <WindowedGrid items={filtered}>
+          {#snippet children(item)}
+            <GameCard {item} onopen={() => openFromCard(item)} onedit={openForm} ondelet={deleteGame} />
+          {/snippet}
+        </WindowedGrid>
+      {:else}
+        <div class="cover-grid">
+          {#each filtered as item (item.id)}
+            <GameCard {item} onopen={() => openFromCard(item)} onedit={openForm} ondelet={deleteGame} />
+          {/each}
+        </div>
+      {/if}
+    {:else}
+      {#each sections as section (section.status)}
+        <StatusSection label={section.label} items={section.items}>
+          {#snippet children(item)}
+            <GameCard {item} onopen={() => openFromCard(item)} onedit={openForm} ondelet={deleteGame} />
+          {/snippet}
+        </StatusSection>
+      {/each}
+    {/if}
   {/if}
 </section>

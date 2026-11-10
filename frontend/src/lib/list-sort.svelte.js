@@ -1,19 +1,23 @@
 const MYLIST_KEY = 'fishvn.mylistSort';
 const DASHBOARD_KEY = 'fishvn.dashboardSort';
+const MYLIST_GROUP_KEY = 'fishvn.mylistGroup';
+const DASHBOARD_GROUP_KEY = 'fishvn.dashboardGroup';
 const VALID = new Set(['name', 'vndb', 'user', 'added']);
+const GROUP_VALID = new Set(['status', 'flat']);
 
-function load(key) {
+function load(key, valid, fallback) {
   try {
     const v = localStorage.getItem(key);
-    return VALID.has(v) ? v : 'name';
+    return valid.has(v) ? v : fallback;
   } catch {
-    return 'name';
+    return fallback;
   }
 }
 
-export const myListSort = $state({ by: load(MYLIST_KEY) });
-
-export const dashboardSort = $state({ by: load(DASHBOARD_KEY) });
+export const myListSort = $state({ by: load(MYLIST_KEY, VALID, 'name') });
+export const dashboardSort = $state({ by: load(DASHBOARD_KEY, VALID, 'name') });
+export const myListGroup = $state({ by: load(MYLIST_GROUP_KEY, GROUP_VALID, 'status') });
+export const dashboardGroup = $state({ by: load(DASHBOARD_GROUP_KEY, GROUP_VALID, 'status') });
 
 $effect.root(() => {
   $effect(() => {
@@ -24,6 +28,16 @@ $effect.root(() => {
   $effect(() => {
     try {
       localStorage.setItem(DASHBOARD_KEY, dashboardSort.by);
+    } catch {}
+  });
+  $effect(() => {
+    try {
+      localStorage.setItem(MYLIST_GROUP_KEY, myListGroup.by);
+    } catch {}
+  });
+  $effect(() => {
+    try {
+      localStorage.setItem(DASHBOARD_GROUP_KEY, dashboardGroup.by);
     } catch {}
   });
 });
