@@ -26,7 +26,7 @@
   border-right: none;
 }
 
-.seg__item:hover:not(:disabled) {
+.seg__item:not(:disabled):not(.is-active):hover {
   color: var(--fg-default);
   background: var(--bg-hover);
 }
