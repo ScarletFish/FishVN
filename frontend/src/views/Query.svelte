@@ -13,6 +13,7 @@
   import { getSpoilerLevel } from '../lib/config-store.svelte.js';
   import { spoilerThreshold } from '../lib/tag-order.svelte.js';
   import SortSelect from '../components/SortSelect.svelte';
+  import Seg from '../components/Seg.svelte';
   import GameCard from '../components/GameCard.svelte';
   import WindowedGrid from '../components/WindowedGrid.svelte';
   import ConditionCard from '../components/query/ConditionCard.svelte';
@@ -426,20 +427,14 @@
 
     <div class="query-results">
       <div class="query-toolbar">
-        <div class="query-subject" role="radiogroup" aria-label={t('query.subject')}>
-          <button
-            type="button"
-            class="query-subject__btn"
-            class:is-active={!isChar}
-            onclick={() => setSubject('game')}
-          >{t('query.subjectGame')}</button>
-          <button
-            type="button"
-            class="query-subject__btn"
-            class:is-active={isChar}
-            onclick={() => setSubject('character')}
-          >{t('query.subjectChar')}</button>
-        </div>
+        <Seg
+          label={t('query.subject')}
+          options={[
+            { value: 'game', label: t('query.subjectGame') },
+            { value: 'character', label: t('query.subjectChar') },
+          ]}
+          bind:value={ui.subject}
+        />
         <span class="query-count">
           <b>{sorted.length}</b>{shownIsChar ? t('query.matchCountChar') : t('query.matchCount')}
         </span>

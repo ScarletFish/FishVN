@@ -17,6 +17,7 @@
     mergeBackfillItem,
   } from '../lib/backfill-store.svelte.js';
   import BackfillPanel from '../components/backfill/BackfillPanel.svelte';
+  import Seg from '../components/Seg.svelte';
   import BackfillLog from '../components/backfill/BackfillLog.svelte';
   import { openForm } from '../lib/add-game.svelte.js';
 
@@ -277,42 +278,26 @@
   {#if hasItems}
     <div class="bf-filters">
       <div class="bf-filters__left">
-        <div class="bf-seg" role="group" aria-label={t('backfillPage.scopeLabel')}>
-          <button
-            type="button"
-            class="bf-seg__item"
-            class:is-active={scopeOn}
-            aria-pressed={scopeOn}
-            disabled={focus.size === 0}
-            onclick={() => setScope('focus')}
-          >
-            {t('backfillPage.scopeFocus')}<b>{focus.size}</b>
-          </button>
-          <button
-            type="button"
-            class="bf-seg__item"
-            class:is-active={!scopeOn}
-            aria-pressed={!scopeOn}
-            onclick={() => setScope('all')}
-          >
-            {t('backfillPage.scopeAll')}<b>{rows.length}</b>
-          </button>
-        </div>
-        <div class="bf-seg" role="tablist">
-          {#each FILTERS as f (f.key)}
-            <button
-              type="button"
-              class="bf-seg__item"
-              class:is-active={backfillStore.filter === f.key}
-              role="tab"
-              aria-selected={backfillStore.filter === f.key}
-              data-tooltip={f.key === 'review' ? t('backfillPage.reviewHint') : undefined}
-              onclick={() => setFilter(f.key)}
-            >
-              {t(f.label)}<b>{counts[f.key] ?? 0}</b>
-            </button>
-          {/each}
-        </div>
+        <Seg
+          label={t('backfillPage.scopeLabel')}
+          value={scopeOn ? 'focus' : 'all'}
+          onchange={(v) => setScope(v)}
+          options={[
+            { value: 'focus', label: t('backfillPage.scopeFocus'), count: focus.size, disabled: focus.size === 0 },
+            { value: 'all', label: t('backfillPage.scopeAll'), count: rows.length },
+          ]}
+        />
+        <Seg
+          role="tablist"
+          value={backfillStore.filter}
+          onchange={(v) => setFilter(v)}
+          options={FILTERS.map((f) => ({
+            value: f.key,
+            label: t(f.label),
+            count: counts[f.key] ?? 0,
+            tooltip: f.key === 'review' ? t('backfillPage.reviewHint') : undefined,
+          }))}
+        />
       </div>
       <div class="bf-filters__right">
         {#if !running && backfillStore.logHidden && logRows.length}
