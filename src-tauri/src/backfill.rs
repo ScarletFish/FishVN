@@ -136,6 +136,7 @@ pub struct BackfillStatus {
     pub images_total: i64,
     pub run_id: u64,
     pub items: Vec<BackfillItemState>,
+    pub pending_ids: Vec<String>,
     pub finished: Option<BackfillReport>,
 }
 
@@ -186,14 +187,19 @@ fn pending_states(items: &[BackfillItem]) -> Vec<BackfillItemState> {
 }
 
 pub fn status_or_plan(conn: &Connection) -> Result<BackfillStatus> {
+    let pending = scan(conn)?;
+    let pending_ids = pending.iter().map(|it| it.game_id.clone()).collect();
     let current = status();
     if !current.items.is_empty() {
-        return Ok(current);
+        return Ok(BackfillStatus {
+            pending_ids,
+            ..current
+        });
     }
-    let items = scan(conn)?;
     Ok(BackfillStatus {
-        total: items.len() as i64,
-        items: pending_states(&items),
+        total: pending.len() as i64,
+        items: pending_states(&pending),
+        pending_ids,
         ..Default::default()
     })
 }

@@ -121,6 +121,7 @@ fn 没跑过补全时状态里先摆出计划清单() {
     assert_eq!(live.items.len(), 1);
     assert_eq!(live.items[0].game_id, bare);
     assert_eq!(live.items[0].bind_source, Some(BindSource::Search));
+    assert_eq!(live.pending_ids, vec![pending.clone()]);
 }
 
 #[test]

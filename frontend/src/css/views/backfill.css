@@ -76,6 +76,13 @@
   margin-bottom: var(--space-3);
 }
 
+.bf-filters__left {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+}
+
 .bf-filters__right {
   display: flex;
   align-items: center;
@@ -110,9 +117,15 @@
   border-right: none;
 }
 
-.bf-seg__item:hover {
+.bf-seg__item:hover:not(:disabled) {
   color: var(--fg-default);
   background: var(--bg-hover);
+}
+
+.bf-seg__item:disabled {
+  color: var(--fg-muted);
+  cursor: default;
+  opacity: 0.5;
 }
 
 .bf-seg__item.is-active {

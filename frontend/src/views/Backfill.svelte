@@ -8,7 +8,7 @@
   import { notifyBackfillRefresh } from '../lib/task-events.js';
   import { STATE_BADGE, STATE_DOT, STATE_LABEL } from '../lib/backfill-labels.js';
   import { mergeProgress } from '../lib/backfill-log.js';
-  import { countsOf, mergeCatalog, pickRow, visibleRows } from '../lib/backfill-list.js';
+  import { countsOf, focusRows, mergeCatalog, pickRow, visibleRows } from '../lib/backfill-list.js';
   import {
     backfillStore,
     watchBackfill,
@@ -26,10 +26,11 @@
   const rows = $derived(
     mergeCatalog(backfillStore.games, status?.items, backfillStore.localOverlay),
   );
-  const counts = $derived(countsOf(rows, backfillStore.targetIds));
-  const items = $derived(
-    visibleRows(rows, backfillStore.filter, backfillStore.targetIds, backfillStore.onlyNoId),
-  );
+  const focus = $derived(focusRows(rows, backfillStore.pendingIds));
+  const scopeOn = $derived(backfillStore.scope === 'focus' && focus.size > 0);
+  const scope = $derived(scopeOn ? focus : null);
+  const counts = $derived(countsOf(rows, scope));
+  const items = $derived(visibleRows(rows, backfillStore.filter, scope, backfillStore.onlyNoId));
   const selected = $derived(pickRow(rows, backfillStore.selected));
   const running = $derived(Boolean(status?.running));
   const paused = $derived(Boolean(status?.paused));
@@ -44,10 +45,9 @@
   const activeItem = $derived(rows.find((it) => it.state === 'active') ?? null);
 
   const FILTERS = [
-    { key: 'todo', label: 'backfillPage.filter.todo' },
-    { key: 'review', label: 'backfillPage.filter.review' },
     { key: 'all', label: 'backfillPage.filter.all' },
     { key: 'ok', label: 'backfillPage.filter.ok' },
+    { key: 'review', label: 'backfillPage.filter.review' },
     { key: 'unmatched', label: 'backfillPage.filter.unmatched' },
     { key: 'failed', label: 'backfillPage.filter.failed' },
   ];
@@ -79,18 +79,26 @@
     backfillStore.selected = backfillStore.selected === it.game_id ? null : it.game_id;
   }
 
+  function clearHiddenSelection() {
+    if (!backfillStore.selected) return;
+    const next = visibleRows(rows, backfillStore.filter, scope, backfillStore.onlyNoId);
+    if (!next.some((it) => it.game_id === backfillStore.selected)) backfillStore.selected = null;
+  }
+
   function setFilter(key) {
     backfillStore.filter = key;
-    if (!backfillStore.selected) return;
-    const next = visibleRows(rows, key, backfillStore.targetIds, backfillStore.onlyNoId);
-    if (!next.some((it) => it.game_id === backfillStore.selected)) backfillStore.selected = null;
+    clearHiddenSelection();
   }
 
   function toggleNoId() {
     backfillStore.onlyNoId = !backfillStore.onlyNoId;
-    if (!backfillStore.selected) return;
-    const next = visibleRows(rows, backfillStore.filter, backfillStore.targetIds, backfillStore.onlyNoId);
-    if (!next.some((it) => it.game_id === backfillStore.selected)) backfillStore.selected = null;
+    clearHiddenSelection();
+  }
+
+  function setScope(next) {
+    if (next === 'focus' && focus.size === 0) return;
+    backfillStore.scope = next;
+    clearHiddenSelection();
   }
 
   async function start() {
@@ -138,6 +146,7 @@
   async function retryFailed() {
     const ids = rows
       .filter((it) => it.state === 'failed' || it.state === 'unmatched')
+      .filter((it) => !scopeOn || focus.has(it.game_id))
       .map((it) => it.game_id);
     if (!ids.length || running) return;
     starting = true;
@@ -267,20 +276,43 @@
 
   {#if hasItems}
     <div class="bf-filters">
-      <div class="bf-seg" role="tablist">
-        {#each FILTERS as f (f.key)}
+      <div class="bf-filters__left">
+        <div class="bf-seg" role="group" aria-label={t('backfillPage.scopeLabel')}>
           <button
             type="button"
             class="bf-seg__item"
-            class:is-active={backfillStore.filter === f.key}
-            role="tab"
-            aria-selected={backfillStore.filter === f.key}
-            data-tooltip={f.key === 'review' ? t('backfillPage.reviewHint') : undefined}
-            onclick={() => setFilter(f.key)}
+            class:is-active={scopeOn}
+            aria-pressed={scopeOn}
+            disabled={focus.size === 0}
+            onclick={() => setScope('focus')}
           >
-            {t(f.label)}<b>{counts[f.key] ?? 0}</b>
+            {t('backfillPage.scopeFocus')}<b>{focus.size}</b>
           </button>
-        {/each}
+          <button
+            type="button"
+            class="bf-seg__item"
+            class:is-active={!scopeOn}
+            aria-pressed={!scopeOn}
+            onclick={() => setScope('all')}
+          >
+            {t('backfillPage.scopeAll')}<b>{rows.length}</b>
+          </button>
+        </div>
+        <div class="bf-seg" role="tablist">
+          {#each FILTERS as f (f.key)}
+            <button
+              type="button"
+              class="bf-seg__item"
+              class:is-active={backfillStore.filter === f.key}
+              role="tab"
+              aria-selected={backfillStore.filter === f.key}
+              data-tooltip={f.key === 'review' ? t('backfillPage.reviewHint') : undefined}
+              onclick={() => setFilter(f.key)}
+            >
+              {t(f.label)}<b>{counts[f.key] ?? 0}</b>
+            </button>
+          {/each}
+        </div>
       </div>
       <div class="bf-filters__right">
         {#if !running && backfillStore.logHidden && logRows.length}

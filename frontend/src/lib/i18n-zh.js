@@ -190,7 +190,6 @@ export const DICT_ZH = {
     filterEmpty: '当前筛选下没有游戏',
     library: '库内',
     filter: {
-      todo: '本次',
       all: '全部',
       pending: '待处理',
       active: '处理中',
@@ -204,6 +203,9 @@ export const DICT_ZH = {
     panelDirect: '按绑定的 ID 匹配',
     panelLibrary: '不在本次补全范围',
     openInForm: '在编辑表单中打开',
+    scopeLabel: '范围',
+    scopeFocus: '待处理',
+    scopeAll: '全库',
     onlyNoId: '仅看无 ID',
     onlyNoIdHint: '未绑定 VNDB 的游戏，补全时按游戏名搜索匹配',
     sourceExisting: '已绑定',

@@ -27,12 +27,22 @@ export function mergeCatalog(games, statusItems, localOverlay) {
   }));
 }
 
-export function visibleRows(rows, filter, targetIds, onlyNoId) {
-  const targets = new Set(targetIds ?? []);
+export function focusRows(rows, pendingIds) {
+  const pending = new Set(pendingIds ?? []);
+  return new Set(
+    (rows ?? [])
+      .filter(
+        (row) => pending.has(row.game_id) || (row.state === 'ok' && row.bind_source === 'search'),
+      )
+      .map((row) => row.game_id),
+  );
+}
+
+export function visibleRows(rows, filter, inScope, onlyNoId) {
   return (rows ?? []).filter((row) => {
+    if (inScope && !inScope.has(row.game_id)) return false;
     if (filter === 'review') return row.state === 'ok' && row.bind_source === 'search';
     if (onlyNoId && row.vndb_id) return false;
-    if (filter === 'todo') return targets.has(row.game_id);
     if (filter === 'ok') return row.state === 'ok';
     if (filter === 'unmatched') return row.state === 'unmatched';
     if (filter === 'failed') return row.state === 'failed';
@@ -40,12 +50,11 @@ export function visibleRows(rows, filter, targetIds, onlyNoId) {
   });
 }
 
-export function countsOf(rows, targetIds) {
-  const targets = new Set(targetIds ?? []);
-  const counts = { todo: 0, review: 0, all: 0, ok: 0, unmatched: 0, failed: 0 };
+export function countsOf(rows, inScope) {
+  const counts = { all: 0, ok: 0, review: 0, unmatched: 0, failed: 0 };
   for (const row of rows ?? []) {
+    if (inScope && !inScope.has(row.game_id)) continue;
     counts.all += 1;
-    if (targets.has(row.game_id)) counts.todo += 1;
     if (row.state === 'ok' && row.bind_source === 'search') counts.review += 1;
     if (Object.hasOwn(counts, row.state)) counts[row.state] += 1;
   }

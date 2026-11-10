@@ -7,11 +7,12 @@ import { appendEvent, isItemDone, mergeLogRows, needsReload, patchItem, projectE
 export const backfillStore = $state({
   status: null,
   games: [],
-  targetIds: [],
+  pendingIds: [],
   localOverlay: {},
   loading: true,
   error: null,
-  filter: 'todo',
+  filter: 'all',
+  scope: 'focus',
   onlyNoId: false,
   selected: null,
   logs: [],
@@ -23,7 +24,6 @@ let unsub = null;
 let watchers = 0;
 let timer = null;
 let seq = 0;
-let frozenRun = null;
 
 async function load() {
   const mine = ++seq;
@@ -31,11 +31,8 @@ async function load() {
     const fresh = await api.backfillStatus();
     if (mine !== seq) return;
     backfillStore.status = fresh;
+    backfillStore.pendingIds = fresh.pending_ids ?? [];
     backfillStore.error = null;
-    if (frozenRun !== fresh.run_id) {
-      frozenRun = fresh.run_id;
-      backfillStore.targetIds = (fresh.items ?? []).map((it) => it.game_id);
-    }
   } catch (e) {
     if (mine !== seq) return;
     backfillStore.error = e.message;
@@ -109,7 +106,6 @@ function onEvent(ev) {
 export async function watchBackfill() {
   watchers += 1;
   if (watchers === 1) {
-    frozenRun = null;
     await load();
     await loadGames();
     const after = backfillStore.lastSeq;
