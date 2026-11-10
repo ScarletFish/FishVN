@@ -1,9 +1,11 @@
 <script>
+  import { onMount } from 'svelte';
   import { t } from '../lib/i18n.js';
   import { api } from '../lib/api.js';
   import { compactDuration, durationText } from '../lib/playtime.js';
   import { averageSeconds, buildCumulativeSeries, monthDay, shortDate } from '../lib/play-log.js';
   import { getTimeMetric } from '../lib/config-store.svelte.js';
+  import { LIBRARY_CHANGED, onLibraryItemUpdated } from '../lib/library-events.js';
   import DetailSection from '../components/DetailSection.svelte';
 
   let { gameId } = $props();
@@ -28,6 +30,13 @@
     } catch {}
   }
 
+  async function reload() {
+    try {
+      const next = await api.gamePlayLog(gameId);
+      if (next) log = next;
+    } catch {}
+  }
+
   $effect(() => {
     let live = true;
     log = null;
@@ -44,6 +53,17 @@
     return () => {
       live = false;
       clearInterval(timer);
+    };
+  });
+
+  onMount(() => {
+    const unwatch = onLibraryItemUpdated((id) => {
+      if (id === gameId) reload();
+    });
+    window.addEventListener(LIBRARY_CHANGED, reload);
+    return () => {
+      unwatch();
+      window.removeEventListener(LIBRARY_CHANGED, reload);
     };
   });
 

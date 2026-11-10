@@ -1,13 +1,22 @@
 <script>
+  import { onMount } from 'svelte';
   import { t } from '../lib/i18n.js';
   import { api } from '../lib/api.js';
   import { groupStaff } from '../lib/staff.js';
+  import { LIBRARY_CHANGED, onLibraryItemUpdated } from '../lib/library-events.js';
   import DetailSection from '../components/DetailSection.svelte';
   import { panelScrollbars } from '../lib/scrollbars.js';
 
   let { gameId } = $props();
 
   let staff = $state([]);
+
+  async function load() {
+    try {
+      const meta = await api.getGameMetadata(gameId);
+      if (meta) staff = meta?.staff ?? [];
+    } catch {}
+  }
 
   $effect(() => {
     staff = [];
@@ -20,6 +29,17 @@
       .catch(() => {});
     return () => {
       live = false;
+    };
+  });
+
+  onMount(() => {
+    const unwatch = onLibraryItemUpdated((id) => {
+      if (id === gameId) load();
+    });
+    window.addEventListener(LIBRARY_CHANGED, load);
+    return () => {
+      unwatch();
+      window.removeEventListener(LIBRARY_CHANGED, load);
     };
   });
 

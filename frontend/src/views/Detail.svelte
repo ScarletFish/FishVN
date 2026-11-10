@@ -92,6 +92,12 @@
     applyState(state, active);
   }
 
+  async function refreshDirs() {
+    try {
+      dirs = await api.listInstallations(gameId);
+    } catch {}
+  }
+
   async function refreshMeta() {
     try {
       const [g, m] = await Promise.all([api.getGame(gameId), api.getGameMetadata(gameId)]);
@@ -107,10 +113,12 @@
       if (loading || failed) return;
       if (id !== gameId) return;
       refreshMeta();
+      refreshDirs();
     };
     const onLibrary = () => {
       if (loading || failed) return;
       refreshMeta();
+      refreshDirs();
     };
     const unwatch = onLibraryItemUpdated(onItem);
     window.addEventListener(LIBRARY_CHANGED, onLibrary);
