@@ -279,11 +279,22 @@ async fn fetch_characters_batch(
         .chunks(CHAR_GROUP)
         .map(|group| fetch_character_group(http, rate, group))
         .collect();
-    let mut out = Vec::new();
+    let mut fetched = Vec::with_capacity(groups.len());
     for group in futures_util::future::join_all(groups).await {
-        out.extend(group?);
+        fetched.push(group?);
     }
-    Ok(out)
+    Ok(merge_rows(fetched))
+}
+
+fn merge_rows(groups: Vec<Vec<dto::CharRow>>) -> Vec<dto::CharRow> {
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for row in groups.into_iter().flatten() {
+        if seen.insert(row.id.clone()) {
+            out.push(row);
+        }
+    }
+    out
 }
 
 async fn fetch_character_group(
@@ -717,6 +728,43 @@ mod tests {
             synced[0].sync.characters[0].role.as_deref(),
             Some("main")
         );
+    }
+
+    #[test]
+    fn 多个分组重复返回的角色只保留一条() {
+        let shared = char_row("c1", &[("v1", "main"), ("v2", "main")]);
+        let merged = merge_rows(vec![vec![shared.clone()], vec![shared]]);
+
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].id, "c1");
+    }
+
+    #[test]
+    fn 分组边界上共享的角色不会在同一作品里出现两次() {
+        let items = vec![
+            BatchItem {
+                game_id: "g1".into(),
+                vndb_id: "v1".into(),
+            },
+            BatchItem {
+                game_id: "g2".into(),
+                vndb_id: "v2".into(),
+            },
+        ];
+        let shared = char_row("c1", &[("v1", "main"), ("v2", "main")]);
+        let rows = merge_rows(vec![vec![shared.clone()], vec![shared]]);
+
+        let (synced, _) = assemble(&items, found(vec![meta("v1"), meta("v2")]), rows);
+
+        for entry in &synced {
+            let ids: Vec<&str> = entry
+                .sync
+                .characters
+                .iter()
+                .map(|c| c.id.as_str())
+                .collect();
+            assert_eq!(ids, ["c1"]);
+        }
     }
 
     #[test]
