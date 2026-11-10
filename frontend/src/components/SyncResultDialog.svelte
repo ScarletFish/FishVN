@@ -344,7 +344,6 @@
         {/if}
         <span>{t('settings.vndb.syncElapsed', { secs: elapsed })}</span>
       </p>
-      <p class="form-hint">{t('settings.vndb.syncProgressHint')}</p>
     </div>
   {:else if plan}
     {@const parts = summaryParts()}
@@ -356,9 +355,6 @@
           </p>
         {/if}
         <p class="sync-result__summary">{parts.join(' | ')}</p>
-        <p class="form-hint">
-          {t(step === 'conflicts' ? 'settings.vndb.stepConflicts' : 'settings.vndb.stepApply')}
-        </p>
       </div>
 
       {#if step === 'conflicts'}
@@ -366,7 +362,6 @@
           <div class="form-label">
             {t('settings.vndb.resultConflicts', { count: plan.conflicts.length })}
           </div>
-          <p class="form-hint">{t('settings.vndb.conflictHint')}</p>
           <div class="sync-conflict__bulk">
             <button type="button" class="btn" onclick={() => setAll('local')}>
               {t('settings.vndb.keepAll')}
@@ -578,7 +573,6 @@
         <svg viewBox="0 0 24 24"><path d="M4.5 12.5L10 18L19.5 6.5" /></svg>
       </div>
       <p class="sync-empty__text">{t('settings.vndb.syncUpToDate')}</p>
-      <p class="form-hint">{t('settings.vndb.syncUpToDateHint')}</p>
     </div>
   {/if}
 
