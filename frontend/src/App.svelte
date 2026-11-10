@@ -16,6 +16,9 @@
     notifyLibraryItemUpdated,
     notifyLibraryTagsChanged,
     notifyLibraryTraitsChanged,
+    notifyPlaySessionStarted,
+    notifyPlaySessionTick,
+    notifyPlaySessionEnded,
   } from './lib/library-events.js';
   import { subscribe } from './lib/events.js';
   import { report } from './lib/frontend-log.js';
@@ -103,15 +106,34 @@
   });
 
   $effect(() => {
-    let unlisten = null;
-    subscribe('session-ended', (payload) => {
-      notifyLibraryChanged();
+    let offStart = null;
+    let offTick = null;
+    let offEnd = null;
+    const start = subscribe('session-started', (payload) => {
+      if (payload?.game_id) notifyPlaySessionStarted(payload.game_id);
+    });
+    const tick = subscribe('session-tick', (payload) => {
+      if (payload?.game_id) notifyPlaySessionTick(payload);
+    });
+    const end = subscribe('session-ended', (payload) => {
+      const gameId = payload?.game_id ?? null;
       const seconds = Number(payload?.seconds ?? 0);
+      if (gameId) notifyPlaySessionEnded(gameId, seconds);
+      notifyLibraryChanged();
       toast(t('toast.sessionEnded', { duration: durationText(t, seconds) }), 'success');
-    })
-      .then((fn) => (unlisten = fn))
+    });
+    Promise.all([start, tick, end])
+      .then(([a, b, c]) => {
+        offStart = a;
+        offTick = b;
+        offEnd = c;
+      })
       .catch(() => {});
-    return () => unlisten?.();
+    return () => {
+      offStart?.();
+      offTick?.();
+      offEnd?.();
+    };
   });
 
   onMount(() => {

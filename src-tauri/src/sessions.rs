@@ -35,6 +35,7 @@ use tauri_plugin_log::log;
 const TICK: Duration = Duration::from_millis(1000);
 const SETTLE_TICKS: u32 = 3;
 const HEARTBEAT_TICKS: u32 = 30;
+const EMIT_TICKS: u32 = 5;
 
 const MAGPIE_READY_TIMEOUT: Duration = Duration::from_secs(5);
 const MAGPIE_WINDOW_TIMEOUT: Duration = Duration::from_secs(60);
@@ -46,7 +47,21 @@ const COLUMNS: &str = "id, game_id, installation_id, started_at, last_seen_at, e
                        foreground_seconds, COALESCE(ended_at, last_seen_at) - started_at AS alive_seconds";
 
 #[derive(Clone, serde::Serialize)]
+struct SessionStarted {
+    game_id: String,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct SessionTick {
+    game_id: String,
+    session_id: String,
+    foreground_seconds: i64,
+    alive_seconds: i64,
+}
+
+#[derive(Clone, serde::Serialize)]
 struct SessionEnded {
+    game_id: String,
     seconds: i64,
 }
 
@@ -279,9 +294,25 @@ fn watch(
             in_front = front;
             store(&shared, &session_id, alive_at, foreground, None);
         }
+        if ticks.is_multiple_of(EMIT_TICKS) {
+            if let Some(app) = &app {
+                let _ = app.emit(
+                    "session-tick",
+                    SessionTick {
+                        game_id: game_id.clone(),
+                        session_id: session_id.clone(),
+                        foreground_seconds: foreground,
+                        alive_seconds: alive_at - started_at,
+                    },
+                );
+            }
+        }
         if !confirmed && ticks >= SETTLE_TICKS {
             confirmed = true;
             mark_playing(&shared, &game_id);
+            if let Some(app) = &app {
+                let _ = app.emit("session-started", SessionStarted { game_id: game_id.clone() });
+            }
         }
     }
     store(&shared, &session_id, alive_at, foreground, Some(alive_at));
@@ -302,7 +333,13 @@ fn watch(
         if seconds > 0 {
             if let Some(app) = &app {
                 restore_window(app, config.minimize_on_launch);
-                let _ = app.emit("session-ended", SessionEnded { seconds });
+                let _ = app.emit(
+                    "session-ended",
+                    SessionEnded {
+                        game_id: game_id.clone(),
+                        seconds,
+                    },
+                );
             }
         }
     }

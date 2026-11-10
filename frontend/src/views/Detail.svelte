@@ -23,6 +23,8 @@
     notifyLibraryChanged,
     notifyLibraryTagsChanged,
     onLibraryItemUpdated,
+    onPlaySessionStarted,
+    onPlaySessionEnded,
   } from '../lib/library-events.js';
   import { addGame, openForm } from '../lib/add-game.svelte.js';
   import DetailCharacters from './DetailCharacters.svelte';
@@ -122,9 +124,17 @@
     };
     const unwatch = onLibraryItemUpdated(onItem);
     window.addEventListener(LIBRARY_CHANGED, onLibrary);
+    const offPlayStart = onPlaySessionStarted((id) => {
+      if (id === gameId) refreshPlay();
+    });
+    const offPlayEnd = onPlaySessionEnded((id) => {
+      if (id === gameId) refreshPlay();
+    });
     return () => {
       unwatch();
       window.removeEventListener(LIBRARY_CHANGED, onLibrary);
+      offPlayStart();
+      offPlayEnd();
     };
   });
 
@@ -507,14 +517,6 @@
     return () => {
       live = false;
     };
-  });
-
-  $effect(() => {
-    if (!running) return;
-    const timer = setInterval(() => {
-      refreshPlay().catch(() => {});
-    }, POLL_MS);
-    return () => clearInterval(timer);
   });
 
   $effect(() => {

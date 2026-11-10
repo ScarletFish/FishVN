@@ -5,7 +5,7 @@
   import { compactDuration, durationText } from '../lib/playtime.js';
   import { averageSeconds, buildCumulativeSeries, monthDay, shortDate } from '../lib/play-log.js';
   import { getTimeMetric } from '../lib/config-store.svelte.js';
-  import { LIBRARY_CHANGED, onLibraryItemUpdated } from '../lib/library-events.js';
+  import { LIBRARY_CHANGED, onLibraryItemUpdated, onPlaySessionStarted, onPlaySessionTick, onPlaySessionEnded } from '../lib/library-events.js';
   import DetailSection from '../components/DetailSection.svelte';
 
   let { gameId } = $props();
@@ -37,6 +37,30 @@
     } catch {}
   }
 
+  function applyTick(payload) {
+    if (!payload || payload.game_id !== gameId) return;
+    if (!log?.sessions) return;
+    let changed = false;
+    const sessions = log.sessions.map((session) => {
+      if (session.id === payload.session_id && session.ended_at == null) {
+        changed = true;
+        return {
+          ...session,
+          foreground_seconds: payload.foreground_seconds,
+          alive_seconds: payload.alive_seconds,
+        };
+      }
+      return session;
+    });
+    if (!changed) return;
+    const metric = aliveMode ? 'alive' : 'foreground';
+    const total_seconds = sessions.reduce(
+      (sum, session) => sum + (metric === 'alive' ? session.alive_seconds : session.foreground_seconds),
+      0,
+    );
+    log = { ...log, sessions, total_seconds };
+  }
+
   $effect(() => {
     let live = true;
     log = null;
@@ -46,24 +70,24 @@
     };
   });
 
-  $effect(() => {
-    if (!log?.sessions?.some((session) => session.ended_at == null)) return;
-    let live = true;
-    const timer = setInterval(() => load(() => live), 30000);
-    return () => {
-      live = false;
-      clearInterval(timer);
-    };
-  });
-
   onMount(() => {
     const unwatch = onLibraryItemUpdated((id) => {
       if (id === gameId) reload();
     });
     window.addEventListener(LIBRARY_CHANGED, reload);
+    const offStart = onPlaySessionStarted((id) => {
+      if (id === gameId) reload();
+    });
+    const offTick = onPlaySessionTick((payload) => applyTick(payload));
+    const offEnd = onPlaySessionEnded((id) => {
+      if (id === gameId) reload();
+    });
     return () => {
       unwatch();
       window.removeEventListener(LIBRARY_CHANGED, reload);
+      offStart();
+      offTick();
+      offEnd();
     };
   });
 
