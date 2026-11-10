@@ -801,6 +801,51 @@ button.info-rating {
   animation: detail-fade-in var(--duration-normal) var(--ease-out) backwards;
 }
 
+.detail-nav-zone {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  z-index: 6;
+  width: var(--space-12);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: auto;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.detail-nav-zone--prev {
+  left: var(--sidebar-w);
+}
+
+.detail-nav-zone--next {
+  right: 0;
+}
+
+.detail-nav-zone:hover,
+.detail-nav-zone:focus-visible {
+  opacity: 1;
+  color: var(--fg-default);
+}
+
+.detail-nav-zone svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+:root[data-reduce-motion='on'] .detail-nav-zone {
+  transition: none;
+}
+
 .detail-section-action {
   display: flex;
   align-items: center;
@@ -1058,12 +1103,40 @@ button.info-rating {
   }
 }
 
+.detail--switch {
+  animation: detail-switch-in var(--duration-normal) var(--ease-out) backwards;
+}
+
+.detail--switch .detail-rise,
+.detail--switch .detail-fade,
+.detail--switch .detail-enter-chars .detail-section-header,
+.detail--switch .detail-enter-staff,
+.detail--switch .detail-enter-playlog,
+.detail--switch .detail-enter-notes {
+  animation: none !important;
+}
+
+.detail--switch .detail-ambience img {
+  opacity: 1;
+  transition: none;
+}
+
+@keyframes detail-switch-in {
+  from {
+    opacity: 0;
+  }
+}
+
 :root[data-reduce-motion='on'] .detail-rise,
 :root[data-reduce-motion='on'] .detail-fade,
 :root[data-reduce-motion='on'] .detail-enter-chars .detail-section-header,
 :root[data-reduce-motion='on'] .detail-enter-staff,
 :root[data-reduce-motion='on'] .detail-enter-playlog,
 :root[data-reduce-motion='on'] .detail-enter-notes {
+  animation: none;
+}
+
+:root[data-reduce-motion='on'] .detail--switch {
   animation: none;
 }
 

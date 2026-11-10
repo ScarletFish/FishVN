@@ -233,6 +233,8 @@
   let detailId = $state(null);
   let autoLaunch = $state(false);
   let focusCharacter = $state(null);
+  let detailNeighbors = $state([]);
+  let detailMode = $state('enter');
   let detailTitle = $state('');
   let listScroll = $state(0);
   let listFilter = $state('all');
@@ -250,17 +252,32 @@
     else if (current === 'backfill') backfillScroll = viewport.scrollTop;
   }
 
-  function openDetail(id, autostart = false, characterId = null) {
+  function openDetail(id, opts = {}) {
     saveViewScroll();
     detailId = id;
-    autoLaunch = autostart;
-    focusCharacter = characterId;
+    autoLaunch = opts.autostart ?? false;
+    focusCharacter = opts.characterId ?? null;
+    detailNeighbors = opts.neighbors ?? [];
+    detailMode = 'enter';
+  }
+
+  function navigateDetail(delta) {
+    if (detailNeighbors.length < 2) return;
+    const idx = detailNeighbors.indexOf(detailId);
+    if (idx < 0) return;
+    const len = detailNeighbors.length;
+    const next = (idx + delta + len) % len;
+    autoLaunch = false;
+    focusCharacter = null;
+    detailMode = 'switch';
+    detailId = detailNeighbors[next];
   }
 
   function closeDetail() {
     detailId = null;
     autoLaunch = false;
     focusCharacter = null;
+    detailNeighbors = [];
   }
 
   function leaveView() {
@@ -270,9 +287,8 @@
 
   $effect(() => {
     function onOpenGame(e) {
-      saveViewScroll();
+      openDetail(e.detail);
       current = 'mylist';
-      detailId = e.detail;
     }
     document.addEventListener('search-open-game', onOpenGame);
     return () => document.removeEventListener('search-open-game', onOpenGame);
@@ -292,19 +308,24 @@
 
     <main class="shell__main" data-overlayscrollbars-initialize>
       {#if detailId !== null}
-        <Detail
-          gameId={detailId}
-          autostart={autoLaunch}
-          focusCharacter={focusCharacter}
-          onname={(name) => (detailTitle = name ?? '')}
-          onclose={closeDetail}
-        />
+        {#key detailId}
+          <Detail
+            gameId={detailId}
+            autostart={autoLaunch}
+            focusCharacter={focusCharacter}
+            neighbors={detailNeighbors}
+            mode={detailMode}
+            onnavigate={navigateDetail}
+            onname={(name) => (detailTitle = name ?? '')}
+            onclose={closeDetail}
+          />
+        {/key}
       {:else if current === 'home'}
         <Dashboard onopen={openDetail} scroll={dashScroll} />
       {:else if current === 'mylist'}
-        <MyList onopen={(id) => openDetail(id)} scroll={listScroll} bind:filter={listFilter} />
+        <MyList onopen={openDetail} scroll={listScroll} bind:filter={listFilter} />
       {:else if current === 'query'}
-        <Query onopen={(id, characterId) => openDetail(id, false, characterId)} scroll={queryScroll} />
+        <Query onopen={openDetail} scroll={queryScroll} />
       {:else if current === 'backfill'}
         <Backfill scroll={backfillScroll} />
       {:else if current === 'stats'}

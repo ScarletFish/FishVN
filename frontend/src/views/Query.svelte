@@ -92,6 +92,8 @@
     return list;
   });
 
+  const neighborIds = $derived(sorted.map((h) => h.game_id ?? h.id));
+
   async function exportResults() {
     if (sorted.length === 0) return;
     if (queryStore.lastJson[queryStore.resultsSubject] !== JSON.stringify(spec)) {
@@ -171,7 +173,7 @@
   function openFromCard(item) {
     const card = document.querySelector(`.cover-card[data-game-id="${CSS.escape(String(item.id))}"]`);
     if (card) captureHero(card);
-    onopen(item.id);
+    onopen(item.id, { neighbors: neighborIds });
   }
 
   function clearDim(dim) {
@@ -467,7 +469,7 @@
       {:else if shownIsChar}
         <div class="char-list">
           {#each sorted as hit ((hit.game_id ?? hit.id) + '/' + (hit.character_id ?? ''))}
-            <button type="button" class="char-row" onclick={() => onopen(hit.game_id, hit.character_id)}>
+            <button type="button" class="char-row" onclick={() => onopen(hit.game_id, { characterId: hit.character_id, neighbors: neighborIds })}>
               <span class="char-row__main">
                 <span class="char-row__name">{charName(hit)}</span>
                 {#if hit.name && hit.original}

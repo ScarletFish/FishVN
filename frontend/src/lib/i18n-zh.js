@@ -276,6 +276,8 @@ export const DICT_ZH = {
   },
   detail: {
     notFound: '游戏不存在',
+    prev: '上一部',
+    next: '下一部',
     voteCount: '{count} 人',
     ratingMine: '我的评分',
     ratingSwitchToVndb: '切换为 VNDB 评分',

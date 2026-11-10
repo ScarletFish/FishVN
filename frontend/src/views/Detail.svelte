@@ -31,7 +31,7 @@
   import DetailNotes from './DetailNotes.svelte';
   import Menu from '../components/Menu.svelte';
 
-  let { gameId, onname, onclose, autostart = false, focusCharacter = null } = $props();
+  let { gameId, onname, onclose, autostart = false, focusCharacter = null, neighbors = [], onnavigate = null, mode = 'enter' } = $props();
 
   let game = $state(null);
   let meta = $state(null);
@@ -516,7 +516,7 @@
       return;
     }
     tick().then(() => {
-      playHero(document.querySelector('.detail-cover'));
+      if (mode === 'enter') playHero(document.querySelector('.detail-cover'));
     });
   });
 
@@ -527,12 +527,27 @@
     formWasOpen = addGame.formOpen;
   });
 
+  const canNav = $derived(neighbors.length > 1);
+
   function handleSideMouse(e) {
     if (e.button === 3) onclose?.();
   }
+
+  function handleNavKey(e) {
+    if (!canNav) return;
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      onnavigate?.(-1);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      onnavigate?.(1);
+    }
+  }
 </script>
 
-<svelte:window onmouseup={handleSideMouse} />
+<svelte:window onmouseup={handleSideMouse} onkeydown={handleNavKey} />
 
 {#snippet ratingFace()}
   <span class="info-rating-mark" aria-hidden="true">{ratingIsMine ? '★' : '☆'}</span>
@@ -544,7 +559,25 @@
   <span class="info-rating-sub">{ratingSub}</span>
 {/snippet}
 
-<section class="detail">
+<section class="detail" class:detail--switch={mode === 'switch'}>
+  {#if neighbors.length > 1}
+    <button
+      type="button"
+      class="detail-nav-zone detail-nav-zone--prev"
+      aria-label={t('detail.prev')}
+      onclick={() => onnavigate?.(-1)}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+    </button>
+    <button
+      type="button"
+      class="detail-nav-zone detail-nav-zone--next"
+      aria-label={t('detail.next')}
+      onclick={() => onnavigate?.(1)}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+    </button>
+  {/if}
   {#if loading}
     <p class="detail-note">{t('common.loading')}</p>
   {:else if failed}

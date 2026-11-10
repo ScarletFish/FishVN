@@ -20,6 +20,7 @@
   } from '../lib/library-events.js';
   import { openForm } from '../lib/add-game.svelte.js';
   import { dashboardSort, gameComparator } from '../lib/list-sort.svelte.js';
+  import { neighborsFromSections } from '../lib/detail-nav.js';
   import SortSelect from '../components/SortSelect.svelte';
   import GameCard from '../components/GameCard.svelte';
   import StatusSection from '../components/StatusSection.svelte';
@@ -55,12 +56,15 @@
     })).filter((section) => section.items.length > 0)
   );
 
+  const localNeighborIds = $derived(neighborsFromSections(localSections));
+  const recentNeighborIds = $derived(recent.map((g) => g.id));
+
   function openLocal(item) {
     const card = document.querySelector(
       `.cover-card[data-game-id="${CSS.escape(String(item.id))}"]`
     );
     if (card) captureHero(card);
-    onopen(item.id);
+    onopen(item.id, { neighbors: localNeighborIds });
   }
 
   async function deleteGame(item) {
@@ -74,7 +78,7 @@
 
   function continueOpen(item, card) {
     captureHero(card, { frame: 'self', bg: '.continue-bg', aspect: 3 / 4 });
-    onopen(item.id, true);
+    onopen(item.id, { autostart: true, neighbors: recentNeighborIds });
   }
 
   async function load() {
@@ -99,6 +103,11 @@
     if (!error) await restoreScroll();
     await tick();
     window.dispatchEvent(new CustomEvent('app:ready'));
+  }
+
+  async function reload() {
+    api.invalidateGames();
+    await load();
   }
 
   let pendingRestore = true;
@@ -132,8 +141,8 @@
   onMount(() => {
     load();
     window.addEventListener(CONFIG_CHANGED, load);
-    window.addEventListener(LIBRARY_CHANGED, load);
-    const unwatchItems = onLibraryItemsThrottled(load);
+    window.addEventListener(LIBRARY_CHANGED, reload);
+    const unwatchItems = onLibraryItemsThrottled(reload);
     return () => {
       window.removeEventListener(CONFIG_CHANGED, load);
       window.removeEventListener(LIBRARY_CHANGED, load);

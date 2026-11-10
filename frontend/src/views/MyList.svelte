@@ -19,6 +19,7 @@
   import SortSelect from '../components/SortSelect.svelte';
   import GameCard from '../components/GameCard.svelte';
   import StatusSection from '../components/StatusSection.svelte';
+  import { neighborsFromSections } from '../lib/detail-nav.js';
 
   let { onopen, scroll = 0, filter = $bindable('all') } = $props();
 
@@ -40,7 +41,7 @@
   function openFromCard(item) {
     const card = document.querySelector(`.cover-card[data-game-id="${CSS.escape(String(item.id))}"]`);
     if (card) captureHero(card);
-    onopen(item.id);
+    onopen(item.id, { neighbors: neighborIds });
   }
 
   async function load() {
@@ -55,6 +56,11 @@
     if (!error) await restoreScroll();
     await tick();
     window.dispatchEvent(new CustomEvent('app:ready'));
+  }
+
+  async function reload() {
+    api.invalidateGames();
+    await load();
   }
 
   let pendingRestore = true;
@@ -76,8 +82,8 @@
 
   onMount(() => {
     load();
-    window.addEventListener(LIBRARY_CHANGED, load);
-    unwatchItems = onLibraryItemsThrottled(load);
+    window.addEventListener(LIBRARY_CHANGED, reload);
+    unwatchItems = onLibraryItemsThrottled(reload);
   });
 
   onDestroy(() => {
@@ -103,6 +109,8 @@
       items: filtered.filter((g) => g.status === status),
     })).filter((s) => s.items.length > 0)
   );
+
+  const neighborIds = $derived(filtered.map((g) => g.id));
 
   const scrollAnim = createScrollAnim();
 

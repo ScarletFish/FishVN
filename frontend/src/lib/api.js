@@ -34,8 +34,18 @@ async function call(command, args) {
   }
 }
 
+let gamesCache = null;
+
 export const api = {
-  listGames: () => call('list_games'),
+  listGames: async () => {
+    if (gamesCache) return gamesCache;
+    const data = await call('list_games');
+    gamesCache = data;
+    return data;
+  },
+  invalidateGames: () => {
+    gamesCache = null;
+  },
   queryGames: (spec) => call('query_games', { spec }),
   queryCharacters: (spec) => call('query_characters', { spec }),
   listStaff: () => call('list_staff'),
@@ -50,9 +60,21 @@ export const api = {
   dashboardPlaytimeTop: () => call('dashboard_playtime_top'),
   dashboardReleaseEras: () => call('dashboard_release_eras'),
   getGame: (id) => call('get_game', { id }),
-  createGame: (input) => call('create_game', { input }),
-  updateGame: (id, patch) => call('update_game', { id, patch }),
-  deleteGame: (id) => call('delete_game', { id }),
+  createGame: async (input) => {
+    const result = await call('create_game', { input });
+    gamesCache = null;
+    return result;
+  },
+  updateGame: async (id, patch) => {
+    const result = await call('update_game', { id, patch });
+    gamesCache = null;
+    return result;
+  },
+  deleteGame: async (id) => {
+    const result = await call('delete_game', { id });
+    gamesCache = null;
+    return result;
+  },
   getGameState: (id) => call('get_game_state', { id }),
   updateGameState: (id, patch) => call('update_game_state', { id, patch }),
   listInstallations: (gameId) => call('list_installations', gameId ? { gameId } : {}),
@@ -60,7 +82,11 @@ export const api = {
   createInstallation: (input) => call('create_installation', { input }),
   updateInstallation: (id, patch) => call('update_installation', { id, patch }),
   deleteInstallation: (id) => call('delete_installation', { id }),
-  saveInstallations: (gameId, entries) => call('save_installations', { gameId, entries }),
+  saveInstallations: async (gameId, entries) => {
+    const result = await call('save_installations', { gameId, entries });
+    gamesCache = null;
+    return result;
+  },
   launchGame: (id) => call('launch_game', { id }),
   listActiveSessions: () => call('list_active_sessions'),
   gamePlayLog: (id) => call('game_play_log', { id }),
