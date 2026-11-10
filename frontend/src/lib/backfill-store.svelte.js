@@ -100,7 +100,10 @@ function onEvent(ev) {
     backfillStore.lastSeq = Math.max(backfillStore.lastSeq, ev.seq);
   }
   if (isItemDone(ev)) refreshItem(ev.game_id);
-  if (needsReload(ev)) schedule();
+  if (needsReload(ev)) {
+    if (ev.phase === 'finished') load();
+    schedule();
+  }
 }
 
 export async function watchBackfill() {

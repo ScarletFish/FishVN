@@ -3,7 +3,7 @@
 ## 事件与刷新
 
 - **`events.js` 的 devhttp 订阅**：共享一条 EventSource，后端重启窗口期代理会以错误状态码应答，EventSource 因此进入 CLOSED 终态；`onerror` 里销毁并按 1 秒间隔重建，重挂全部监听，重建地址带 `?since=` 续传已收到的最大事件 id，避免重放旧事件。
-- **库内容刷新分三级广播**：每写完一部发 `LIBRARY_ITEM_UPDATED`，载荷带 `game_id`——`onLibraryItemUpdated(handler)` 逐条立即回调、订阅方按 id 自行过滤（详情页与角色区只认自己那部，一部只刷一次）；`onLibraryItemsThrottled(handler, ms)` 把连续多部并成一批，列表与首页用 5 秒窗口。跑完再发 `LIBRARY_CHANGED`（列表 / 首页整体重拉、详情页重拉单条）与 `LIBRARY_TAGS_CHANGED`（标签云、`#` 标签池、角色区）。写库的入口一律发 `LIBRARY_CHANGED`：补全完结、表单保存、同步计划应用；抓取阶段不落库，不发。详情页与卡片的封面解析都按 `image_path` 判重，路径没变不重置 `coverUrl`，否则逐部刷新会每秒闪一次占位。完结回执由 dock 自己在不可见时弹 toast，App 不再重复订阅该事件。
+- **库内容刷新分三级广播**：每写完一部发 `LIBRARY_ITEM_UPDATED`，载荷带 `game_id`——`onLibraryItemUpdated(handler)` 逐条立即回调、订阅方按 id 自行过滤（详情页与角色区只认自己那部，一部只刷一次）；`onLibraryItemsThrottled(handler, ms)` 把连续多部并成一批，列表与首页用 5 秒窗口。跑完再发 `LIBRARY_CHANGED`（列表 / 首页整体重拉、详情页重拉单条）与 `LIBRARY_TAGS_CHANGED`（标签云、`#` 标签池、角色区）。写库的入口一律发 `LIBRARY_CHANGED`：补全完结、表单保存、同步计划应用；抓取阶段不落库，不发。详情页与卡片的封面解析都按 `image_path` 判重，路径没变不重置 `coverUrl`，否则逐部刷新会每秒闪一次占位。完结回执由 App 在补全页之外弹一次 toast，补全页内的汇总落在运行日志的「汇总」行。
 
 ## 展示与格式
 

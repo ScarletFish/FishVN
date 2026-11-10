@@ -1,6 +1,6 @@
 <script>
   import { t } from '../../lib/i18n.js';
-  import { backfillSummaryText } from '../../lib/backfill-summary.js';
+  import { backfillSummaryParts } from '../../lib/backfill-summary.js';
   import { mergeProgress } from '../../lib/backfill-log.js';
 
   let { logs = [], status = null } = $props();
@@ -10,8 +10,9 @@
     backfill: 'backfillPage.logDone',
     unmatched: 'backfillPage.logUnmatched',
     failed: 'backfillPage.logFailed',
-    finished: 'backfillPage.logFinished',
+    finished: 'backfillPage.logSummary',
     'rate-limited': 'backfillPage.logRateLimited',
+    paused: 'backfillPage.paused',
     meta: 'mylist.backfillPhaseMeta',
     cover: 'mylist.backfillPhaseCover',
     characters: 'mylist.backfillPhaseCharacters',
@@ -40,13 +41,15 @@
   }
 
   function textOf(ev) {
-    if (ev.phase === 'finished') return backfillSummaryText(status?.finished);
+    if (ev.phase === 'finished') return '';
     if (ev.phase === 'backfill') return '';
     if (ev.detail) return ev.detail;
     if (ev.error) return ev.error;
     if (ev.total) return `${ev.done ?? 0}/${ev.total}`;
     return '';
   }
+
+  const summaryParts = $derived(backfillSummaryParts(status?.finished));
 </script>
 
 <ol class="bf-loglist scroll-thin" bind:this={listEl}>
@@ -63,7 +66,20 @@
         {/if}
         <span class="bf-logrow__text">
           <span class="bf-logrow__phase">{t(PHASE[ev.phase] ?? 'backfillPage.logOther')}</span>
-          {#if detail}<span class="bf-logrow__sep">·</span>{detail}{/if}
+          {#if ev.phase === 'finished'}
+            {#if summaryParts.length}
+              <span class="bf-logrow__sep">·</span>
+              <span class="bf-logrow__parts">
+                {#each summaryParts as part, i}
+                  <span class="bf-logrow__part"
+                    >{i < summaryParts.length - 1 ? `${part}，` : part}</span
+                  >
+                {/each}
+              </span>
+            {/if}
+          {:else if detail}
+            <span class="bf-logrow__sep">·</span>{detail}
+          {/if}
         </span>
       </span>
     </li>

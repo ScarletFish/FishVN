@@ -24,3 +24,7 @@
 :root[data-reduce-motion='on'] .toast.dismissing {
   animation-duration: 1ms;
 }
+
+:root[data-reduce-motion='on'] .nav-btn__dot {
+  animation: none;
+}

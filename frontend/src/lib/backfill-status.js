@@ -1,8 +1,8 @@
-export function createDockState() {
+export function createRun() {
   return {
     runId: 0,
     running: false,
-    pausedIdle: false,
+    paused: false,
     rateLimited: false,
     done: 0,
     total: 0,
@@ -14,10 +14,10 @@ export function createDockState() {
 }
 
 export function reduce(state, ev) {
-  if (!ev || !ev.phase) return state;
+  if (!ev || !ev.phase || !ev.run_id) return state;
 
-  if (ev.run_id && ev.run_id !== state.runId) {
-    state = { ...createDockState(), runId: ev.run_id };
+  if (ev.run_id !== state.runId) {
+    state = { ...createRun(), runId: ev.run_id };
   } else {
     state = { ...state };
   }
@@ -25,7 +25,7 @@ export function reduce(state, ev) {
   switch (ev.phase) {
     case 'backfill':
       state.finished = null;
-      state.pausedIdle = false;
+      state.paused = false;
       if (ev.done != null) state.done = ev.done;
       if (ev.total != null) state.total = ev.total;
       break;
@@ -35,14 +35,14 @@ export function reduce(state, ev) {
       if (ev.total != null) state.imagesTotal = ev.total;
       break;
     case 'paused':
-      state.pausedIdle = true;
+      state.paused = true;
       break;
     case 'rate':
     case 'rate-limited':
       if (ev.error) state.rateLimited = true;
       break;
     case 'finished':
-      state.pausedIdle = false;
+      state.paused = false;
       state.stage = '';
       break;
   }
@@ -56,7 +56,7 @@ export function seedFromStatus(state, status) {
   const next = { ...state, runId: status.run_id ?? state.runId };
   if (status.running) {
     next.running = true;
-    next.pausedIdle = status.paused_idle ?? false;
+    next.paused = Boolean(status.paused || status.paused_idle);
     next.rateLimited = status.rate_limited ?? false;
     next.done = status.done ?? 0;
     next.total = status.total ?? 0;
@@ -66,22 +66,16 @@ export function seedFromStatus(state, status) {
     next.finished = null;
   } else if (status.finished) {
     next.running = false;
+    next.paused = false;
     next.stage = '';
     next.finished = status.finished;
+    next.done = status.done ?? next.done;
+    next.total = status.total ?? next.total;
   } else {
     next.running = false;
+    next.paused = false;
     next.stage = '';
     next.finished = null;
   }
   return next;
-}
-
-export function markFinished(state, report) {
-  return { ...state, running: false, pausedIdle: false, finished: report };
-}
-
-export function dockVisible(state, ui) {
-  if (ui.hidden) return false;
-  if (state.finished) return !state.finished.cancelled && ui.closedRun !== state.runId;
-  return state.running && !state.pausedIdle && state.runId !== 0;
 }

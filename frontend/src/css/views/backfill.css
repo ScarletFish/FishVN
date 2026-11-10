@@ -233,6 +233,7 @@
   gap: var(--space-1);
   color: var(--fg-default);
   overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
 .bf-logrow__phase {
@@ -243,6 +244,17 @@
 .bf-logrow__sep {
   flex: none;
   color: var(--fg-muted);
+}
+
+.bf-logrow__parts {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.bf-logrow__part {
+  white-space: nowrap;
 }
 
 .bf-logrow.is-error .bf-logrow__text {

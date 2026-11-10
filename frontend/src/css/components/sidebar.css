@@ -75,6 +75,31 @@
   border-radius: var(--radius-pill);
 }
 
+.nav-btn__dot {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: nav-dot-pulse 1.6s var(--ease-out) infinite;
+}
+
+.nav-btn__dot.is-done {
+  animation: none;
+}
+
+@keyframes nav-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
 .sidebar-tooltip {
   position: fixed;
   left: calc(var(--sidebar-w) + var(--space-2));
