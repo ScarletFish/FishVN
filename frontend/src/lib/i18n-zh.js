@@ -216,7 +216,7 @@ export const DICT_ZH = {
     openVndb: '在 VNDB 打开',
     filledCount: '补入 {count} 项',
     filledNone: '已齐全',
-    characterCount: '{count} 位角色',
+    characterCount: '补入 {count} 位角色',
     panelLocal: '游戏名',
     panelBound: 'VNDB 游戏',
     panelFields: '补入字段',

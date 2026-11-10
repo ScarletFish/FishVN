@@ -13,7 +13,9 @@ use crate::games;
 use crate::generated::metadata::is_blank_current;
 use crate::metadata;
 use crate::tasks::{EventLog, Progress, Task, Tasks};
-use crate::types::{GameMetadata, GamePatch, LocalizedTitle, MetadataPatch, MetadataStaff, MetadataTag};
+use crate::types::{
+    GameCharacter, GameMetadata, GamePatch, LocalizedTitle, MetadataPatch, MetadataStaff, MetadataTag,
+};
 use crate::vndb::{
     self, download_images, ImageJob, ImageKind, RateLimiter, VnMetadata, VnSync,
     IMAGE_CONCURRENCY,
@@ -511,6 +513,17 @@ async fn resolve_vndb_id(
     }
 }
 
+fn apply_characters(
+    conn: &Connection,
+    game_id: &str,
+    characters: &[GameCharacter],
+) -> Result<usize> {
+    if characters.is_empty() {
+        return Ok(0);
+    }
+    characters::merge_missing(conn, game_id, characters)
+}
+
 async fn apply_sync(
     conn: &Arc<Mutex<Connection>>,
     game_id: &str,
@@ -529,11 +542,7 @@ async fn apply_sync(
                 filled = patch.filled_labels();
                 metadata::upsert(&guard, &game_id, &patch)?;
             }
-            let mut char_count = 0;
-            if characters::list(&guard, &game_id)?.is_empty() && !sync.characters.is_empty() {
-                characters::replace_all(&guard, &game_id, &sync.characters)?;
-                char_count = sync.characters.len();
-            }
+            let char_count = apply_characters(&guard, &game_id, &sync.characters)?;
             Ok::<(Vec<&'static str>, usize), AppError>((filled, char_count))
         }
     })
@@ -1022,6 +1031,8 @@ fn finish_run(task: &Task, total: i64, done: i64, mut report: BackfillReport) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::characters;
+    use crate::types::GameCharacter;
     use crate::vndb::{VnDeveloper, VnImage, VnTag, VnTitle};
 
     fn vn() -> VnMetadata {
@@ -1219,6 +1230,54 @@ mod tests {
         assert_eq!(patch.image_path, None);
         assert_eq!(patch.released, None);
         assert_eq!(patch.alias, Some(Some("フェイト/ステイナイト".into())));
+    }
+
+    fn seeded() -> Connection {
+        let conn = Connection::open_in_memory().expect("建库失败");
+        crate::db::ensure_schema(&conn).expect("建表失败");
+        conn.execute(
+            "INSERT INTO games (id, name, created_at) VALUES ('g1', '巧可甜恋', 0)",
+            [],
+        )
+        .expect("建作品失败");
+        conn
+    }
+
+    fn role(id: &str, name: &str) -> GameCharacter {
+        GameCharacter {
+            id: id.into(),
+            name: Some(name.into()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn 已有角色的作品再次补全只补新增的() {
+        let conn = seeded();
+        characters::replace_all(&conn, "g1", &[role("c1", "甲")]).expect("写角色失败");
+
+        let added =
+            apply_characters(&conn, "g1", &[role("c1", "甲"), role("c2", "乙")]).expect("补全失败");
+
+        assert_eq!(added, 1);
+        let got = characters::list(&conn, "g1").expect("读角色失败");
+        assert_eq!(
+            got.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(),
+            ["c1", "c2"]
+        );
+        assert_eq!(
+            apply_characters(&conn, "g1", &[role("c1", "甲")]).expect("补全失败"),
+            0
+        );
+    }
+
+    #[test]
+    fn 远端没有角色时不动本地角色() {
+        let conn = seeded();
+        characters::replace_all(&conn, "g1", &[role("c1", "甲")]).expect("写角色失败");
+
+        assert_eq!(apply_characters(&conn, "g1", &[]).expect("补全失败"), 0);
+        assert_eq!(characters::list(&conn, "g1").expect("读角色失败").len(), 1);
     }
 
     fn items(n: usize) -> Vec<BackfillItem> {

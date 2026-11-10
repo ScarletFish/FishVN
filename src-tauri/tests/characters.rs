@@ -2,7 +2,8 @@ mod common;
 
 use common::{new_game_in as new_game, variant, Db};
 use fishvn::characters::{
-    list_all_staff, list, merge_staff, replace_all, update_staff, StaffMerge, StaffUpdate,
+    list_all_staff, list, merge_missing, merge_staff, replace_all, update_staff, StaffMerge,
+    StaffUpdate,
 };
 use fishvn::games::delete_game;
 use fishvn::types::{CharacterVa, GameCharacter};
@@ -115,6 +116,69 @@ fn 整包替换会带走数组里没出现的角色() {
     let got = list(&db, &id).expect("读角色失败");
     assert_eq!(got.len(), 1);
     assert_eq!(got[0].id, "c1");
+}
+
+#[test]
+fn 合并只补本地没有的角色() {
+    let db = Db::new();
+    let id = new_game(&db, "合并补全");
+    let mut edited = character("c1", "甲");
+    edited.description = Some("用户写的简介".into());
+    replace_all(&db, &id, &[edited]).expect("写角色失败");
+
+    let mut remote = character("c1", "甲");
+    remote.description = Some("VNDB 的简介".into());
+    let added = merge_missing(&db, &id, &[remote, character("c2", "乙")]).expect("合并失败");
+
+    assert_eq!(added, 1);
+    let got = list(&db, &id).expect("读角色失败");
+    assert_eq!(
+        got.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(),
+        ["c1", "c2"]
+    );
+    assert_eq!(got[0].description.as_deref(), Some("用户写的简介"));
+    assert_eq!(got[1].name.as_deref(), Some("乙"));
+    assert_eq!(merge_missing(&db, &id, &[character("c1", "甲")]).unwrap(), 0);
+}
+
+#[test]
+fn 合并的新角色接在已有顺序之后() {
+    let db = Db::new();
+    let id = new_game(&db, "合并顺序");
+    replace_all(&db, &id, &[character("c1", "甲"), character("c2", "乙")]).expect("写角色失败");
+    let mut reversed = list(&db, &id).expect("读角色失败");
+    reversed.reverse();
+    replace_all(&db, &id, &reversed).expect("重排失败");
+
+    merge_missing(
+        &db,
+        &id,
+        &[character("c1", "甲"), character("c2", "乙"), character("c3", "丙")],
+    )
+    .expect("合并失败");
+
+    let got = list(&db, &id).expect("读角色失败");
+    assert_eq!(
+        got.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(),
+        ["c2", "c1", "c3"]
+    );
+    assert_eq!(got[2].sort_order, 2);
+}
+
+#[test]
+fn 空作品合并时新角色按下标顺序落库() {
+    let db = Db::new();
+    let id = new_game(&db, "空作品合并");
+
+    let added = merge_missing(&db, &id, &[character("c1", "甲"), character("c2", "乙")])
+        .expect("合并失败");
+
+    assert_eq!(added, 2);
+    let got = list(&db, &id).expect("读角色失败");
+    assert_eq!(
+        got.iter().map(|c| c.sort_order).collect::<Vec<_>>(),
+        [0, 1]
+    );
 }
 
 #[test]

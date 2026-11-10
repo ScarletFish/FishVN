@@ -147,14 +147,7 @@ pub struct StaffOption {
     pub roles: i64,
 }
 
-pub fn replace_all(
-    conn: &Connection,
-    game_id: &str,
-    characters: &[GameCharacter],
-) -> Result<Vec<GameCharacter>> {
-    if !game_exists(conn, game_id)? {
-        return Err(AppError::NotFound("游戏不存在".into()));
-    }
+fn validate(characters: &[GameCharacter]) -> Result<()> {
     let mut seen = HashSet::with_capacity(characters.len());
     for entry in characters {
         if entry.id.trim().is_empty() {
@@ -169,6 +162,55 @@ pub fn replace_all(
             }
         }
     }
+    Ok(())
+}
+
+fn existing_ids(conn: &Connection, game_id: &str) -> Result<HashSet<String>> {
+    let mut stmt = conn.prepare("SELECT id FROM characters WHERE game_id = ?")?;
+    let rows = stmt.query_map(params![game_id], |row| row.get::<_, String>(0))?;
+    Ok(rows.collect::<rusqlite::Result<HashSet<_>>>()?)
+}
+
+pub fn merge_missing(
+    conn: &Connection,
+    game_id: &str,
+    characters: &[GameCharacter],
+) -> Result<usize> {
+    if !game_exists(conn, game_id)? {
+        return Err(AppError::NotFound("游戏不存在".into()));
+    }
+    validate(characters)?;
+    let existing = existing_ids(conn, game_id)?;
+    let missing: Vec<&GameCharacter> = characters
+        .iter()
+        .filter(|entry| !existing.contains(&entry.id))
+        .collect();
+    if missing.is_empty() {
+        return Ok(0);
+    }
+    let tx = conn.unchecked_transaction()?;
+    let kept_staff = staff_snapshot(&tx, game_id)?;
+    let start = tx.query_row(
+        "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM characters WHERE game_id = ?",
+        params![game_id],
+        |row| row.get::<_, i64>(0),
+    )?;
+    for (index, entry) in missing.iter().enumerate() {
+        insert_character(&tx, game_id, entry, start + index as i64, &kept_staff)?;
+    }
+    tx.commit()?;
+    Ok(missing.len())
+}
+
+pub fn replace_all(
+    conn: &Connection,
+    game_id: &str,
+    characters: &[GameCharacter],
+) -> Result<Vec<GameCharacter>> {
+    if !game_exists(conn, game_id)? {
+        return Err(AppError::NotFound("游戏不存在".into()));
+    }
+    validate(characters)?;
 
     let tx = conn.unchecked_transaction()?;
     let kept_staff = staff_snapshot(&tx, game_id)?;
