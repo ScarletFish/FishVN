@@ -2,7 +2,7 @@
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import SearchBar from './SearchBar.svelte';
   import Menu from '../Menu.svelte';
-  import { openForm, addFromFile, addFromScan } from '../../lib/add-game.svelte.js';
+  import { getAddGameMenuItems } from '../../lib/add-game.svelte.js';
   import { ADD_MENU_SUMMON } from '../../lib/library-events.js';
   import { t } from '../../lib/i18n.js';
 
@@ -82,11 +82,7 @@
         label={t('mylist.add')}
         align="start"
         bind:open={addMenuOpen}
-        items={[
-          { label: t('mylist.addManual'), onclick: () => openForm(null) },
-          { label: t('mylist.addFromFile'), onclick: addFromFile },
-          { label: t('mylist.addScan'), onclick: addFromScan },
-        ]}
+        items={getAddGameMenuItems()}
       >
         {#snippet trigger(props)}
           <button

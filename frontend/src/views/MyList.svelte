@@ -14,8 +14,9 @@
     onLibraryItemsThrottled,
     LIBRARY_CHANGED,
   } from '../lib/library-events.js';
-  import { openForm } from '../lib/add-game.svelte.js';
+  import { openForm, getAddGameMenuItems } from '../lib/add-game.svelte.js';
   import { gameComparator, myListSort, myListGroup } from '../lib/list-sort.svelte.js';
+  import Menu from '../components/Menu.svelte';
   import SortSelect from '../components/SortSelect.svelte';
   import Seg from '../components/Seg.svelte';
   import GameCard from '../components/GameCard.svelte';
@@ -27,6 +28,7 @@
 
 
   let games = $state([]);
+  let addMenuOpen = $state(false);
   let loading = $state(true);
   let error = $state(null);
   let unwatchItems = null;
@@ -89,7 +91,7 @@
   });
 
   onDestroy(() => {
-    window.removeEventListener(LIBRARY_CHANGED, load);
+    window.removeEventListener(LIBRARY_CHANGED, reload);
     unwatchItems?.();
   });
 
@@ -162,7 +164,24 @@
   {/if}
 
   <header class="view-header">
-    <h1>{t('mylist.title')}</h1>
+    <div class="mylist-title-group">
+      <h1>{t('mylist.title')}</h1>
+      <Menu label={t('mylist.add')} items={getAddGameMenuItems()} bind:open={addMenuOpen}>
+        {#snippet trigger(props)}
+          <button
+            {...props}
+            type="button"
+            class="btn btn-sm btn-ghost mylist-title-add"
+            aria-label={t('mylist.add')}
+            data-tooltip={t('mylist.add')}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 2.5v11M2.5 8h11" />
+            </svg>
+          </button>
+        {/snippet}
+      </Menu>
+    </div>
     <div class="view-header-right">
       <Seg
         label={t('mylist.groupToggle')}

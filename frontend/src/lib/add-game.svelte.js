@@ -51,3 +51,11 @@ export async function addFromScan() {
   addGame.scanPath = dir;
   addGame.scanOpen = true;
 }
+
+export function getAddGameMenuItems() {
+  return [
+    { label: t('mylist.addManual'), onclick: () => openForm(null) },
+    { label: t('mylist.addFromFile'), onclick: addFromFile },
+    { label: t('mylist.addScan'), onclick: addFromScan },
+  ];
+}
