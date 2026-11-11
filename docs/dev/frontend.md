@@ -102,3 +102,4 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 | 样式踩坑记录 | [styles.md](./styles.md) |
 | 界面文案、标签与特征译名 | [i18n.md](./i18n.md) |
 | 卡片宽度、列数与窗口化 | [grid-layout.md](./grid-layout.md) |
+| 测试写法与用例结构 | [testing.md](./testing.md) |
