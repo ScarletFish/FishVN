@@ -249,6 +249,7 @@ fn main() {
             commands::resume_backfill,
             commands::inspect_path,
             commands::scan_dir,
+            commands::dir_size,
             commands::log_frontend,
             commands::path_exists,
             commands::create_backup,

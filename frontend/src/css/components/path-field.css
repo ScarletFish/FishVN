@@ -8,9 +8,36 @@
   gap: var(--space-2);
 }
 
+.path-field__control {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
 .path-field__row input {
   flex: 1;
   min-width: 0;
+}
+
+.path-field__control:has(.path-field__suffix) input {
+  padding-right: 4.75rem;
+}
+
+.path-field__suffix {
+  position: absolute;
+  top: 0;
+  right: var(--space-3);
+  display: flex;
+  height: 100%;
+  align-items: center;
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  white-space: nowrap;
+}
+
+.path-field__control:has(input:disabled) .path-field__suffix {
+  opacity: 0.5;
 }
 
 .path-field__browse {

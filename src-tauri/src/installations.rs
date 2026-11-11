@@ -6,7 +6,7 @@ use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Row};
 use serde_json::Value as Json;
 
 use crate::error::{write_conflict, AppError, Result};
-use crate::fsinfo::{ensure_dir, read_dir_info, read_exes, resolve_path};
+use crate::fsinfo::{ensure_dir, read_dir_info, resolve_path};
 use crate::new_id;
 use crate::types::{Installation, InstallationInput, InstallationPatch, MagpieMode, NewInstallation};
 
@@ -60,6 +60,12 @@ pub fn get_installation(conn: &Connection, id: &str) -> Result<Installation> {
         .optional()?
         .ok_or_else(|| AppError::NotFound("安装记录不存在".into()))?;
     to_api(&row)
+}
+
+pub fn directory_size(raw: &str) -> Result<i64> {
+    let dir = resolve_path(raw);
+    ensure_dir(&dir)?;
+    Ok(read_dir_info(&dir).size_bytes)
 }
 
 pub fn create_installation(conn: &Connection, input: &NewInstallation) -> Result<Installation> {
@@ -209,6 +215,7 @@ struct Existing {
     game_id: Option<String>,
     dir_path: String,
     entry_path: Option<String>,
+    size_bytes: Option<i64>,
 }
 
 struct Draft {
@@ -309,9 +316,16 @@ pub fn save_installations(
                 if row.dir_path != draft.dir_path {
                     let dir = Path::new(&draft.dir_path);
                     ensure_dir(dir)?;
+                    let info = read_dir_info(dir);
                     tx.execute(
-                        "UPDATE installations SET exes = ?, size_bytes = NULL WHERE id = ?",
-                        params![serde_json::to_string(&read_exes(dir))?, &row.id],
+                        "UPDATE installations SET exes = ?, size_bytes = ? WHERE id = ?",
+                        params![serde_json::to_string(&info.exes)?, info.size_bytes, &row.id],
+                    )?;
+                } else if row.size_bytes.is_none() && Path::new(&draft.dir_path).is_dir() {
+                    let info = read_dir_info(Path::new(&draft.dir_path));
+                    tx.execute(
+                        "UPDATE installations SET size_bytes = ? WHERE id = ?",
+                        params![info.size_bytes, &row.id],
                     )?;
                 }
                 row.id.clone()
@@ -319,18 +333,20 @@ pub fn save_installations(
             None => {
                 let dir = Path::new(&draft.dir_path);
                 ensure_dir(dir)?;
+                let info = read_dir_info(dir);
                 let id = new_id();
                 tx.execute(
                     "INSERT INTO installations
                      (id, game_id, dir_path, entry_path, exes, size_bytes, sort_order,
                       le_launch, magpie, launch_args)
-                     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)",
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     params![
                         &id,
                         game_id,
                         &draft.dir_path,
                         &draft.entry_path,
-                        serde_json::to_string(&read_exes(dir))?,
+                        serde_json::to_string(&info.exes)?,
+                        info.size_bytes,
                         order,
                         draft.le_launch,
                         draft.magpie.to_db(),
@@ -428,14 +444,16 @@ fn validate_entry_path(entry: &str) -> Result<()> {
 }
 
 fn existing_rows(conn: &Connection) -> Result<Vec<Existing>> {
-    let mut stmt =
-        conn.prepare("SELECT id, game_id, dir_path, entry_path FROM installations ORDER BY id")?;
+    let mut stmt = conn.prepare(
+        "SELECT id, game_id, dir_path, entry_path, size_bytes FROM installations ORDER BY id",
+    )?;
     let rows = stmt.query_map([], |row| {
         Ok(Existing {
             id: row.get(0)?,
             game_id: row.get(1)?,
             dir_path: row.get(2)?,
             entry_path: row.get(3)?,
+            size_bytes: row.get(4)?,
         })
     })?;
     let mut out = Vec::new();

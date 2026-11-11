@@ -6,7 +6,7 @@ use common::{message, new_game_in as new_game, path_str, variant, Db, Tree};
 use fishvn::fsinfo::resolve_path;
 use fishvn::games::{delete_game, get_game_state, update_game_state};
 use fishvn::installations::{
-    create_installation, delete_installation, get_installation, list_installations,
+    create_installation, delete_installation, directory_size, get_installation, list_installations,
     save_installations, update_installation, validate_installation_inputs,
 };
 use fishvn::types::{
@@ -792,7 +792,7 @@ fn 整包保存接受候选之外的手输入口() {
 }
 
 #[test]
-fn 整包保存新行不写目录大小与候选同步() {
+fn 整包保存新行也填目录大小与候选同步() {
     let db = Db::new();
     let mut tree = Tree::new();
     let game_id = new_game(&db, "大小留空");
@@ -804,7 +804,7 @@ fn 整包保存新行不写目录大小与候选同步() {
         Some(vec!["game.exe".to_owned(), "data/nested.exe".to_owned()]),
         "候选入口由后端重算"
     );
-    assert_eq!(saved[0].size_bytes, None, "本轮不写目录大小");
+    assert_eq!(saved[0].size_bytes, Some(2), "手动整包保存也填目录大小");
 }
 
 #[test]
@@ -838,7 +838,7 @@ fn 整包保存换目录时重算候选并清掉旧的目录大小() {
         after[0].exes,
         Some(vec!["new.exe".to_owned(), "app/newer.exe".to_owned()])
     );
-    assert_eq!(after[0].size_bytes, None, "旧目录的大小已失效");
+    assert_eq!(after[0].size_bytes, Some(2), "换目录后按新路径重算大小");
 }
 
 #[test]
@@ -857,6 +857,39 @@ fn 整包保存不重新读已登记的旧目录() {
     assert_eq!(after[0].id, id);
     assert_eq!(after[0].exes, before.exes, "目录未变就不重读");
     assert_eq!(after[0].size_bytes, before.size_bytes);
+}
+
+#[test]
+fn 目录大小按整棵子树求和() {
+    let mut tree = Tree::new();
+    let dir = tree.make_dir(&[("game.exe", "aaaa"), ("data/b.bin", "bb")]);
+    assert_eq!(directory_size(&path_str(&dir)).expect("算大小失败"), 4 + 2);
+}
+
+#[test]
+fn 目录搬走后算大小报错() {
+    let mut tree = Tree::new();
+    let dir = tree.make_dir(&[("game.exe", "aa")]);
+    std::fs::remove_dir_all(&dir).expect("删目录失败");
+    assert!(directory_size(&path_str(&dir)).is_err());
+}
+
+#[test]
+fn 遗留的空目录大小在保存时补上() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "旧行补大小");
+    let dir = tree.make_dir(&[("game.exe", "aaaa"), ("data/b.bin", "bb")]);
+    let id = add(&db, &game_id, &dir).expect("登记失败");
+    db.execute("UPDATE installations SET size_bytes = NULL WHERE id = ?", [&id])
+        .expect("清空大小失败");
+
+    let before = get_installation(&db, &id).expect("查安装失败");
+    assert_eq!(before.size_bytes, None);
+
+    let after = save_installations(&db, &game_id, &[kept(&before)]).expect("整包保存失败");
+    assert_eq!(after[0].size_bytes, Some(4 + 2), "路径没变也把空大小补上");
+    assert_eq!(after[0].exes, before.exes, "回填只动大小，不重读候选");
 }
 
 #[test]

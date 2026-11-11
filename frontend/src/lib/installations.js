@@ -37,6 +37,7 @@ export function toInstallationDraft(row = {}) {
     dirPath,
     entryPath,
     path: joinLaunchPath(dirPath, entryPath),
+    sizeBytes: row.size_bytes ?? null,
     leLaunch: !!row.le_launch,
     magpie: row.magpie ?? 'off',
     launchArgs: row.launch_args ?? '',
@@ -50,10 +51,16 @@ export function newInstallation(path = '') {
     dirPath: '',
     entryPath: '',
     path,
+    sizeBytes: null,
     leLaunch: false,
     magpie: 'off',
     launchArgs: '',
   };
+}
+
+export function draftSize(draft) {
+  if (draft.sizeBytes == null) return null;
+  return isUnchanged(draft) ? draft.sizeBytes : null;
 }
 
 export function installPathInvalid(draft) {

@@ -14,6 +14,7 @@
     setFontScale,
   } from '../lib/theme.js';
   import { t } from '../lib/i18n.js';
+  import { formatBytes } from '../lib/format.js';
   import { getShowCardTitle, setShowCardTitle } from '../lib/card-prefs.js';
   import { getReduceMotion, setReduceMotion } from '../lib/motion.js';
   import { panelScrollbars } from '../lib/scrollbars.js';
@@ -416,12 +417,6 @@
 
   function formatBackupTime(createdAt) {
     return new Date(createdAt * 1000).toLocaleString();
-  }
-
-  function formatBackupSize(bytes) {
-    if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-    if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-    return `${bytes} B`;
   }
 
   async function loadBackups() {
@@ -1161,7 +1156,7 @@
                 <div class="backup-meta">
                   <div class="backup-time">{formatBackupTime(meta.created_at)}</div>
                   <div class="backup-sub">
-                    {t('settings.backup.size')} {formatBackupSize(meta.size_bytes)} · {t('settings.backup.covers', { count: meta.cover_count })}
+                    {t('settings.backup.size')} {formatBytes(meta.size_bytes)} · {t('settings.backup.covers', { count: meta.cover_count })}
                   </div>
                 </div>
                 <div class="backup-actions">

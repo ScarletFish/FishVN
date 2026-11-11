@@ -1,12 +1,17 @@
 <script>
   import { t } from '../lib/i18n.js';
+  import { api } from '../lib/api.js';
   import { pickExecutable } from '../lib/pick-path.js';
+  import { report } from '../lib/frontend-log.js';
   import { toast } from '../lib/toast.svelte.js';
+  import { formatBytes } from '../lib/format.js';
   import PathField from './PathField.svelte';
   import {
+    draftSize,
     hasInstallation,
     installPathInvalid,
     newInstallation,
+    splitLaunchPath,
   } from '../lib/installations.js';
 
   let {
@@ -33,6 +38,36 @@
     return hasInstallation(items, newInstallation(path), ignoreKey);
   }
 
+  const sizing = new Set();
+  const sizeFailed = new Set();
+
+  async function loadSize(item) {
+    if (!item.dirPath) return;
+    if (sizing.has(item.key) || sizeFailed.has(item.key)) return;
+    sizing.add(item.key);
+    try {
+      const size = await api.dirSize(item.dirPath);
+      const current = items.find((it) => it.key === item.key);
+      if (!current || current.dirPath !== item.dirPath) return;
+      items = items.map((it) => (it.key === item.key ? { ...it, sizeBytes: size } : it));
+    } catch (err) {
+      sizeFailed.add(item.key);
+      report('warn', `统计目录大小失败 ${item.dirPath}：${err}`);
+    } finally {
+      sizing.delete(item.key);
+    }
+  }
+
+  function applyPath(item, picked) {
+    const { dirPath, entryPath } = splitLaunchPath((picked ?? '').trim());
+    if (!dirPath) return;
+    if (dirPath === item.dirPath && entryPath === item.entryPath) return;
+    sizeFailed.delete(item.key);
+    const next = { ...item, dirPath, entryPath, sizeBytes: null };
+    items = items.map((it) => (it.key === item.key ? next : it));
+    loadSize(next);
+  }
+
   async function addItem() {
     if (disabled || picking) return;
     picking = true;
@@ -44,8 +79,11 @@
         return;
       }
       const added = newInstallation(picked);
-      items = [...items, added];
+      const { dirPath, entryPath } = splitLaunchPath(picked.trim());
+      const next = { ...added, dirPath, entryPath };
+      items = [...items, next];
       if (defaultKey == null) defaultKey = added.key;
+      loadSize(next);
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -90,10 +128,14 @@
             picker={pickExecutable}
             pickerTitle={t('gameForm.install.pickTitle')}
             onPick={(picked) => acceptPick(item, picked)}
-            oncommit={() => markTouched(item.key)}
+            oncommit={(picked) => {
+              markTouched(item.key);
+              applyPath(item, picked);
+            }}
             placeholder={t('gameForm.install.pathPlaceholder')}
             ariaLabel={t('gameForm.install.pathAria')}
             error={pathError(item)}
+            suffix={draftSize(item) != null ? formatBytes(draftSize(item)) : ''}
             {disabled}
           />
 

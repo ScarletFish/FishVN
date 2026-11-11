@@ -382,6 +382,13 @@ pub async fn inspect_path(path: String) -> Result<PathInspect> {
         .map_err(|e| AppError::Upstream(format!("识别任务失败：{e}")))?
 }
 
+#[tauri::command]
+pub async fn dir_size(path: String) -> Result<i64> {
+    tauri::async_runtime::spawn_blocking(move || installations::directory_size(&path))
+        .await
+        .map_err(|e| AppError::Upstream(format!("统计目录大小失败：{e}")))?
+}
+
 pub const SCAN: &str = "scan";
 
 #[tauri::command]

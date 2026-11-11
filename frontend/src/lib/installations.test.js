@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   defaultKeyOf,
+  draftSize,
   hasInstallation,
   installPathInvalid,
   joinLaunchPath,
@@ -27,6 +28,7 @@ test('取回的行铺成一行启动路径', () => {
   expect(draft.dirPath).toBe('D:\\Games\\One');
   expect(draft.entryPath).toBe('bin\\game.exe');
   expect(draft.path).toBe('D:\\Games\\One\\bin\\game.exe');
+  expect(draft.sizeBytes).toBe(12);
   expect(draft.key).toMatch(
     /^local-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
   );
@@ -47,9 +49,22 @@ test('新建的安装项只有路径', () => {
   expect(draft.dirPath).toBe('');
   expect(draft.entryPath).toBe('');
   expect(draft.path).toBe('D:\\Games\\One\\game.exe');
+  expect(draft.sizeBytes).toBeNull();
   expect(draft.leLaunch).toBe(false);
   expect(draft.magpie).toBe('off');
   expect(draft.launchArgs).toBe('');
+});
+
+test('只有已保存且路径未改的项才报出目录大小', () => {
+  const saved = toInstallationDraft({
+    id: 'i1',
+    dir_path: 'D:\\Games\\One',
+    entry_path: 'game.exe',
+    size_bytes: 42,
+  });
+  expect(draftSize(saved)).toBe(42);
+  expect(draftSize({ ...saved, path: 'D:\\Games\\Two\\game.exe' })).toBeNull();
+  expect(draftSize(newInstallation('D:\\Games\\One\\game.exe'))).toBeNull();
 });
 
 test('拼接分隔符跟着目录走', () => {

@@ -13,6 +13,7 @@
     error = '',
     disabled = false,
     id = undefined,
+    suffix = '',
   } = $props();
 
   let pickError = $state('');
@@ -36,17 +37,24 @@
 
 <div class="path-field">
   <div class="path-field__row">
-    <input
-      {id}
-      type="text"
-      bind:value
-      placeholder={placeholder}
-      aria-label={ariaLabel || undefined}
-      spellcheck="false"
-      autocomplete="off"
-      {disabled}
-      onblur={() => oncommit?.(value)}
-    />
+    <div class="path-field__control">
+      <input
+        {id}
+        type="text"
+        bind:value
+        placeholder={placeholder}
+        aria-label={ariaLabel || undefined}
+        spellcheck="false"
+        autocomplete="off"
+        data-tooltip={value || undefined}
+        data-tooltip-rich={value ? '' : undefined}
+        {disabled}
+        onblur={() => oncommit?.(value)}
+      />
+      {#if suffix}
+        <span class="path-field__suffix">{suffix}</span>
+      {/if}
+    </div>
     <button type="button" class="btn path-field__browse" onclick={browse} {disabled}>
       {browseLabel}
     </button>
