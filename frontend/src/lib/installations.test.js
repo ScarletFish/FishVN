@@ -27,7 +27,9 @@ test('取回的行铺成一行启动路径', () => {
   expect(draft.dirPath).toBe('D:\\Games\\One');
   expect(draft.entryPath).toBe('bin\\game.exe');
   expect(draft.path).toBe('D:\\Games\\One\\bin\\game.exe');
-  expect(draft.key).toBeTruthy();
+  expect(draft.key).toMatch(
+    /^local-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+  );
   expect(draft.leLaunch).toBe(true);
   expect(draft.magpie).toBe('window');
   expect(draft.launchArgs).toBe('-window');

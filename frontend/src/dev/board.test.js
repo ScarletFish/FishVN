@@ -22,5 +22,16 @@ test('状态板能挂载：三列侧栏、两种日志汇总、toast 按钮都�
   expect(document.querySelectorAll('.nav-btn__dot')).toHaveLength(2);
   expect(document.body.textContent).toContain('成功 58/62 部，2 部未匹配，2 部失败');
   expect(document.body.textContent).toContain('已处理 40/62 部');
-  expect(document.querySelectorAll('.board__chip').length).toBeGreaterThan(6);
+  expect([...document.querySelectorAll('.board__chip')].map((el) => el.textContent.trim())).toEqual([
+    '浅色',
+    '深色',
+    '绯红',
+    '琥珀',
+    '海蓝',
+    '樱粉',
+    '翠绿',
+    '紫',
+    '成功',
+    '取消',
+  ]);
 });

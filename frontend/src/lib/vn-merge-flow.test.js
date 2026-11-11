@@ -21,7 +21,15 @@ vi.mock('./api.js', () => ({
 }));
 vi.mock('./events.js', () => ({ subscribe: m.subscribe }));
 vi.mock('./toast.svelte.js', () => ({ toast: m.toast }));
-vi.mock('./i18n.js', () => ({ t: (key) => key }));
+vi.mock('./i18n.js', async () => {
+  const { DICT_ZH } = await import('./i18n-zh.js');
+  return {
+    t: (key, params) => {
+      const text = key.split('.').reduce((o, k) => o?.[k], DICT_ZH) ?? key;
+      return params ? text.replace(/\{(\w+)\}/g, (whole, name) => params[name] ?? whole) : text;
+    },
+  };
+});
 vi.mock('./vn-merge.js', () => ({
   conflictRows: () => m.conflicts,
   applyIncoming: (current, incoming, picked) => ({ ...current, picked: [...picked] }),
@@ -84,7 +92,7 @@ test('vndb_id 已被别的作品占用时直接拒绝，不发起拉取', async 
 
   expect(await flow.pick('v1', load())).toBeNull();
   expect(m.fetchVnMetadata).not.toHaveBeenCalled();
-  expect(m.toast).toHaveBeenCalledWith('gameForm.error.vndbTaken', 'error');
+  expect(m.toast).toHaveBeenCalledWith('库内已有《别的作品》，在该游戏上同步资料', 'error');
   expect(flow.pulling).toBe(false);
 });
 
@@ -104,7 +112,7 @@ test('无差异时不打开取舍面板', async () => {
   const flow = createVnMergeFlow();
 
   expect(await flow.pick('v1', load())).toBeNull();
-  expect(m.toast).toHaveBeenCalledWith('backfillPage.fixNone');
+  expect(m.toast).toHaveBeenCalledWith('没有可应用的新资料');
   expect(flow.rows).toEqual([]);
 });
 
