@@ -73,10 +73,6 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - dev server 的 `host` / `port` 必须与 `tauri.conf.json` 的 `devUrl` 同协议族、同端口：写 `localhost` 会让 vite 只绑 `::1`，devUrl 的 IPv4 字面量就够不着；`strictPort: true` 让端口占用直接失败，不自动往上换 —— 换了端口 devUrl 就指空
 - `/dev-http` 是唯一的跨源转发入口，指向开发期 HTTP 通道；生产构建里没有它
 
-## 视觉状态板
-
-`npm run dev:frontend` 后开 `http://127.0.0.1:4545/visual.html`：真实组件与真实样式摆出补全圆点的三种状态、日志汇总行与 toast，可切主题、强调色与减弱动效。只在 dev server 提供，`vite build` 只打 `index.html`，不进产物；不连后端。它只回答外观，行为与时机仍由单测覆盖。
-
 ## 注释
 
 代码里不写注释，前端惯例写进本文与索引里的各分册。规则与例外见 [comments.md](./comments.md)。
