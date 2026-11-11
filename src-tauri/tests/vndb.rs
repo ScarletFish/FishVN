@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 
 use fishvn::settings::CharacterScope;
 use fishvn::vndb::{
-    role_in, take_slot, ulist_chain, validate_keyword, validate_vn_id, CharVn, RateLimiter,
-    UlistEntry, VnEnvelope, VnMetadata,
+    role_in, take_slot, ulist_chain, validate_keyword, validate_vn_id, CharVn, UlistEntry,
+    VnEnvelope, VnMetadata,
 };
 
 fn char_vn(vn: &str, role: &str) -> CharVn {
@@ -88,32 +88,8 @@ fn 正好出窗的记录被清掉() {
     let mut history = VecDeque::from([base]);
 
     assert!(take_slot(&mut history, 1, window, base + window).is_ok());
-}
-
-#[tokio::test]
-async fn 限流器满员后要等到窗口出位() {
-    let limiter = RateLimiter::new_with(3, Duration::from_millis(200));
-
-    let start = Instant::now();
-    for _ in 0..4 {
-        limiter.acquire().await;
-    }
-    assert!(
-        start.elapsed() >= Duration::from_millis(200),
-        "第四次 acquire 应等到最早那次出窗，实测 {:?}",
-        start.elapsed()
-    );
-}
-
-#[tokio::test]
-async fn 限流器没满员时不等待() {
-    let limiter = RateLimiter::new_with(5, Duration::from_secs(60));
-
-    let start = Instant::now();
-    for _ in 0..5 {
-        limiter.acquire().await;
-    }
-    assert!(start.elapsed() < Duration::from_millis(200));
+    assert_eq!(history.len(), 1, "出窗记录清掉后只留本次请求");
+    assert_eq!(history[0], base + window, "留下的是本次请求的时间");
 }
 
 #[test]

@@ -1,6 +1,6 @@
 mod common;
 
-use common::{new_game_in as new_game, variant, Db};
+use common::{message, new_game_in as new_game, variant, Db};
 use fishvn::characters::{
     list_all_staff, list, merge_missing, merge_staff, replace_all, update_staff, StaffMerge,
     StaffUpdate,
@@ -242,6 +242,8 @@ fn 缺编号被拒() {
         replace_all(&db, &id, &[character("  ", "没名字也算缺")]).expect_err("空编号竟然通过了");
 
     assert_eq!(variant(&err), "BadRequest");
+    assert_eq!(message(&err), "角色缺少 id");
+    assert_eq!(count(&db, "characters", &id), 0, "拒绝后角色表保持为空");
 }
 
 #[test]
@@ -262,6 +264,7 @@ fn 读不存在的作品报_not_found() {
     let db = Db::new();
     let err = list(&db, common::ghost()).expect_err("不存在的作品竟然有角色");
     assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "游戏不存在");
 }
 
 #[test]
@@ -550,6 +553,17 @@ fn 空主名被拒() {
     let err = update_staff(&db, &staff_patch("s1", "   ", "")).expect_err("空主名竟然通过了");
 
     assert_eq!(variant(&err), "BadRequest");
+    assert_eq!(message(&err), "声优主名不能为空");
+    assert_eq!(
+        db.query_row(
+            "SELECT staff_name FROM character_va WHERE game_id = ?",
+            [&id],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap(),
+        "声优甲",
+        "拒绝后署名证据保持"
+    );
 }
 
 #[test]
@@ -558,6 +572,7 @@ fn 改不存在的声优报_not_found() {
     let err = update_staff(&db, &staff_patch("s404", "无名", "")).expect_err("竟然改成功了");
 
     assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "声优不存在");
 }
 
 #[test]
@@ -640,4 +655,6 @@ fn 不能把声优并入它自己() {
     let err = merge_staff(&db, &staff_merge("s1", "s1")).expect_err("自己并自己竟然通过了");
 
     assert_eq!(variant(&err), "BadRequest");
+    assert_eq!(message(&err), "不能把声优并入它自己");
+    assert_eq!(count(&db, "character_va", &id), 1, "拒绝后配音关系保持");
 }

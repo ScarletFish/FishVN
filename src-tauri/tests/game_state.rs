@@ -161,7 +161,9 @@ fn 删作品时状态随外键级联清除() {
     let id = new_game(&db, "随主删除");
     delete_game(&db, &id).expect("删除失败");
 
-    assert_eq!(variant(&get_game_state(&db, &id).unwrap_err()), "NotFound");
+    let err = get_game_state(&db, &id).unwrap_err();
+    assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "游戏不存在");
 }
 
 fn state_modified_at(db: &Db, id: &str) -> Option<i64> {

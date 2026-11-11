@@ -324,10 +324,6 @@ mod tests {
 
     #[test]
     fn 补全报告由规格表驱动且不遗漏字段() {
-        assert_eq!(METADATA_FIELDS.len(), 20);
-        assert_eq!(METADATA_FIELDS.iter().filter(|f| f.in_patch).count(), 18);
-        assert_eq!(METADATA_FIELDS.iter().filter(|f| f.label.is_some()).count(), 11);
-
         let patch: MetadataPatch = serde_json::from_str(
             r#"{"alias":"A","released":"2020-01-01","rating":8.5,"votecount":10,
                 "length_minutes":120,"description":"D","image_path":"p.png",

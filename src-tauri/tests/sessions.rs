@@ -178,4 +178,5 @@ fn 启动不存在的作品返回_not_found() {
     let shared = Shared::new();
     let err = sessions::launch(shared.conn.clone(), common::ghost(), None).unwrap_err();
     assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "游戏不存在");
 }

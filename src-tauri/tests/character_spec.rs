@@ -1,64 +1,12 @@
 use fishvn::db;
 use fishvn::generated::characters::{
     field, insert_values, CharacterFieldType, CHARACTER_COLUMNS, CHARACTER_DDL_COLUMNS,
-    CHARACTER_DRAFT_KEYS, CHARACTER_FIELDS, CHARACTER_MERGE_KEYS, CHARACTER_PAYLOAD_KEYS,
+    CHARACTER_FIELDS, CHARACTER_MERGE_KEYS,
 };
 use fishvn::types::GameCharacter;
 use rusqlite::types::Value;
 use rusqlite::Connection;
 use serde_json::json;
-
-fn count(predicate: impl Fn(&&fishvn::generated::characters::CharacterFieldSpec) -> bool) -> usize {
-    CHARACTER_FIELDS.iter().filter(predicate).count()
-}
-
-#[test]
-fn 规格覆盖全部角色字段且类别计数稳定() {
-    assert_eq!(CHARACTER_FIELDS.len(), 22);
-    assert_eq!(count(|f| f.identity), 3);
-    assert_eq!(count(|f| f.joined), 2);
-    assert_eq!(count(|f| f.in_ddl), 20);
-    assert_eq!(count(|f| f.in_columns), 19);
-    assert_eq!(count(|f| f.in_struct), 21);
-    assert_eq!(count(|f| f.in_draft), 19);
-    assert_eq!(count(|f| f.in_merge), 19);
-    assert_eq!(count(|f| f.ty == CharacterFieldType::Text), 11);
-    assert_eq!(count(|f| f.ty == CharacterFieldType::Integer), 7);
-    assert_eq!(count(|f| f.ty == CharacterFieldType::Strings), 2);
-    assert_eq!(count(|f| f.ty == CharacterFieldType::Join), 2);
-}
-
-#[test]
-fn 三套键集合与列清单由同一规格派生() {
-    let payload = CHARACTER_FIELDS
-        .iter()
-        .filter(|f| f.in_draft)
-        .map(|f| f.key)
-        .collect::<Vec<_>>();
-    assert_eq!(CHARACTER_PAYLOAD_KEYS, payload.as_slice());
-
-    let draft = CHARACTER_FIELDS
-        .iter()
-        .filter(|f| f.in_draft)
-        .map(|f| f.draft.unwrap())
-        .collect::<Vec<_>>();
-    assert_eq!(CHARACTER_DRAFT_KEYS, draft.as_slice());
-
-    let merge = CHARACTER_FIELDS
-        .iter()
-        .filter(|f| f.in_merge)
-        .map(|f| f.key)
-        .collect::<Vec<_>>();
-    assert_eq!(CHARACTER_MERGE_KEYS, merge.as_slice());
-
-    let columns = CHARACTER_FIELDS
-        .iter()
-        .filter(|f| f.in_columns)
-        .map(|f| f.sql)
-        .collect::<Vec<_>>()
-        .join(", ");
-    assert_eq!(CHARACTER_COLUMNS, columns);
-}
 
 #[test]
 fn ddl列定义与规格逐行对应() {

@@ -49,6 +49,8 @@ fn name为空返回_bad_request() {
     )
     .unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
+    assert_eq!(message(&err), "name 不能为空");
+    assert!(list_games(&db).unwrap().is_empty(), "拒绝后列表保持为空");
 }
 
 #[test]
@@ -380,6 +382,7 @@ fn patch不存在的id返回_not_found() {
     )
     .unwrap_err();
     assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "游戏不存在");
 }
 
 #[test]
@@ -406,10 +409,9 @@ fn delete同一id第二次返回_not_found() {
 #[test]
 fn delete不存在的id返回_not_found() {
     let db = Db::new();
-    assert_eq!(
-        variant(&delete_game(&db, common::ghost()).unwrap_err()),
-        "NotFound"
-    );
+    let err = delete_game(&db, common::ghost()).unwrap_err();
+    assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "游戏不存在");
 }
 
 #[test]

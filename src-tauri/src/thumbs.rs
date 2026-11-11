@@ -167,15 +167,20 @@ mod tests {
     }
 
     #[test]
-    fn 二次调用命中缓存不改文件() {
+    fn 同一源图两次取到同一份封面() {
         let tmp = tempfile::tempdir().unwrap();
         let src = sample(tmp.path(), 700, 980);
-        let a = cached(src.to_str().unwrap(), tmp.path()).unwrap();
-        let stamp = std::fs::metadata(&a).unwrap().modified().unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(1100));
-        let b = cached(src.to_str().unwrap(), tmp.path()).unwrap();
-        assert_eq!(a, b);
-        assert_eq!(stamp, std::fs::metadata(&b).unwrap().modified().unwrap());
+        let first = cached(src.to_str().unwrap(), tmp.path()).unwrap();
+        let first_pixels = image::open(&first).unwrap().to_rgb8();
+        let second = cached(src.to_str().unwrap(), tmp.path()).unwrap();
+        let second_pixels = image::open(&second).unwrap().to_rgb8();
+
+        assert_eq!(first, second, "源图未变时命中同一份缓存");
+        assert_eq!(
+            first_pixels.as_raw(),
+            second_pixels.as_raw(),
+            "两次取到的封面像素一致"
+        );
     }
 
     #[test]

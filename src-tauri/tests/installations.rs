@@ -202,6 +202,12 @@ fn 作品不存在返回_not_found() {
 
     let err = add(&db, common::ghost(), &dir).unwrap_err();
     assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "游戏不存在");
+    assert_eq!(
+        list_installations(&db, None).unwrap().len(),
+        0,
+        "拒绝后安装表保持为空"
+    );
 }
 
 #[test]
@@ -277,6 +283,12 @@ fn patch把归属改成不存在的作品返回_not_found() {
     )
     .unwrap_err();
     assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "游戏不存在");
+    assert_eq!(
+        get_installation(&db, &id).unwrap().game_id.as_deref(),
+        Some(game_id.as_str()),
+        "拒绝后归属保持"
+    );
 }
 
 #[test]
@@ -350,6 +362,7 @@ fn 归属与入口同时非法时报输入问题不是不存在() {
         "BadRequest",
         "两个都非法时该报 entry_path 那个"
     );
+    assert_eq!(message(&err), "entry_path 是非空字符串或 null");
 }
 
 #[test]
@@ -378,6 +391,7 @@ fn patch不存在的安装返回_not_found() {
     )
     .unwrap_err();
     assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "安装记录不存在");
 }
 
 #[test]
@@ -703,6 +717,12 @@ fn 整包保存带不存在的安装_id返回_not_found() {
     )
     .unwrap_err();
     assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "安装记录不存在");
+    assert_eq!(
+        list_installations(&db, None).unwrap().len(),
+        0,
+        "拒绝后安装表保持为空"
+    );
 }
 
 #[test]
@@ -726,6 +746,7 @@ fn 整包保存作品不存在返回_not_found() {
 
     let err = save_installations(&db, common::ghost(), &[fresh(&dir)]).unwrap_err();
     assert_eq!(variant(&err), "NotFound");
+    assert_eq!(message(&err), "游戏不存在");
 }
 
 #[test]
@@ -750,6 +771,7 @@ fn 入口越出目录在校验阶段返回_bad_request() {
         )])
         .unwrap_err();
         assert_eq!(variant(&err), "BadRequest", "入口 {bad:?} 应被拒");
+        assert!(message(&err).contains("entry_path"), "入口 {bad:?} 的提示说明是入口问题");
     }
 }
 

@@ -1,6 +1,6 @@
 mod common;
 
-use common::{new_game_in as new_game, variant, Db};
+use common::{message, new_game_in as new_game, variant, Db};
 use fishvn::games::{create_game, delete_game};
 use fishvn::metadata;
 use fishvn::types::{
@@ -128,6 +128,8 @@ fn 空补丁没有可更新的字段() {
 
     let err = metadata::upsert(&db, &id, &MetadataPatch::default()).unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
+    assert_eq!(message(&err), "没有可更新的字段");
+    assert!(metadata::get(&db, &id).unwrap().is_none(), "拒绝后资料行保持为空");
 }
 
 #[test]

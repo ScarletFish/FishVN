@@ -63,10 +63,18 @@ fn 删除备份后从列表消失() {
 fn 非法标识被拒绝且缺失备份报未找到() {
     let shared = common::Shared::new();
     let dir = shared.dir().to_path_buf();
+    common::new_game(&shared, "还原前");
+    let meta = backup::create_backup(&shared.conn, &dir).expect("建备份不该失败");
 
-    assert!(backup::restore_backup(&shared.conn, &dir, "../etc").is_err());
-    assert!(backup::delete_backup(&dir, "..").is_err());
-    assert!(backup::restore_backup(&shared.conn, &dir, "不存在").is_err());
+    let bad = backup::restore_backup(&shared.conn, &dir, "../etc").unwrap_err();
+    assert_eq!(common::message(&bad), "备份标识非法");
+    let missing = backup::restore_backup(&shared.conn, &dir, "不存在").unwrap_err();
+    assert_eq!(common::message(&missing), "备份不存在");
+    let del = backup::delete_backup(&dir, "..").unwrap_err();
+    assert_eq!(common::message(&del), "备份标识非法");
+
+    assert_eq!(game_count(&shared), 1, "还原失败后库内数据保持");
+    assert!(list_ids(&dir).contains(&meta.id), "还原失败后备份仍在");
 }
 
 #[test]

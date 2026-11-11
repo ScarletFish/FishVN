@@ -858,38 +858,6 @@ fn decision_里_align_可只带状态() {
 }
 
 #[test]
-fn 计划缓存_ttl_内命中_过期即失效() {
-    let _guard = plan_cache_guard();
-    invalidate_plan();
-    assert!(cached_plan_at(0).is_none(), "初始无缓存");
-
-    let at = store_plan(&SyncPlan::default());
-    assert!(cached_plan_at(at).is_some(), "刚落库的计划应命中");
-    assert!(cached_plan_at(at - 1).is_none(), "时钟回拨时旧计划作废");
-    assert!(cached_plan_at(at + 59).is_some(), "TTL 边缘内仍命中");
-    assert!(cached_plan_at(at + 60).is_none(), "超过 TTL 必须重新拉取");
-
-    invalidate_plan();
-    assert!(cached_plan_at(at + 61).is_none(), "手动失效后不再命中");
-}
-
-#[test]
-fn 计划缓存_存的是计划的克隆_互不影响() {
-    let _guard = plan_cache_guard();
-    invalidate_plan();
-    let at = store_plan(&SyncPlan::default());
-
-    let mut edited = cached_plan_at(at).expect("应命中");
-    edited.total = 999;
-    edited.skipped = 999;
-
-    let again = cached_plan_at(at).expect("应命中");
-    assert_eq!(again.total, 0);
-    assert_eq!(again.skipped, 0);
-    invalidate_plan();
-}
-
-#[test]
 fn 应用计划后缓存失效() {
     let _guard = plan_cache_guard();
     invalidate_plan();

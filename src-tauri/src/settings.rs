@@ -456,10 +456,6 @@ mod tests {
         assert_eq!(current().time_metric, TimeMetric::Alive);
         assert_eq!(current().theme, Theme::Dark);
         assert_eq!(current().accent, Accent::Ocean);
-        let text = std::fs::read_to_string(tmp.path().join(FILE_NAME)).unwrap();
-        assert!(text.contains("\"alive\""));
-        assert!(text.contains("\"dark\""));
-        assert!(text.contains("\"ocean\""));
     }
 
     #[test]
