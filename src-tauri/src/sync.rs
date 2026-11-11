@@ -1,4 +1,6 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use rusqlite::{Connection, params};
 
@@ -7,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::error::{AppError, Result};
 use crate::settings::VndbSyncMode;
 use crate::types::{Status, double_option};
-use crate::vndb::{RateLimiter, UlistLabel};
+use crate::vndb::{LabelMap, RateLimiter, UlistLabel};
+use reqwest::Client;
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct SyncPlan {
@@ -73,6 +76,8 @@ pub struct ApplyReport {
     pub updated: usize,
     pub resolved: usize,
     pub pushed: usize,
+    #[serde(default)]
+    pub cancelled: bool,
     pub created_ids: Vec<String>,
 }
 
@@ -513,40 +518,103 @@ pub fn apply(conn: &Connection, decision: &PlanDecision) -> Result<ApplyReport> 
     Ok(report)
 }
 
-pub async fn push(
+pub struct PushConfig {
+    pub freeze: Duration,
+    pub rounds: u32,
+}
+
+impl Default for PushConfig {
+    fn default() -> Self {
+        Self {
+            freeze: Duration::from_secs(300),
+            rounds: 3,
+        }
+    }
+}
+
+pub trait VndbUpload {
+    fn upload(&self, p: &PlanPush) -> impl std::future::Future<Output = Result<()>> + Send;
+}
+
+pub struct LiveUploader<'a> {
+    pub http: &'a Client,
+    pub token: &'a str,
+    pub labels: &'a LabelMap,
+}
+
+impl VndbUpload for LiveUploader<'_> {
+    async fn upload(&self, p: &PlanPush) -> Result<()> {
+        crate::vndb::set_ulist(self.http, self.token, &p.vndb_id, self.labels, p.status, p.rating).await
+    }
+}
+
+pub async fn push<U: VndbUpload>(
     conn: Arc<Mutex<Connection>>,
-    http: &reqwest::Client,
-    token: &str,
-    labels: &crate::vndb::LabelMap,
     pushes: &[PlanPush],
     rate: &RateLimiter,
-    report: impl Fn(usize, usize),
+    cancel: &AtomicBool,
+    config: &PushConfig,
+    uploader: U,
+    mut progress: impl FnMut(&str, Option<i64>, Option<i64>),
 ) -> Result<usize> {
-    let total = pushes.len();
-    let mut done = 0;
+    let total = pushes.len() as i64;
+    let mut done = 0i64;
     for p in pushes {
-        rate.acquire().await;
-        crate::vndb::set_ulist(http, token, &p.vndb_id, labels, p.status, p.rating).await?;
-        {
-            let guard = crate::db::lock(&conn)?;
-            if let Some(status) = p.status {
-                guard.execute(
-                    "UPDATE user_game_state SET synced_status = ? WHERE game_id = ?",
-                    params![status.as_str(), p.game_id],
-                )?;
+        if cancel.load(Ordering::Relaxed) {
+            return Err(AppError::Cancelled);
+        }
+        let mut rounds = config.rounds;
+        loop {
+            rate.acquire().await;
+            if cancel.load(Ordering::Relaxed) {
+                return Err(AppError::Cancelled);
             }
-            if let Some(rating) = p.rating {
-                guard.execute(
-                    "UPDATE user_game_state SET synced_rating = ? WHERE game_id = ?",
-                    params![rating, p.game_id],
-                )?;
+            match uploader.upload(p).await {
+                Ok(()) => {
+                    let guard = crate::db::lock(&conn)?;
+                    if let Some(status) = p.status {
+                        guard.execute(
+                            "UPDATE user_game_state SET synced_status = ? WHERE game_id = ?",
+                            params![status.as_str(), p.game_id],
+                        )?;
+                    }
+                    if let Some(rating) = p.rating {
+                        guard.execute(
+                            "UPDATE user_game_state SET synced_rating = ? WHERE game_id = ?",
+                            params![rating, p.game_id],
+                        )?;
+                    }
+                    drop(guard);
+                    done += 1;
+                    progress("push", Some(done), Some(total));
+                    break;
+                }
+                Err(AppError::RateLimited) if rounds > 0 => {
+                    rounds -= 1;
+                    progress("rate-limited", Some(done), Some(total));
+                    if !freeze(cancel, config.freeze).await {
+                        return Err(AppError::Cancelled);
+                    }
+                }
+                Err(e) => return Err(e),
             }
         }
-        done += 1;
-        report(done, total);
     }
     invalidate_plan();
-    Ok(done)
+    Ok(done as usize)
+}
+
+async fn freeze(cancel: &AtomicBool, dur: Duration) -> bool {
+    let mut left = dur;
+    while !left.is_zero() {
+        if cancel.load(Ordering::Relaxed) {
+            return false;
+        }
+        let step = left.min(Duration::from_secs(1));
+        tokio::time::sleep(step).await;
+        left -= step;
+    }
+    true
 }
 
 fn vndb_exists(tx: &Connection, vndb_id: &str) -> Result<bool> {
@@ -663,6 +731,9 @@ mod tests {
     use super::*;
     use crate::vndb::{UlistEntry, UlistLabel, UlistVn, VnTitle};
     use rusqlite::Connection;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     fn db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
@@ -942,5 +1013,283 @@ mod tests {
         let plan = plan_ulist(&conn, &entries, false, VndbSyncMode::Download, true).unwrap();
         assert_eq!(plan.skipped, 1);
         assert!(plan.creates.is_empty());
+    }
+
+    #[derive(Clone, Copy)]
+    enum MockOutcome {
+        Ok,
+        RateLimited,
+    }
+
+    struct ScriptedUploader {
+        script: Vec<MockOutcome>,
+        idx: std::sync::Mutex<usize>,
+    }
+
+    impl VndbUpload for ScriptedUploader {
+        async fn upload(&self, _p: &PlanPush) -> Result<()> {
+            let o = {
+                let mut i = self.idx.lock().unwrap();
+                let o = self.script.get(*i).copied().unwrap_or(MockOutcome::Ok);
+                *i += 1;
+                o
+            };
+            match o {
+                MockOutcome::Ok => Ok(()),
+                MockOutcome::RateLimited => Err(AppError::RateLimited),
+            }
+        }
+    }
+
+    fn push_item(
+        game_id: &str,
+        vndb_id: &str,
+        status: Option<Status>,
+        rating: Option<Option<f64>>,
+    ) -> PlanPush {
+        PlanPush {
+            game_id: game_id.into(),
+            vndb_id: vndb_id.into(),
+            name: "名".into(),
+            status,
+            rating,
+            remote_status: None,
+            remote_rating: None,
+            local_at: None,
+            remote_at: None,
+            overrides: false,
+        }
+    }
+
+    fn synced_status(conn: &Connection, game_id: &str) -> Option<String> {
+        conn.query_row(
+            "SELECT synced_status FROM user_game_state WHERE game_id = ?",
+            params![game_id],
+            |r| r.get(0),
+        )
+        .ok()
+    }
+
+    fn synced_rating(conn: &Connection, game_id: &str) -> Option<f64> {
+        conn.query_row(
+            "SELECT synced_rating FROM user_game_state WHERE game_id = ?",
+            params![game_id],
+            |r| r.get(0),
+        )
+        .ok()
+    }
+
+    #[tokio::test]
+    async fn push全量成功并落库() {
+        let conn = Arc::new(Mutex::new(db()));
+        seed(
+            &conn.lock().unwrap(),
+            "v1",
+            Status::Playing,
+            None,
+            Some(Status::Playing),
+            None,
+            Some(100),
+        );
+        let pushes = vec![push_item("v1", "vndb1", Some(Status::Finished), Some(Some(85.0)))];
+        let cancel = AtomicBool::new(false);
+        let up = ScriptedUploader {
+            script: vec![MockOutcome::Ok],
+            idx: std::sync::Mutex::new(0),
+        };
+        let done = push(
+            conn.clone(),
+            &pushes,
+            &crate::vndb::RateLimiter::new(),
+            &cancel,
+            &PushConfig {
+                freeze: Duration::from_millis(10),
+                rounds: 3,
+            },
+            up,
+            |_, _, _| {},
+        )
+        .await
+        .unwrap();
+        assert_eq!(done, 1);
+        assert_eq!(synced_status(&conn.lock().unwrap(), "v1"), Some("finished".into()));
+        assert_eq!(synced_rating(&conn.lock().unwrap(), "v1"), Some(85.0));
+    }
+
+    #[tokio::test]
+    async fn push遇限流冻结后重试成功() {
+        let conn = Arc::new(Mutex::new(db()));
+        seed(
+            &conn.lock().unwrap(),
+            "v1",
+            Status::Playing,
+            None,
+            Some(Status::Playing),
+            None,
+            Some(100),
+        );
+        let pushes = vec![push_item("v1", "vndb1", Some(Status::Finished), None)];
+        let cancel = AtomicBool::new(false);
+        let up = ScriptedUploader {
+            script: vec![MockOutcome::RateLimited, MockOutcome::Ok],
+            idx: std::sync::Mutex::new(0),
+        };
+        let started = std::time::Instant::now();
+        let done = push(
+            conn.clone(),
+            &pushes,
+            &crate::vndb::RateLimiter::new(),
+            &cancel,
+            &PushConfig {
+                freeze: Duration::from_millis(20),
+                rounds: 3,
+            },
+            up,
+            |_, _, _| {},
+        )
+        .await
+        .unwrap();
+        assert_eq!(done, 1);
+        assert!(
+            started.elapsed() >= Duration::from_millis(15),
+            "应等待冻结后再重试"
+        );
+        assert_eq!(synced_status(&conn.lock().unwrap(), "v1"), Some("finished".into()));
+    }
+
+    #[tokio::test]
+    async fn push限流次数耗尽则停止() {
+        let conn = Arc::new(Mutex::new(db()));
+        seed(
+            &conn.lock().unwrap(),
+            "v1",
+            Status::Playing,
+            None,
+            Some(Status::Playing),
+            None,
+            Some(100),
+        );
+        let pushes = vec![push_item("v1", "vndb1", Some(Status::Finished), None)];
+        let cancel = AtomicBool::new(false);
+        let up = ScriptedUploader {
+            script: vec![MockOutcome::RateLimited; 5],
+            idx: std::sync::Mutex::new(0),
+        };
+        let err = push(
+            conn.clone(),
+            &pushes,
+            &crate::vndb::RateLimiter::new(),
+            &cancel,
+            &PushConfig {
+                freeze: Duration::from_millis(5),
+                rounds: 3,
+            },
+            up,
+            |_, _, _| {},
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(err, AppError::RateLimited));
+        assert_eq!(
+            synced_status(&conn.lock().unwrap(), "v1"),
+            Some("playing".into()),
+            "失败不应落库"
+        );
+    }
+
+    #[tokio::test]
+    async fn push已取消则立即中止() {
+        let conn = Arc::new(Mutex::new(db()));
+        seed(
+            &conn.lock().unwrap(),
+            "v1",
+            Status::Playing,
+            None,
+            Some(Status::Playing),
+            None,
+            Some(100),
+        );
+        let pushes = vec![push_item("v1", "vndb1", Some(Status::Finished), None)];
+        let cancel = AtomicBool::new(true);
+        let up = ScriptedUploader {
+            script: vec![MockOutcome::Ok],
+            idx: std::sync::Mutex::new(0),
+        };
+        let err = push(
+            conn.clone(),
+            &pushes,
+            &crate::vndb::RateLimiter::new(),
+            &cancel,
+            &PushConfig::default(),
+            up,
+            |_, _, _| {},
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(err, AppError::Cancelled));
+    }
+
+    #[tokio::test]
+    async fn push中途取消保留已推送项() {
+        let conn = Arc::new(Mutex::new(db()));
+        seed(
+            &conn.lock().unwrap(),
+            "v1",
+            Status::Playing,
+            None,
+            Some(Status::Playing),
+            None,
+            Some(100),
+        );
+        seed(
+            &conn.lock().unwrap(),
+            "v2",
+            Status::Playing,
+            None,
+            Some(Status::Playing),
+            None,
+            Some(100),
+        );
+        let pushes = vec![
+            push_item("v1", "vndb1", Some(Status::Finished), None),
+            push_item("v2", "vndb2", Some(Status::Finished), None),
+        ];
+        let cancel = Arc::new(AtomicBool::new(false));
+        struct ArmUploader {
+            cancel: Arc<AtomicBool>,
+        }
+        impl VndbUpload for ArmUploader {
+            async fn upload(&self, _p: &PlanPush) -> Result<()> {
+                if self.cancel.load(Ordering::Relaxed) {
+                    return Err(AppError::RateLimited);
+                }
+                self.cancel.store(true, Ordering::Relaxed);
+                Ok(())
+            }
+        }
+        let err = push(
+            conn.clone(),
+            &pushes,
+            &crate::vndb::RateLimiter::new(),
+            &cancel,
+            &PushConfig::default(),
+            ArmUploader {
+                cancel: cancel.clone(),
+            },
+            |_, _, _| {},
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(err, AppError::Cancelled));
+        assert_eq!(
+            synced_status(&conn.lock().unwrap(), "v1"),
+            Some("finished".into()),
+            "已推送项应落库"
+        );
+        assert_eq!(
+            synced_status(&conn.lock().unwrap(), "v2"),
+            Some("playing".into()),
+            "未推送项不应落库"
+        );
     }
 }

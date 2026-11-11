@@ -313,6 +313,7 @@ pub async fn search_vndb(
 
 pub const VNDB_SYNC: &str = "vndb-sync";
 pub const SYNC_PROGRESS: &str = "vndb-sync-progress";
+pub const VNDB_SYNC_PUSH: &str = "vndb-sync-push";
 
 #[tauri::command]
 pub async fn fetch_vn_metadata(
@@ -526,6 +527,7 @@ pub async fn apply_sync_plan(
     app: tauri::AppHandle,
     log: State<'_, Arc<Mutex<EventLog>>>,
     shared: State<'_, Arc<Mutex<Connection>>>,
+    tasks: State<'_, Arc<Tasks>>,
     rate: State<'_, Arc<RateLimiter>>,
     decision: sync::PlanDecision,
 ) -> Result<sync::ApplyReport> {
@@ -560,27 +562,50 @@ pub async fn apply_sync_plan(
         let Some((token, labels)) = upload else {
             return Ok(report);
         };
+        let cancel = tasks.register(VNDB_SYNC_PUSH);
         let http = crate::vndb::http();
-        report.pushed = sync::push(conn, http, &token, &labels, &pushes, rate.inner(), |done, total| {
-            let event = TaskEvent {
-                phase: "push".to_owned(),
-                ts: crate::tasks::now_ms(),
-                done: Some(done as i64),
-                total: Some(total as i64),
-                detail: None,
-                error: None,
-                run_id: 0,
-                game_id: None,
-                seq: 0,
-            };
-            let logged = match log.inner().lock() {
-                Ok(mut log) => log.push(SYNC_PROGRESS, event),
-                Err(_) => return,
-            };
-            let _ = app.emit(SYNC_PROGRESS, logged.event);
-        })
-        .await
-        .map_err(|e| AppError::Upstream(format!("本地更改已应用，但写入 VNDB 时中断：{e}")))?;
+        let push_result = sync::push(
+            conn,
+            &pushes,
+            rate.inner(),
+            &cancel,
+            &sync::PushConfig::default(),
+            sync::LiveUploader {
+                http,
+                token: token.as_str(),
+                labels: &labels,
+            },
+            |phase, done, total| {
+                let event = TaskEvent {
+                    phase: phase.to_owned(),
+                    ts: crate::tasks::now_ms(),
+                    done,
+                    total,
+                    detail: None,
+                    error: None,
+                    run_id: 0,
+                    game_id: None,
+                    seq: 0,
+                };
+                if let Ok(mut log) = log.inner().lock() {
+                    let logged = log.push(SYNC_PROGRESS, event);
+                    let _ = app.emit(SYNC_PROGRESS, logged.event);
+                }
+                if let (Some(d), Some(_)) = (done, total) {
+                    report.pushed = d as usize;
+                }
+            },
+        )
+        .await;
+        match push_result {
+            Ok(_) => {}
+            Err(AppError::Cancelled) => report.cancelled = true,
+            Err(e) => {
+                return Err(AppError::Upstream(format!(
+                    "本地更改已应用，但写入 VNDB 时中断：{e}"
+                )))
+            }
+        }
         Ok(report)
     }
     .await;

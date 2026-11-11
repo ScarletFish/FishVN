@@ -520,11 +520,20 @@
     vndbSyncing = false;
   }
 
+  async function onPlanApplyCancel() {
+    await api.cancelTask('vndb-sync-push');
+  }
+
   async function onPlanApply(decision) {
     try {
       const report = await api.applySyncPlan(decision);
       resultOpen = false;
       syncPlan = null;
+      if (report?.cancelled) {
+        notifyLibraryChanged();
+        toast(t('settings.vndb.applyCancelled', { count: report?.pushed ?? 0 }), 'info');
+        return;
+      }
       notifyConfigChanged();
       notifyLibraryChanged();
       toast(t('settings.vndb.applied'), 'success');
@@ -1188,6 +1197,7 @@
     error={syncError}
     empty={syncEmpty}
     onapply={onPlanApply}
+    onapplycancel={onPlanApplyCancel}
     oncancel={onSyncCancel}
     onretry={onVndbSync}
   />

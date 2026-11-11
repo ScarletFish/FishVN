@@ -13,6 +13,7 @@
     empty = false,
     onapply,
     oncancel,
+    onapplycancel = null,
     onretry,
   } = $props();
 
@@ -22,6 +23,8 @@
   let pushedOn = $state({});
   let step = $state('apply');
   let applying = $state(false);
+  let cancelling = $state(false);
+  let rateLimited = $state(false);
   let pushDone = $state(0);
   let pushTotal = $state(0);
   let phase = $state('fetch');
@@ -68,6 +71,8 @@
     pushedOn = pushNext;
     step = plan.conflicts.length > 0 ? 'conflicts' : 'apply';
     applying = false;
+    cancelling = false;
+    rateLimited = false;
     pushDone = 0;
     pushTotal = 0;
   });
@@ -77,9 +82,16 @@
     let alive = true;
     let unsub = null;
     subscribe('vndb-sync-progress', (e) => {
-      if (!alive || e.phase !== 'push') return;
-      pushDone = e.done ?? 0;
-      pushTotal = e.total ?? 0;
+      if (!alive) return;
+      if (e.phase === 'rate-limited') {
+        rateLimited = true;
+        return;
+      }
+      if (e.phase === 'push') {
+        rateLimited = false;
+        pushDone = e.done ?? 0;
+        pushTotal = e.total ?? 0;
+      }
     }).then((u) => {
       if (alive) unsub = u;
       else u();
@@ -298,6 +310,12 @@
     } finally {
       applying = false;
     }
+  }
+
+  function onApplyCancel() {
+    if (cancelling) return;
+    cancelling = true;
+    onapplycancel?.();
   }
 
   function summaryParts() {
@@ -578,6 +596,12 @@
 
   <div class="modal-actions">
     {#if applying}
+      {#if rateLimited}
+        <p class="form-hint sync-rate-limited">{t('backfillPage.rateLimited')}</p>
+      {/if}
+      <button type="button" class="btn" onclick={onApplyCancel} disabled={cancelling}>
+        {cancelling ? t('backfillPage.stopping') : t('common.cancel')}
+      </button>
       <button type="button" class="btn btn-primary" disabled>
         {#if pushTotal > 0}
           {t('settings.vndb.applyingPush', { done: pushDone, total: pushTotal })}

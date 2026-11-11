@@ -16,7 +16,7 @@ const BATCH_TIMEOUT: Duration = Duration::from_secs(45);
 
 const IMAGE_TIMEOUT: Duration = Duration::from_secs(8);
 
-const RATE_LIMIT_MAX: usize = 100;
+const RATE_LIMIT_MAX: usize = 200;
 const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(5 * 60);
 
 const MIN_WAIT: Duration = Duration::from_millis(1);

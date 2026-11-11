@@ -541,6 +541,7 @@ export const DICT_ZH = {
       ratingField: '评分',
       unrated: '未评分',
       applied: '已应用更改',
+      applyCancelled: '已应用本地更改，VNDB 上传已取消（已写入 {count} 部）',
     },
     backup: {
       retention: '自动清理',
