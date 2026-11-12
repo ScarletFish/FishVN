@@ -51,8 +51,8 @@
 - `forms`：`:focus-visible` 要清 `outline`，否则键盘 Tab 会套上全局那圈重环；数量用文本输入框而非 `number`（原生微调与页面滚动、方向键冲突）
 - `键入清洗`：受控输入在 `oninput` 里过滤字符时，状态和框里的字会分叉——清洗结果与上一次状态相同（已是 `12` 又敲了个字母），Svelte 判等后不重绘，脏字符就留在框里了。清洗结果与原文不同时直接写回 input 元素，别只靠状态更新
 - `dropdowns`：开合用 `is-open` 类切换、不做 portal —— 菜单与触发器同处一个层叠上下文，走 portal 会与弹窗遮罩的 `z-index` 打架
-- `menus`：菜单留在触发器的层叠上下文里，不移出 DOM；`.btn svg` 是按描边线性图标定的，实心点要自己定尺；裸图标变体浮在内容图上，必须自带底色
-- `sidebar`：`stroke-width` 与尺寸绑定，图标放大后线条会相对变细；`.active:hover` 必须与 `.active` 一起清，否则悬停时半透明底色会回来
+- `menus`：菜单留在触发器的层叠上下文里，不移出 DOM；裸图标变体浮在内容图上，必须自带底色
+- `sidebar`：`.active:hover` 必须与 `.active` 一起清，否则悬停时半透明底色会回来
 - `buttons`：`.btn-primary` 常态纯色 `--accent`、hover 换 `--accent-soft`（扁平风，不用渐变与 brightness 滤镜）；覆盖 `.btn:hover` 的规则与它特异性相同，要逐项写全才不会漏掉被按顺序冲掉的属性
 
 ## 测量

@@ -144,11 +144,6 @@
   color: var(--fg-default);
 }
 
-.scan-row__browse svg {
-  width: 14px;
-  height: 14px;
-}
-
 .scan-row__badge {
   flex: none;
   padding: 0 var(--space-2);

@@ -347,11 +347,6 @@ body.is-col-resizing {
   background: var(--accent-bg);
 }
 
-.stepper__btn svg {
-  width: 10px;
-  height: 10px;
-}
-
 .tag-cond {
   display: flex;
   flex-direction: column;

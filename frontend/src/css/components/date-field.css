@@ -80,11 +80,6 @@
   color: var(--fg-default);
 }
 
-.date-field__cal-btn svg {
-  width: 1rem;
-  height: 1rem;
-}
-
 .cal-pop {
   z-index: var(--z-popover);
   padding: var(--space-2);
@@ -121,11 +116,6 @@
 .cal-pop__nav:hover {
   background: var(--bg-hover);
   color: var(--fg-default);
-}
-
-.cal-pop__nav svg {
-  width: 0.875rem;
-  height: 0.875rem;
 }
 
 .cal-pop__selects {

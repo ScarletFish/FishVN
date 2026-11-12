@@ -14,8 +14,6 @@
 }
 
 .dashboard-empty svg {
-  width: var(--space-8);
-  height: var(--space-8);
   opacity: 0.5;
 }
 

@@ -96,12 +96,6 @@
   background: var(--bg-hover);
 }
 
-.titlebar__back svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
 .titlebar__title {
   font-size: var(--text-sm);
   font-weight: var(--fw-medium);
@@ -239,11 +233,6 @@
   font-size: var(--text-sm);
   font-weight: var(--fw-bold);
   line-height: 1;
-}
-
-.titlebar__search-item-icon svg {
-  width: 16px;
-  height: 16px;
 }
 
 .titlebar__search-item-text {

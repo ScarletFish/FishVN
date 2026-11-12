@@ -837,11 +837,6 @@ button.info-rating {
   color: var(--fg-default);
 }
 
-.detail-nav-zone svg {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
 :root[data-reduce-motion='on'] .detail-nav-zone {
   transition: none;
 }
@@ -972,11 +967,6 @@ button.info-rating {
 .detail-notes-edit:hover {
   color: var(--fg-default);
   background: var(--bg-raised);
-}
-
-.detail-notes-edit svg {
-  width: 13px;
-  height: 13px;
 }
 
 .detail-notes-saved {
