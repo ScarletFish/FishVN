@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../components/Icon.svelte';
   import { onMount, tick } from 'svelte';
   import { t } from '../lib/i18n.js';
   import { api } from '../lib/api.js';
@@ -122,18 +123,7 @@
         aria-label={t('detail.notesEdit')}
         onclick={begin}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-          <path d="m15 5 4 4" />
-        </svg>
+        <Icon name="pencil" />
       </button>
     {/if}
   {/snippet}

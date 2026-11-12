@@ -1,4 +1,5 @@
 <script>
+  import Icon from './Icon.svelte';
   import { Select } from 'bits-ui';
 
   let {
@@ -42,18 +43,7 @@
             {@render triggerIcon()}
           {:else}
             <span class="select-dd-text">{selected.label}</span>
-            <svg
-              class="select-dd-chevron"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            <Icon name="caret-down" />
           {/if}
         </button>
       {/snippet}
@@ -66,15 +56,7 @@
           class={value === opt.value ? 'select-dd-opt is-selected' : 'select-dd-opt'}
         >
           <span>{opt.label}</span>
-          <svg
-            class="select-dd-opt-check"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+          <Icon name="check" class="select-dd-opt-check" />
         </Select.Item>
       {/each}
     </Select.ContentStatic>

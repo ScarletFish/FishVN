@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../Icon.svelte';
   import { t } from '../../lib/i18n.js';
   import { STAFF_ROLES, staffRoleLabel } from '../../lib/staff.js';
   import SelectDd from '../SelectDd.svelte';
@@ -59,10 +60,7 @@
           onclick={() => removeStaffEntry(i)}
           disabled={saving}
         >
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <Icon name="x" size="sm" />
         </button>
       </div>
     {/each}
@@ -72,10 +70,7 @@
       onclick={addStaffEntry}
       disabled={saving}
     >
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <line x1="5" y1="12" x2="19" y2="12" />
-      </svg>
+      <Icon name="plus" size="sm" />
       {t('gameForm.action.addStaff')}
     </button>
   </div>

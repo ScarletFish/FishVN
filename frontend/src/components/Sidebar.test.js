@@ -14,9 +14,9 @@ afterEach(() => {
 });
 
 const ITEMS = [
-  { id: 'home', label: '首页', icon: '<svg></svg>' },
-  { id: 'backfill', label: '补全', icon: '<svg></svg>', dot: 'running', tip: '正在补全 3/62' },
-  { id: 'stats', label: '统计', icon: '<svg></svg>', dot: 'done', tip: '成功 5/5 部' },
+  { id: 'home', label: '首页', icon: 'house' },
+  { id: 'backfill', label: '补全', icon: 'download', dot: 'running', tip: '正在补全 3/62' },
+  { id: 'stats', label: '统计', icon: 'chart-bar', dot: 'done', tip: '成功 5/5 部' },
 ];
 
 function render() {

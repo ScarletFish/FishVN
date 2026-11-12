@@ -1,4 +1,5 @@
 <script>
+  import Icon from './Icon.svelte';
   import { DropdownMenu } from 'bits-ui';
 
   let { items = [], label, variant = 'btn', open = $bindable(false), trigger = null, align = 'end' } = $props();
@@ -17,11 +18,7 @@
             class={variant === 'plain' ? 'menu__trigger' : 'menu__trigger btn btn-ghost'}
             aria-label={label}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="5" r="1.8" />
-              <circle cx="12" cy="12" r="1.8" />
-              <circle cx="12" cy="19" r="1.8" />
-            </svg>
+            <Icon name="dots-three" size="lg" />
           </button>
         {/if}
       {/snippet}

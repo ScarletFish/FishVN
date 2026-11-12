@@ -1,4 +1,5 @@
 <script>
+  import Icon from './Icon.svelte';
   import { onMount, tick, untrack } from 'svelte';
   import { t } from '../lib/i18n.js';
   import { api } from '../lib/api.js';
@@ -579,19 +580,7 @@
         onclick={addCharacter}
         aria-label={t('gameForm.action.addCharacter')}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="22"
-          height="22"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
-        >
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
+        <Icon name="plus" />
         <span>{t('gameForm.action.addCharacter')}</span>
       </button>
     {/if}
@@ -822,10 +811,7 @@
                     onclick={() => removeVa(entry.key)}
                     {disabled}
                   >
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
+                    <Icon name="x" size="sm" />
                   </button>
                 </span>
               {/each}
@@ -849,10 +835,7 @@
                   onclick={openVoice}
                   {disabled}
                 >
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
+                  <Icon name="plus" size="sm" />
                   {t('gameForm.action.addVoice')}
                 </button>
               {/if}
@@ -883,10 +866,7 @@
                   aria-label={t('common.close')}
                   onclick={closeVaEdit}
                 >
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
+                  <Icon name="x" size="sm" />
                 </button>
               </div>
               <div class="va-edit__row">
@@ -972,10 +952,7 @@
                     onclick={() => removeAlias(name)}
                     {disabled}
                   >
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
+                    <Icon name="x" size="sm" />
                   </button>
                 </span>
               {/each}
@@ -999,10 +976,7 @@
                   onclick={openAlias}
                   {disabled}
                 >
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
+                  <Icon name="plus" size="sm" />
                   {t('gameForm.action.addAlias')}
                 </button>
               {/if}

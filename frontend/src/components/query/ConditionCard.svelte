@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../Icon.svelte';
   import { t } from '../../lib/i18n.js';
 
   let { title, filled = false, enabled = true, ontoggle, onclear, children } = $props();
@@ -15,10 +16,7 @@
       aria-label={t('query.clear')}
       onclick={() => onclear?.()}
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
+      <Icon name="x" size="sm" />
     </button>
     <label class="toggle-switch toggle-switch--sm cond-card__switch">
       <input

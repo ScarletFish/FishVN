@@ -1,4 +1,6 @@
 <script>
+  import Icon from './Icon.svelte';
+
   let { items = [], bottom = [], current = $bindable(), onnavigate } = $props();
 </script>
 
@@ -16,7 +18,7 @@
           current = item.id;
         }}
       >
-        {@html item.icon}
+        <Icon name={item.icon} size="xl" />
         {#if item.dot}
           <span class="nav-btn__dot" class:is-done={item.dot === 'done'} aria-hidden="true"></span>
         {/if}
@@ -27,7 +29,7 @@
   <div class="sidebar-bottom">
     {#each bottom as item (item.id)}
       <button class="nav-btn" data-tip={item.label} aria-label={item.label} onclick={item.onclick}>
-        {@html item.icon}
+        <Icon name={item.icon} size="xl" />
       </button>
     {/each}
   </div>

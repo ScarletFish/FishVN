@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../Icon.svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import SearchBar from './SearchBar.svelte';
   import Menu from '../Menu.svelte';
@@ -64,16 +65,7 @@
   <div class="titlebar__left">
     {#if mode === 'detail'}
       <button type="button" class="titlebar__back" onclick={onback}>
-        <svg viewBox="0 0 16 16">
-          <polyline
-            points="10 4 6 8 10 12"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Icon name="caret-left" />
         <span>{t('titlebar.back')}</span>
       </button>
       <span class="titlebar__title">{title}</span>

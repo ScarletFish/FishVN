@@ -1,0 +1,25 @@
+.icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}
+
+.icon.icon--sm {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+.icon.icon--md {
+  width: var(--space-4);
+  height: var(--space-4);
+}
+
+.icon.icon--lg {
+  width: var(--space-5);
+  height: var(--space-5);
+}
+
+.icon.icon--xl {
+  width: var(--space-6);
+  height: var(--space-6);
+}

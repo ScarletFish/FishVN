@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../Icon.svelte';
   import { t } from '../../lib/i18n.js';
 
   let {
@@ -24,14 +25,10 @@
   <input type="number" {placeholder} aria-label={ariaLabel} bind:value />
   <div class="stepper__btns">
     <button type="button" class="stepper__btn" aria-label={t('query.stepUp')} onclick={() => bump(step)}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m6 15 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <Icon name="caret-up" />
     </button>
     <button type="button" class="stepper__btn" aria-label={t('query.stepDown')} onclick={() => bump(-step)}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <Icon name="caret-down" />
     </button>
   </div>
 </div>

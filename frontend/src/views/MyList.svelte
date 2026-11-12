@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../components/Icon.svelte';
   import { onMount, onDestroy, tick } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
@@ -175,9 +176,7 @@
             aria-label={t('mylist.add')}
             data-tooltip={t('mylist.add')}
           >
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M8 2.5v11M2.5 8h11" />
-            </svg>
+            <Icon name="plus" />
           </button>
         {/snippet}
       </Menu>
@@ -201,12 +200,7 @@
     <p class="mylist-note">{t('mylist.error')}</p>
   {:else if games.length === 0}
     <div class="mylist-empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-        <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-        <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-        <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-      </svg>
+      <Icon name="squares-four" />
       <p>{t('mylist.empty')}</p>
       <p class="mylist-empty__hint">{t('dashboard.emptyHint')}</p>
       <button type="button" class="btn btn-primary" onclick={notifyAddMenuSummon}>

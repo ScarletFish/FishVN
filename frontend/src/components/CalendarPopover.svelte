@@ -1,4 +1,5 @@
 <script>
+  import Icon from './Icon.svelte';
   import { DatePicker, Select } from 'bits-ui';
   import { t } from '../lib/i18n.js';
 
@@ -27,16 +28,7 @@
       {#snippet children({ months, weekdays })}
         <div class="cal-pop__head">
           <DatePicker.PrevButton class="cal-pop__nav" aria-label={t('cal.prevMonth')}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="m14 6-6 6 6 6"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <Icon name="caret-left" />
           </DatePicker.PrevButton>
           <div class="cal-pop__selects">
             <Select.Root type="single" bind:value={() => String(placeholder.year), setCalYear}>
@@ -59,15 +51,7 @@
                           : 'cal-pop__opt'}
                       >
                         <span>{opt.label}</span>
-                        <svg
-                          class="cal-pop__opt-check"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2.5"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        <Icon name="check" size="sm" />
                       </Select.Item>
                     {/each}
                   </Select.Viewport>
@@ -94,15 +78,7 @@
                           : 'cal-pop__opt'}
                       >
                         <span>{opt.label}</span>
-                        <svg
-                          class="cal-pop__opt-check"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2.5"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        <Icon name="check" size="sm" />
                       </Select.Item>
                     {/each}
                   </Select.Viewport>
@@ -111,16 +87,7 @@
             </Select.Root>
           </div>
           <DatePicker.NextButton class="cal-pop__nav" aria-label={t('cal.nextMonth')}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="m10 6 6 6-6 6"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <Icon name="caret-right" />
           </DatePicker.NextButton>
         </div>
         <table class="cal-pop__grid">

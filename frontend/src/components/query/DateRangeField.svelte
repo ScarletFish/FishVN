@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../Icon.svelte';
   import { DatePicker } from 'bits-ui';
   import { parseDate, today, getLocalTimeZone } from '@internationalized/date';
   import { t } from '../../lib/i18n.js';
@@ -48,15 +49,7 @@
         {/snippet}
       </DatePicker.Input>
       <DatePicker.Trigger class="date-field__cal-btn" aria-label={t('query.from')}>
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M7 3v3M17 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-        </svg>
+        <Icon name="calendar" />
       </DatePicker.Trigger>
     </div>
     <CalendarPopover bind:placeholder={fromPlaceholder} />
@@ -89,15 +82,7 @@
         {/snippet}
       </DatePicker.Input>
       <DatePicker.Trigger class="date-field__cal-btn" aria-label={t('query.to')}>
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M7 3v3M17 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-        </svg>
+        <Icon name="calendar" />
       </DatePicker.Trigger>
     </div>
     <CalendarPopover bind:placeholder={toPlaceholder} />

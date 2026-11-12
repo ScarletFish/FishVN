@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../components/Icon.svelte';
   import { tick, onMount } from 'svelte';
   import { ContextMenu } from 'bits-ui';
   import { api } from '../lib/api.js';
@@ -577,7 +578,7 @@
       aria-label={t('detail.prev')}
       onclick={() => onnavigate?.(-1)}
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+      <Icon name="caret-left" />
     </button>
     <button
       type="button"
@@ -585,7 +586,7 @@
       aria-label={t('detail.next')}
       onclick={() => onnavigate?.(1)}
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+      <Icon name="caret-right" />
     </button>
   {/if}
   {#if loading}
@@ -899,19 +900,7 @@
               >
                 <span class="detail-install-label">{t('detail.installDefault')}</span>
                 <span class="detail-install-path">{launchPath}</span>
-                <svg
-                  class="detail-install-edit"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                  <path d="m15 5 4 4" />
-                </svg>
+                <Icon name="pencil" />
               </button>
             {/if}
           </div>

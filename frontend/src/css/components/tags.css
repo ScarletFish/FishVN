@@ -52,15 +52,6 @@
     background var(--duration-fast) var(--ease-out);
 }
 
-.tag-input__entry svg {
-  width: 12px;
-  height: 12px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
 .tag-input__entry:hover:not(:disabled) {
   color: var(--fg-default);
   border-color: var(--border-strong);

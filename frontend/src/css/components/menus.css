@@ -8,13 +8,6 @@
   padding-inline: var(--space-2);
 }
 
-.menu .menu__trigger svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-  stroke: none;
-}
-
 .menu[data-variant='plain'] .menu__trigger {
   display: inline-flex;
   align-items: center;

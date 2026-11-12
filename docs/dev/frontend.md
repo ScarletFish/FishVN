@@ -34,6 +34,7 @@
 | 格式化、校验、映射、状态归约 | `lib/`（`format.js`、`form-metadata.js`、`playtime.js`、`*-state.js`）与 `libs.md` |
 | 弹窗、下拉、输入组、进度反馈 | `components/` 与 `components.md` |
 | 跨视图状态、事件订阅 | `lib/*.svelte.js` 与 `libs.md`「事件与刷新」 |
+| 图标 | `components/Icon.svelte` 与 [icons.md](./icons.md) |
 
 命中就按下节判据办；都没命中才新写，落进「样式的三种形态」或 `libs.md` 对应的归属。
 
@@ -99,3 +100,4 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 | 界面文案、标签与特征译名 | [i18n.md](./i18n.md) |
 | 卡片宽度、列数与窗口化 | [grid-layout.md](./grid-layout.md) |
 | 测试写法与用例结构 | [testing.md](./testing.md) |
+| 图标规范 | [icons.md](./icons.md) |

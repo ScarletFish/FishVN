@@ -42,15 +42,7 @@
   position: relative;
 }
 
-.nav-btn svg {
-  width: 1.375rem;
-  height: 1.375rem;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
+
 
 .nav-btn:hover {
   background: var(--bg-hover);

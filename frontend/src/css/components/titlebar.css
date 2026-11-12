@@ -140,10 +140,7 @@
 }
 
 .titlebar__search-icon {
-  width: 14px;
-  height: 14px;
   color: var(--fg-muted);
-  flex-shrink: 0;
 }
 
 .titlebar__search-wrap input {

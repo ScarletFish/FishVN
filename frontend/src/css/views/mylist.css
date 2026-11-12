@@ -8,10 +8,6 @@
   padding-inline: var(--space-1);
 }
 
-.btn.mylist-title-add svg {
-  stroke-width: 1.25;
-}
-
 .mylist-status-bar {
   display: flex;
   align-items: center;

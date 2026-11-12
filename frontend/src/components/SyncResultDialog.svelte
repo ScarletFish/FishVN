@@ -1,4 +1,5 @@
 <script>
+  import Icon from './Icon.svelte';
   import Modal from './Modal.svelte';
   import { t } from '../lib/i18n.js';
   import { REPORT_STATUS_KEYS, statusLabel } from '../lib/status.js';
@@ -588,7 +589,7 @@
   {:else if empty}
     <div class="sync-empty">
       <div class="sync-empty__mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M4.5 12.5L10 18L19.5 6.5" /></svg>
+        <Icon name="check" size="xl" />
       </div>
       <p class="sync-empty__text">{t('settings.vndb.syncUpToDate')}</p>
     </div>

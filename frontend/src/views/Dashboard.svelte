@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../components/Icon.svelte';
   import { onMount, tick } from 'svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
@@ -206,9 +207,7 @@
                     continueOpen(item, e.currentTarget.closest('.continue-card'));
                   }}
                 >
-                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"
-                    ><path d="M8 5.5v13l11-6.5z"></path></svg
-                  >
+                  <Icon name="play" size="lg" />
                 </button>
               </div>
             {/each}
@@ -292,13 +291,7 @@
 
     {#if games.length === 0}
       <div class="dashboard-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-          ><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3"
-            y="14"
-            width="7"
-            height="7"
-            rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg
-        >
+        <Icon name="squares-four" />
         <p>{t('dashboard.emptyTitle')}</p>
         <p class="dashboard-empty__hint">{t('dashboard.emptyHint')}</p>
         <button type="button" class="btn btn-primary" onclick={notifyAddMenuSummon}>

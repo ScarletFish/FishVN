@@ -1,4 +1,5 @@
 <script>
+  import Icon from './Icon.svelte';
   import SelectDd from './SelectDd.svelte';
   import { t } from '../lib/i18n.js';
 
@@ -21,11 +22,7 @@
 </script>
 
 {#snippet sortIcon()}
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-    <line x1="4" y1="7" x2="20" y2="7" />
-    <line x1="7" y1="12" x2="17" y2="12" />
-    <line x1="10" y1="17" x2="14" y2="17" />
-  </svg>
+  <Icon name="sort" />
 {/snippet}
 
 <span class="sort-select">

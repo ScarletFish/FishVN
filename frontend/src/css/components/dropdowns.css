@@ -36,11 +36,6 @@
   padding: 0;
 }
 
-.select-dd--icon .select-dd-trigger svg {
-  width: 14px;
-  height: 14px;
-}
-
 .select-dd-trigger:focus-visible {
   outline: none;
   background: var(--bg-raised);
@@ -130,8 +125,6 @@
 
 .select-dd-opt-check {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
   color: var(--accent);
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-out);

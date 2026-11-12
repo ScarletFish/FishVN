@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../Icon.svelte';
   import { t } from '../../lib/i18n.js';
   import { api } from '../../lib/api.js';
   import { toast } from '../../lib/toast.svelte.js';
@@ -319,15 +320,7 @@
         }}
       >
         {item.vndb_id} · {t('backfillPage.openVndb')}
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path
-            d="M3 9L9 3M9 3H4.5M9 3V7.5"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Icon name="arrow-up-right" size="sm" />
       </a>
     {/if}
   {:else}

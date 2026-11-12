@@ -1,4 +1,5 @@
 <script>
+  import Icon from './Icon.svelte';
   import { tick, untrack } from 'svelte';
   import Modal from './Modal.svelte';
   import PathField from './PathField.svelte';
@@ -726,7 +727,7 @@
                   aria-label={t('settings.layoutMoveUp')}
                   onpointerdown={(e) => onHandleDown(e, module.id)}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
+                  <Icon name="dots-six" />
                 </span>
                 <label class="toggle-switch">
                   <input
@@ -747,7 +748,7 @@
                     aria-label={t('settings.layoutMoveUp')}
                     onclick={() => saveLayout(moveModule(layout, module.id, -1))}
                   >
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    <Icon name="caret-up" />
                   </button>
                   <button
                     type="button"
@@ -757,7 +758,7 @@
                     aria-label={t('settings.layoutMoveDown')}
                     onclick={() => saveLayout(moveModule(layout, module.id, 1))}
                   >
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    <Icon name="caret-down" />
                   </button>
                 </span>
               </div>
