@@ -578,7 +578,7 @@
       aria-label={t('detail.prev')}
       onclick={() => onnavigate?.(-1)}
     >
-      <Icon name="caret-left" />
+      <Icon name="caret-left" size="xl" />
     </button>
     <button
       type="button"
@@ -586,7 +586,7 @@
       aria-label={t('detail.next')}
       onclick={() => onnavigate?.(1)}
     >
-      <Icon name="caret-right" />
+      <Icon name="caret-right" size="xl" />
     </button>
   {/if}
   {#if loading}

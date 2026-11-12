@@ -200,7 +200,7 @@
     <p class="mylist-note">{t('mylist.error')}</p>
   {:else if games.length === 0}
     <div class="mylist-empty">
-      <Icon name="squares-four" />
+      <Icon name="tray" size="xl" />
       <p>{t('mylist.empty')}</p>
       <p class="mylist-empty__hint">{t('dashboard.emptyHint')}</p>
       <button type="button" class="btn btn-primary" onclick={notifyAddMenuSummon}>

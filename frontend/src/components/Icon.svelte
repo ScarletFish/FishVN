@@ -24,7 +24,7 @@
   import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
   import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
   import FolderIcon from 'phosphor-svelte/lib/FolderIcon';
-  import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFourIcon';
+  import TrayIcon from 'phosphor-svelte/lib/TrayIcon';
   import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
   import PlayIcon from 'phosphor-svelte/lib/PlayIcon';
   import DotsThreeVerticalIcon from 'phosphor-svelte/lib/DotsThreeVerticalIcon';
@@ -56,7 +56,7 @@
     check: CheckIcon,
     calendar: CalendarBlankIcon,
     folder: FolderIcon,
-    'squares-four': SquaresFourIcon,
+    tray: TrayIcon,
     pencil: PencilSimpleIcon,
     play: PlayIcon,
     'dots-three': DotsThreeVerticalIcon,

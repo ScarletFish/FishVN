@@ -291,7 +291,7 @@
 
     {#if games.length === 0}
       <div class="dashboard-empty">
-        <Icon name="squares-four" />
+        <Icon name="tray" size="xl" />
         <p>{t('dashboard.emptyTitle')}</p>
         <p class="dashboard-empty__hint">{t('dashboard.emptyHint')}</p>
         <button type="button" class="btn btn-primary" onclick={notifyAddMenuSummon}>
