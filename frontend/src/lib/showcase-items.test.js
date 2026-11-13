@@ -2,17 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { SHOWCASE_LIMIT, buildShowcaseItems, stageDescriptor } from './showcase-items.js';
 
 function row(id, extra = {}) {
-  return { id, name: id, status: 'wishlist', last_played_at: 0, ...extra };
+  return { id, name: id, last_played_at: 0, ...extra };
 }
 
 describe('buildShowcaseItems', () => {
-  it('按最近游玩、游玩中、其余状态的顺序排列', () => {
+  it('有游玩记录的排在未游玩之前', () => {
     const list = buildShowcaseItems([
-      row('计划', { status: 'wishlist', name: '计划' }),
-      row('在玩', { status: 'playing', name: '在玩' }),
-      row('最近', { status: 'finished', last_played_at: 100, name: '最近' }),
+      row('在玩', { name: '在玩' }),
+      row('最近', { last_played_at: 100, name: '最近' }),
     ]);
-    expect(list.map((i) => i.id)).toEqual(['最近', '在玩', '计划']);
+    expect(list.map((i) => i.id)).toEqual(['最近', '在玩']);
   });
 
   it('最近游玩按时间倒序', () => {
@@ -24,7 +23,16 @@ describe('buildShowcaseItems', () => {
     expect(list.map((i) => i.id)).toEqual(['晚', '中', '早']);
   });
 
-  it('同组按名称排序', () => {
+  it('无记录时按最近改状态倒序，空值落尾', () => {
+    const list = buildShowcaseItems([
+      row('c', { name: 'c' }),
+      row('b', { name: 'b', state_modified_at: 100 }),
+      row('a', { name: 'a', state_modified_at: 300 }),
+    ]);
+    expect(list.map((i) => i.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('同档按名称排序', () => {
     const list = buildShowcaseItems([
       row('b', { name: 'b' }),
       row('a', { name: 'a' }),

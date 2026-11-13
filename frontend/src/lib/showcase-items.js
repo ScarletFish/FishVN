@@ -6,19 +6,11 @@ function num(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function rank(item) {
-  if (num(item?.last_played_at, 0) > 0) return 0;
-  return item?.status === 'playing' ? 1 : 2;
-}
-
 export function compareShowcaseItems(a, b) {
-  const ra = rank(a);
-  const rb = rank(b);
-  if (ra !== rb) return ra - rb;
-  if (ra === 0) {
-    const delta = num(b?.last_played_at, 0) - num(a?.last_played_at, 0);
-    if (delta !== 0) return delta;
-  }
+  const played = num(b?.last_played_at, 0) - num(a?.last_played_at, 0);
+  if (played !== 0) return played;
+  const modified = num(b?.state_modified_at, 0) - num(a?.state_modified_at, 0);
+  if (modified !== 0) return modified;
   return String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'zh-CN');
 }
 

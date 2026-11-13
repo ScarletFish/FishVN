@@ -823,7 +823,6 @@
             {t('settings.quitTray')}
           </label>
         </div>
-        <p class="form-hint">{t('settings.quitBehaviorHint')}</p>
       </div>
 
       <div class="form-group">

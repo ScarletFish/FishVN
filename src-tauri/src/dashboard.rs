@@ -113,10 +113,10 @@ pub fn recent(conn: &Connection, limit: i64) -> Result<Vec<RecentPlay>> {
 pub struct ShowcaseItem {
     pub id: String,
     pub name: String,
-    pub status: String,
     pub play_seconds: i64,
     pub can_launch: bool,
     pub last_played_at: i64,
+    pub state_modified_at: i64,
     pub cover_path: Option<String>,
     pub cover_focal_x: Option<i64>,
     pub cover_focal_y: Option<i64>,
@@ -129,10 +129,11 @@ pub struct ShowcaseItem {
 pub fn showcase_items(conn: &Connection, limit: i64) -> Result<Vec<ShowcaseItem>> {
     let mut stmt = conn.prepare(
         "SELECT * FROM (
-            SELECT g.id AS id, g.name AS name, s.status AS status,
+            SELECT g.id AS id, g.name AS name,
                    COALESCE(s.play_seconds, 0) AS play_seconds,
                    COALESCE(MAX(CASE WHEN i.entry_path IS NOT NULL THEN 1 ELSE 0 END), 0) AS can_launch,
                    COALESCE((SELECT MAX(p.started_at) FROM play_sessions p WHERE p.game_id = g.id), 0) AS last_played_at,
+                   COALESCE(s.state_modified_at, 0) AS state_modified_at,
                    m.image_path AS cover_path,
                    m.cover_focal_x AS cover_focal_x,
                    m.cover_focal_y AS cover_focal_y,
@@ -144,13 +145,13 @@ pub fn showcase_items(conn: &Connection, limit: i64) -> Result<Vec<ShowcaseItem>
             JOIN user_game_state s ON s.game_id = g.id
             LEFT JOIN installations i ON i.game_id = g.id
             LEFT JOIN game_metadata m ON m.game_id = g.id
-            WHERE s.status IN ('playing', 'wishlist')
+            WHERE s.status = 'playing'
                OR EXISTS (SELECT 1 FROM play_sessions p WHERE p.game_id = g.id)
             GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y,
                      m.ambience_path, m.ambience_focal_x, m.ambience_focal_y, m.ambience_mode
          )
          ORDER BY last_played_at DESC,
-                  CASE WHEN status = 'playing' THEN 0 ELSE 1 END,
+                  state_modified_at DESC,
                   name COLLATE NOCASE
          LIMIT ?1",
     )?;
@@ -158,10 +159,10 @@ pub fn showcase_items(conn: &Connection, limit: i64) -> Result<Vec<ShowcaseItem>
         Ok(ShowcaseItem {
             id: row.get("id")?,
             name: row.get("name")?,
-            status: row.get("status")?,
             play_seconds: row.get("play_seconds")?,
             can_launch: row.get::<_, i64>("can_launch")? == 1,
             last_played_at: row.get("last_played_at")?,
+            state_modified_at: row.get("state_modified_at")?,
             cover_path: row.get("cover_path")?,
             cover_focal_x: row.get("cover_focal_x")?,
             cover_focal_y: row.get("cover_focal_y")?,
@@ -521,7 +522,7 @@ mod tests {
     }
 
     #[test]
-    fn 展厅候选集覆盖最近游玩在玩与计划中() {
+    fn 展厅候选集只含在玩与玩过且计划不参与() {
         let conn = db();
         let now = crate::now();
         let a = make_game(&conn, "甲");
@@ -541,13 +542,38 @@ mod tests {
         let ids: Vec<&str> = items.iter().map(|i| i.id.as_str()).collect();
         assert!(ids.contains(&a.as_str()));
         assert!(ids.contains(&b.as_str()));
-        assert!(ids.contains(&c.as_str()));
+        assert!(!ids.contains(&c.as_str()));
         assert!(!ids.contains(&d.as_str()));
         assert_eq!(items[0].id, a);
         assert_eq!(items[0].play_seconds, 3600);
         assert_eq!(items[0].last_played_at, now - 60);
         assert!(items.iter().find(|i| i.id == b).unwrap().can_launch);
-        assert_eq!(items.iter().find(|i| i.id == c).unwrap().ambience_mode, "soft");
+        assert_eq!(items.iter().find(|i| i.id == b).unwrap().ambience_mode, "soft");
+    }
+
+    #[test]
+    fn 展厅在玩部分按最近改状态排序() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        let c = make_game(&conn, "丙");
+        set_status(&conn, &a, "playing");
+        set_status(&conn, &b, "playing");
+        set_status(&conn, &c, "playing");
+        conn.execute(
+            "UPDATE user_game_state SET state_modified_at = 300 WHERE game_id = ?1",
+            rusqlite::params![a],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE user_game_state SET state_modified_at = 100 WHERE game_id = ?1",
+            rusqlite::params![b],
+        )
+        .unwrap();
+
+        let items = showcase_items(&conn, SHOWCASE_LIMIT).unwrap();
+        let ids: Vec<&str> = items.iter().map(|i| i.id.as_str()).collect();
+        assert_eq!(ids, vec![a.as_str(), b.as_str(), c.as_str()]);
     }
 
     #[test]
@@ -555,6 +581,8 @@ mod tests {
         let conn = db();
         let a = make_game(&conn, "甲");
         let b = make_game(&conn, "乙");
+        set_status(&conn, &a, "playing");
+        set_status(&conn, &b, "playing");
         conn.execute(
             "INSERT INTO game_metadata
                 (game_id, image_path, ambience_path, ambience_mode, ambience_focal_x, ambience_focal_y)

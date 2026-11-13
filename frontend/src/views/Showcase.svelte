@@ -256,8 +256,9 @@
     <div class="showcase-ui">
       <div class="showcase-bottom">
         <div class="showcase-meta">
-          <div class="showcase-info">
-            <h1 class="showcase-title" title={current?.name ?? ''}>{current?.name ?? ''}</h1>
+          <h1 class="showcase-title" title={current?.name ?? ''}>{current?.name ?? ''}</h1>
+
+          <div class="showcase-meta-row">
             <div class="showcase-facts">
               {#if lastPlayedText}
                 <span class="showcase-fact">{t('showcase.lastPlayed')} {lastPlayedText}</span>
@@ -270,22 +271,22 @@
                 </span>
               {/if}
             </div>
-          </div>
 
-          <div class="showcase-actions">
-            <button type="button" class="btn btn-ghost showcase-action" onclick={viewDetail}>
-              <Icon name="info" size="lg" />
-              {t('showcase.detail')}
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary showcase-action"
-              disabled={!current?.can_launch}
-              onclick={launch}
-            >
-              <Icon name="play" size="lg" />
-              {t('showcase.launch')}
-            </button>
+            <div class="showcase-actions">
+              <button type="button" class="btn btn-ghost showcase-action" onclick={viewDetail}>
+                <Icon name="info" size="lg" />
+                {t('showcase.detail')}
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary showcase-action"
+                disabled={!current?.can_launch}
+                onclick={launch}
+              >
+                <Icon name="play" size="lg" />
+                {t('showcase.launch')}
+              </button>
+            </div>
           </div>
         </div>
 

@@ -105,7 +105,7 @@ export const DICT_ZH = {
     stripLabel: '作品选择',
     error: '读取展厅数据失败',
     emptyTitle: '还没有可展示的作品',
-    emptyHint: '把作品设为游玩中或计划中，或先玩一次',
+    emptyHint: '游玩后出现',
   },
   dashboard: {
     title: '首页',
@@ -427,7 +427,6 @@ export const DICT_ZH = {
     quitBehavior: '退出时行为',
     quitQuit: '直接退出',
     quitTray: '最小化到托盘',
-    quitBehaviorHint: '选“最小化到托盘”后，关闭窗口会收起到系统托盘而非退出；右键系统托盘图标可退出',
     minimizeOnLaunch: '启动游戏时最小化',
     startupPage: '启动页',
     startupPageHint: '应用启动后默认打开的页面',
