@@ -22,7 +22,6 @@
   let error = $state(null);
   let covers = $state({});
   let layers = $state([]);
-  let stageEl = $state(null);
   let stripEl = $state(null);
   let layerSeq = 0;
   let requestSeq = 0;
@@ -129,12 +128,9 @@
   }
 
   function hero() {
-    const cls = isClear ? 'showcase-stage__clear' : 'showcase-stage__blur';
-    captureHero(stageEl, {
-      img: `.showcase-stage__layer:last-child .${cls}`,
-      frame: 'self',
-      aspect: 3 / 4,
-    });
+    const thumb = stripEl?.querySelector('.showcase-thumb.is-selected');
+    if (!thumb) return;
+    captureHero(thumb, { img: 'img', frame: 'self' });
   }
 
   function viewDetail() {
@@ -222,7 +218,6 @@
   <div
     class="showcase-stage"
     class:showcase-stage--empty={layers.length === 0}
-    bind:this={stageEl}
   >
     <div class="showcase-stage__layers">
       {#each layers as layer (layer.id)}

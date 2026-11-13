@@ -38,7 +38,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: blur(20px);
+  filter: blur(24px);
   transform: scale(1.2);
 }
 
@@ -60,21 +60,7 @@
 }
 
 .showcase-stage__wash {
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bg-page) 24%, transparent) 0%,
-    color-mix(in srgb, var(--bg-page) 46%, transparent) 45%,
-    color-mix(in srgb, var(--bg-page) 84%, transparent) 100%
-  );
-}
-
-[data-theme='dark'] .showcase-stage__wash {
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bg-page) 34%, transparent) 0%,
-    color-mix(in srgb, var(--bg-page) 58%, transparent) 45%,
-    color-mix(in srgb, var(--bg-page) 88%, transparent) 100%
-  );
+  background: var(--stage-wash);
 }
 
 .showcase-stage__scrim {
@@ -132,8 +118,19 @@
     color-mix(in srgb, var(--scrim) 40%, transparent) 62%,
     transparent 100%
   );
+}
+
+.showcase--clear .showcase-bottom {
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
+}
+
+:root:not([data-theme='dark']) .showcase:not(.showcase--clear) .showcase-bottom {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--scrim) 24%, transparent) 0%,
+    transparent 100%
+  );
 }
 
 .showcase-meta {
@@ -157,6 +154,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--fg-banner-strong);
+}
+
+.showcase--clear .showcase-title {
   color: var(--fg-on-accent);
 }
 
@@ -167,6 +168,10 @@
   gap: var(--space-2) var(--space-4);
   margin-top: var(--space-3);
   font-size: var(--text-sm);
+  color: var(--fg-banner);
+}
+
+.showcase--clear .showcase-facts {
   color: var(--fg-on-image);
 }
 
@@ -248,11 +253,22 @@
 }
 
 .showcase-actions .btn-ghost {
+  color: var(--fg-banner-strong);
+  border-color: color-mix(in srgb, var(--fg-banner-strong) 35%, transparent);
+}
+
+.showcase-actions .btn-ghost:hover {
+  color: var(--fg-banner-strong);
+  background: var(--plate-on-image);
+  border-color: var(--fg-banner-strong);
+}
+
+.showcase--clear .showcase-actions .btn-ghost {
   color: var(--fg-on-accent);
   border-color: color-mix(in srgb, var(--fg-on-image) 40%, transparent);
 }
 
-.showcase-actions .btn-ghost:hover {
+.showcase--clear .showcase-actions .btn-ghost:hover {
   color: var(--fg-on-accent);
   background: color-mix(in srgb, var(--scrim) 60%, transparent);
   border-color: var(--fg-on-image);

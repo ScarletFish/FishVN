@@ -97,8 +97,8 @@ export function playHero(targetWrap) {
     const hero = document.createElement('div');
     hero.style.cssText =
       'position:fixed;' +
-      `left:${data.rect.left}px;top:${data.rect.top}px;` +
-      `width:${data.rect.width}px;height:${data.rect.height}px;` +
+      `left:${toRect.left}px;top:${toRect.top}px;` +
+      `width:${toRect.width}px;height:${toRect.height}px;` +
       'z-index:var(--z-modal);pointer-events:none;overflow:hidden;' +
       'border:1px solid var(--border-default);' +
       'border-radius:var(--radius-md);background:var(--bg-surface);' +
@@ -111,12 +111,18 @@ export function playHero(targetWrap) {
       (data.objectPosition ? `object-position:${data.objectPosition};` : '');
     hero.appendChild(clone);
     document.body.appendChild(hero);
-    gsap.set(hero, { transformOrigin: '0 0' });
+    gsap.set(hero, {
+      transformOrigin: '0 0',
+      x: data.rect.left - toRect.left,
+      y: data.rect.top - toRect.top,
+      scaleX: data.rect.width / toRect.width,
+      scaleY: data.rect.height / toRect.height,
+    });
     gsap.to(hero, {
-      x: toRect.left - data.rect.left,
-      y: toRect.top - data.rect.top,
-      scaleX: toRect.width / data.rect.width,
-      scaleY: toRect.height / data.rect.height,
+      x: 0,
+      y: 0,
+      scaleX: 1,
+      scaleY: 1,
       duration: 0.35,
       ease: 'power2.out',
       onComplete: () => settle(targetWrap, hero),

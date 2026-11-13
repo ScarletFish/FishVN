@@ -192,6 +192,15 @@ body {
   );
   --fg-on-image: color-mix(in srgb, var(--ink-white) 78%, transparent);
 
+  /* 展厅舞台的全屏 wash（blur 模式）：浅色主题跟页面极性提亮（LunaBox 式），
+     高饱和封面被白洗自然降艳，文字用 --fg-banner 系深字 */
+  --stage-wash: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--ink-white) 40%, transparent) 0%,
+    color-mix(in srgb, var(--ink-white) 52%, transparent) 45%,
+    color-mix(in srgb, var(--ink-white) 64%, transparent) 100%
+  );
+
   /* 滚动条手柄：不透明，混入卡片底色定明度，任何底色上观感一致；由 components/scrollbars.css 喂给 overlayscrollbars */
   --scrollbar-thumb: color-mix(in srgb, var(--fg-muted) 60%, var(--bg-surface));
 
@@ -249,6 +258,13 @@ body {
     0 12px 32px color-mix(in srgb, var(--ink-black) 55%, transparent),
     inset 0 1px 0 color-mix(in srgb, var(--ink-white) 6%, transparent);
   --scrim: color-mix(in srgb, var(--ink-black) 85%, transparent);
+  /* 展厅舞台 wash 深色保持恒暗压底，白字对比由它与 --scrim 分层兜底 */
+  --stage-wash: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--ink-black) 12%, transparent) 0%,
+    color-mix(in srgb, var(--ink-black) 30%, transparent) 45%,
+    color-mix(in srgb, var(--ink-black) 58%, transparent) 100%
+  );
 }
 
 /* === L2 semantic · 强调色系 ===
@@ -345,7 +361,7 @@ body {
   --card-w: 17.3125rem;   /* 277px  封面墙卡宽，固定 */
   --detail-block-h: 20rem; /* 320px  详情页分区内容区高度档，超出在块内滚动 */
   --cover-thumb-w: 5.625rem;
-  --showcase-thumb-w: 6.875rem;
+  --showcase-thumb-w: clamp(8.5rem, 13vw, 12.5rem);
   --backfill-panel-w: 23.75rem; /* 380px  补全页右栏宽，定宽才能做推动展开 */
   --backfill-cand-w: 6rem; /* 96px  补全面板候选封面宽，3:4 后高 128px */
   --menu-plain-size: 1.75rem; /* 28px  裸图标菜单按钮的边长 */

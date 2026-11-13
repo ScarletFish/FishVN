@@ -75,12 +75,15 @@
   let resultOpen = $state(false);
   let quitBehavior = $state('quit');
   let minimizeOnLaunch = $state(true);
+  let startupPage = $state('home');
   let characterScope = $state(DEFAULT_CHARACTER_SCOPE);
 
   let backupRetentionMode = $state('off');
   let backupRetentionOpen = $state(false);
   let backups = $state([]);
   let backupBusy = $state(false);
+
+  const STARTUP_PAGE_IDS = ['home', 'showcase', 'mylist', 'query', 'backfill', 'stats'];
 
   const RETENTION_OPTIONS = [
     { value: 'off', label: t('settings.backup.retentionOff') },
@@ -143,6 +146,7 @@
           lePathError = '';
           quitBehavior = config.quit_behavior === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
           minimizeOnLaunch = config.minimize_on_launch !== false;
+          startupPage = STARTUP_PAGE_IDS.includes(config.startup_page) ? config.startup_page : 'home';
           characterScope = CHARACTER_SCOPES.some((s) => s.id === config.character_scope)
             ? config.character_scope
             : DEFAULT_CHARACTER_SCOPE;
@@ -323,6 +327,14 @@
     minimizeOnLaunch = value;
     api
       .updateConfig({ minimize_on_launch: value })
+      .then(notifyConfigChanged)
+      .catch((err) => toast(err.message, 'error'));
+  }
+
+  function onStartupPageChange(next) {
+    startupPage = STARTUP_PAGE_IDS.includes(next) ? next : 'home';
+    api
+      .updateConfig({ startup_page: startupPage })
       .then(notifyConfigChanged)
       .catch((err) => toast(err.message, 'error'));
   }
@@ -828,6 +840,18 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">{t('settings.startupPage')}</div>
+        <SelectDd
+          id="settings-startup-page"
+          options={STARTUP_PAGE_IDS.map((id) => ({ value: id, label: t(`nav.${id}`) }))}
+          value={startupPage}
+          onchange={onStartupPageChange}
+          ariaLabel={t('settings.startupPage')}
+        />
+        <p class="form-hint">{t('settings.startupPageHint')}</p>
       </div>
     </div>
 

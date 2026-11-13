@@ -62,6 +62,8 @@
   let seenRun = $state(0);
   let handledRun = 0;
   let current = $state('home');
+  const STARTUP_PAGE_IDS = ['home', 'showcase', 'mylist', 'query', 'backfill', 'stats'];
+  let startupApplied = false;
 
   $effect(() => subscribeTheme((value) => (dark = value)));
 
@@ -76,6 +78,10 @@
       .then((config) => {
         syncTheme(config.theme);
         syncAccent(config.accent);
+        if (!startupApplied) {
+          startupApplied = true;
+          if (STARTUP_PAGE_IDS.includes(config.startup_page)) current = config.startup_page;
+        }
       })
       .catch(() => {});
   });

@@ -65,6 +65,18 @@ pub enum QuitBehavior {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+pub enum StartupPage {
+    #[default]
+    Home,
+    Showcase,
+    MyList,
+    Query,
+    Backfill,
+    Stats,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Theme {
     #[default]
     Light,
@@ -152,6 +164,8 @@ pub struct AppConfig {
     #[serde(default = "default_true")]
     pub minimize_on_launch: bool,
     #[serde(default)]
+    pub startup_page: StartupPage,
+    #[serde(default)]
     pub backup_retention_days: Option<u64>,
 }
 
@@ -174,6 +188,7 @@ pub struct ConfigPatch {
     pub le_path: Option<String>,
     pub quit_behavior: Option<QuitBehavior>,
     pub minimize_on_launch: Option<bool>,
+    pub startup_page: Option<StartupPage>,
     pub backup_retention_days: Option<Option<u64>>,
 }
 
@@ -196,6 +211,7 @@ pub struct ConfigView {
     pub le_path: Option<String>,
     pub quit_behavior: QuitBehavior,
     pub minimize_on_launch: bool,
+    pub startup_page: StartupPage,
     pub backup_retention_days: Option<u64>,
 }
 
@@ -288,6 +304,9 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     if let Some(value) = patch.minimize_on_launch {
         config.minimize_on_launch = value;
     }
+    if let Some(value) = patch.startup_page {
+        config.startup_page = value;
+    }
     if let Some(value) = patch.backup_retention_days {
         config.backup_retention_days = value;
     }
@@ -353,6 +372,7 @@ pub fn view() -> ConfigView {
         le_path: config.le_path.clone(),
         quit_behavior: config.quit_behavior,
         minimize_on_launch: config.minimize_on_launch,
+        startup_page: config.startup_page,
         backup_retention_days: config.backup_retention_days,
     }
 }
@@ -500,6 +520,25 @@ mod tests {
         )
         .unwrap();
         assert_eq!(off.backup_retention_days, None);
+    }
+
+    #[test]
+    fn 启动页补丁持久化() {
+        let _guard = exclusive();
+        let tmp = tempfile::tempdir().unwrap();
+        init(tmp.path());
+        let config = patch(
+            tmp.path(),
+            ConfigPatch {
+                startup_page: Some(StartupPage::Showcase),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(config.startup_page, StartupPage::Showcase);
+
+        init(tmp.path());
+        assert_eq!(current().startup_page, StartupPage::Showcase);
     }
 
     #[test]
