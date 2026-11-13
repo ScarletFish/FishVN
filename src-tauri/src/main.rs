@@ -201,6 +201,7 @@ fn main() {
             commands::merge_staff,
             commands::dashboard_stats,
             commands::dashboard_recent,
+            commands::showcase_items,
             commands::dashboard_tag_cloud,
             commands::library_tags,
             commands::library_traits,

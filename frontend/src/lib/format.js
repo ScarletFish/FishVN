@@ -7,6 +7,15 @@ export function formatScoreShort(rating) {
   return text.endsWith('.0') ? text.slice(0, -2) : text;
 }
 
+export function formatDateTime(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const at = new Date(value * 1000);
+  if (Number.isNaN(at.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`;
+}
+
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
 
 export function formatBytes(bytes) {

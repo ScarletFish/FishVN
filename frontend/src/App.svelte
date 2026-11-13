@@ -52,6 +52,7 @@
   import Backfill from './views/Backfill.svelte';
   import Query from './views/Query.svelte';
   import Dashboard from './views/Dashboard.svelte';
+  import Showcase from './views/Showcase.svelte';
   import Stats from './views/Stats.svelte';
   import Detail from './views/Detail.svelte';
 
@@ -198,6 +199,11 @@
       icon: 'house',
     },
     {
+      id: 'showcase',
+      label: t('nav.showcase'),
+      icon: 'image',
+    },
+    {
       id: 'mylist',
       label: t('nav.mylist'),
       icon: 'book',
@@ -257,6 +263,7 @@
   let listScroll = $state(0);
   let listFilter = $state('all');
   let dashScroll = $state(0);
+  let showcaseSelectedId = $state(null);
   let queryScroll = $state(0);
   let backfillScroll = $state(0);
 
@@ -341,6 +348,8 @@
         {/key}
       {:else if current === 'home'}
         <Dashboard onopen={openDetail} scroll={dashScroll} />
+      {:else if current === 'showcase'}
+        <Showcase onopen={openDetail} bind:selectedId={showcaseSelectedId} />
       {:else if current === 'mylist'}
         <MyList onopen={openDetail} scroll={listScroll} bind:filter={listFilter} />
       {:else if current === 'query'}

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { formatBytes, formatScore, formatScoreShort } from './format.js';
+import { formatBytes, formatDateTime, formatScore, formatScoreShort } from './format.js';
 
 test.each([
   ['formatScore 91 保留两位小数', formatScore, 91, '9.10'],
@@ -22,4 +22,19 @@ test.each([
   ['formatBytes 负数留空', formatBytes, -1, ''],
 ])('%s', (desc, format, input, expected) => {
   expect(format(input)).toBe(expected);
+});
+
+test('formatDateTime 按本地时间补零到分钟', () => {
+  const at = new Date(2026, 5, 13, 0, 53, 8);
+  expect(formatDateTime(Math.floor(at.getTime() / 1000))).toBe('2026-06-13 00:53');
+});
+
+test.each([
+  ['零值留空', 0, ''],
+  ['负数留空', -1, ''],
+  ['空值留空', null, ''],
+  ['非数字留空', 'abc', ''],
+  ['超出日期范围留空', Number.MAX_SAFE_INTEGER * 1000, ''],
+])('formatDateTime %s', (desc, input, expected) => {
+  expect(formatDateTime(input)).toBe(expected);
 });

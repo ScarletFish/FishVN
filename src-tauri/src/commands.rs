@@ -7,7 +7,7 @@ use tauri::{Emitter, Manager, State};
 use crate::backfill;
 use crate::backup;
 use crate::characters;
-use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, LibraryTag, LibraryTrait, PlaytimeRank, RecentPlay, TagCloudView};
+use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, LibraryTag, LibraryTrait, PlaytimeRank, RecentPlay, ShowcaseItem, TagCloudView};
 use crate::db;
 use crate::error::{AppError, Result};
 use crate::games;
@@ -75,6 +75,11 @@ pub fn dashboard_stats(shared: Shared<'_>) -> Result<DashboardStats> {
 #[tauri::command]
 pub fn dashboard_recent(shared: Shared<'_>) -> Result<Vec<RecentPlay>> {
     dashboard::recent(&*lock(&shared)?, 6)
+}
+
+#[tauri::command]
+pub fn showcase_items(shared: Shared<'_>) -> Result<Vec<ShowcaseItem>> {
+    dashboard::showcase_items(&*lock(&shared)?, dashboard::SHOWCASE_LIMIT)
 }
 
 #[tauri::command]

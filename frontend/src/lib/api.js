@@ -53,6 +53,7 @@ export const api = {
   mergeStaff: (merge) => call('merge_staff', { merge }),
   dashboardStats: () => call('dashboard_stats'),
   dashboardRecent: () => call('dashboard_recent'),
+  showcaseItems: () => call('showcase_items'),
   dashboardTagCloud: () => call('dashboard_tag_cloud'),
   libraryTags: () => call('library_tags'),
   libraryTraits: () => call('library_traits'),

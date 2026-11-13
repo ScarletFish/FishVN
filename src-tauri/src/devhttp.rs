@@ -168,6 +168,7 @@ handler!(dashboard_stats, |c, _a| {
 handler!(dashboard_recent, |c, _a| {
     dashboard::recent(c, 6)
 });
+handler!(showcase_items, |c, _a| dashboard::showcase_items(c, dashboard::SHOWCASE_LIMIT));
 handler!(dashboard_tag_cloud, |c, _a| {
     let config = settings::current();
     dashboard::tag_cloud(c, 40, config.hide_r18_tags, config.spoiler_level, &config.excluded_tags)
@@ -616,6 +617,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/query_characters", post(query_characters))
         .route("/dashboard_stats", post(dashboard_stats))
         .route("/dashboard_recent", post(dashboard_recent))
+        .route("/showcase_items", post(showcase_items))
         .route("/dashboard_tag_cloud", post(dashboard_tag_cloud))
         .route("/library_tags", post(library_tags))
         .route("/create_local_tag", post(create_local_tag))
@@ -682,6 +684,7 @@ pub const COMMANDS: &[&str] = &[
     "query_characters",
     "dashboard_stats",
     "dashboard_recent",
+    "showcase_items",
     "dashboard_tag_cloud",
     "library_tags",
     "library_traits",

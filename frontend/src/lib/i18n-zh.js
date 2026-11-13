@@ -20,6 +20,7 @@ export const DICT_ZH = {
   },
   nav: {
     home: '首页',
+    showcase: '展厅',
     mylist: '我的列表',
     query: '查询',
     stats: '统计',
@@ -93,6 +94,17 @@ export const DICT_ZH = {
     emptyChar: '当前条件没有匹配的角色',
     emptyHint: '试试放宽区间，或停用某个条件对比',
     error: '查询失败',
+  },
+  showcase: {
+    launch: '继续游戏',
+    detail: '查看详情',
+    lastPlayed: '上次游玩',
+    totalTime: '累计时长',
+    noRecord: '还没有游玩记录',
+    stripLabel: '作品选择',
+    error: '读取展厅数据失败',
+    emptyTitle: '还没有可展示的作品',
+    emptyHint: '把作品设为游玩中或计划中，或先玩一次',
   },
   dashboard: {
     title: '首页',

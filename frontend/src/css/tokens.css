@@ -345,6 +345,7 @@ body {
   --card-w: 17.3125rem;   /* 277px  封面墙卡宽，固定 */
   --detail-block-h: 20rem; /* 320px  详情页分区内容区高度档，超出在块内滚动 */
   --cover-thumb-w: 5.625rem;
+  --showcase-thumb-w: 6.875rem;
   --backfill-panel-w: 23.75rem; /* 380px  补全页右栏宽，定宽才能做推动展开 */
   --backfill-cand-w: 6rem; /* 96px  补全面板候选封面宽，3:4 后高 128px */
   --menu-plain-size: 1.75rem; /* 28px  裸图标菜单按钮的边长 */

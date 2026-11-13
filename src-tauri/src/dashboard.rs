@@ -7,6 +7,7 @@ use crate::error::Result;
 use crate::settings::{SpoilerLevel, TimeMetric};
 use crate::tagdict::{self, TagScope};
 
+pub const SHOWCASE_LIMIT: i64 = 30;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -103,6 +104,71 @@ pub fn recent(conn: &Connection, limit: i64) -> Result<Vec<RecentPlay>> {
             cover_focal_y: row.get("cover_focal_y")?,
             last_played_at: row.get("last_played_at")?,
             total_seconds: row.get("total_seconds")?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ShowcaseItem {
+    pub id: String,
+    pub name: String,
+    pub status: String,
+    pub play_seconds: i64,
+    pub can_launch: bool,
+    pub last_played_at: i64,
+    pub cover_path: Option<String>,
+    pub cover_focal_x: Option<i64>,
+    pub cover_focal_y: Option<i64>,
+    pub ambience_path: Option<String>,
+    pub ambience_focal_x: i64,
+    pub ambience_focal_y: i64,
+    pub ambience_mode: String,
+}
+
+pub fn showcase_items(conn: &Connection, limit: i64) -> Result<Vec<ShowcaseItem>> {
+    let mut stmt = conn.prepare(
+        "SELECT * FROM (
+            SELECT g.id AS id, g.name AS name, s.status AS status,
+                   COALESCE(s.play_seconds, 0) AS play_seconds,
+                   COALESCE(MAX(CASE WHEN i.entry_path IS NOT NULL THEN 1 ELSE 0 END), 0) AS can_launch,
+                   COALESCE((SELECT MAX(p.started_at) FROM play_sessions p WHERE p.game_id = g.id), 0) AS last_played_at,
+                   m.image_path AS cover_path,
+                   m.cover_focal_x AS cover_focal_x,
+                   m.cover_focal_y AS cover_focal_y,
+                   m.ambience_path AS ambience_path,
+                   COALESCE(m.ambience_focal_x, 50) AS ambience_focal_x,
+                   COALESCE(m.ambience_focal_y, 22) AS ambience_focal_y,
+                   COALESCE(m.ambience_mode, 'soft') AS ambience_mode
+            FROM games g
+            JOIN user_game_state s ON s.game_id = g.id
+            LEFT JOIN installations i ON i.game_id = g.id
+            LEFT JOIN game_metadata m ON m.game_id = g.id
+            WHERE s.status IN ('playing', 'wishlist')
+               OR EXISTS (SELECT 1 FROM play_sessions p WHERE p.game_id = g.id)
+            GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y,
+                     m.ambience_path, m.ambience_focal_x, m.ambience_focal_y, m.ambience_mode
+         )
+         ORDER BY last_played_at DESC,
+                  CASE WHEN status = 'playing' THEN 0 ELSE 1 END,
+                  name COLLATE NOCASE
+         LIMIT ?1",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![limit], |row| {
+        Ok(ShowcaseItem {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            status: row.get("status")?,
+            play_seconds: row.get("play_seconds")?,
+            can_launch: row.get::<_, i64>("can_launch")? == 1,
+            last_played_at: row.get("last_played_at")?,
+            cover_path: row.get("cover_path")?,
+            cover_focal_x: row.get("cover_focal_x")?,
+            cover_focal_y: row.get("cover_focal_y")?,
+            ambience_path: row.get("ambience_path")?,
+            ambience_focal_x: row.get("ambience_focal_x")?,
+            ambience_focal_y: row.get("ambience_focal_y")?,
+            ambience_mode: row.get("ambience_mode")?,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -452,6 +518,64 @@ mod tests {
             rusqlite::params![game_id, format!("p-{id}"), started_at, started_at + foreground, foreground],
         )
         .unwrap();
+    }
+
+    #[test]
+    fn 展厅候选集覆盖最近游玩在玩与计划中() {
+        let conn = db();
+        let now = crate::now();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        let c = make_game(&conn, "丙");
+        let d = make_game(&conn, "丁");
+        set_status(&conn, &a, "finished");
+        set_status(&conn, &b, "playing");
+        set_status(&conn, &c, "wishlist");
+        set_status(&conn, &d, "stalled");
+        set_play_seconds(&conn, &a, 3600);
+        add_session(&conn, &a, "a1", now - 60, 60);
+        add_session(&conn, &b, "b1", now - 120, 60);
+        add_installation(&conn, &b, true);
+
+        let items = showcase_items(&conn, SHOWCASE_LIMIT).unwrap();
+        let ids: Vec<&str> = items.iter().map(|i| i.id.as_str()).collect();
+        assert!(ids.contains(&a.as_str()));
+        assert!(ids.contains(&b.as_str()));
+        assert!(ids.contains(&c.as_str()));
+        assert!(!ids.contains(&d.as_str()));
+        assert_eq!(items[0].id, a);
+        assert_eq!(items[0].play_seconds, 3600);
+        assert_eq!(items[0].last_played_at, now - 60);
+        assert!(items.iter().find(|i| i.id == b).unwrap().can_launch);
+        assert_eq!(items.iter().find(|i| i.id == c).unwrap().ambience_mode, "soft");
+    }
+
+    #[test]
+    fn 展厅投影带自定义图与观感并尊重限量() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        conn.execute(
+            "INSERT INTO game_metadata
+                (game_id, image_path, ambience_path, ambience_mode, ambience_focal_x, ambience_focal_y)
+             VALUES (?1, 'cover.jpg', 'cg.png', 'clear', 30, 40)
+             ON CONFLICT(game_id) DO UPDATE SET
+                image_path = 'cover.jpg', ambience_path = 'cg.png', ambience_mode = 'clear',
+                ambience_focal_x = 30, ambience_focal_y = 40",
+            rusqlite::params![a],
+        )
+        .unwrap();
+
+        let all = showcase_items(&conn, SHOWCASE_LIMIT).unwrap();
+        assert_eq!(all.len(), 2);
+        let item = all.iter().find(|i| i.id == a).unwrap();
+        assert_eq!(item.cover_path.as_deref(), Some("cover.jpg"));
+        assert_eq!(item.ambience_path.as_deref(), Some("cg.png"));
+        assert_eq!(item.ambience_mode, "clear");
+        assert_eq!(item.ambience_focal_x, 30);
+        assert_eq!(item.ambience_focal_y, 40);
+        assert_eq!(all.iter().find(|i| i.id == b).unwrap().ambience_mode, "soft");
+        assert_eq!(showcase_items(&conn, 1).unwrap().len(), 1);
     }
 
     #[test]

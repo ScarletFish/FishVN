@@ -4,6 +4,7 @@
   import FunnelIcon from 'phosphor-svelte/lib/FunnelIcon';
   import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
   import ChartBarIcon from 'phosphor-svelte/lib/ChartBarIcon';
+  import ImageIcon from 'phosphor-svelte/lib/ImageIcon';
   import SunIcon from 'phosphor-svelte/lib/SunIcon';
   import MoonIcon from 'phosphor-svelte/lib/MoonIcon';
   import GearIcon from 'phosphor-svelte/lib/GearIcon';
@@ -36,6 +37,7 @@
     funnel: FunnelIcon,
     download: DownloadIcon,
     'chart-bar': ChartBarIcon,
+    image: ImageIcon,
     sun: SunIcon,
     moon: MoonIcon,
     gear: GearIcon,
