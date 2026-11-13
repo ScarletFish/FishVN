@@ -80,23 +80,26 @@
           <button
             {...props}
             type="button"
-            class="titlebar__brandbtn"
+            class="titlebar__iconbtn"
             aria-label={t('mylist.add')}
             data-tooltip={t('mylist.add')}
           >
-            <span class="titlebar__mark">
-              <svg viewBox="18 18 547 307"><use href="#fishvn-fish"></use></svg>
-            </span>
-            <span class="titlebar__brand"
-              ><span class="titlebar__brand-fish">Fish</span><span class="titlebar__brand-vn">VN</span></span
-            >
+            <Icon name="plus" />
           </button>
         {/snippet}
       </Menu>
     {/if}
+    <SearchBar {onsettings} />
   </div>
 
-  <SearchBar {onsettings} />
+  <div class="titlebar__brandblock">
+    <span class="titlebar__mark">
+      <svg viewBox="18 18 547 307"><use href="#fishvn-fish"></use></svg>
+    </span>
+    <span class="titlebar__brand"
+      ><span class="titlebar__brand-fish">Fish</span><span class="titlebar__brand-vn">VN</span></span
+    >
+  </div>
 
   <div class="titlebar__controls">
     <button

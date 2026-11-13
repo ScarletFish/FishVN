@@ -4,6 +4,7 @@ export const DICT_ZH = {
     minimize: '最小化',
     maximize: '最大化',
     restore: '还原',
+    search: '搜索',
     searchPlaceholder: '搜索游戏或设置…',
     searchEmpty: '没有匹配的结果',
     searchGroupGames: '游戏',

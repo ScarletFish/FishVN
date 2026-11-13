@@ -1,18 +1,24 @@
 <script>
+  import { tick } from 'svelte';
   import Icon from '../Icon.svelte';
   import { api } from '../../lib/api.js';
   import { t } from '../../lib/i18n.js';
   import { tagLabel } from '../../lib/tag-label.svelte.js';
   import { panelScrollbars } from '../../lib/scrollbars.js';
   import { LIBRARY_TAGS_CHANGED } from '../../lib/library-events.js';
+  import { shouldReduceMotion } from '../../lib/motion.js';
+
+  const CLOSE_MS = 180;
 
   let { onsettings } = $props();
 
   let query = $state('');
   let games = $state([]);
   let open = $state(false);
+  let expanded = $state(false);
+  let closing = $state(false);
+  let closeTimer = null;
   let highlighted = $state(-1);
-  let searchTimer = null;
   let suppressNextDocClick = false;
   let containerEl = $state(null);
   let inputEl = $state(null);
@@ -110,7 +116,7 @@
       pickTag(item.label);
       return;
     }
-    closeDropdown();
+    closePanel();
     if (item.type === 'game') {
       document.dispatchEvent(new CustomEvent('search-open-game', { detail: item.id }));
     } else if (item.type === 'settings') {
@@ -120,7 +126,7 @@
 
   function pickTag(label) {
     if (!label) return;
-    onSetQuery({ detail: label });
+    applyQuery(label);
   }
 
   function ensureTags() {
@@ -146,9 +152,48 @@
     return () => window.removeEventListener(LIBRARY_TAGS_CHANGED, refill);
   });
 
-  function closeDropdown() {
+  async function openPanel({ select = true } = {}) {
+    clearTimeout(closeTimer);
+    closing = false;
+    const wasClosed = !expanded;
+    open = true;
+    if (wasClosed) {
+      expanded = true;
+      highlighted = -1;
+      refreshGames();
+      if (query.startsWith('#')) ensureTags();
+      await tick();
+    }
+    inputEl?.focus();
+    if (select) {
+      inputEl?.select();
+      return;
+    }
+    const end = inputEl?.value.length ?? 0;
+    inputEl?.setSelectionRange(end, end);
+  }
+
+  function closePanel() {
+    if (!expanded || closing) return;
     open = false;
     highlighted = -1;
+    if (shouldReduceMotion()) {
+      expanded = false;
+      return;
+    }
+    closing = true;
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => {
+      expanded = false;
+      closing = false;
+    }, CLOSE_MS);
+  }
+
+  function applyQuery(name) {
+    if (!name) return;
+    suppressNextDocClick = true;
+    query = name;
+    openPanel({ select: false });
   }
 
   async function refreshGames() {
@@ -159,31 +204,15 @@
     }
   }
 
-  function onFocus() {
-    if (query.startsWith('#')) ensureTags();
-    refreshGames();
-    if (!query.trim()) return;
-    open = true;
-    highlighted = -1;
-  }
-
   function onInput() {
-    clearTimeout(searchTimer);
-    if (!query.trim()) {
-      closeDropdown();
-      return;
-    }
     if (query.startsWith('#')) ensureTags();
-    searchTimer = setTimeout(() => {
-      open = true;
-      highlighted = -1;
-    }, 300);
   }
 
   function onKeydown(e) {
     if (e.key === 'Escape') {
-      closeDropdown();
-      inputEl.blur();
+      e.preventDefault();
+      e.stopPropagation();
+      closePanel();
       return;
     }
     const items = flatItems;
@@ -207,42 +236,36 @@
   });
 
   function onDocClick(e) {
+    if (!open) return;
     if (suppressNextDocClick) {
       suppressNextDocClick = false;
       return;
     }
-    if (containerEl && !containerEl.contains(e.target)) closeDropdown();
+    if (containerEl && !containerEl.contains(e.target)) closePanel();
   }
 
   function onScroll(e) {
+    if (!open) return;
     if (containerEl && e.target && containerEl.contains(e.target)) return;
-    closeDropdown();
+    closePanel();
   }
 
   function onDocKeydown(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
       e.preventDefault();
-      inputEl.focus();
-      inputEl.select();
+      openPanel();
       return;
     }
     if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
       e.preventDefault();
-      inputEl.focus();
+      openPanel();
     }
   }
 
   function onSetQuery(e) {
-    const name = e.detail;
-    if (!name) return;
-    clearTimeout(searchTimer);
-    suppressNextDocClick = true;
-    query = name;
-    open = true;
-    highlighted = -1;
-    refreshGames();
+    applyQuery(e.detail);
   }
 
   $effect(() => {
@@ -255,107 +278,131 @@
       document.removeEventListener('scroll', onScroll, true);
       document.removeEventListener('keydown', onDocKeydown);
       document.removeEventListener('search-set-query', onSetQuery);
-      clearTimeout(searchTimer);
     };
   });
+
+  $effect(() => () => clearTimeout(closeTimer));
 </script>
 
-<div class="titlebar__search" bind:this={containerEl}>
-  <div class="titlebar__search-wrap">
-    <Icon name="magnifying-glass" class="titlebar__search-icon" />
-    <input
-      type="text"
-      bind:this={inputEl}
-      bind:value={query}
-      oninput={onInput}
-      onfocus={onFocus}
-      onkeydown={onKeydown}
-      placeholder={t('titlebar.searchPlaceholder')}
-      autocomplete="off"
-      spellcheck="false"
-    />
-  </div>
-  <div class="titlebar__search-results" class:hidden={!open} use:panelScrollbars>
-    {#if isTagMode}
-      {#if tagList.length === 0}
-        <div class="titlebar__search-empty">{t('titlebar.tagSearchEmpty')}</div>
-      {:else}
-        <div class="titlebar__search-group">{t('titlebar.searchGroupTags')}</div>
-        {#each tagList as tag (tag.id)}
-          <button
-            type="button"
-            class="titlebar__search-item"
-            class:highlighted={flatItems[highlighted]?.type === 'tag' && flatItems[highlighted]?.id === tag.id}
-            onclick={() => pickTag(tag.label)}
-          >
-            <span class="titlebar__search-item-text">
-              <span class="titlebar__search-item-label">
-                {#each highlightParts(tag.label, tagQuery) as part}
-                  <span class:titlebar__search-item-mark={part.match}>{part.text}</span>
-                {/each}
-              </span>
-            </span>
-            <span class="titlebar__search-item-count">{tag.count}</span>
-          </button>
-        {/each}
-      {/if}
-    {:else}
-      {#if flatItems.length === 0}
-        <div class="titlebar__search-empty">{t('titlebar.searchEmpty')}</div>
-      {:else}
-        {#if results.length}
-          <div class="titlebar__search-group">
-            {t('titlebar.searchGroupGames')}
-            <span class="titlebar__search-count">{t('titlebar.searchCount', { count: results.length })}</span>
-          </div>
-          {#each results as game (game.id)}
-            <button
-              type="button"
-              class="titlebar__search-item"
-              class:highlighted={flatItems[highlighted]?.id === game.id && flatItems[highlighted]?.type === 'game'}
-              onclick={() => navigateTo({ type: 'game', id: game.id, label: game.name })}
-            >
-              <span class="titlebar__search-item-avatar">{(game.name || '?')[0]}</span>
-              <span class="titlebar__search-item-text">
-                <span class="titlebar__search-item-label">
-                  {#each highlightParts(game.name, query.trim().toLowerCase()) as part}
-                    <span class:titlebar__search-item-mark={part.match}>{part.text}</span>
-                  {/each}
-                </span>
-                {#if asText(game.alias)}
-                  <span class="titlebar__search-item-sublabel">
-                    {#each highlightParts(game.alias, query.trim().toLowerCase()) as part}
+<div
+  class="titlebar__search"
+  class:is-open={expanded}
+  class:is-closing={closing}
+  bind:this={containerEl}
+>
+  {#if expanded}
+    <div class="titlebar__search-field">
+      <span class="titlebar__search-mark">
+        <Icon name="magnifying-glass" />
+      </span>
+      <input
+        bind:this={inputEl}
+        bind:value={query}
+        oninput={onInput}
+        onkeydown={onKeydown}
+        placeholder={t('titlebar.searchPlaceholder')}
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    {#if query.trim()}
+      <div class="titlebar__search-results" use:panelScrollbars>
+        {#if isTagMode}
+          {#if tagList.length === 0}
+            <div class="titlebar__search-empty">{t('titlebar.tagSearchEmpty')}</div>
+          {:else}
+            <div class="titlebar__search-group">{t('titlebar.searchGroupTags')}</div>
+            {#each tagList as tag (tag.id)}
+              <button
+                type="button"
+                class="titlebar__search-item"
+                class:highlighted={flatItems[highlighted]?.type === 'tag' && flatItems[highlighted]?.id === tag.id}
+                onclick={() => pickTag(tag.label)}
+              >
+                <span class="titlebar__search-item-text">
+                  <span class="titlebar__search-item-label">
+                    {#each highlightParts(tag.label, tagQuery) as part}
                       <span class:titlebar__search-item-mark={part.match}>{part.text}</span>
                     {/each}
                   </span>
-                {/if}
-              </span>
-            </button>
-          {/each}
-        {/if}
-        {#if settingHits.length}
-          <div class="titlebar__search-group">{t('titlebar.searchGroupSettings')}</div>
-          {#each settingHits as s (s.label)}
-            <button
-              type="button"
-              class="titlebar__search-item"
-              class:highlighted={flatItems[highlighted]?.type === 'settings' && flatItems[highlighted]?.label === s.label}
-              onclick={() => navigateTo({ type: 'settings', label: s.label })}
-            >
-              <span class="titlebar__search-item-icon">
-                <Icon name="gear" />
-              </span>
-              <span class="titlebar__search-item-text">
-                <span class="titlebar__search-item-label">
-                  {#each highlightParts(s.label, query.trim().toLowerCase()) as part}
-                    <span class:titlebar__search-item-mark={part.match}>{part.text}</span>
-                  {/each}
                 </span>
-              </span>
-            </button>
-          {/each}
+                <span class="titlebar__search-item-count">{tag.count}</span>
+              </button>
+            {/each}
+          {/if}
+        {:else}
+          {#if flatItems.length === 0}
+            <div class="titlebar__search-empty">{t('titlebar.searchEmpty')}</div>
+          {:else}
+            {#if results.length}
+              <div class="titlebar__search-group">
+                {t('titlebar.searchGroupGames')}
+                <span class="titlebar__search-count">{t('titlebar.searchCount', { count: results.length })}</span>
+              </div>
+              {#each results as game (game.id)}
+                <button
+                  type="button"
+                  class="titlebar__search-item"
+                  class:highlighted={flatItems[highlighted]?.id === game.id && flatItems[highlighted]?.type === 'game'}
+                  onclick={() => navigateTo({ type: 'game', id: game.id, label: game.name })}
+                >
+                  <span class="titlebar__search-item-avatar">{(game.name || '?')[0]}</span>
+                  <span class="titlebar__search-item-text">
+                    <span class="titlebar__search-item-label">
+                      {#each highlightParts(game.name, query.trim().toLowerCase()) as part}
+                        <span class:titlebar__search-item-mark={part.match}>{part.text}</span>
+                      {/each}
+                    </span>
+                    {#if asText(game.alias)}
+                      <span class="titlebar__search-item-sublabel">
+                        {#each highlightParts(game.alias, query.trim().toLowerCase()) as part}
+                          <span class:titlebar__search-item-mark={part.match}>{part.text}</span>
+                        {/each}
+                      </span>
+                    {/if}
+                  </span>
+                </button>
+              {/each}
+            {/if}
+            {#if settingHits.length}
+              <div class="titlebar__search-group">{t('titlebar.searchGroupSettings')}</div>
+              {#each settingHits as s (s.label)}
+                <button
+                  type="button"
+                  class="titlebar__search-item"
+                  class:highlighted={flatItems[highlighted]?.type === 'settings' && flatItems[highlighted]?.label === s.label}
+                  onclick={() => navigateTo({ type: 'settings', label: s.label })}
+                >
+                  <span class="titlebar__search-item-icon">
+                    <Icon name="gear" />
+                  </span>
+                  <span class="titlebar__search-item-text">
+                    <span class="titlebar__search-item-label">
+                      {#each highlightParts(s.label, query.trim().toLowerCase()) as part}
+                        <span class:titlebar__search-item-mark={part.match}>{part.text}</span>
+                      {/each}
+                    </span>
+                  </span>
+                </button>
+              {/each}
+            {/if}
+          {/if}
         {/if}
+      </div>
       {/if}
-    {/if}
-  </div>
+  {:else}
+    <button
+      type="button"
+      class="titlebar__iconbtn"
+      aria-label={t('titlebar.search')}
+      data-tooltip={t('titlebar.search')}
+      onclick={(e) => {
+        e.stopPropagation();
+        openPanel();
+      }}
+    >
+      <Icon name="magnifying-glass" />
+    </button>
+  {/if}
 </div>

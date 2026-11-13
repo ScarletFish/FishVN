@@ -28,3 +28,11 @@
 :root[data-reduce-motion='on'] .nav-btn__dot {
   animation: none;
 }
+
+:root[data-reduce-motion='on'] .titlebar__search {
+  transition: none;
+}
+
+:root[data-reduce-motion='on'] .titlebar__search-results {
+  animation: none;
+}

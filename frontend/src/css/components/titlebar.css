@@ -16,13 +16,22 @@
 
 .titlebar__left {
   grid-column: 1 / 2;
-  justify-self: start;
+  justify-self: stretch;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   height: 100%;
   min-width: 0;
-  overflow: hidden;
+  padding-right: var(--space-3);
+}
+
+.titlebar__brandblock {
+  grid-column: 2 / 3;
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
 }
 
 .titlebar__mark {
@@ -56,18 +65,26 @@
   color: var(--accent);
 }
 
-.titlebar__brandbtn {
-  display: inline-flex;
+.titlebar__iconbtn {
+  width: 1.625rem;
+  height: 1.625rem;
+  display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1);
-  margin-left: calc(-1 * var(--space-1));
+  justify-content: center;
+  flex-shrink: 0;
   background: none;
   border: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
   border-radius: var(--radius-sm);
+  color: var(--fg-secondary);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.titlebar__iconbtn:hover {
+  color: var(--fg-default);
+  background: var(--bg-hover);
 }
 
 .titlebar__back {
@@ -108,36 +125,67 @@
 }
 
 .titlebar__search {
-  grid-column: 2 / 3;
-  justify-self: center;
-  width: 320px;
-  max-width: 320px;
-  min-width: 80px;
-  margin: 0 var(--space-3);
   position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: var(--radius-sm);
+  transition:
+    width var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
-.titlebar__search-wrap {
+.titlebar__search.is-open {
+  width: 20rem;
+  background: color-mix(in srgb, var(--bg-raised) 55%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border-default);
+}
+
+.titlebar__search.is-open.is-closing {
+  width: 1.625rem;
+  background: transparent;
+  box-shadow: inset 0 0 0 0 transparent;
+  transition-timing-function: var(--ease-in);
+}
+
+.titlebar__search.is-closing .titlebar__search-results {
+  animation: titlebar-search-results-out var(--duration-fast) var(--ease-out) both;
+}
+
+@keyframes titlebar-search-results-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.titlebar__search-field {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  height: 26px;
-  padding: 0 var(--space-2);
-  background: color-mix(in srgb, var(--bg-raised) 55%, transparent);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  transition: border-color var(--duration-fast) var(--ease-out);
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding-right: var(--space-2);
+  overflow: hidden;
 }
 
-.titlebar__search-wrap:focus-within {
-  border-color: var(--border-strong);
-}
-
-.titlebar__search-icon {
+.titlebar__search-mark {
+  width: 1.625rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   color: var(--fg-muted);
 }
 
-.titlebar__search-wrap input {
+.titlebar__search-field input {
   flex: 1;
   min-width: 0;
   background: transparent;
@@ -150,28 +198,33 @@
   line-height: 1;
 }
 
-.titlebar__search-wrap input::placeholder {
+.titlebar__search-field input::placeholder {
   color: var(--fg-muted);
 }
 
 .titlebar__search-results {
   position: absolute;
-  top: 100%;
+  top: calc(100% + var(--space-1));
   left: 0;
-  right: 0;
-  margin-top: var(--space-1);
+  width: 20rem;
+  max-height: 360px;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--bg-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-raised);
-  max-height: 360px;
-  overflow-x: hidden;
-  overflow-y: auto;
   z-index: var(--z-dropdown, 100);
+  animation: titlebar-search-results-in var(--duration-fast) var(--ease-out) both;
 }
 
-.titlebar__search-results.hidden {
-  display: none;
+@keyframes titlebar-search-results-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .titlebar__search-group {
