@@ -30,11 +30,17 @@
 ## 主题与 CSS 变量
 
 - 覆盖集中写在图表容器上（如 `.activity-plot`），与 token 定义分开
-- 常用变量：`--vis-color0`、`--vis-font-family`、`--vis-axis-tick-color`、`--vis-axis-tick-label-color` / `-font-size`、`--vis-axis-grid-color`、`--vis-axis-domain-color`、`--vis-scatter-point-label-text-*`、`--vis-tooltip-*`
+- 常用变量：`--vis-color0`、`--vis-font-family`、`--vis-axis-tick-color`、`--vis-axis-tick-label-color` / `-font-size`、`--vis-axis-grid-color`、`--vis-axis-domain-color`、`--vis-scatter-point-label-text-*`、`--vis-xy-label-font-size`、`--vis-tooltip-*`
 - 暗色：Unovis 的暗色选择器原生包含 `html[data-theme="dark"]`，与项目挂载方式一致，主题切换直接生效，`theme.js` 保持原样
 - 深色下 `--vis-dark-tooltip-background-color` / `-text-color` / `-border-color` 接管浮层，改浮层观感时连这三个一起覆盖
 - tooltip 留在图表容器内，容器上的 `--vis-*` 覆盖才生效
 - `VisXYLabels` 默认给每个标签垫一块背景色，柱顶、点旁的纯文字标签传 `backgroundColor="transparent"`
+
+## 数据
+
+- `VisXYContainer` 持有整份数据并推给每个子组件，子组件上的 `data` 属性会被容器覆盖
+- 只让某个组件作用于部分数据时，用 accessor 返回 `null` 过滤；`VisXYLabels` 的 `y` 返回 `null` 的点不渲染
+- 派生出的标记字段（如 `isLast`）挂在数据上，accessor 判断字段比依赖索引参数可靠
 
 ## 交互
 
@@ -45,8 +51,9 @@
 ## 测试
 
 - 口径同 [testing.md](./testing.md)：断言落在可观察结果上
-- 图表 DOM 测试走 `src/test/chart-dom.js` 的 `mountChart`：补齐 jsdom 缺的 API、处理 `flushSync` 与渲染等待，清理时恢复原型
+- 图表 DOM 测试走 `src/test/chart-dom.js` 的 `mountChart`：补齐 jsdom 缺的 API、用 `MutationObserver` 等到首个 `path` 出现（2s 超时兜底）、卸载后恢复原型
 - jsdom 需补：`ResizeObserver`、非零 `getBoundingClientRect`、`getBBox`、`getComputedTextLength`、`SVGElement.prototype.transform`
+- `SVGElement.prototype.transform` 的补丁不随卸载恢复：d3 过渡在组件卸载后仍可能触发一帧
 - 断言钉行为：数据点数与桶数一致、轴文本来自数据、切换筛选重新取数、交互节点挂载
 - 样式不进断言：取色、字号、栏宽、hover 时序随设计调整，由人看运行中的应用判断
 - jsdom 测不出真实布局下的裁切与浮层显隐，视觉判断以应用里的实际呈现为准

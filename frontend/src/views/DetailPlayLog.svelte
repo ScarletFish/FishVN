@@ -7,21 +7,21 @@
   import { getTimeMetric } from '../lib/config-store.svelte.js';
   import { LIBRARY_CHANGED, onLibraryItemUpdated, onPlaySessionStarted, onPlaySessionTick, onPlaySessionEnded } from '../lib/library-events.js';
   import DetailSection from '../components/DetailSection.svelte';
+  import VisXYContainer from '@unovis/svelte/containers/xy-container';
+  import VisArea from '@unovis/svelte/components/area';
+  import VisLine from '@unovis/svelte/components/line';
+  import VisAxis from '@unovis/svelte/components/axis';
+  import VisScatter from '@unovis/svelte/components/scatter';
+  import VisXYLabels from '@unovis/svelte/components/xy-labels';
+  import VisCrosshair from '@unovis/svelte/components/crosshair';
+  import VisTooltip from '@unovis/svelte/components/tooltip';
 
   let { gameId } = $props();
 
   let log = $state(null);
   let root = $state(null);
-  let chartW = $state(0);
-  let hoverPx = $state(null);
 
-  const H = 246;
-  const LEFT = 56;
-  const RIGHT = 18;
-  const TOP = 44;
-  const BASE = 198;
-  const LABEL_Y = 224;
-  const TAIL_PX = 14;
+  const STEP = 'stepAfter';
 
   async function load(live) {
     try {
@@ -94,10 +94,18 @@
   const aliveMode = $derived(getTimeMetric() === 'alive');
   const average = $derived(averageSeconds(log?.total_seconds, log?.count));
   const series = $derived(buildCumulativeSeries(log?.sessions ?? [], aliveMode ? 'alive' : 'foreground'));
-  const W = $derived(chartW > 0 ? chartW : 900);
-  const plotW = $derived(W - LEFT - RIGHT);
-  const dataSpan = $derived(Math.max((series.last ?? 0) - (series.first ?? 0), 86400));
-  const span = $derived(dataSpan * (1 + TAIL_PX / Math.max(1, plotW)));
+  const points = $derived(
+    series.points.map((p, i, list) => ({ ...p, isLast: i === list.length - 1 })),
+  );
+
+  const span = $derived(Math.max((series.last ?? 0) - (series.first ?? 0), 86400));
+  const xDomain = $derived.by(() => {
+    const first = series.first;
+    if (first == null) return [0, 1];
+    const last = series.last ?? first;
+    if (last <= first) return [first - 43200, first + 43200];
+    return [first, last];
+  });
 
   const axis = $derived.by(() => {
     const raw = Math.max(0, series.total);
@@ -115,13 +123,15 @@
     return { max: max * unit, values };
   });
 
-  function x(at) {
-    return LEFT + ((at - (series.first ?? 0)) / span) * (W - LEFT - RIGHT);
-  }
-
-  function y(value) {
-    return BASE - (value / Math.max(1, axis.max)) * (BASE - TOP);
-  }
+  const xTicks = $derived.by(() => {
+    if (series.first == null) return [];
+    const count = 4;
+    const out = [];
+    for (let index = 0; index < count; index += 1) {
+      out.push(series.first + (span * index) / (count - 1));
+    }
+    return out;
+  });
 
   function axisText(value) {
     if (value <= 0) return '0';
@@ -136,43 +146,14 @@
     return monthDay(at);
   }
 
-  const paths = $derived.by(() => {
-    const points = series.points;
-    if (!points.length) return { line: '', area: '' };
-    const startX = x(series.first).toFixed(1);
-    const steps = [`M${startX},${y(0).toFixed(1)}`];
-    let previous = 0;
-    for (const point of points) {
-      const px = x(point.at).toFixed(1);
-      steps.push(`L${px},${y(previous).toFixed(1)}`);
-      steps.push(`L${px},${y(point.total).toFixed(1)}`);
-      previous = point.total;
-    }
-    const endX = (W - RIGHT).toFixed(1);
-    steps.push(`L${endX},${y(previous).toFixed(1)}`);
-    const line = steps.join(' ');
-    return { line, area: `${line} L${endX},${BASE} L${startX},${BASE} Z` };
-  });
+  const tickAlign = (value, index, values) =>
+    index === 0 ? 'left' : index === values.length - 1 ? 'right' : 'center';
 
-  const marks = $derived.by(() => {
-    if (!series.first) return [];
-    const count = span < 3 * 86400 ? 1 : W < 560 ? 3 : 4;
-    if (count === 1) {
-      const at = series.first + span / 2;
-      return [{ at, px: x(at), anchor: 'middle', label: markLabel(at) }];
-    }
-    const out = [];
-    for (let index = 0; index < count; index += 1) {
-      const at = series.first + (span * index) / (count - 1);
-      out.push({
-        at,
-        px: x(at),
-        anchor: index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle',
-        label: markLabel(at),
-      });
-    }
-    return out;
-  });
+  const x = (d) => d.at;
+  const y = (d) => d.total;
+  const endLabel = $derived(compactDuration(Math.round(series.total / 60)));
+  const endLabelY = (d) => (d.isLast ? d.total + axis.max * 0.07 : null);
+  const endDotY = (d) => (d.isLast ? d.total : null);
 
   const peak = $derived.by(() => {
     let best = null;
@@ -183,55 +164,32 @@
   });
 
   const longest = $derived(peak?.step ?? 0);
+  const metricText = $derived(aliveMode ? t('settings.timeAlive') : t('settings.timeForeground'));
 
-  const metricText = $derived(
-    aliveMode ? t('settings.timeAlive') : t('settings.timeForeground'),
-  );
-
-  const endLabel = $derived.by(() => {
-    if (!series.total) return null;
-    return {
-      x: W - RIGHT,
-      y: Math.max(34, y(series.total) - 10),
-      text: compactDuration(Math.round(series.total / 60)),
-    };
-  });
+  const tooltipTemplate = (d) => {
+    if (!d) return '';
+    const step = compactDuration(Math.round(d.step / 60));
+    const total = compactDuration(Math.round(d.total / 60));
+    return `<div class="playlog-tip"><span class="playlog-tip-date">${shortDate(d.at)}</span><b class="playlog-tip-step">${step}</b><span class="playlog-tip-total">${t('detail.playLogCumulative')} ${total}</span></div>`;
+  };
 
   export function scrollTo() {
     root?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-
-  function trackHover(event) {
-    if (!series.points.length) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width) return;
-    const px = ((event.clientX - rect.left) / rect.width) * W;
-    hoverPx = Math.min(Math.max(px, LEFT), W - RIGHT);
-  }
-
-  const hover = $derived.by(() => {
-    if (hoverPx == null || !series.points.length) return null;
-    const at = (series.first ?? 0) + ((hoverPx - LEFT) / Math.max(1, plotW)) * span;
-    let index = -1;
-    for (let cursor = 0; cursor < series.points.length; cursor += 1) {
-      if (series.points[cursor].at <= at) index = cursor;
-      else break;
-    }
-    if (index < 0) return null;
-    const point = series.points[index];
-    return {
-      px: hoverPx,
-      y: y(point.total),
-      date: shortDate(point.at),
-      step: compactDuration(Math.round(point.step / 60)),
-      total: compactDuration(Math.round(point.total / 60)),
-    };
-  });
 </script>
+
+{#snippet metricBadge()}
+  <span class="detail-playlog-metric">{metricText}</span>
+{/snippet}
 
 {#if log?.count}
   <div class="detail-playlog-anchor" bind:this={root}>
-    <DetailSection title={t('detail.playLog')} count={log.count} class="detail-enter-playlog">
+    <DetailSection
+      title={t('detail.playLog')}
+      count={log.count}
+      action={metricBadge}
+      class="detail-enter-playlog"
+    >
       <div class="detail-playlog-meta">
         <span
           >{t('detail.playLogFirst')}
@@ -250,50 +208,47 @@
           <b>{durationText(t, longest)}</b></span
         >
       </div>
-      <svg
-        class="detail-playlog-chart"
-        viewBox={`0 0 ${W} ${H}`}
-        height={H}
-        bind:clientWidth={chartW}
-        role="img"
-        aria-label={t('detail.playLog')}
-        onpointermove={trackHover}
-        onpointerleave={() => (hoverPx = null)}
-      >
-        <text class="detail-playlog-metric" x={W - RIGHT} y={13} text-anchor="end">
-          {metricText}
-        </text>
 
-        {#each axis.values as tick}
-          <line class="detail-playlog-grid" x1={LEFT} x2={W - RIGHT} y1={y(tick)} y2={y(tick)} />
-          <text class="detail-playlog-axis" x={LEFT - 8} y={y(tick) + 4} text-anchor="end">
-            {axisText(tick)}
-          </text>
-        {/each}
-
-        <path class="detail-playlog-area" d={paths.area} />
-        <path class="detail-playlog-line" d={paths.line} />
-
-        {#if hover}
-          <line class="detail-playlog-cursor" x1={hover.px} y1={TOP} x2={hover.px} y2={BASE} />
-          <circle class="detail-playlog-cursor-dot" cx={hover.px} cy={hover.y} r="4" />
-          <text class="detail-playlog-hover" x={LEFT} y={13}>{hover.date}<tspan class="detail-playlog-hover-step" dx="10">{hover.step}</tspan><tspan dx="10">{t('detail.playLogCumulative')} {hover.total}</tspan></text>
-        {/if}
-
-        {#each marks as mark, index (index)}
-          <text class="detail-playlog-axis" x={mark.px} y={LABEL_Y} text-anchor={mark.anchor}>
-            {mark.label}
-          </text>
-        {/each}
-
-        {#if endLabel}
-          <text class="detail-playlog-end" x={endLabel.x} y={endLabel.y} text-anchor="end">
-            {endLabel.text}
-          </text>
-        {/if}
-
-        <circle class="detail-playlog-dot" cx={W - RIGHT} cy={y(series.total)} r="3.5" />
-      </svg>
+      <div class="detail-playlog-chart">
+        <VisXYContainer
+          data={points}
+          height={292}
+          margin={{ top: 18, right: 36, bottom: 28, left: 56 }}
+          xDomain={xDomain}
+          yDomain={[0, axis.max]}
+          ariaLabel={t('detail.playLog')}
+        >
+          <VisArea {x} {y} color="var(--chart-fill)" curveType={STEP} />
+          <VisLine {x} {y} color="var(--chart-main)" lineWidth={2} curveType={STEP} />
+          <VisAxis
+            type="x"
+            tickValues={xTicks}
+            tickFormat={markLabel}
+            tickTextAlign={tickAlign}
+            gridLine={false}
+            tickLine={false}
+            domainLine={false}
+          />
+          <VisAxis
+            type="y"
+            tickValues={axis.values}
+            tickFormat={axisText}
+            tickLine={false}
+            domainLine={false}
+          />
+          <VisScatter {x} y={endDotY} size={6} color="var(--accent)" />
+          <VisXYLabels
+            {x}
+            y={endLabelY}
+            label={endLabel}
+            color="var(--fg-secondary)"
+            backgroundColor="transparent"
+            clustering={false}
+          />
+          <VisCrosshair {x} {y} color="var(--accent)" template={tooltipTemplate} />
+          <VisTooltip />
+        </VisXYContainer>
+      </div>
     </DetailSection>
   </div>
 {/if}

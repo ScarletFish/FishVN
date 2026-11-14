@@ -82,7 +82,6 @@
         label={valueLabel}
         color="var(--fg-default)"
         backgroundColor="transparent"
-        labelFontSize={12}
       />
     </VisXYContainer>
   </div>
@@ -98,6 +97,7 @@
     --vis-axis-domain-color: var(--border-default);
     --vis-axis-tick-label-color: var(--fg-muted);
     --vis-axis-tick-label-font-size: var(--text-xs);
+    --vis-xy-label-font-size: var(--text-xs);
     height: 186px;
     min-width: 0;
   }

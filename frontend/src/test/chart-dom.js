@@ -12,6 +12,22 @@ const SIZE = {
   toJSON() {},
 };
 
+function waitForFirstPath(target, timeout = 2000) {
+  if (target.querySelector('svg path')) return Promise.resolve();
+  return new Promise((resolve) => {
+    const observer = new MutationObserver(() => {
+      if (target.querySelector('svg path')) finish();
+    });
+    const timer = setTimeout(finish, timeout);
+    function finish() {
+      observer.disconnect();
+      clearTimeout(timer);
+      resolve();
+    }
+    observer.observe(target, { childList: true, subtree: true });
+  });
+}
+
 export async function mountChart(Component, props = {}) {
   const saved = {
     resizeObserver: globalThis.ResizeObserver,
@@ -44,7 +60,7 @@ export async function mountChart(Component, props = {}) {
   document.body.appendChild(target);
   const app = mount(Component, { target, props });
   flushSync();
-  await new Promise((resolve) => setTimeout(resolve, 250));
+  await waitForFirstPath(target);
   flushSync();
 
   return {
@@ -58,8 +74,6 @@ export async function mountChart(Component, props = {}) {
       SVGElement.prototype.getComputedTextLength = saved.textLength;
       if (saved.transform) {
         Object.defineProperty(SVGElement.prototype, 'transform', saved.transform);
-      } else {
-        delete SVGElement.prototype.transform;
       }
       globalThis.requestAnimationFrame = saved.raf;
       globalThis.cancelAnimationFrame = saved.caf;
