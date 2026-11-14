@@ -27,7 +27,7 @@
   const points = $derived((stat.data ?? []).map((p, i) => ({ ...p, i })));
   const total = $derived(points.reduce((sum, p) => sum + p.count, 0));
   const max = $derived(points.reduce((m, p) => Math.max(m, p.count), 0));
-  const headroom = $derived(Math.max(1, max) * 1.15);
+  const headroom = $derived(Math.max(1, max) * 1.2);
 
   const scopeOptions = $derived([
     { value: 'all', label: t('dashboard.era.all') },
@@ -36,7 +36,7 @@
 
   const x = (d) => d.i;
   const y = (d) => d.count;
-  const labelY = (d) => d.count + Math.max(1, max) * 0.055;
+  const labelY = (d) => d.count + Math.max(1, max) * 0.1;
   const valueLabel = (d) => String(d.count);
   const eraText = (v) => t(`dashboard.era.${points[Math.round(v)]?.key}`);
 </script>

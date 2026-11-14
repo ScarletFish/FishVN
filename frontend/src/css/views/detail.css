@@ -431,7 +431,7 @@ button.info-rating {
 }
 
 .detail-char-card.expanded {
-  border-color: var(--accent);
+  border: 2px solid var(--accent);
   background: var(--accent-bg);
 }
 

@@ -72,12 +72,15 @@
 | 浮层（菜单 / 下拉 / 弹窗内容） | `--bg-floating` |
 | hover / 按下蒙版（压暗） | `--bg-hover` |
 | 选中（accent 身份） | `--bg-selected` + `--accent-border` |
+| 选中缩略图卡 | 2px 实色 `--accent` 边框，淡染配 `--accent-bg` |
 | 段控选中格 | `--bg-seg-thumb` + `--seg-thumb-shadow` |
 
 交互态写法：
 - hover / active 用 `--bg-hover` 蒙版压暗，或只强化 `--border-strong` 边框。
 - 浮层（菜单、下拉、弹窗）用 `--bg-floating`，取 ramp 最浅一档。
 - 选中用 `--bg-selected` 淡染 + `--accent-border` 描边表达身份。
+- **封面缩略图的选中卡用 2px 实色 `--accent` 边框**（详情页角色卡、角色编辑表单的角色卡），淡染配 `--accent-bg`。这类卡片的底色被封面 `img` 盖住，淡染读不出来，描边是唯一看得见的身份信号；1px 的 `--accent-border` 只混了 25% accent（深色 16%），压在图片边缘旁边分不清边界。
+- 缩略图卡的选中描边写在 `border` 上：滚动容器的 `overflow-x: auto` 会把未声明的 `overflow-y` 补成 `auto`，外扩的 `box-shadow: 0 0 0 2px` 因此被裁掉上下两段、只剩左右；换 `inset` 阴影又会被封面 `img` 盖住（`inset` 绘在背景之上、内容之下），观感仍是 1px。全局 `border-box` 让加粗不撑大卡片，圆角也随卡片自身。
 - 表单字段（输入框、标签输入框等）hover 只动边框，`focus` / `:focus-within` 才升 `--bg-raised` + `--shadow-sm`。
 - 下拉 / 菜单：触发器（按钮）走 `--bg-hover` 压暗，弹出菜单走 `--bg-floating`。
 - 标签页选中指示用 accent 下划线。段控的选中是取值不是身份，不吃 accent；accent 留给侧栏 active、焦点环与 VNDB 选中卡。段控容器不上色 —— 与周围同层，选中格吃 `--bg-seg-thumb` 并投 `--seg-thumb-shadow` 浮起，悬停格走 `--bg-hover`。两套主题的差别只在明度空间：深色底到选中格有 12 个 L\*，浅色只有 3，所以浅色靠阴影补、深色靠明度本身且阴影取 `none`（`--shadow-sm` 在深色是浮层用的 50% 黑，套到一条矮控件上会糊出一圈黑边）。别把容器压暗去做「槽」：那会让整条控件比周围低一层，读作凹槽；也别给选中格加描边，容器已有一圈边框，格内再来一道只有右边会露出来。

@@ -1072,9 +1072,9 @@
     border-color: var(--border-strong);
   }
 
-.char-card.expanded {
-  border-color: var(--accent-border);
-}
+  .char-card.expanded {
+    border: 2px solid var(--accent);
+  }
 
   .char-card--add {
     align-items: center;

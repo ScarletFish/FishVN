@@ -10,7 +10,7 @@
   import StatCard from './StatCard.svelte';
 
   const MIN_SIZE = 0.85;
-  const MAX_SIZE = 1.25;
+  const MAX_SIZE = 1.6;
   const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
   const stat = useStat(api.dashboardTagCloud);
@@ -38,12 +38,13 @@
     const span = Math.max(1, max - min);
     return tags.map((x) => {
       const ratio = (x.count - min) / span;
+      const tint = Math.sqrt(ratio);
       return {
         id: x.id,
         label: tagLabel(x),
         count: x.count,
         size: MIN_SIZE + ratio * (MAX_SIZE - MIN_SIZE),
-        weight: Math.round(15 + ratio * 85),
+        weight: Math.round(15 + tint * 85),
         bold: ratio >= 0.6,
       };
     });
@@ -58,9 +59,12 @@
   function layoutCloud(words, W, H) {
     if (words.length === 0 || W <= 0 || H <= 0) return [];
     const ctx = document.createElement('canvas').getContext('2d');
+    const family =
+      getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim() ||
+      'sans-serif';
     const sized = words.map((w) => {
-      const px = w.size * 16;
-      ctx.font = `${w.bold ? 600 : 400} ${px}px "Noto Sans SC", sans-serif`;
+      const px = Math.round(w.size * 16);
+      ctx.font = `${w.bold ? 600 : 400} ${px}px ${family}`;
       const tw = ctx.measureText(w.label).width;
       return { ...w, px, tw, th: px * 1.35 };
     });
@@ -117,7 +121,7 @@
         <button
           type="button"
           class="tag-cloud-word-inner"
-          style:font-weight={word.bold ? 'var(--fw-semibold)' : 'var(--fw-normal)'}
+          class:is-bold={word.bold}
           style:color="color-mix(in srgb, var(--accent) {word.weight}%, var(--fg-muted))"
           onclick={() => searchTag(word)}
         >{word.label}</button>
@@ -150,10 +154,27 @@
     background: none;
     cursor: pointer;
     font-size: 100%;
-    transition: font-size var(--duration-fast) var(--ease-out);
+    font-weight: var(--fw-normal);
+    transition: font-weight var(--duration-fast) var(--ease-out);
   }
 
-  .tag-cloud-word-inner:hover {
-    font-size: 108%;
+  .tag-cloud-word-inner.is-bold {
+    font-weight: var(--fw-semibold);
+  }
+
+  .tag-cloud-word-inner:hover,
+  .tag-cloud-word-inner:focus-visible {
+    font-weight: var(--fw-semibold);
+  }
+
+  .tag-cloud-word-inner.is-bold:hover,
+  .tag-cloud-word-inner.is-bold:focus-visible {
+    font-weight: var(--fw-bold);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tag-cloud-word-inner {
+      transition: none;
+    }
   }
 </style>

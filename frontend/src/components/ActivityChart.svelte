@@ -114,6 +114,7 @@
         <VisScatter
           {x}
           {y}
+          size={5}
           color={pointColor}
           label={peakLabel}
           labelColor="var(--accent)"
@@ -171,6 +172,9 @@
     --vis-axis-tick-label-font-size: var(--text-xs);
     --vis-axis-label-font-size: var(--text-xs);
     --vis-scatter-point-label-text-font-size: var(--text-xs);
+    --vis-scatter-stroke-color: transparent;
+    --vis-scatter-stroke-width: 10px;
+    --vis-scatter-hover-stroke-width: 10px;
     --vis-tooltip-padding: var(--space-2) var(--space-3);
     --vis-tooltip-border-radius: var(--radius-md);
     --vis-tooltip-transition-duration: 150ms;
