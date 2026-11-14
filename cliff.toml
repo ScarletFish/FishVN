@@ -1,0 +1,40 @@
+# git-cliff 配置：从 Conventional Commits 生成 FishVN 的 CHANGELOG
+# 文档 https://git-cliff.org/docs/configuration
+
+[changelog]
+header = """
+# Changelog
+
+本文件记录 FishVN 所有 notable 改动，由 git 提交历史（Conventional Commits）自动生成，发布时人工轻润色。
+"""
+body = """
+## [{{ version | default(value="unreleased") }}]{% if version %} - {{ timestamp | date(format="%Y-%m-%d") }}{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}
+- {{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}]){% endfor %}
+{% endfor %}
+"""
+trim = true
+unreleased = true
+unreleased_version = "unreleased"
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+commit_parsers = [
+  { message = "^feat", group = "✨ 新增" },
+  { message = "^fix", group = "🐛 修复" },
+  { message = "^perf", group = "🔧 变更 / 优化" },
+  { message = "^refactor", group = "🔧 变更 / 优化" },
+  { message = "^docs", group = "📚 文档" },
+  { message = "^chore", group = "🧹 维护" },
+  { message = "^style", skip = true },
+  { message = "^test", skip = true },
+  { message = "^ci", skip = true },
+  { message = "^build", skip = true },
+  { message = ".*", group = "📦 其他" },
+]
+protect_breaking_commits = false
+filter_commits = false
+tag_pattern = "v[0-9]*"
