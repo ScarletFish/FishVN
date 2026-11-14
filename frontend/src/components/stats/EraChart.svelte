@@ -1,8 +1,8 @@
 <script>
-  import { api } from '../lib/api.js';
-  import { t } from '../lib/i18n.js';
-  import { useStat } from '../lib/stat-loader.svelte.js';
-  import Seg from './Seg.svelte';
+  import { api } from '../../lib/api.js';
+  import { t } from '../../lib/i18n.js';
+  import { useStat } from '../../lib/stat-loader.svelte.js';
+  import Seg from '../Seg.svelte';
   import StatCard from './StatCard.svelte';
   import VisXYContainer from '@unovis/svelte/containers/xy-container';
   import VisGroupedBar from '@unovis/svelte/components/grouped-bar';

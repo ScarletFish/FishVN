@@ -3,10 +3,11 @@
   import { t } from '../lib/i18n.js';
   import { durationText } from '../lib/playtime.js';
   import { useStat } from '../lib/stat-loader.svelte.js';
-  import ActivityChart from '../components/ActivityChart.svelte';
-  import PlaytimeRank from '../components/PlaytimeRank.svelte';
-  import EraChart from '../components/EraChart.svelte';
-  import TagCloud from '../components/TagCloud.svelte';
+  import ActivityChart from '../components/stats/ActivityChart.svelte';
+  import GameTrendChart from '../components/stats/GameTrendChart.svelte';
+  import PlaytimeRank from '../components/stats/PlaytimeRank.svelte';
+  import EraChart from '../components/stats/EraChart.svelte';
+  import TagCloud from '../components/stats/TagCloud.svelte';
 
   const stat = useStat(api.dashboardStats);
   const stats = $derived(stat.data);
@@ -59,6 +60,8 @@
       </div>
 
       <div class="stats-slot"><TagCloud /></div>
+
+      <div class="stats-slot stats-slot--tall"><GameTrendChart /></div>
     </div>
   {/if}
 </section>
@@ -78,6 +81,10 @@
 
   .stats-slot {
     height: 300px;
+  }
+
+  .stats-slot--tall {
+    height: 450px;
   }
 
   .stats-slot > :global(*) {

@@ -206,6 +206,7 @@ fn main() {
             commands::library_tags,
             commands::library_traits,
             commands::dashboard_activity,
+            commands::dashboard_game_trend,
             commands::dashboard_playtime_top,
             commands::dashboard_release_eras,
             commands::get_game,

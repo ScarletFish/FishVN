@@ -4,7 +4,7 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { Scatter } from '@unovis/ts/components/scatter';
-import { mountChart } from '../test/chart-dom.js';
+import { mountChart } from '../../test/chart-dom.js';
 import ActivityChart from './ActivityChart.svelte';
 
 const MONTHLY = [
@@ -37,7 +37,7 @@ const WEEKLY = [
   { bucket: '2026-11-09', seconds: 1200 },
 ];
 
-vi.mock('../lib/api.js', () => ({
+vi.mock('../../lib/api.js', () => ({
   api: {
     dashboardActivity: (granularity) =>
       Promise.resolve(granularity === 'week' ? WEEKLY : MONTHLY),

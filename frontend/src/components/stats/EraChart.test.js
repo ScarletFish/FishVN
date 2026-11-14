@@ -3,7 +3,7 @@
 // 反例自检：删掉 VisGroupedBar 会让第一条变红；把 VisXYLabels 去掉会让第二条变红；把 useStat 的 source 参数去掉会让第三条变红。
 import { afterEach, expect, test, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import { mountChart } from '../test/chart-dom.js';
+import { mountChart } from '../../test/chart-dom.js';
 import EraChart from './EraChart.svelte';
 
 const ALL = [
@@ -20,7 +20,7 @@ const FINISHED = [
   { key: 'y2020', count: 0 },
 ];
 
-vi.mock('../lib/api.js', () => ({
+vi.mock('../../lib/api.js', () => ({
   api: {
     dashboardReleaseEras: (status) => Promise.resolve(status === 'finished' ? FINISHED : ALL),
   },

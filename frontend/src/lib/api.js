@@ -58,6 +58,7 @@ export const api = {
   libraryTags: () => call('library_tags'),
   libraryTraits: () => call('library_traits'),
   dashboardActivity: (granularity = 'month') => call('dashboard_activity', { granularity }),
+  dashboardGameTrend: () => call('dashboard_game_trend'),
   dashboardPlaytimeTop: () => call('dashboard_playtime_top'),
   dashboardReleaseEras: (status = null) => call('dashboard_release_eras', { status }),
   getGame: (id) => call('get_game', { id }),

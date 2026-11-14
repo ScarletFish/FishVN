@@ -1,5 +1,5 @@
 <script>
-  import { t } from '../lib/i18n.js';
+  import { t } from '../../lib/i18n.js';
 
   let { title, sub = '', loading = false, error = null, empty = false, emptyText = '', actions = null, children } = $props();
 </script>

@@ -149,6 +149,12 @@ export const DICT_ZH = {
       total: '近 {n} {unit}时长',
       avg: '{unit}均',
     },
+    trend: {
+      title: '常玩作品',
+      sub: '近一年玩得最久的 {n} 部',
+      empty: '近一年暂无游玩记录',
+      error: '读取常玩作品失败',
+    },
     playtime: {
       title: '游玩时长',
       empty: '暂无游玩记录',

@@ -472,6 +472,104 @@ pub fn activity(
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct GameTrendSeries {
+    pub game_id: String,
+    pub name: String,
+    pub total: i64,
+    pub values: Vec<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct GameTrend {
+    pub buckets: Vec<String>,
+    pub series: Vec<GameTrendSeries>,
+}
+
+pub const TREND_GAMES: i64 = 6;
+
+pub fn game_trend(
+    conn: &Connection,
+    now: i64,
+    months: i64,
+    top: i64,
+    metric: TimeMetric,
+) -> Result<GameTrend> {
+    let months = months.max(1);
+    let top = top.max(1);
+    let buckets: Vec<String> = {
+        let mut stmt = conn.prepare(
+            "WITH RECURSIVE seq(k) AS (
+                SELECT strftime('%Y-%m-01', ?1, 'unixepoch')
+                UNION ALL
+                SELECT date(k, '-1 month') FROM seq LIMIT ?2
+             )
+             SELECT k FROM seq ORDER BY k",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![now, months], |row| row.get::<_, String>(0))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    let start = buckets.first().cloned().unwrap_or_default();
+
+    let leaders: Vec<(String, String, i64)> = {
+        let mut stmt = conn.prepare(
+            "SELECT g.id AS id, g.name AS name, SUM(
+                CASE WHEN ?3 = 'alive'
+                    THEN COALESCE(p.ended_at, p.last_seen_at) - p.started_at
+                    ELSE p.foreground_seconds
+                END) AS total
+             FROM play_sessions p
+             JOIN games g ON g.id = p.game_id
+             WHERE strftime('%Y-%m-01', p.started_at, 'unixepoch') >= ?1
+             GROUP BY g.id
+             ORDER BY total DESC
+             LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![start, top, metric_text(metric)], |row| {
+            Ok((row.get("id")?, row.get("name")?, row.get("total")?))
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+
+    let mut lookup: HashMap<(String, String), i64> = HashMap::new();
+    {
+        let mut stmt = conn.prepare(
+            "SELECT p.game_id AS id,
+                    strftime('%Y-%m-01', p.started_at, 'unixepoch') AS k,
+                    SUM(CASE WHEN ?2 = 'alive'
+                        THEN COALESCE(p.ended_at, p.last_seen_at) - p.started_at
+                        ELSE p.foreground_seconds
+                    END) AS s
+             FROM play_sessions p
+             WHERE strftime('%Y-%m-01', p.started_at, 'unixepoch') >= ?1
+             GROUP BY p.game_id, k",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![start, metric_text(metric)], |row| {
+            Ok((
+                (row.get::<_, String>("id")?, row.get::<_, String>("k")?),
+                row.get::<_, i64>("s")?,
+            ))
+        })?;
+        for row in rows {
+            let (key, seconds) = row?;
+            lookup.insert(key, seconds);
+        }
+    }
+
+    let series = leaders
+        .into_iter()
+        .map(|(game_id, name, total)| {
+            let values = buckets
+                .iter()
+                .map(|b| lookup.get(&(game_id.clone(), b.clone())).copied().unwrap_or(0))
+                .collect();
+            GameTrendSeries { game_id, name, total, values }
+        })
+        .collect();
+
+    Ok(GameTrend { buckets, series })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -996,6 +1094,30 @@ mod tests {
         assert_eq!(foreground[0].seconds, 900);
         let alive = activity(&conn, now, 1, Granularity::Month, TimeMetric::Alive).unwrap();
         assert_eq!(alive[0].seconds, 2400);
+    }
+
+    #[test]
+    fn 游戏趋势按月分桶并按时长取前几名() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        let c = make_game(&conn, "丙");
+        let now = ts(&conn, "2026-03-15", "12:00:00");
+        add_session(&conn, &a, "a1", ts(&conn, "2026-03-02", "20:00:00"), 3600);
+        add_session(&conn, &a, "a2", ts(&conn, "2026-01-10", "20:00:00"), 1800);
+        add_session(&conn, &b, "b1", ts(&conn, "2026-02-20", "20:00:00"), 600);
+        add_session(&conn, &c, "c1", ts(&conn, "2026-03-05", "20:00:00"), 120);
+
+        let trend = game_trend(&conn, now, 12, 2, TimeMetric::Foreground).unwrap();
+        assert_eq!(trend.buckets.len(), 12);
+        assert_eq!(trend.buckets[0], "2025-04-01");
+        assert_eq!(trend.buckets[11], "2026-03-01");
+        assert_eq!(trend.series.len(), 2);
+        assert_eq!(trend.series[0].game_id, a);
+        assert_eq!(trend.series[0].total, 5400);
+        assert_eq!(trend.series[0].values[9], 1800);
+        assert_eq!(trend.series[0].values[11], 3600);
+        assert_eq!(trend.series[1].game_id, b);
     }
 
     #[test]

@@ -1,8 +1,8 @@
 <script>
-  import { api } from '../lib/api.js';
-  import { t } from '../lib/i18n.js';
-  import { durationText, compactDuration } from '../lib/playtime.js';
-  import { useStat } from '../lib/stat-loader.svelte.js';
+  import { api } from '../../lib/api.js';
+  import { t } from '../../lib/i18n.js';
+  import { durationText, compactDuration } from '../../lib/playtime.js';
+  import { useStat } from '../../lib/stat-loader.svelte.js';
   import StatCard from './StatCard.svelte';
 
   let { total = 0 } = $props();

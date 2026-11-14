@@ -175,6 +175,16 @@ handler!(dashboard_tag_cloud, |c, _a| {
     let config = settings::current();
     dashboard::tag_cloud(c, 40, config.hide_r18_tags, config.spoiler_level, &config.excluded_tags)
 });
+handler!(dashboard_game_trend, |c, _a| {
+    let config = settings::current();
+    dashboard::game_trend(
+        c,
+        crate::now(),
+        dashboard::ACTIVITY_BUCKETS,
+        dashboard::TREND_GAMES,
+        config.time_metric,
+    )
+});
 handler!(library_tags, |c, _a| {
     let config = settings::current();
     dashboard::library_tags(c, config.hide_r18_tags, config.spoiler_level, &config.excluded_tags)
@@ -639,6 +649,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/create_local_tag", post(create_local_tag))
         .route("/library_traits", post(library_traits))
         .route("/dashboard_activity", post(dashboard_activity))
+        .route("/dashboard_game_trend", post(dashboard_game_trend))
         .route("/dashboard_playtime_top", post(dashboard_playtime_top))
         .route("/dashboard_release_eras", post(dashboard_release_eras))
         .route("/get_game", post(get_game))
@@ -706,6 +717,7 @@ pub const COMMANDS: &[&str] = &[
     "library_traits",
     "create_local_tag",
     "dashboard_activity",
+    "dashboard_game_trend",
     "dashboard_playtime_top",
     "dashboard_release_eras",
     "get_game",

@@ -1,12 +1,12 @@
 <script>
   import { onMount } from 'svelte';
-  import { api } from '../lib/api.js';
-  import { tagLabel } from '../lib/tag-label.svelte.js';
-  import { requestSearchQuery } from '../lib/search-query.js';
-  import { t } from '../lib/i18n.js';
-  import { useStat } from '../lib/stat-loader.svelte.js';
-  import { CONFIG_CHANGED } from '../lib/config-events.js';
-  import { LIBRARY_TAGS_CHANGED } from '../lib/library-events.js';
+  import { api } from '../../lib/api.js';
+  import { tagLabel } from '../../lib/tag-label.svelte.js';
+  import { requestSearchQuery } from '../../lib/search-query.js';
+  import { t } from '../../lib/i18n.js';
+  import { useStat } from '../../lib/stat-loader.svelte.js';
+  import { CONFIG_CHANGED } from '../../lib/config-events.js';
+  import { LIBRARY_TAGS_CHANGED } from '../../lib/library-events.js';
   import StatCard from './StatCard.svelte';
 
   const MIN_SIZE = 0.85;
