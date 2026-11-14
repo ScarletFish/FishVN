@@ -94,8 +94,7 @@
     display: block;
     height: 100%;
     border-radius: var(--radius-pill);
-    background: var(--accent);
-    opacity: 0.85;
+    background: var(--chart-main);
   }
 
   .playtime-time {

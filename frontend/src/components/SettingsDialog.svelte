@@ -24,6 +24,7 @@
   import { pickExecutable } from '../lib/pick-path.js';
   import { DASHBOARD_MODULES, moveModule, setModuleEnabled, reorderModule } from '../lib/dashboard-layout.js';
   import { notifyConfigChanged } from '../lib/config-events.js';
+  import { STARTUP_PAGE_IDS, normalizeStartupPage } from '../lib/startup-pages.js';
   import { CHARACTER_SCOPES, DEFAULT_CHARACTER_SCOPE } from '../lib/generated/character-roles.js';
   import { getHideR18Tags, getSpoilerLevel, getExcludedTags } from '../lib/config-store.svelte.js';
   import { loadLibraryTags, toTagItems } from '../lib/library-tags.svelte.js';
@@ -82,8 +83,6 @@
   let backupRetentionOpen = $state(false);
   let backups = $state([]);
   let backupBusy = $state(false);
-
-  const STARTUP_PAGE_IDS = ['home', 'showcase', 'mylist', 'query', 'backfill', 'stats'];
 
   const RETENTION_OPTIONS = [
     { value: 'off', label: t('settings.backup.retentionOff') },
@@ -146,7 +145,7 @@
           lePathError = '';
           quitBehavior = config.quit_behavior === 'minimize_to_tray' ? 'minimize_to_tray' : 'quit';
           minimizeOnLaunch = config.minimize_on_launch !== false;
-          startupPage = STARTUP_PAGE_IDS.includes(config.startup_page) ? config.startup_page : 'home';
+          startupPage = normalizeStartupPage(config.startup_page);
           characterScope = CHARACTER_SCOPES.some((s) => s.id === config.character_scope)
             ? config.character_scope
             : DEFAULT_CHARACTER_SCOPE;
@@ -332,7 +331,7 @@
   }
 
   function onStartupPageChange(next) {
-    startupPage = STARTUP_PAGE_IDS.includes(next) ? next : 'home';
+    startupPage = normalizeStartupPage(next);
     api
       .updateConfig({ startup_page: startupPage })
       .then(notifyConfigChanged)

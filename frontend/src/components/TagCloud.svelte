@@ -43,7 +43,7 @@
         label: tagLabel(x),
         count: x.count,
         size: MIN_SIZE + ratio * (MAX_SIZE - MIN_SIZE),
-        weight: Math.round(45 + ratio * 55),
+        weight: Math.round(15 + ratio * 85),
         bold: ratio >= 0.6,
       };
     });

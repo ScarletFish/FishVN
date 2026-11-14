@@ -163,6 +163,10 @@ body {
      暗上叠暗会看不清，用白混淡 accent 保留色相并随色系自动跟随 */
   --accent-on-image: color-mix(in srgb, var(--accent) 40%, var(--ink-white) 60%);
 
+  --chart-main: color-mix(in srgb, var(--accent) 65%, var(--bg-surface));
+  --chart-fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  --chart-ring: color-mix(in srgb, var(--accent) 25%, transparent);
+
   /* 状态色。语义色不分主题，两个主题同值 */
   --success: var(--green-500);
   --warning: var(--amber-500);
@@ -243,6 +247,10 @@ body {
   --accent-border: color-mix(in srgb, var(--accent) 16%, transparent);
   /* 深色主题的 --accent-soft 已是浅色变体，直接沿用 */
   --accent-on-image: var(--accent-soft);
+
+  --chart-main: color-mix(in srgb, var(--accent) 65%, var(--fg-muted));
+  --chart-fill: color-mix(in srgb, var(--accent) 18%, transparent);
+  --chart-ring: color-mix(in srgb, var(--accent) 20%, transparent);
 
   --border-default: color-mix(in srgb, var(--ink-white) 12%, transparent);
   --border-strong: color-mix(in srgb, var(--ink-white) 22%, transparent);

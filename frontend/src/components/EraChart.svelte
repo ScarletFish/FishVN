@@ -54,7 +54,7 @@
               width={barW}
               height={Math.max(2, BASE - y(p.count))}
               rx="4"
-              style="fill: var(--accent)"
+              style="fill: var(--chart-main)"
             />
             <text class="era-value" x={x(i) + barW / 2} y={y(p.count) - 6} text-anchor="middle">
               {p.count}
@@ -79,7 +79,7 @@
   }
 
   .era-value {
-    fill: var(--fg-secondary);
+    fill: var(--fg-default);
     font-size: var(--text-xs);
     font-weight: var(--fw-semibold);
   }

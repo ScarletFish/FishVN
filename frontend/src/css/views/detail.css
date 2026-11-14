@@ -923,12 +923,12 @@ button.info-rating {
 }
 
 .detail-playlog-area {
-  fill: var(--accent-bg);
+  fill: var(--chart-fill);
 }
 
 .detail-playlog-line {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--chart-main);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;

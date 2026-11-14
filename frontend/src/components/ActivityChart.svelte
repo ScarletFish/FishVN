@@ -94,8 +94,8 @@
   >
         <defs>
           <linearGradient id="activity-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" style="stop-color: var(--accent); stop-opacity: 0.28;" />
-            <stop offset="100%" style="stop-color: var(--accent); stop-opacity: 0.02;" />
+            <stop offset="0%" style="stop-color: var(--chart-fill)" />
+            <stop offset="100%" style="stop-color: var(--chart-fill); stop-opacity: 0" />
           </linearGradient>
         </defs>
 
@@ -110,18 +110,22 @@
         <path
           d={line}
           fill="none"
-          style="stroke: var(--accent)"
+          style="stroke: var(--chart-main)"
           stroke-width="2"
           stroke-linejoin="round"
           stroke-linecap="round"
         />
+
+        {#if peak.seconds > 0 && peakIndex >= 0}
+          <circle cx={x(peakIndex)} cy={y(peak.seconds)} r="9" style:fill="var(--chart-ring)" />
+        {/if}
 
         {#each points as p, i}
           <circle
             cx={x(i)}
             cy={y(p.seconds)}
             r={p === peak ? 4.5 : 3}
-            style:fill="var(--accent)"
+            style:fill={p === peak ? 'var(--accent)' : 'var(--chart-main)'}
             style:stroke="var(--bg-surface)"
             stroke-width="2"
           />
@@ -163,7 +167,7 @@
   }
 
   .activity-peak {
-    fill: var(--fg-secondary);
+    fill: var(--accent);
     font-size: var(--text-xs);
     font-weight: var(--fw-semibold);
   }

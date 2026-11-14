@@ -55,4 +55,5 @@ SOFTWARE.
 
 - Noto Sans SC：`Google Inc.`，SIL OFL 1.1，全文见 `licenses/OFL.txt`。
 - FishVN 自身代码：MIT，见 `licenses/LICENSE`。
+- `@unovis/svelte` / `@unovis/ts` 1.8.1：Apache-2.0，许可文本随各自 npm 包分发。
 - 其余 Rust crate / npm 包：MIT、Apache-2.0 等宽松许可，许可文本随各自包分发，版本见 `Cargo.lock` / `package-lock.json`。

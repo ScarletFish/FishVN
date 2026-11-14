@@ -28,6 +28,7 @@
   import { createRun, reduce as reduceRun, seedFromStatus } from './lib/backfill-status.js';
   import { loadTagDict } from './lib/tag-label.svelte.js';
   import { loadConfig } from './lib/config-store.svelte.js';
+  import { normalizeStartupPage } from './lib/startup-pages.js';
   import {
     syncTheme,
     syncAccent,
@@ -53,7 +54,6 @@
   import Query from './views/Query.svelte';
   import Dashboard from './views/Dashboard.svelte';
   import Showcase from './views/Showcase.svelte';
-  import Stats from './views/Stats.svelte';
   import Detail from './views/Detail.svelte';
 
   let settingsOpen = $state(false);
@@ -62,8 +62,28 @@
   let seenRun = $state(0);
   let handledRun = 0;
   let current = $state('home');
-  const STARTUP_PAGE_IDS = ['home', 'showcase', 'mylist', 'query', 'backfill', 'stats'];
   let startupApplied = false;
+  let StatsView = $state.raw(null);
+  let statsPromise = null;
+
+  function loadStatsView() {
+    if (!statsPromise) {
+      statsPromise = import('./views/Stats.svelte')
+        .then((mod) => {
+          StatsView = mod.default;
+          return mod.default;
+        })
+        .catch((e) => {
+          report('error', `统计页加载失败：${e?.message ?? e}`);
+          statsPromise = null;
+        });
+    }
+    return statsPromise;
+  }
+
+  $effect(() => {
+    if (current === 'stats') loadStatsView();
+  });
 
   $effect(() => subscribeTheme((value) => (dark = value)));
 
@@ -80,7 +100,7 @@
         syncAccent(config.accent);
         if (!startupApplied) {
           startupApplied = true;
-          if (STARTUP_PAGE_IDS.includes(config.startup_page)) current = config.startup_page;
+          current = normalizeStartupPage(config.startup_page);
         }
       })
       .catch(() => {});
@@ -363,7 +383,13 @@
       {:else if current === 'backfill'}
         <Backfill scroll={backfillScroll} />
       {:else if current === 'stats'}
-        <Stats />
+        {#if StatsView}
+          <StatsView />
+        {:else}
+          <section class="view">
+            <p class="view-loading">{t('common.loading')}</p>
+          </section>
+        {/if}
       {:else}
         <section class="view">
           <header class="view-header">

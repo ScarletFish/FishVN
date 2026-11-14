@@ -72,7 +72,6 @@ pub enum StartupPage {
     MyList,
     Query,
     Backfill,
-    Stats,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
