@@ -2,6 +2,7 @@
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { useStat } from '../lib/stat-loader.svelte.js';
+  import Seg from './Seg.svelte';
   import StatCard from './StatCard.svelte';
   import VisXYContainer from '@unovis/svelte/containers/xy-container';
   import VisArea from '@unovis/svelte/components/area';
@@ -11,18 +12,38 @@
   import VisTooltip from '@unovis/svelte/components/tooltip';
   import { Scatter } from '@unovis/ts/components/scatter';
 
-  const MONTHS = 6;
-  const stat = useStat(() => api.dashboardMonthlyActivity(MONTHS));
+  const GRANULARITIES = ['week', 'month', 'year'];
+  const BUCKETS = 12;
 
-  const monthText = (list, p, i) => {
-    const label = `${Number(p.month.slice(5, 7))}月`;
-    const year = p.month.slice(0, 4);
-    const prevYear = i > 0 ? list[i - 1].month.slice(0, 4) : null;
-    return i === 0 || year !== prevYear ? `${year}年${label}` : label;
+  let granularity = $state('month');
+  const stat = useStat(
+    () => api.dashboardActivity(granularity),
+    () => granularity
+  );
+
+  const shortUnit = $derived(t(`dashboard.activity.granularity.${granularity}`));
+  const longUnit = $derived(t(`dashboard.activity.unit.${granularity}`));
+
+  const granularityOptions = $derived(
+    GRANULARITIES.map((value) => ({
+      value,
+      label: t(`dashboard.activity.granularity.${value}`),
+    }))
+  );
+
+  const bucketLabel = (list, p, i) => {
+    const year = p.bucket.slice(0, 4);
+    const newYear = i === 0 || year !== list[i - 1].bucket.slice(0, 4);
+    if (granularity === 'year') return year;
+    if (granularity === 'month') {
+      const label = `${Number(p.bucket.slice(5, 7))}月`;
+      return newYear ? `${year}年${label}` : label;
+    }
+    return `${Number(p.bucket.slice(5, 7))}/${Number(p.bucket.slice(8, 10))}`;
   };
 
   const points = $derived(
-    (stat.data ?? []).map((p, i, list) => ({ ...p, i, label: monthText(list, p, i) }))
+    (stat.data ?? []).map((p, i, list) => ({ ...p, i, label: bucketLabel(list, p, i) }))
   );
 
   const total = $derived(points.reduce((sum, p) => sum + p.seconds, 0));
@@ -30,10 +51,10 @@
   const peak = $derived(
     points.reduce(
       (best, p) => (p.seconds > best.seconds ? p : best),
-      { seconds: 0, month: '', label: '', i: -1 }
+      { seconds: 0, bucket: '', label: '', i: -1 }
     )
   );
-  const monthlyAvg = $derived(points.length ? Math.round(total / points.length) : 0);
+  const avg = $derived(points.length ? Math.round(total / points.length) : 0);
 
   const ticks = $derived.by(() => {
     const raw = Math.max(0, max);
@@ -66,8 +87,13 @@
   const tooltipTriggers = { [Scatter.selectors.point]: (d) => (d ? axisText(d.seconds) : '') };
 </script>
 
+{#snippet granularityFilter()}
+  <Seg bind:value={granularity} options={granularityOptions} label={t('dashboard.activity.scope')} />
+{/snippet}
+
 <StatCard
   title={t('dashboard.activity.title')}
+  actions={granularityFilter}
   loading={stat.loading}
   error={stat.error}
   empty={total === 0}
@@ -114,12 +140,12 @@
 
     <div class="activity-summary">
       <div class="activity-metric">
-        <span class="activity-metric-label">{t('dashboard.activity.total')}</span>
+        <span class="activity-metric-label">{t('dashboard.activity.total', { n: BUCKETS, unit: longUnit })}</span>
         <b class="activity-metric-value">{axisText(total)}</b>
       </div>
       <div class="activity-metric">
-        <span class="activity-metric-label">{t('dashboard.activity.monthlyAvg')}</span>
-        <b class="activity-metric-value">{axisText(monthlyAvg)}</b>
+        <span class="activity-metric-label">{t('dashboard.activity.avg', { unit: shortUnit })}</span>
+        <b class="activity-metric-value">{axisText(avg)}</b>
       </div>
     </div>
   </div>

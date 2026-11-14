@@ -1,6 +1,6 @@
-import { onMount } from 'svelte';
+import { onMount, untrack } from 'svelte';
 
-export function useStat(fetcher) {
+export function useStat(fetcher, source = null) {
   let data = $state(null);
   let loading = $state(true);
   let error = $state(null);
@@ -16,7 +16,14 @@ export function useStat(fetcher) {
     }
   }
 
-  onMount(load);
+  if (source) {
+    $effect(() => {
+      source();
+      untrack(load);
+    });
+  } else {
+    onMount(load);
+  }
 
   return {
     get data() {

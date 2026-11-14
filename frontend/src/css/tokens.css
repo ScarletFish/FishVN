@@ -165,7 +165,6 @@ body {
 
   --chart-main: color-mix(in srgb, var(--accent) 65%, var(--bg-surface));
   --chart-fill: color-mix(in srgb, var(--accent) 16%, transparent);
-  --chart-ring: color-mix(in srgb, var(--accent) 25%, transparent);
 
   /* 状态色。语义色不分主题，两个主题同值 */
   --success: var(--green-500);
@@ -250,7 +249,6 @@ body {
 
   --chart-main: color-mix(in srgb, var(--accent) 65%, var(--fg-muted));
   --chart-fill: color-mix(in srgb, var(--accent) 18%, transparent);
-  --chart-ring: color-mix(in srgb, var(--accent) 20%, transparent);
 
   --border-default: color-mix(in srgb, var(--ink-white) 12%, transparent);
   --border-strong: color-mix(in srgb, var(--ink-white) 22%, transparent);

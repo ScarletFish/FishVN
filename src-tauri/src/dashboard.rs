@@ -361,7 +361,7 @@ pub struct EraPoint {
 
 const ERA_KEYS: [&str; 4] = ["pre2000", "y2000", "y2010", "y2020"];
 
-pub fn release_eras(conn: &Connection) -> Result<Vec<EraPoint>> {
+pub fn release_eras(conn: &Connection, status: Option<&str>) -> Result<Vec<EraPoint>> {
     let mut stmt = conn.prepare(
         "SELECT CASE
             WHEN CAST(substr(m.released, 1, 4) AS INTEGER) < 2000 THEN 'pre2000'
@@ -370,12 +370,14 @@ pub fn release_eras(conn: &Connection) -> Result<Vec<EraPoint>> {
             ELSE 'y2020'
          END AS era, COUNT(*) AS count
          FROM game_metadata m
+         LEFT JOIN user_game_state s ON s.game_id = m.game_id
          WHERE m.released IS NOT NULL
            AND length(m.released) >= 4
            AND CAST(substr(m.released, 1, 4) AS INTEGER) BETWEEN 1900 AND 2100
+           AND (?1 IS NULL OR s.status = ?1)
          GROUP BY era",
     )?;
-    let rows = stmt.query_map([], |row| {
+    let rows = stmt.query_map(rusqlite::params![status], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
     })?;
     let counts: HashMap<String, i64> = rows.collect::<rusqlite::Result<HashMap<_, _>>>()?;
@@ -390,32 +392,79 @@ pub fn release_eras(conn: &Connection) -> Result<Vec<EraPoint>> {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ActivityPoint {
-    pub month: String,
+    pub bucket: String,
     pub seconds: i64,
 }
 
-pub fn monthly_activity(conn: &Connection, months: i64, metric: TimeMetric) -> Result<Vec<ActivityPoint>> {
-    let mut stmt = conn.prepare(
-        "WITH RECURSIVE seq(ym) AS (
-            SELECT strftime('%Y-%m', ?1, 'unixepoch')
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Granularity {
+    Week,
+    Month,
+    Year,
+}
+
+impl Granularity {
+    pub fn parse(raw: &str) -> Option<Self> {
+        match raw {
+            "week" => Some(Self::Week),
+            "month" => Some(Self::Month),
+            "year" => Some(Self::Year),
+            _ => None,
+        }
+    }
+}
+
+pub const ACTIVITY_BUCKETS: i64 = 12;
+
+fn activity_sql(granularity: Granularity) -> String {
+    let (anchor, bucket, step) = match granularity {
+        Granularity::Week => (
+            "date(?1, 'unixepoch', 'weekday 0', '-6 days')",
+            "date(p.started_at, 'unixepoch', 'weekday 0', '-6 days')",
+            "-7 days",
+        ),
+        Granularity::Month => (
+            "strftime('%Y-%m-01', ?1, 'unixepoch')",
+            "strftime('%Y-%m-01', p.started_at, 'unixepoch')",
+            "-1 month",
+        ),
+        Granularity::Year => (
+            "strftime('%Y-01-01', ?1, 'unixepoch')",
+            "strftime('%Y-01-01', p.started_at, 'unixepoch')",
+            "-1 year",
+        ),
+    };
+    format!(
+        "WITH RECURSIVE seq(k) AS (
+            SELECT {anchor}
             UNION ALL
-            SELECT strftime('%Y-%m', date(ym || '-01', '-1 month')) FROM seq LIMIT ?2
+            SELECT date(k, '{step}') FROM seq LIMIT ?2
          )
-         SELECT seq.ym AS ym, COALESCE(SUM(
+         SELECT seq.k AS k, COALESCE(SUM(
                 CASE WHEN ?3 = 'alive'
                     THEN COALESCE(p.ended_at, p.last_seen_at) - p.started_at
                     ELSE p.foreground_seconds
                 END), 0) AS s
          FROM seq
-         LEFT JOIN play_sessions p ON strftime('%Y-%m', p.started_at, 'unixepoch') = seq.ym
-         GROUP BY seq.ym
-         ORDER BY seq.ym",
-    )?;
+         LEFT JOIN play_sessions p ON {bucket} = seq.k
+         GROUP BY seq.k
+         ORDER BY seq.k"
+    )
+}
+
+pub fn activity(
+    conn: &Connection,
+    now: i64,
+    buckets: i64,
+    granularity: Granularity,
+    metric: TimeMetric,
+) -> Result<Vec<ActivityPoint>> {
+    let mut stmt = conn.prepare(&activity_sql(granularity))?;
     let rows = stmt.query_map(
-        rusqlite::params![crate::now(), months.max(1), metric_text(metric)],
+        rusqlite::params![now, buckets.max(1), metric_text(metric)],
         |row| {
             Ok(ActivityPoint {
-                month: row.get("ym")?,
+                bucket: row.get("k")?,
                 seconds: row.get("s")?,
             })
         },
@@ -519,6 +568,15 @@ mod tests {
             rusqlite::params![game_id, format!("p-{id}"), started_at, started_at + foreground, foreground],
         )
         .unwrap();
+    }
+
+    fn ts(conn: &Connection, date: &str, time: &str) -> i64 {
+        conn.query_row(
+            "SELECT CAST(strftime('%s', ?1 || 'T' || ?2, 'utc') AS INTEGER)",
+            rusqlite::params![date, time],
+            |row| row.get(0),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -674,12 +732,6 @@ mod tests {
             rusqlite::params![game_id, released],
         )
         .unwrap();
-    }
-
-    fn month_index(ym: &str) -> i64 {
-        let y: i64 = ym[0..4].parse().unwrap();
-        let m: i64 = ym[5..7].parse().unwrap();
-        y * 12 + m
     }
 
     #[test]
@@ -887,32 +939,63 @@ mod tests {
     }
 
     #[test]
-    fn 月度活跃按口径聚合并补齐空月() {
+    fn 活跃度按粒度聚合补齐空桶() {
         let conn = db();
-        let now = crate::now();
         let a = make_game(&conn, "甲");
-        add_session(&conn, &a, "x1", now - 30 * 86400, 3600);
-        add_session(&conn, &a, "x2", now - 60 * 86400, 1800);
+        let now = ts(&conn, "2026-03-15", "12:00:00");
+        add_session(&conn, &a, "x1", ts(&conn, "2026-03-02", "20:00:00"), 3600);
+        add_session(&conn, &a, "x2", ts(&conn, "2026-02-10", "20:00:00"), 1800);
+        add_session(&conn, &a, "x3", ts(&conn, "2026-01-05", "20:00:00"), 600);
+
+        let months = activity(&conn, now, 12, Granularity::Month, TimeMetric::Foreground).unwrap();
+        assert_eq!(months.len(), 12);
+        assert_eq!(months[0].bucket, "2025-04-01");
+        assert_eq!(months[11].bucket, "2026-03-01");
+        assert_eq!(months[11].seconds, 3600);
+        assert_eq!(months[10].seconds, 1800);
+        assert_eq!(months[9].seconds, 600);
+        assert_eq!(months.iter().map(|p| p.seconds).sum::<i64>(), 6000);
+
+        let years = activity(&conn, now, 12, Granularity::Year, TimeMetric::Foreground).unwrap();
+        assert_eq!(years.len(), 12);
+        assert_eq!(years[0].bucket, "2015-01-01");
+        assert_eq!(years[11].bucket, "2026-01-01");
+        assert_eq!(years[11].seconds, 6000);
+    }
+
+    #[test]
+    fn 周档按周一对齐跨年同周不拆桶() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let now = ts(&conn, "2026-01-08", "12:00:00");
+        add_session(&conn, &a, "w1", ts(&conn, "2025-12-31", "22:00:00"), 600);
+        add_session(&conn, &a, "w2", ts(&conn, "2026-01-01", "02:00:00"), 1200);
+
+        let weeks = activity(&conn, now, 4, Granularity::Week, TimeMetric::Foreground).unwrap();
+        assert_eq!(weeks.len(), 4);
+        assert_eq!(weeks[0].bucket, "2025-12-15");
+        assert_eq!(weeks[3].bucket, "2026-01-05");
+        assert_eq!(weeks[2].bucket, "2025-12-29");
+        assert_eq!(weeks[2].seconds, 1800);
+    }
+
+    #[test]
+    fn 活跃度按口径取对应列() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let now = ts(&conn, "2026-03-15", "12:00:00");
+        let started = ts(&conn, "2026-03-02", "20:00:00");
         conn.execute(
             "INSERT INTO play_sessions (id, game_id, started_at, last_seen_at, ended_at, foreground_seconds)
-             VALUES ('p-x3', ?1, ?2, ?3, ?3, 600)",
-            rusqlite::params![a, now - 90 * 86400, now - 90 * 86400 + 2400],
+             VALUES ('p-x1', ?1, ?2, ?3, ?3, 900)",
+            rusqlite::params![a, started, started + 2400],
         )
         .unwrap();
 
-        let points = monthly_activity(&conn, 12, TimeMetric::Foreground).unwrap();
-        assert_eq!(points.len(), 12);
-        let total: i64 = points.iter().map(|p| p.seconds).sum();
-        assert_eq!(total, 6000);
-        assert_eq!(month_index(&points[11].month) - month_index(&points[0].month), 11);
-        assert_eq!(monthly_activity(&conn, 1, TimeMetric::Foreground).unwrap().len(), 1);
-
-        let alive: i64 = monthly_activity(&conn, 12, TimeMetric::Alive)
-            .unwrap()
-            .iter()
-            .map(|p| p.seconds)
-            .sum();
-        assert_eq!(alive, 5400 + 2400);
+        let foreground = activity(&conn, now, 1, Granularity::Month, TimeMetric::Foreground).unwrap();
+        assert_eq!(foreground[0].seconds, 900);
+        let alive = activity(&conn, now, 1, Granularity::Month, TimeMetric::Alive).unwrap();
+        assert_eq!(alive[0].seconds, 2400);
     }
 
     #[test]
@@ -948,7 +1031,7 @@ mod tests {
         set_released(&conn, &d, "2024-05-24");
         set_released(&conn, &e, "2026-01-09");
 
-        let eras = release_eras(&conn).unwrap();
+        let eras = release_eras(&conn, None).unwrap();
         assert_eq!(
             eras.iter().map(|e| e.key.as_str()).collect::<Vec<_>>(),
             vec!["pre2000", "y2000", "y2010", "y2020"]
@@ -964,8 +1047,37 @@ mod tests {
         let conn = db();
         let a = make_game(&conn, "甲");
         set_released(&conn, &a, "abcd");
-        let eras = release_eras(&conn).unwrap();
+        let eras = release_eras(&conn, None).unwrap();
         assert_eq!(eras.iter().map(|e| e.count).sum::<i64>(), 0);
+    }
+
+    #[test]
+    fn 发行年代可按状态筛选() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        let c = make_game(&conn, "丙");
+        set_released(&conn, &a, "1998-06-12");
+        set_released(&conn, &b, "2016-11-30");
+        set_released(&conn, &c, "2024-05-24");
+        set_status(&conn, &a, "finished");
+        set_status(&conn, &b, "finished");
+        set_status(&conn, &c, "dropped");
+
+        let all = release_eras(&conn, None).unwrap();
+        assert_eq!(all.iter().map(|e| e.count).collect::<Vec<_>>(), vec![1, 0, 1, 1]);
+
+        let finished = release_eras(&conn, Some("finished")).unwrap();
+        assert_eq!(
+            finished.iter().map(|e| e.count).collect::<Vec<_>>(),
+            vec![1, 0, 1, 0]
+        );
+
+        let dropped = release_eras(&conn, Some("dropped")).unwrap();
+        assert_eq!(
+            dropped.iter().map(|e| e.count).collect::<Vec<_>>(),
+            vec![0, 0, 0, 1]
+        );
     }
 
     fn add_character_traits(conn: &Connection, game: &str, id: &str, traits: &str) {

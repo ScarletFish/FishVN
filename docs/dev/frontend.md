@@ -33,6 +33,7 @@
 | CSS 类与同形控件 | `css/components/`、`css/views/`、`components/` |
 | 格式化、校验、映射、状态归约 | `lib/`（`format.js`、`form-metadata.js`、`playtime.js`、`*-state.js`）与 `libs.md` |
 | 弹窗、下拉、输入组、进度反馈 | `components/` 与 `components.md` |
+| 图表容器、坐标轴、tooltip | [charts.md](./charts.md) |
 | 跨视图状态、事件订阅 | `lib/*.svelte.js` 与 `libs.md`「事件与刷新」 |
 | 图标 | `components/Icon.svelte` 与 [icons.md](./icons.md) |
 
@@ -91,6 +92,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 | 要做什么 | 读哪份 |
 |---|---|
 | 配色、主题、字体与字号阶层 | [theme.md](./theme.md) |
+| 图表接入、取色、交互与测试 | [charts.md](./charts.md) |
 | 动画、主题过渡、共享元素、分波入场 | [motion.md](./motion.md) |
 | 布局外壳、启动页、弹窗、水平分页 | [shell.md](./shell.md) |
 | 滚动条选型与外观 | [scrollbar.md](./scrollbar.md) |

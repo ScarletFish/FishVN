@@ -54,7 +54,7 @@
       <div class="stats-slot"><ActivityChart /></div>
 
       <div class="stats-row">
-        <div class="stats-slot"><PlaytimeRank /></div>
+        <div class="stats-slot"><PlaytimeRank total={stats.total_seconds} /></div>
         <div class="stats-slot"><EraChart /></div>
       </div>
 

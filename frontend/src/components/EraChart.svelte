@@ -2,90 +2,109 @@
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { useStat } from '../lib/stat-loader.svelte.js';
+  import Seg from './Seg.svelte';
   import StatCard from './StatCard.svelte';
+  import VisXYContainer from '@unovis/svelte/containers/xy-container';
+  import VisGroupedBar from '@unovis/svelte/components/grouped-bar';
+  import VisAxis from '@unovis/svelte/components/axis';
+  import VisXYLabels from '@unovis/svelte/components/xy-labels';
 
-  const H = 230;
-  const LEFT = 8;
-  const RIGHT = 8;
-  const TOP = 26;
-  const BASE = 192;
-  const LABEL_Y = 214;
+  const STATUS_LABEL = {
+    playing: 'dashboard.statPlaying',
+    finished: 'dashboard.statFinished',
+    stalled: 'dashboard.statStalled',
+    dropped: 'dashboard.statDropped',
+    wishlist: 'dashboard.statWishlist',
+  };
 
-  const KEYS = ['pre2000', 'y2000', 'y2010', 'y2020'];
+  let scope = $state('all');
 
-  const stat = useStat(api.dashboardReleaseEras);
-  const points = $derived(stat.data ?? []);
-  let chartW = $state(0);
+  const stat = useStat(
+    () => api.dashboardReleaseEras(scope === 'all' ? null : scope),
+    () => scope
+  );
 
+  const points = $derived((stat.data ?? []).map((p, i) => ({ ...p, i })));
   const total = $derived(points.reduce((sum, p) => sum + p.count, 0));
   const max = $derived(points.reduce((m, p) => Math.max(m, p.count), 0));
-  const W = $derived(chartW > 0 ? chartW : 520);
-  const band = $derived((W - LEFT - RIGHT) / KEYS.length);
-  const barW = 44;
+  const headroom = $derived(Math.max(1, max) * 1.15);
 
-  const x = (i) => LEFT + i * band + (band - barW) / 2;
-  const y = (count) => BASE - (count / Math.max(1, max)) * (BASE - TOP);
+  const scopeOptions = $derived([
+    { value: 'all', label: t('dashboard.era.all') },
+    ...Object.entries(STATUS_LABEL).map(([value, key]) => ({ value, label: t(key) })),
+  ]);
 
+  const x = (d) => d.i;
+  const y = (d) => d.count;
+  const labelY = (d) => d.count + Math.max(1, max) * 0.055;
+  const valueLabel = (d) => String(d.count);
+  const eraText = (v) => t(`dashboard.era.${points[Math.round(v)]?.key}`);
 </script>
+
+{#snippet scopeFilter()}
+  <Seg bind:value={scope} options={scopeOptions} label={t('dashboard.era.scope')} />
+{/snippet}
 
 <StatCard
   title={t('dashboard.era.title')}
-  sub={t('dashboard.era.sub')}
+  actions={scopeFilter}
   loading={stat.loading}
   error={stat.error}
   empty={total === 0}
   emptyText={t('dashboard.era.empty')}
 >
-  <svg
-    class="era-chart"
-    viewBox="0 0 {W} {H}"
-    height={H}
-    bind:clientWidth={chartW}
-    role="img"
-    aria-label={t('dashboard.era.title')}
-  >
-        <line class="era-grid" x1={LEFT} x2={W - RIGHT} y1={BASE} y2={BASE} />
+  <div class="era-plot">
+    <VisXYContainer
+      data={points}
+      height={186}
+      margin={{ top: 16, right: 8, bottom: 22, left: 8 }}
+      xDomain={[-0.5, Math.max(0, points.length - 0.5)]}
+      yDomain={[0, headroom]}
+      ariaLabel={t('dashboard.era.title')}
+    >
+      <VisGroupedBar
+        {x}
+        {y}
+        color="var(--chart-main)"
+        roundedCorners={4}
+        groupMaxWidth={112}
+      />
+      <VisAxis
+        type="x"
+        tickValues={points.map((p) => p.i)}
+        tickFormat={eraText}
+        gridLine={false}
+        tickLine={false}
+      />
+      <VisXYLabels
+        {x}
+        y={labelY}
+        label={valueLabel}
+        color="var(--fg-default)"
+        backgroundColor="transparent"
+        labelFontSize={12}
+      />
+    </VisXYContainer>
+  </div>
 
-        {#each points as p, i (p.key)}
-          {#if p.count > 0}
-            <rect
-              x={x(i)}
-              y={y(p.count)}
-              width={barW}
-              height={Math.max(2, BASE - y(p.count))}
-              rx="4"
-              style="fill: var(--chart-main)"
-            />
-            <text class="era-value" x={x(i) + barW / 2} y={y(p.count) - 6} text-anchor="middle">
-              {p.count}
-            </text>
-          {/if}
-          <text class="era-label" x={x(i) + barW / 2} y={LABEL_Y} text-anchor="middle">
-            {t(`dashboard.era.${p.key}`)}
-          </text>
-        {/each}
-  </svg>
+  <p class="era-sum">{t('dashboard.era.sum', { n: total })}</p>
 </StatCard>
 
 <style>
-  .era-chart {
-    display: block;
-    width: 100%;
+  .era-plot {
+    --vis-color0: var(--chart-main);
+    --vis-font-family: var(--font-sans);
+    --vis-axis-tick-color: var(--fg-muted);
+    --vis-axis-domain-color: var(--border-default);
+    --vis-axis-tick-label-color: var(--fg-muted);
+    --vis-axis-tick-label-font-size: var(--text-xs);
+    height: 186px;
+    min-width: 0;
   }
 
-  .era-grid {
-    stroke: var(--border-default);
-    stroke-width: 1;
-  }
-
-  .era-value {
-    fill: var(--fg-default);
-    font-size: var(--text-xs);
-    font-weight: var(--fw-semibold);
-  }
-
-  .era-label {
-    fill: var(--fg-muted);
+  .era-sum {
+    margin: var(--space-3) 0 0;
+    color: var(--fg-muted);
     font-size: var(--text-xs);
   }
 </style>

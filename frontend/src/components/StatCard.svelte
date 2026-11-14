@@ -1,7 +1,7 @@
 <script>
   import { t } from '../lib/i18n.js';
 
-  let { title, sub = '', loading = false, error = null, empty = false, emptyText = '', children } = $props();
+  let { title, sub = '', loading = false, error = null, empty = false, emptyText = '', actions = null, children } = $props();
 </script>
 
 <div class="stat-card">
@@ -9,6 +9,9 @@
     <h2>{title}</h2>
     {#if sub && !loading && !error && !empty}
       <span class="stat-card-sub">{sub}</span>
+    {/if}
+    {#if actions}
+      <div class="stat-card-actions">{@render actions()}</div>
     {/if}
   </header>
 
@@ -44,8 +47,9 @@
 
   .stat-card-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: var(--space-3);
+    gap: var(--space-2) var(--space-3);
     margin-bottom: var(--space-3);
   }
 
@@ -60,6 +64,11 @@
   .stat-card-sub {
     color: var(--fg-muted);
     font-size: var(--text-sm);
+  }
+
+  .stat-card-actions {
+    margin-left: auto;
+    align-self: center;
   }
 
   .stat-card-note {

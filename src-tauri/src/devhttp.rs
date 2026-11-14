@@ -79,7 +79,9 @@ pub struct Args {
     #[serde(default)]
     pub task: Option<String>,
     #[serde(default)]
-    pub months: Option<i64>,
+    pub granularity: Option<String>,
+    #[serde(default)]
+    pub status: Option<String>,
     #[serde(default)]
     pub token: Option<String>,
     #[serde(default)]
@@ -181,12 +183,26 @@ handler!(library_traits, |c, _a| dashboard::library_traits(c));
 handler!(create_local_tag, |c, a| {
     crate::tagstore::create_local_tag(c, &a.name.unwrap_or_default())
 });
-handler!(dashboard_monthly_activity, |c, a| {
+handler!(dashboard_activity, |c, a| {
     let config = settings::current();
-    dashboard::monthly_activity(c, a.months.unwrap_or(12), config.time_metric)
+    let granularity = a
+        .granularity
+        .as_deref()
+        .and_then(dashboard::Granularity::parse)
+        .unwrap_or(dashboard::Granularity::Month);
+    dashboard::activity(
+        c,
+        crate::now(),
+        dashboard::ACTIVITY_BUCKETS,
+        granularity,
+        config.time_metric,
+    )
 });
 handler!(dashboard_playtime_top, |c, _a| dashboard::playtime_top(c, 6));
-handler!(dashboard_release_eras, |c, _a| dashboard::release_eras(c));
+handler!(dashboard_release_eras, |c, a| dashboard::release_eras(
+    c,
+    a.status.as_deref()
+));
 handler!(get_game, |c, a| games::get_game(c, a.id()?));
 handler!(create_game, |c, a| games::create_game(
     c,
@@ -622,7 +638,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/library_tags", post(library_tags))
         .route("/create_local_tag", post(create_local_tag))
         .route("/library_traits", post(library_traits))
-        .route("/dashboard_monthly_activity", post(dashboard_monthly_activity))
+        .route("/dashboard_activity", post(dashboard_activity))
         .route("/dashboard_playtime_top", post(dashboard_playtime_top))
         .route("/dashboard_release_eras", post(dashboard_release_eras))
         .route("/get_game", post(get_game))
@@ -689,7 +705,7 @@ pub const COMMANDS: &[&str] = &[
     "library_tags",
     "library_traits",
     "create_local_tag",
-    "dashboard_monthly_activity",
+    "dashboard_activity",
     "dashboard_playtime_top",
     "dashboard_release_eras",
     "get_game",

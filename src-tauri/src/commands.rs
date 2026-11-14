@@ -116,14 +116,24 @@ pub fn dashboard_playtime_top(shared: Shared<'_>) -> Result<Vec<PlaytimeRank>> {
 }
 
 #[tauri::command]
-pub fn dashboard_release_eras(shared: Shared<'_>) -> Result<Vec<EraPoint>> {
-    dashboard::release_eras(&*lock(&shared)?)
+pub fn dashboard_release_eras(shared: Shared<'_>, status: Option<String>) -> Result<Vec<EraPoint>> {
+    dashboard::release_eras(&*lock(&shared)?, status.as_deref())
 }
 
 #[tauri::command]
-pub fn dashboard_monthly_activity(shared: Shared<'_>, months: i64) -> Result<Vec<ActivityPoint>> {
+pub fn dashboard_activity(shared: Shared<'_>, granularity: Option<String>) -> Result<Vec<ActivityPoint>> {
     let config = settings::current();
-    dashboard::monthly_activity(&*lock(&shared)?, months, config.time_metric)
+    let granularity = granularity
+        .as_deref()
+        .and_then(dashboard::Granularity::parse)
+        .unwrap_or(dashboard::Granularity::Month);
+    dashboard::activity(
+        &*lock(&shared)?,
+        crate::now(),
+        dashboard::ACTIVITY_BUCKETS,
+        granularity,
+        config.time_metric,
+    )
 }
 
 #[tauri::command]
