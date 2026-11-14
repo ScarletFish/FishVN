@@ -11,7 +11,6 @@ export const LIBRARY_CHANGED = 'fishvn:library-changed';
 export const ADD_MENU_SUMMON = 'fishvn:add-menu-summon';
 
 export const PLAY_SESSION_STARTED = 'fishvn:play-session-started';
-export const PLAY_SESSION_TICK = 'fishvn:play-session-tick';
 export const PLAY_SESSION_ENDED = 'fishvn:play-session-ended';
 
 export function notifyLibraryTagsChanged() {
@@ -75,10 +74,6 @@ export function notifyPlaySessionStarted(gameId) {
   window.dispatchEvent(new CustomEvent(PLAY_SESSION_STARTED, { detail: { gameId } }));
 }
 
-export function notifyPlaySessionTick(payload) {
-  window.dispatchEvent(new CustomEvent(PLAY_SESSION_TICK, { detail: payload }));
-}
-
 export function notifyPlaySessionEnded(gameId, seconds) {
   window.dispatchEvent(new CustomEvent(PLAY_SESSION_ENDED, { detail: { gameId, seconds } }));
 }
@@ -89,14 +84,6 @@ export function onPlaySessionStarted(handler) {
   }
   window.addEventListener(PLAY_SESSION_STARTED, onEvent);
   return () => window.removeEventListener(PLAY_SESSION_STARTED, onEvent);
-}
-
-export function onPlaySessionTick(handler) {
-  function onEvent(ev) {
-    handler(ev?.detail ?? null);
-  }
-  window.addEventListener(PLAY_SESSION_TICK, onEvent);
-  return () => window.removeEventListener(PLAY_SESSION_TICK, onEvent);
 }
 
 export function onPlaySessionEnded(handler) {

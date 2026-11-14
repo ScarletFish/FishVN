@@ -57,7 +57,6 @@ vi.mock('../lib/library-events.js', () => ({
   LIBRARY_CHANGED: 'fishvn:library-changed',
   onLibraryItemUpdated: () => () => {},
   onPlaySessionStarted: () => () => {},
-  onPlaySessionTick: () => () => {},
   onPlaySessionEnded: () => () => {},
 }));
 

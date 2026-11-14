@@ -18,7 +18,6 @@
     notifyLibraryTagsChanged,
     notifyLibraryTraitsChanged,
     notifyPlaySessionStarted,
-    notifyPlaySessionTick,
     notifyPlaySessionEnded,
   } from './lib/library-events.js';
   import { subscribe } from './lib/events.js';
@@ -135,13 +134,9 @@
 
   $effect(() => {
     let offStart = null;
-    let offTick = null;
     let offEnd = null;
     const start = subscribe('session-started', (payload) => {
       if (payload?.game_id) notifyPlaySessionStarted(payload.game_id);
-    });
-    const tick = subscribe('session-tick', (payload) => {
-      if (payload?.game_id) notifyPlaySessionTick(payload);
     });
     const end = subscribe('session-ended', (payload) => {
       const gameId = payload?.game_id ?? null;
@@ -150,16 +145,14 @@
       notifyLibraryChanged();
       toast(t('toast.sessionEnded', { duration: durationText(t, seconds) }), 'success');
     });
-    Promise.all([start, tick, end])
-      .then(([a, b, c]) => {
+    Promise.all([start, end])
+      .then(([a, b]) => {
         offStart = a;
-        offTick = b;
-        offEnd = c;
+        offEnd = b;
       })
       .catch(() => {});
     return () => {
       offStart?.();
-      offTick?.();
       offEnd?.();
     };
   });

@@ -35,7 +35,6 @@ use tauri_plugin_log::log;
 const TICK: Duration = Duration::from_millis(1000);
 const SETTLE_TICKS: u32 = 3;
 const HEARTBEAT_TICKS: u32 = 30;
-const EMIT_TICKS: u32 = 5;
 
 const MAGPIE_READY_TIMEOUT: Duration = Duration::from_secs(5);
 const MAGPIE_WINDOW_TIMEOUT: Duration = Duration::from_secs(60);
@@ -49,14 +48,6 @@ const COLUMNS: &str = "id, game_id, installation_id, started_at, last_seen_at, e
 #[derive(Clone, serde::Serialize)]
 struct SessionStarted {
     game_id: String,
-}
-
-#[derive(Clone, serde::Serialize)]
-struct SessionTick {
-    game_id: String,
-    session_id: String,
-    foreground_seconds: i64,
-    alive_seconds: i64,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -293,19 +284,6 @@ fn watch(
         if front != in_front || ticks.is_multiple_of(HEARTBEAT_TICKS) {
             in_front = front;
             store(&shared, &session_id, alive_at, foreground, None);
-        }
-        if ticks.is_multiple_of(EMIT_TICKS) {
-            if let Some(app) = &app {
-                let _ = app.emit(
-                    "session-tick",
-                    SessionTick {
-                        game_id: game_id.clone(),
-                        session_id: session_id.clone(),
-                        foreground_seconds: foreground,
-                        alive_seconds: alive_at - started_at,
-                    },
-                );
-            }
         }
         if !confirmed && ticks >= SETTLE_TICKS {
             confirmed = true;
