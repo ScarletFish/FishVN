@@ -141,9 +141,10 @@ export const DICT_ZH = {
     },
     activity: {
       title: '游玩活跃度',
-      sub: '近 6 个月',
       empty: '暂无游玩记录',
       error: '读取活跃度失败',
+      total: '近 6 个月时长',
+      monthlyAvg: '月均',
     },
     playtime: {
       title: '游玩时长',
