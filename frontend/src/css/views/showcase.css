@@ -55,35 +55,16 @@
   object-fit: contain;
 }
 
-.showcase-stage__wash,
-.showcase-stage__scrim {
+.showcase-stage__wash {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-}
-
-.showcase-stage__wash {
   background: var(--stage-wash);
-}
-
-.showcase-stage__scrim {
-  opacity: 0;
-  background: linear-gradient(
-    to right,
-    var(--scrim) 0%,
-    color-mix(in srgb, var(--scrim) 62%, transparent) 34%,
-    color-mix(in srgb, var(--scrim) 18%, transparent) 62%,
-    transparent 86%
-  );
 }
 
 .showcase--clear .showcase-stage__wash {
   opacity: 0;
-}
-
-.showcase--clear .showcase-stage__scrim {
-  opacity: 1;
 }
 
 .showcase-stage__layer.is-entering {
@@ -164,10 +145,6 @@
   color: var(--fg-banner-strong);
 }
 
-.showcase--clear .showcase-title {
-  color: var(--fg-on-accent);
-}
-
 .showcase-facts {
   display: flex;
   flex-wrap: wrap;
@@ -175,10 +152,6 @@
   gap: var(--space-2) var(--space-4);
   font-size: var(--text-sm);
   color: var(--fg-banner);
-}
-
-.showcase--clear .showcase-facts {
-  color: var(--fg-on-image);
 }
 
 .showcase-fact {
@@ -270,14 +243,12 @@
 }
 
 .showcase--clear .showcase-actions .btn-ghost {
-  color: var(--fg-on-accent);
-  border-color: color-mix(in srgb, var(--fg-on-image) 40%, transparent);
+  border-color: color-mix(in srgb, var(--fg-banner) 40%, transparent);
 }
 
 .showcase--clear .showcase-actions .btn-ghost:hover {
-  color: var(--fg-on-accent);
   background: color-mix(in srgb, var(--scrim) 60%, transparent);
-  border-color: var(--fg-on-image);
+  border-color: var(--fg-banner);
 }
 
 .showcase-state {

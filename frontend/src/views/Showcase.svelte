@@ -249,7 +249,6 @@
       {/each}
     </div>
     <div class="showcase-stage__wash"></div>
-    <div class="showcase-stage__scrim"></div>
   </div>
 
   {#if !loading && !error && items.length > 0}
