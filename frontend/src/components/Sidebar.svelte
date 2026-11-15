@@ -13,6 +13,7 @@
         data-tip={item.tip ?? item.label}
         aria-label={item.label}
         aria-current={current === item.id ? 'page' : undefined}
+        onmousedown={(event) => event.preventDefault()}
         onclick={() => {
           onnavigate?.();
           current = item.id;
@@ -28,7 +29,13 @@
 
   <div class="sidebar-bottom">
     {#each bottom as item (item.id)}
-      <button class="nav-btn" data-tip={item.label} aria-label={item.label} onclick={item.onclick}>
+      <button
+        class="nav-btn"
+        data-tip={item.label}
+        aria-label={item.label}
+        onmousedown={(event) => event.preventDefault()}
+        onclick={item.onclick}
+      >
         <Icon name={item.icon} size="xl" />
       </button>
     {/each}

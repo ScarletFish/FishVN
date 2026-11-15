@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// 圆点是纯视觉提示，行为由 backfill-indicator 决定；这里只锁「哪一项有圆点、什么态、提示什么」。
-import { afterEach, expect, test } from 'vitest';
+// 圆点是纯视觉提示，行为由 backfill-indicator 决定；这里锁「哪一项有圆点、什么态、提示什么」与导航按钮的鼠标聚焦契约。
+// 反例自检：任一 .nav-btn 去掉 onmousedown，「阻止默认聚焦」会变红；连 onclick 一起删，「点击仍能导航」会变红。
+import { afterEach, expect, test, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 
 import Sidebar from './Sidebar.svelte';
@@ -65,4 +66,23 @@ test('默认展开态没有 collapsed 类，也不隐藏', () => {
 
   expect(sidebar.classList.contains('collapsed')).toBe(false);
   expect(sidebar.getAttribute('aria-hidden')).toBe('false');
+});
+
+test('鼠标按下侧栏按钮阻止默认聚焦，点击仍能导航', () => {
+  const onnavigate = vi.fn();
+  const [home] = render({
+    onnavigate,
+    bottom: [{ id: 'settings', label: '设置', icon: 'gear', onclick: vi.fn() }],
+  });
+  const buttons = [...document.querySelectorAll('.nav-btn')];
+
+  expect(buttons).toHaveLength(4);
+  for (const btn of buttons) {
+    const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    btn.dispatchEvent(ev);
+    expect(ev.defaultPrevented, '顶部与底部按钮都要阻止 mousedown 的默认聚焦').toBe(true);
+  }
+
+  home.click();
+  expect(onnavigate).toHaveBeenCalledTimes(1);
 });

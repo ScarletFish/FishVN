@@ -47,9 +47,9 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-weight: var(--fw-medium);
   white-space: nowrap;
   text-overflow: ellipsis;
+  color: var(--fg-secondary);
 }
 
 .select-dd-chevron {
@@ -98,8 +98,7 @@
   padding: var(--space-250) var(--space-3);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
-  font-weight: var(--fw-medium);
-  color: var(--fg-default);
+  color: var(--fg-secondary);
   text-align: left;
   background: none;
   border: none;
@@ -110,6 +109,7 @@
 
 .select-dd-opt:hover,
 .select-dd-opt[data-highlighted] {
+  color: var(--fg-default);
   background: var(--bg-hover);
 }
 

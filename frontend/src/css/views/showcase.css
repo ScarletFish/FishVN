@@ -22,6 +22,10 @@
   );
 }
 
+.showcase-stage__layer--empty {
+  background-color: var(--bg-page);
+}
+
 .showcase-stage__layers {
   position: absolute;
   inset: 0;
