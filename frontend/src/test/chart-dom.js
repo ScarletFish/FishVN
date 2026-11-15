@@ -12,11 +12,11 @@ const SIZE = {
   toJSON() {},
 };
 
-function waitForFirstPath(target, timeout = 2000) {
-  if (target.querySelector('svg path')) return Promise.resolve();
+export function waitFor(target, selector, timeout = 2000) {
+  if (target.querySelector(selector)) return Promise.resolve();
   return new Promise((resolve) => {
     const observer = new MutationObserver(() => {
-      if (target.querySelector('svg path')) finish();
+      if (target.querySelector(selector)) finish();
     });
     const timer = setTimeout(finish, timeout);
     function finish() {
@@ -60,7 +60,7 @@ export async function mountChart(Component, props = {}) {
   document.body.appendChild(target);
   const app = mount(Component, { target, props });
   flushSync();
-  await waitForFirstPath(target);
+  await waitFor(target, 'svg path');
   flushSync();
 
   return {

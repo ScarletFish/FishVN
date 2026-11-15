@@ -104,7 +104,7 @@
       <VisXYContainer
         data={points}
         height={220}
-        margin={{ top: 12, right: 8, bottom: 24, left: 44 }}
+        margin={{ top: 8, right: 4, bottom: 0, left: 0 }}
         xDomain={[0, Math.max(1, points.length - 1)]}
         yDomain={[0, ticks.niceMax]}
         ariaLabel={t('dashboard.activity.title')}
@@ -132,6 +132,7 @@
           type="y"
           tickValues={ticks.values}
           tickFormat={axisText}
+          label={t('dashboard.axis.duration')}
           tickLine={false}
           domainLine={false}
         />
@@ -170,6 +171,7 @@
     --vis-axis-domain-color: var(--border-default);
     --vis-axis-tick-label-color: var(--fg-muted);
     --vis-axis-tick-label-font-size: var(--text-xs);
+    --vis-axis-label-color: var(--fg-muted);
     --vis-axis-label-font-size: var(--text-xs);
     --vis-scatter-point-label-text-font-size: var(--text-xs);
     --vis-scatter-stroke-color: transparent;

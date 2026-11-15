@@ -131,6 +131,9 @@ export const DICT_ZH = {
     groupStatus: '状态分组',
     groupFlat: '平铺',
     groupToggle: '切换列表分组方式',
+    axis: {
+      duration: '时长',
+    },
     tagCloud: {
       title: '游玩偏好',
       sub: '候选 {count} 项',
@@ -160,6 +163,29 @@ export const DICT_ZH = {
       empty: '暂无游玩记录',
       error: '读取游玩时长失败',
       sum: '前 {n} 名合计 {sum} · 占累计时长 {pct}%',
+    },
+    length: {
+      title: '通关时长对照',
+      empty: '还没有同时有 VNDB 平均通关时长与游玩时长的作品',
+      error: '读取时长对照失败',
+      expected: 'VNDB 平均通关时长',
+      actual: '游玩时长',
+      sum: '共 {n} 部',
+    },
+    ring: {
+      title: '通关时长构成',
+      sub: '按 VNDB 平均通关时长分档',
+      empty: '暂无通关时长数据',
+      error: '读取时长构成失败',
+      unit: '部',
+      buckets: {
+        b1: '≤10',
+        b2: '10–20',
+        b3: '20–30',
+        b4: '30–50',
+        b5: '>50',
+      },
+      hours: '小时',
     },
     era: {
       title: '发行年代',

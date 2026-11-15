@@ -570,6 +570,74 @@ pub fn game_trend(
     Ok(GameTrend { buckets, series })
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LengthComparePoint {
+    pub id: String,
+    pub name: String,
+    pub expected: i64,
+    pub actual: i64,
+}
+
+pub fn length_compare(conn: &Connection) -> Result<Vec<LengthComparePoint>> {
+    let mut stmt = conn.prepare(
+        "SELECT g.id AS id, g.name AS name,
+                m.length_minutes * 60 AS expected,
+                s.play_seconds AS actual
+         FROM user_game_state s
+         JOIN games g ON g.id = s.game_id
+         JOIN game_metadata m ON m.game_id = g.id
+         WHERE s.play_seconds > 0 AND m.length_minutes > 0
+         ORDER BY actual DESC, g.name",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(LengthComparePoint {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            expected: row.get("expected")?,
+            actual: row.get("actual")?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LengthBucket {
+    pub key: String,
+    pub count: i64,
+}
+
+const LENGTH_KEYS: [&str; 5] = ["b1", "b2", "b3", "b4", "b5"];
+
+pub fn length_buckets(conn: &Connection) -> Result<Vec<LengthBucket>> {
+    let mut stmt = conn.prepare(
+        "SELECT CASE
+            WHEN m.length_minutes < 600 THEN 'b1'
+            WHEN m.length_minutes < 1200 THEN 'b2'
+            WHEN m.length_minutes < 1800 THEN 'b3'
+            WHEN m.length_minutes < 3000 THEN 'b4'
+            ELSE 'b5'
+         END AS k, COUNT(*) AS n
+         FROM game_metadata m
+         WHERE m.length_minutes > 0
+         GROUP BY k",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>("k")?, row.get::<_, i64>("n")?))
+    })?;
+    let mut counts: HashMap<String, i64> = HashMap::new();
+    for row in rows {
+        let (key, count) = row?;
+        counts.insert(key, count);
+    }
+    Ok(LENGTH_KEYS
+        .iter()
+        .map(|key| LengthBucket {
+            key: key.to_string(),
+            count: counts.get(*key).copied().unwrap_or(0),
+        })
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -828,6 +896,14 @@ mod tests {
         conn.execute(
             "INSERT INTO game_metadata (game_id, released) VALUES (?1, ?2)",
             rusqlite::params![game_id, released],
+        )
+        .unwrap();
+    }
+
+    fn set_length(conn: &Connection, game_id: &str, minutes: i64) {
+        conn.execute(
+            "INSERT INTO game_metadata (game_id, length_minutes) VALUES (?1, ?2)",
+            rusqlite::params![game_id, minutes],
         )
         .unwrap();
     }
@@ -1118,6 +1194,52 @@ mod tests {
         assert_eq!(trend.series[0].values[9], 1800);
         assert_eq!(trend.series[0].values[11], 3600);
         assert_eq!(trend.series[1].game_id, b);
+    }
+
+    #[test]
+    fn 通关时长对照只取标称与实际都有值的作品() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        let c = make_game(&conn, "丙");
+        let d = make_game(&conn, "丁");
+        set_length(&conn, &a, 600);
+        set_play_seconds(&conn, &a, 36000);
+        set_length(&conn, &b, 600);
+        set_play_seconds(&conn, &b, 0);
+        set_length(&conn, &c, 0);
+        set_play_seconds(&conn, &c, 7200);
+        set_play_seconds(&conn, &d, 1800);
+
+        let points = length_compare(&conn).unwrap();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].id, a);
+        assert_eq!(points[0].expected, 36000);
+        assert_eq!(points[0].actual, 36000);
+    }
+
+    #[test]
+    fn 通关时长按档位分桶并补零() {
+        let conn = db();
+        let a = make_game(&conn, "甲");
+        let b = make_game(&conn, "乙");
+        let c = make_game(&conn, "丙");
+        let d = make_game(&conn, "丁");
+        make_game(&conn, "戊");
+        set_length(&conn, &a, 300);
+        set_length(&conn, &b, 720);
+        set_length(&conn, &c, 1500);
+        set_length(&conn, &d, 3000);
+
+        let buckets = length_buckets(&conn).unwrap();
+        assert_eq!(
+            buckets.iter().map(|b| b.key.as_str()).collect::<Vec<_>>(),
+            vec!["b1", "b2", "b3", "b4", "b5"]
+        );
+        assert_eq!(
+            buckets.iter().map(|b| b.count).collect::<Vec<_>>(),
+            vec![1, 1, 1, 0, 1]
+        );
     }
 
     #[test]

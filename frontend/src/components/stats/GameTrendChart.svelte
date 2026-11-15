@@ -70,7 +70,7 @@
     <VisXYContainer
       data={rows}
       height={PLOT_HEIGHT}
-      margin={{ top: 12, right: 16, bottom: 26, left: 52 }}
+      margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
       xDomain={[0, Math.max(1, rows.length - 1)]}
       yDomain={[0, ticks.niceMax]}
       ariaLabel={t('dashboard.trend.title')}
@@ -94,6 +94,7 @@
         type="y"
         tickValues={ticks.values}
         tickFormat={axisText}
+        label={t('dashboard.axis.duration')}
         tickLine={false}
         domainLine={false}
       />
@@ -139,6 +140,8 @@
     --vis-axis-domain-color: var(--border-default);
     --vis-axis-tick-label-color: var(--fg-muted);
     --vis-axis-tick-label-font-size: var(--text-xs);
+    --vis-axis-label-color: var(--fg-muted);
+    --vis-axis-label-font-size: var(--text-xs);
     flex: 1;
     min-width: 0;
     height: 340px;

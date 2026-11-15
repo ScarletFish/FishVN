@@ -5,6 +5,8 @@
   import { useStat } from '../lib/stat-loader.svelte.js';
   import ActivityChart from '../components/stats/ActivityChart.svelte';
   import GameTrendChart from '../components/stats/GameTrendChart.svelte';
+  import LengthCompareChart from '../components/stats/LengthCompareChart.svelte';
+  import LengthRingChart from '../components/stats/LengthRingChart.svelte';
   import PlaytimeRank from '../components/stats/PlaytimeRank.svelte';
   import EraChart from '../components/stats/EraChart.svelte';
   import TagCloud from '../components/stats/TagCloud.svelte';
@@ -62,6 +64,11 @@
       <div class="stats-slot"><TagCloud /></div>
 
       <div class="stats-slot stats-slot--tall"><GameTrendChart /></div>
+
+      <div class="stats-row">
+        <div class="stats-slot"><LengthCompareChart /></div>
+        <div class="stats-slot"><LengthRingChart /></div>
+      </div>
     </div>
   {/if}
 </section>
@@ -75,12 +82,13 @@
 
   .stats-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
     gap: var(--space-4);
   }
 
   .stats-slot {
     height: 300px;
+    min-width: 0;
   }
 
   .stats-slot--tall {

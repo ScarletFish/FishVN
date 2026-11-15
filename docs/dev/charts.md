@@ -40,11 +40,20 @@
 ## 主题与 CSS 变量
 
 - 覆盖集中写在图表容器上（如 `.activity-plot`），与 token 定义分开
-- 常用变量：`--vis-color0`、`--vis-font-family`、`--vis-axis-tick-color`、`--vis-axis-tick-label-color` / `-font-size`、`--vis-axis-grid-color`、`--vis-axis-domain-color`、`--vis-scatter-point-label-text-*`、`--vis-xy-label-font-size`、`--vis-tooltip-*`
+- 常用变量：`--vis-color0`、`--vis-font-family`、`--vis-axis-tick-color`、`--vis-axis-tick-label-color` / `-font-size`、`--vis-axis-label-color` / `-font-size`、`--vis-axis-grid-color`、`--vis-axis-domain-color`、`--vis-scatter-point-label-text-*`、`--vis-xy-label-font-size`、`--vis-tooltip-*`
 - 暗色：Unovis 的暗色选择器原生包含 `html[data-theme="dark"]`，与项目挂载方式一致，主题切换直接生效，`theme.js` 保持原样
 - 深色下 `--vis-dark-tooltip-background-color` / `-text-color` / `-border-color` 接管浮层，改浮层观感时连这三个一起覆盖
 - tooltip 留在图表容器内，容器上的 `--vis-*` 覆盖才生效
 - `VisXYLabels` 默认给每个标签垫一块背景色，柱顶、点旁的纯文字标签传 `backgroundColor="transparent"`
+
+## 边距
+
+`VisXYContainer` 的 `autoMargin` 默认为 `true`：容器会量出坐标轴需要多少空间，**加到** `margin` 之上。两者是相加关系，不是取大值。
+
+- 想控制留白就把 `margin` 归零：轴自己会为刻度与轴标题（`label`）预留空间，图表因此贴到卡片内容框
+- 手写一个左内边距「让标签放得下」，实际效果是 轴所需空间 + 这个值，图会被推得很远
+- 轴标题加进 `label` 后，左边距会自动多出一个字号的高度，不必手动调 `margin`
+- 需要在图表上叠自己的 SVG（如参考线）时，从 `onRenderComplete(svg, margin, bleed, containerWidth, containerHeight, width, height)` 取实际绘图区，不要用传入的 `margin` 推算：`x0 = margin.left + bleed.left`、`x1 = margin.left + width - bleed.right`、`y0 = margin.top + height - bleed.bottom`、`y1 = margin.top + bleed.top`
 
 ## 数据
 

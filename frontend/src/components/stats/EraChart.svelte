@@ -57,7 +57,7 @@
     <VisXYContainer
       data={points}
       height={186}
-      margin={{ top: 16, right: 8, bottom: 22, left: 8 }}
+      margin={{ top: 8, right: 0, bottom: 8, left: 0 }}
       xDomain={[-0.5, Math.max(0, points.length - 0.5)]}
       yDomain={[0, headroom]}
       ariaLabel={t('dashboard.era.title')}

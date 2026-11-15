@@ -185,6 +185,8 @@ handler!(dashboard_game_trend, |c, _a| {
         config.time_metric,
     )
 });
+handler!(dashboard_length_compare, |c, _a| dashboard::length_compare(c));
+handler!(dashboard_length_buckets, |c, _a| dashboard::length_buckets(c));
 handler!(library_tags, |c, _a| {
     let config = settings::current();
     dashboard::library_tags(c, config.hide_r18_tags, config.spoiler_level, &config.excluded_tags)
@@ -652,6 +654,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/dashboard_game_trend", post(dashboard_game_trend))
         .route("/dashboard_playtime_top", post(dashboard_playtime_top))
         .route("/dashboard_release_eras", post(dashboard_release_eras))
+        .route("/dashboard_length_compare", post(dashboard_length_compare))
+        .route("/dashboard_length_buckets", post(dashboard_length_buckets))
         .route("/get_game", post(get_game))
         .route("/write_text_file", post(write_text_file))
         .route("/create_game", post(create_game))
@@ -720,6 +724,8 @@ pub const COMMANDS: &[&str] = &[
     "dashboard_game_trend",
     "dashboard_playtime_top",
     "dashboard_release_eras",
+    "dashboard_length_compare",
+    "dashboard_length_buckets",
     "get_game",
     "create_game",
     "update_game",

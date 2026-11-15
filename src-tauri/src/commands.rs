@@ -7,7 +7,7 @@ use tauri::{Emitter, Manager, State};
 use crate::backfill;
 use crate::backup;
 use crate::characters;
-use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, GameTrend, LibraryTag, LibraryTrait, PlaytimeRank, RecentPlay, ShowcaseItem, TagCloudView};
+use crate::dashboard::{self, ActivityPoint, DashboardStats, EraPoint, GameTrend, LengthBucket, LengthComparePoint, LibraryTag, LibraryTrait, PlaytimeRank, RecentPlay, ShowcaseItem, TagCloudView};
 use crate::db;
 use crate::error::{AppError, Result};
 use crate::games;
@@ -146,6 +146,16 @@ pub fn dashboard_game_trend(shared: Shared<'_>) -> Result<GameTrend> {
         dashboard::TREND_GAMES,
         config.time_metric,
     )
+}
+
+#[tauri::command]
+pub fn dashboard_length_compare(shared: Shared<'_>) -> Result<Vec<LengthComparePoint>> {
+    dashboard::length_compare(&*lock(&shared)?)
+}
+
+#[tauri::command]
+pub fn dashboard_length_buckets(shared: Shared<'_>) -> Result<Vec<LengthBucket>> {
+    dashboard::length_buckets(&*lock(&shared)?)
 }
 
 #[tauri::command]

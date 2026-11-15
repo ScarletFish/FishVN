@@ -209,6 +209,8 @@ fn main() {
             commands::dashboard_game_trend,
             commands::dashboard_playtime_top,
             commands::dashboard_release_eras,
+            commands::dashboard_length_compare,
+            commands::dashboard_length_buckets,
             commands::get_game,
             commands::create_game,
             commands::update_game,

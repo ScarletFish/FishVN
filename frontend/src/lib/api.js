@@ -61,6 +61,8 @@ export const api = {
   dashboardGameTrend: () => call('dashboard_game_trend'),
   dashboardPlaytimeTop: () => call('dashboard_playtime_top'),
   dashboardReleaseEras: (status = null) => call('dashboard_release_eras', { status }),
+  dashboardLengthCompare: () => call('dashboard_length_compare'),
+  dashboardLengthBuckets: () => call('dashboard_length_buckets'),
   getGame: (id) => call('get_game', { id }),
   createGame: async (input) => {
     const result = await call('create_game', { input });
