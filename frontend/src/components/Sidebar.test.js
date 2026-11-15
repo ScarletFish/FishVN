@@ -19,10 +19,10 @@ const ITEMS = [
   { id: 'stats', label: '统计', icon: 'chart-bar', dot: 'done', tip: '成功 5/5 部' },
 ];
 
-function render() {
+function render(props = {}) {
   const target = document.createElement('div');
   document.body.append(target);
-  app = mount(Sidebar, { target, props: { items: ITEMS, current: 'home' } });
+  app = mount(Sidebar, { target, props: { items: ITEMS, current: 'home', ...props } });
   flushSync();
   return [...document.querySelectorAll('.nav-btn')];
 }
@@ -49,4 +49,20 @@ test('圆点不进可访问名，导航名保持稳定', () => {
 
   expect(dot.getAttribute('aria-hidden')).toBe('true');
   expect(backfill.getAttribute('aria-label')).toBe('补全');
+});
+
+test('收起态给侧栏加 collapsed 类并对辅助技术隐藏', () => {
+  render({ collapsed: true });
+  const sidebar = document.querySelector('.sidebar');
+
+  expect(sidebar.classList.contains('collapsed')).toBe(true);
+  expect(sidebar.getAttribute('aria-hidden')).toBe('true');
+});
+
+test('默认展开态没有 collapsed 类，也不隐藏', () => {
+  render();
+  const sidebar = document.querySelector('.sidebar');
+
+  expect(sidebar.classList.contains('collapsed')).toBe(false);
+  expect(sidebar.getAttribute('aria-hidden')).toBe('false');
 });

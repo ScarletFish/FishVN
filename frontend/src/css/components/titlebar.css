@@ -87,6 +87,10 @@
   background: var(--bg-hover);
 }
 
+.titlebar__sidebar-toggle.is-collapsed {
+  color: var(--accent);
+}
+
 .titlebar__back {
   height: 26px;
   display: flex;
@@ -111,17 +115,6 @@
 .titlebar__back:hover {
   color: var(--fg-default);
   background: var(--bg-hover);
-}
-
-.titlebar__title {
-  font-size: var(--text-sm);
-  font-weight: var(--fw-medium);
-  color: var(--fg-default);
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
 }
 
 .titlebar__search {
@@ -182,7 +175,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--fg-muted);
+  color: var(--fg-secondary);
 }
 
 .titlebar__search-field input {

@@ -38,6 +38,7 @@
   } from './lib/theme.js';
   import { syncShowCardTitle } from './lib/card-prefs.js';
   import { syncReduceMotion } from './lib/motion.js';
+  import { getSidebarCollapsed, setSidebarCollapsed } from './lib/sidebar-pref.js';
   import { notifyConfigChanged } from './lib/config-events.js';
   import { getScrollViewport } from './lib/scrollbars.js';
   import { addGame } from './lib/add-game.svelte.js';
@@ -56,6 +57,7 @@
   import Detail from './views/Detail.svelte';
 
   let settingsOpen = $state(false);
+  let sidebarCollapsed = $state(getSidebarCollapsed());
   let dark = $state(document.documentElement.dataset.theme === 'dark');
   let run = $state(createRun());
   let seenRun = $state(0);
@@ -246,6 +248,10 @@
     },
   ]);
 
+  function toggleSidebar() {
+    sidebarCollapsed = setSidebarCollapsed(!sidebarCollapsed);
+  }
+
   function toggleTheme() {
     const next = dark ? 'light' : 'dark';
     viewTransition(async () => {
@@ -278,7 +284,6 @@
   let focusCharacter = $state(null);
   let detailNeighbors = $state([]);
   let detailMode = $state('enter');
-  let detailTitle = $state('');
   let listScroll = $state(0);
   let listFilter = $state('all');
   let dashScroll = $state(0);
@@ -343,13 +348,20 @@
 <div class="shell">
   <Titlebar
     mode={detailId !== null ? 'detail' : 'default'}
-    title={detailTitle}
     onback={closeDetail}
     onsettings={() => (settingsOpen = true)}
+    {sidebarCollapsed}
+    ontogglesidebar={toggleSidebar}
   />
 
   <div class="shell__body">
-    <Sidebar items={NAV} bottom={BOTTOM} bind:current onnavigate={leaveView} />
+    <Sidebar
+      items={NAV}
+      bottom={BOTTOM}
+      bind:current
+      onnavigate={leaveView}
+      collapsed={sidebarCollapsed}
+    />
 
     <main class="shell__main" data-overlayscrollbars-initialize>
       {#if detailId !== null}
@@ -361,7 +373,6 @@
             neighbors={detailNeighbors}
             mode={detailMode}
             onnavigate={navigateDetail}
-            onname={(name) => (detailTitle = name ?? '')}
             onclose={closeDetail}
           />
         {/key}

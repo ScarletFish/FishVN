@@ -342,7 +342,7 @@ button.info-rating {
 .detail-summary {
   display: -webkit-box;
   width: 100%;
-  overflow: hidden;
+  overflow: clip;
   color: var(--fg-secondary);
   font-size: var(--text-md);
   line-height: 1.7;
@@ -679,6 +679,14 @@ button.info-rating {
   text-decoration-color: currentColor;
 }
 
+.detail-summary a:focus-visible,
+.detail-char-desc a:focus-visible {
+  outline: none;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+  text-decoration-color: currentColor;
+}
+
 .detail-char-vndb {
   display: inline-flex;
   align-items: center;
@@ -825,6 +833,10 @@ button.info-rating {
 
 .detail-nav-zone--prev {
   left: var(--sidebar-w);
+}
+
+:root:has(.sidebar.collapsed) .detail-nav-zone--prev {
+  left: 0;
 }
 
 .detail-nav-zone--next {

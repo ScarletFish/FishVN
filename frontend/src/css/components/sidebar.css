@@ -9,6 +9,11 @@
   height: 100%;
 }
 
+.sidebar.collapsed {
+  width: 0;
+  border-right: none;
+}
+
 .sidebar-nav {
   flex: 1;
   padding: var(--space-2) 0;

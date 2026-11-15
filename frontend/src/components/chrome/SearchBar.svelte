@@ -293,7 +293,7 @@
   {#if expanded}
     <div class="titlebar__search-field">
       <span class="titlebar__search-mark">
-        <Icon name="magnifying-glass" />
+        <Icon name="magnifying-glass" size="lg" />
       </span>
       <input
         bind:this={inputEl}
@@ -402,7 +402,7 @@
         openPanel();
       }}
     >
-      <Icon name="magnifying-glass" />
+      <Icon name="magnifying-glass" size="lg" />
     </button>
   {/if}
 </div>

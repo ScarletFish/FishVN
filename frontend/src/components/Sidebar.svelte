@@ -1,10 +1,10 @@
 <script>
   import Icon from './Icon.svelte';
 
-  let { items = [], bottom = [], current = $bindable(), onnavigate } = $props();
+  let { items = [], bottom = [], current = $bindable(), onnavigate, collapsed = false } = $props();
 </script>
 
-<aside class="sidebar">
+<aside class="sidebar" class:collapsed inert={collapsed} aria-hidden={collapsed}>
   <nav class="sidebar-nav">
     {#each items as item (item.id)}
       <button

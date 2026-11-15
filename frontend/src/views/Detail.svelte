@@ -34,7 +34,7 @@
   import DetailNotes from './DetailNotes.svelte';
   import Menu from '../components/Menu.svelte';
 
-  let { gameId, onname, onclose, autostart = false, focusCharacter = null, neighbors = [], onnavigate = null, mode = 'enter' } = $props();
+  let { gameId, onclose, autostart = false, focusCharacter = null, neighbors = [], onnavigate = null, mode = 'enter' } = $props();
 
   let game = $state(null);
   let meta = $state(null);
@@ -48,6 +48,7 @@
   let ambienceUrl = $state(null);
   let ambienceLoaded = $state(false);
   let ambienceBroken = $state(false);
+  let ambienceEl = $state(null);
 
   const ambienceMode = $derived(meta?.ambience_mode ?? 'soft');
   const ambiencePlate = $derived(Boolean(meta?.ambience_plate));
@@ -107,7 +108,6 @@
       if (!g) return;
       game = g;
       meta = m;
-      onname?.(g.name ?? '');
     } catch {}
   }
 
@@ -188,6 +188,14 @@
     chooseBannerImage().then((ok) => {
       if (!ok) bannerMenuKey += 1;
     });
+  }
+
+  function bindBannerContextMenu(props) {
+    return (e) => {
+      const r = ambienceEl?.getBoundingClientRect();
+      if (!r || e.clientY < r.top || e.clientY > r.bottom) return;
+      props.oncontextmenu?.(e);
+    };
   }
 
   async function launch() {
@@ -457,7 +465,6 @@
         game = g;
         meta = m;
         dirs = d;
-        onname?.(g?.name ?? '');
         applyState(s, active);
       })
       .catch(() => {
@@ -546,6 +553,7 @@
 
   function handleNavKey(e) {
     if (!canNav) return;
+    if (addGame.formOpen) return;
     const el = document.activeElement;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
     if (e.key === 'ArrowLeft') {
@@ -601,6 +609,7 @@
       class:detail-ambience--empty={!ambienceUrl || ambienceBroken}
       class:detail-ambience--clear={ambienceMode === 'clear'}
       aria-hidden="true"
+      bind:this={ambienceEl}
     >
       {#if ambienceUrl && !ambienceBroken}
         <img
@@ -698,7 +707,7 @@
       </ContextMenu.Portal>
       <ContextMenu.Trigger>
         {#snippet child({ props })}
-          <div {...props} class="detail-banner">
+          <div {...props} class="detail-banner" oncontextmenu={bindBannerContextMenu(props)}>
             <div class="detail-banner-left">
               <div class="detail-cover">
                 {#if coverUrl && !coverBroken}

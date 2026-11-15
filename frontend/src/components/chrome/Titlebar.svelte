@@ -7,7 +7,13 @@
   import { ADD_MENU_SUMMON } from '../../lib/library-events.js';
   import { t } from '../../lib/i18n.js';
 
-  let { mode = 'default', title = '', onback, onsettings } = $props();
+  let {
+    mode = 'default',
+    onback,
+    onsettings,
+    sidebarCollapsed = false,
+    ontogglesidebar,
+  } = $props();
 
   let addMenuOpen = $state(false);
 
@@ -63,12 +69,21 @@
 
 <div class="titlebar" role="presentation" onmousedown={onTitlebarMouseDown}>
   <div class="titlebar__left">
+    <button
+      type="button"
+      class="titlebar__iconbtn titlebar__sidebar-toggle"
+      class:is-collapsed={sidebarCollapsed}
+      aria-label={sidebarCollapsed ? t('titlebar.expandSidebar') : t('titlebar.collapseSidebar')}
+      data-tooltip={sidebarCollapsed ? t('titlebar.expandSidebar') : t('titlebar.collapseSidebar')}
+      onclick={ontogglesidebar}
+    >
+      <Icon name="sidebar" size="lg" />
+    </button>
     {#if mode === 'detail'}
       <button type="button" class="titlebar__back" onclick={onback}>
         <Icon name="caret-left" />
         <span>{t('titlebar.back')}</span>
       </button>
-      <span class="titlebar__title">{title}</span>
     {:else}
       <Menu
         label={t('mylist.add')}
@@ -84,7 +99,7 @@
             aria-label={t('mylist.add')}
             data-tooltip={t('mylist.add')}
           >
-            <Icon name="plus" />
+            <Icon name="plus" size="lg" />
           </button>
         {/snippet}
       </Menu>

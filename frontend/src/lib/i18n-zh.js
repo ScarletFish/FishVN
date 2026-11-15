@@ -12,6 +12,8 @@ export const DICT_ZH = {
     searchGroupTags: '标签',
     tagSearchEmpty: '没有匹配的标签',
     searchCount: '{count} 条',
+    collapseSidebar: '收起侧栏',
+    expandSidebar: '展开侧栏',
   },
   cal: {
     prevMonth: '上个月',
