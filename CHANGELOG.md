@@ -1,7 +1,7 @@
 # Changelog
 
 本文件记录 FishVN 所有 notable 改动，由 git 提交历史（Conventional Commits）自动生成，发布时人工轻润色。
-## [unreleased]
+## [v0.4.0] - 2026-11-16
 
 ### ✨ 新增
 
