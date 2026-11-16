@@ -5,7 +5,7 @@
 <h1 align="center">FishVN</h1>
 
 <div align="center">
-<img alt="Version" src="https://img.shields.io/badge/version-v0.3.0-blue">
+<img alt="Version" src="https://img.shields.io/badge/version-v0.4.0-blue">
 <img alt="Windows 10+" src="https://img.shields.io/badge/Windows-10%2B-blue?logo=windows">
 <img alt="Tauri v2" src="https://img.shields.io/badge/Tauri-v2-orange?logo=tauri">
 <img alt="Svelte 5" src="https://img.shields.io/badge/Svelte-5-ff3e00?logo=svelte">
@@ -14,9 +14,9 @@
 </div>
 
 <p align="center">
-  <img src="docs/images/README/hero.png" alt="同一详情页的浅色与深色主题" />
+  <img src="docs/images/README/hero.webp" alt="展厅视图：大幅 CG 与自定义背景" />
 </p>
-<p align="center"><sub>浅色 / 深色主题</sub></p>
+<p align="center"><sub>展厅：可收起侧栏与自定义背景</sub></p>
 
 ## 简要介绍
 
@@ -40,14 +40,9 @@ FishVN 是一个 **Windows 桌面应用**，用来管理本地安装（甚至未
 - **外观**：六色强调色 + 深浅主题支持。横幅可选柔和 / 清晰两档 + 自定义图片。支持图片展示焦点选取。
 
 <p align="center">
-  <img src="docs/images/README/dashboard.png" alt="首页：统计概览、继续游玩与我的游戏封面墙" />
+  <img src="docs/images/README/detail.webp" alt="详情页" />
 </p>
-<p align="center"><sub>首页：统计概览与游戏库</sub></p>
-
-<p align="center">
-  <img src="docs/images/README/query.png" alt="查询：条件组合筛选后的作品结果" />
-</p>
-<p align="center"><sub>查询页</sub></p>
+<p align="center"><sub>支持多安装实例与深浅双主题</sub></p>
 
 ## 快速开始
 
@@ -60,8 +55,6 @@ npm install
 npm run dev      # 起开发窗口
 npm run build    # 前端产物到 frontend/dist
 ```
-
-安装包构建走 `start.bat` 菜单 3。
 
 ## 目标
 

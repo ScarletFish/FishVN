@@ -32,8 +32,9 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: FishVN v__VERSION__
-          releaseBody: See the assets to download this version and install.
+          releaseBody: |
+            ⚠️ Windows 安装包未做代码签名。SmartScreen 可能提示「Windows 已保护你的电脑」，点「更多信息 → 仍要运行」即可继续；UAC 显示「未知发布者」属正常情况。
           releaseDraft: false
           prerelease: false
-          generateReleaseNotes: true
+          generateReleaseNotes: false
           updaterJsonPreferNsis: true
