@@ -16,6 +16,7 @@
     "core:window:allow-internal-toggle-maximize",
     "dialog:allow-open",
     "dialog:allow-save",
+    "updater:default",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "https://**" }, { "url": "http://**" }]
