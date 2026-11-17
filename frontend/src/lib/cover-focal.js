@@ -4,6 +4,7 @@ export const FOCAL_MAX = 100;
 export const COVER_ASPECT = 3 / 4;
 export const BANNER_ASPECT = 1200 / 335;
 export const BANNER_FOCAL = { x: 50, y: 22 };
+export const SHOWCASE_ASPECT = 2.4;
 
 export function clampFocal(value) {
   const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;

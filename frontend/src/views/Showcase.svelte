@@ -1,14 +1,18 @@
 <script>
   import { onMount, tick } from 'svelte';
   import Icon from '../components/Icon.svelte';
+  import AmbienceMenu from '../components/AmbienceMenu.svelte';
+  import CoverFocalDialog from '../components/game-form/CoverFocalDialog.svelte';
   import { api } from '../lib/api.js';
   import { t } from '../lib/i18n.js';
   import { durationText } from '../lib/playtime.js';
   import { formatDateTime } from '../lib/format.js';
   import { coverSrc, fullSrc } from '../lib/cover-src.js';
+  import { SHOWCASE_ASPECT } from '../lib/cover-focal.js';
   import { captureHero } from '../lib/hero-transition.js';
   import { shouldReduceMotion } from '../lib/motion.js';
-  import { buildShowcaseItems, stageDescriptor } from '../lib/showcase-items.js';
+  import { applyAmbience, buildShowcaseItems, stageDescriptor } from '../lib/showcase-items.js';
+  import { toast } from '../lib/toast.svelte.js';
   import {
     LIBRARY_CHANGED,
     notifyAddMenuSummon,
@@ -23,12 +27,15 @@
   let covers = $state({});
   let layers = $state([]);
   let stripEl = $state(null);
+  let bottomEl = $state(null);
+  let focalOpen = $state(false);
   let layerSeq = 0;
   let requestSeq = 0;
 
   const current = $derived(items.find((item) => item.id === selectedId) ?? items[0] ?? null);
   const neighborIds = $derived(items.map((item) => item.id));
   const descriptor = $derived(current ? stageDescriptor(current) : null);
+  const stageMode = $derived(descriptor?.mode ?? 'soft');
   const isClear = $derived(layers.length > 0 && layers[layers.length - 1].mode === 'clear');
   const lastPlayedText = $derived(formatDateTime(current?.last_played_at));
   const playSeconds = $derived(Number(current?.play_seconds) || 0);
@@ -127,6 +134,35 @@
     }
   }
 
+  async function patchCurrent(patch) {
+    const target = current;
+    if (!target) return false;
+    try {
+      const meta = await api.updateGameMetadata(target.id, patch);
+      items = items.map((item) => (item.id === target.id ? applyAmbience(item, meta) : item));
+      return true;
+    } catch (err) {
+      toast(err?.message ?? String(err), 'error');
+      return false;
+    }
+  }
+
+  function openFocal() {
+    if (!current || !descriptor?.path) return;
+    focalOpen = true;
+  }
+
+  function guardContextMenu(props) {
+    return (event) => {
+      const edge = bottomEl?.getBoundingClientRect().top;
+      if (!current || edge === undefined || event.clientY >= edge) {
+        event.preventDefault();
+        return;
+      }
+      props.oncontextmenu?.(event);
+    };
+  }
+
   function hero() {
     const thumb = stripEl?.querySelector('.showcase-thumb.is-selected');
     if (!thumb) return;
@@ -162,7 +198,7 @@
         id: ++layerSeq,
         url: ok ? url : null,
         mode: desc.mode,
-        focal: desc.focal,
+        showcaseFocal: desc.showcaseFocal,
         entering: !shouldReduceMotion(),
       });
     })();
@@ -214,129 +250,160 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-<section class="showcase" class:showcase--clear={isClear} aria-label={t('nav.showcase')}>
-  <div
-    class="showcase-stage"
-    class:showcase-stage--empty={layers.length === 0}
-  >
-    <div class="showcase-stage__layers">
-      {#each layers as layer (layer.id)}
-        <div
-          class="showcase-stage__layer"
-          class:showcase-stage__layer--empty={!layer.url}
-          class:is-entering={layer.entering}
-          aria-hidden="true"
-        >
-          {#if layer.url}
-            <img
-              class="showcase-stage__blur"
-              src={layer.url}
-              alt=""
-              style:object-position={layer.focal}
-              onerror={(e) => (e.currentTarget.style.visibility = 'hidden')}
-            />
-            {#if layer.mode === 'clear'}
-              <img
-                class="showcase-stage__clear"
-                src={layer.url}
-                alt=""
-                style:object-position={layer.focal}
-                onerror={(e) => (e.currentTarget.style.visibility = 'hidden')}
-              />
-            {/if}
-          {/if}
-        </div>
-      {/each}
-    </div>
-    <div class="showcase-stage__wash"></div>
-  </div>
-
-  {#if !loading && !error && items.length > 0}
-    <div class="showcase-ui">
-      <div class="showcase-bottom">
-        <div class="showcase-meta">
-          <h1 class="showcase-title" title={current?.name ?? ''}>{current?.name ?? ''}</h1>
-
-          <div class="showcase-meta-row">
-            <div class="showcase-facts">
-              {#if lastPlayedText}
-                <span class="showcase-fact">{t('showcase.lastPlayed')} {lastPlayedText}</span>
-              {:else}
-                <span class="showcase-fact">{t('showcase.noRecord')}</span>
-              {/if}
-              {#if playSeconds > 0}
-                <span class="showcase-fact">
-                  {t('showcase.totalTime')} {durationText(t, playSeconds)}
-                </span>
-              {/if}
-            </div>
-
-            <div class="showcase-actions">
-              <button type="button" class="btn btn-ghost showcase-action" onclick={viewDetail}>
-                <Icon name="info" size="lg" />
-                {t('showcase.detail')}
-              </button>
-              <button
-                type="button"
-                class="btn btn-primary showcase-action"
-                disabled={!current?.can_launch}
-                onclick={launch}
-              >
-                <Icon name="play" size="lg" />
-                {t('showcase.launch')}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="showcase-strip">
-          <div
-            class="showcase-strip__scroll"
-            bind:this={stripEl}
-            role="group"
-            aria-label={t('showcase.stripLabel')}
-          >
-            {#each items as item (item.id)}
-              <button
-                type="button"
-                class="showcase-thumb"
-                class:is-selected={item.id === selectedId}
-                data-showcase-id={item.id}
-                aria-label={item.name}
-                aria-pressed={item.id === selectedId}
-                onclick={() => select(item)}
-              >
-                {#if covers[item.id]}
-                  <img
-                    src={covers[item.id]}
-                    alt=""
-                    style:object-position={stageDescriptor(item).coverFocal}
-                  />
-                {:else}
-                  <span class="showcase-thumb__initial" aria-hidden="true">
-                    {(item.name || '?')[0]}
-                  </span>
+<AmbienceMenu
+  source={descriptor?.source ?? 'follow'}
+  mode={stageMode}
+  modeKey="showcase_mode"
+  showFocal
+  canFocal={Boolean(descriptor?.path)}
+  onpatch={patchCurrent}
+  onfocal={openFocal}
+>
+  {#snippet trigger(props)}
+    <section
+      {...props}
+      class="showcase"
+      class:showcase--clear={isClear}
+      aria-label={t('nav.showcase')}
+      oncontextmenu={guardContextMenu(props)}
+    >
+      <div
+        class="showcase-stage"
+        class:showcase-stage--empty={layers.length === 0}
+      >
+        <div class="showcase-stage__layers">
+          {#each layers as layer (layer.id)}
+            <div
+              class="showcase-stage__layer"
+              class:showcase-stage__layer--empty={!layer.url}
+              class:is-entering={layer.entering}
+              aria-hidden="true"
+            >
+              {#if layer.url}
+                <img
+                  class="showcase-stage__blur"
+                  src={layer.url}
+                  alt=""
+                  style:object-position={layer.showcaseFocal}
+                  onerror={(e) => (e.currentTarget.style.visibility = 'hidden')}
+                />
+                {#if layer.mode === 'clear'}
+                  <div class="showcase-stage__clear-box">
+                    <img
+                      class="showcase-stage__clear"
+                      src={layer.url}
+                      alt=""
+                      style:object-position={layer.showcaseFocal}
+                      onerror={(e) => (e.currentTarget.style.visibility = 'hidden')}
+                    />
+                  </div>
                 {/if}
-              </button>
-            {/each}
+              {/if}
+            </div>
+          {/each}
+        </div>
+        <div class="showcase-stage__wash"></div>
+      </div>
+
+      {#if !loading && !error && items.length > 0}
+        <div class="showcase-ui">
+          <div class="showcase-bottom" bind:this={bottomEl}>
+            <div class="showcase-meta">
+              <h1 class="showcase-title" title={current?.name ?? ''}>{current?.name ?? ''}</h1>
+
+              <div class="showcase-meta-row">
+                <div class="showcase-facts">
+                  {#if lastPlayedText}
+                    <span class="showcase-fact">{t('showcase.lastPlayed')} {lastPlayedText}</span>
+                  {:else}
+                    <span class="showcase-fact">{t('showcase.noRecord')}</span>
+                  {/if}
+                  {#if playSeconds > 0}
+                    <span class="showcase-fact">
+                      {t('showcase.totalTime')} {durationText(t, playSeconds)}
+                    </span>
+                  {/if}
+                </div>
+
+                <div class="showcase-actions">
+                  <button type="button" class="btn btn-ghost showcase-action" onclick={viewDetail}>
+                    <Icon name="info" size="lg" />
+                    {t('showcase.detail')}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary showcase-action"
+                    disabled={!current?.can_launch}
+                    onclick={launch}
+                  >
+                    <Icon name="play" size="lg" />
+                    {t('showcase.launch')}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="showcase-strip">
+              <div
+                class="showcase-strip__scroll"
+                bind:this={stripEl}
+                role="group"
+                aria-label={t('showcase.stripLabel')}
+              >
+                {#each items as item (item.id)}
+                  <button
+                    type="button"
+                    class="showcase-thumb"
+                    class:is-selected={item.id === selectedId}
+                    data-showcase-id={item.id}
+                    aria-label={item.name}
+                    aria-pressed={item.id === selectedId}
+                    onclick={() => select(item)}
+                  >
+                    {#if covers[item.id]}
+                      <img
+                        src={covers[item.id]}
+                        alt=""
+                        style:object-position={stageDescriptor(item).coverFocal}
+                      />
+                    {:else}
+                      <span class="showcase-thumb__initial" aria-hidden="true">
+                        {(item.name || '?')[0]}
+                      </span>
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  {/if}
+      {/if}
 
-  {#if loading}
-    <div class="showcase-state"><p>{t('common.loading')}</p></div>
-  {:else if error}
-    <div class="showcase-state"><p>{t('showcase.error')}</p></div>
-  {:else if items.length === 0}
-    <div class="showcase-state showcase-empty">
-      <Icon name="image" size="xl" />
-      <p>{t('showcase.emptyTitle')}</p>
-      <p class="showcase-empty__hint">{t('showcase.emptyHint')}</p>
-      <button type="button" class="btn btn-primary" onclick={notifyAddMenuSummon}>
-        {t('mylist.add')}
-      </button>
-    </div>
-  {/if}
-</section>
+      {#if loading}
+        <div class="showcase-state"><p>{t('common.loading')}</p></div>
+      {:else if error}
+        <div class="showcase-state"><p>{t('showcase.error')}</p></div>
+      {:else if items.length === 0}
+        <div class="showcase-state showcase-empty">
+          <Icon name="image" size="xl" />
+          <p>{t('showcase.emptyTitle')}</p>
+          <p class="showcase-empty__hint">{t('showcase.emptyHint')}</p>
+          <button type="button" class="btn btn-primary" onclick={notifyAddMenuSummon}>
+            {t('mylist.add')}
+          </button>
+        </div>
+      {/if}
+    </section>
+  {/snippet}
+</AmbienceMenu>
+
+<CoverFocalDialog
+  bind:open={focalOpen}
+  imagePath={descriptor?.path ?? ''}
+  focusX={current?.showcase_focal_x ?? 50}
+  focusY={current?.showcase_focal_y ?? 22}
+  aspect={SHOWCASE_ASPECT}
+  aspectLabel="2.4:1"
+  oncommit={(x, y) => patchCurrent({ showcase_focal_x: x, showcase_focal_y: y })}
+  onclose={() => (focalOpen = false)}
+/>

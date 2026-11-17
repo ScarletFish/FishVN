@@ -128,8 +128,9 @@
     else if (kind === 'right') draftX = 100;
   }
 
-  function confirm() {
-    oncommit?.(draftX, draftY);
+  async function confirm() {
+    const ok = await oncommit?.(draftX, draftY);
+    if (ok === false) return;
     onclose?.();
   }
 </script>

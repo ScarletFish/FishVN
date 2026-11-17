@@ -391,6 +391,9 @@ body {
   --detail-block-h: 20rem; /* 320px  详情页分区内容区高度档，超出在块内滚动 */
   --cover-thumb-w: 5.625rem;
   --showcase-thumb-w: clamp(8.5rem, 13vw, 12.5rem);
+  --showcase-clear-bottom: calc(
+    var(--showcase-thumb-w) * 4 / 3 + var(--space-2) * 2 + var(--space-5)
+  ); /* 展厅清晰层下沿：缩略图条高 + 条内上下内边距 + 底栏下内边距 */
   --backfill-panel-w: 23.75rem; /* 380px  补全页右栏宽，定宽才能做推动展开 */
   --backfill-cand-w: 6rem; /* 96px  补全面板候选封面宽，3:4 后高 128px */
   --menu-plain-size: 1.75rem; /* 28px  裸图标菜单按钮的边长 */

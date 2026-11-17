@@ -1,7 +1,7 @@
 export const SHOWCASE_LIMIT = 30;
 
 function num(value, fallback) {
-  if (value === null || value === undefined || value === '') return fallback;
+  if (value === null || value === undefined || String(value).trim() === '') return fallback;
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
@@ -31,11 +31,25 @@ export function buildShowcaseItems(rows, limit = SHOWCASE_LIMIT) {
 export function stageDescriptor(item) {
   const custom = String(item?.ambience_path ?? '').trim();
   const path = custom || String(item?.cover_path ?? '').trim();
-  const mode = item?.ambience_mode === 'clear' ? 'clear' : 'soft';
+  const mode = item?.showcase_mode === 'clear' ? 'clear' : 'soft';
   return {
     path,
     mode,
-    focal: `${num(item?.ambience_focal_x, 50)}% ${num(item?.ambience_focal_y, 22)}%`,
+    source: custom ? 'custom' : 'follow',
+    showcaseFocal: `${num(item?.showcase_focal_x, 50)}% ${num(item?.showcase_focal_y, 22)}%`,
     coverFocal: `${num(item?.cover_focal_x, 50)}% ${num(item?.cover_focal_y, 50)}%`,
+  };
+}
+
+export function applyAmbience(item, meta) {
+  if (!item || !meta) return item;
+  return {
+    ...item,
+    cover_path: meta.image_path ?? null,
+    ambience_path: meta.ambience_path ?? null,
+    ambience_mode: meta.ambience_mode === 'clear' ? 'clear' : 'soft',
+    showcase_focal_x: num(meta.showcase_focal_x, num(item.showcase_focal_x, 50)),
+    showcase_focal_y: num(meta.showcase_focal_y, num(item.showcase_focal_y, 22)),
+    showcase_mode: (meta.showcase_mode ?? item.showcase_mode) === 'clear' ? 'clear' : 'soft',
   };
 }
