@@ -19,6 +19,9 @@ export const METADATA_FIELDS = [
   { key: "ambience_plate", type: "bool", blank: "not_applicable", label: null, source: "local", editable: true, clearable: false, inPatch: true, joined: false },
   { key: "ambience_focal_x", type: "integer", blank: "not_applicable", label: null, source: "local", editable: true, clearable: true, inPatch: true, joined: false },
   { key: "ambience_focal_y", type: "integer", blank: "not_applicable", label: null, source: "local", editable: true, clearable: true, inPatch: true, joined: false },
+  { key: "showcase_focal_x", type: "integer", blank: "not_applicable", label: null, source: "local", editable: false, clearable: true, inPatch: true, joined: false },
+  { key: "showcase_focal_y", type: "integer", blank: "not_applicable", label: null, source: "local", editable: false, clearable: true, inPatch: true, joined: false },
+  { key: "showcase_mode", type: "mode", blank: "not_applicable", label: null, source: "local", editable: false, clearable: false, inPatch: true, joined: false },
 ];
 
 export const PATCH_KEYS = METADATA_FIELDS.filter((field) => field.inPatch).map((field) => field.key);

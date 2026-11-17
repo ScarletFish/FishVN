@@ -87,6 +87,11 @@ fn joined(field: &serde_json::Value) -> bool {
     field.get("storage").and_then(|v| v.as_str()) == Some("join")
 }
 
+fn addable(col_def: &str) -> bool {
+    let upper = col_def.to_ascii_uppercase();
+    !upper.contains("PRIMARY KEY") && !upper.contains("UNIQUE")
+}
+
 fn base_ty(field: &serde_json::Value) -> String {
     let ty = text(field, "ty");
     match ty {
@@ -255,6 +260,16 @@ fn generate_metadata_spec() {
         ));
     }
     out.push_str("\n\"#;\n\n");
+
+    out.push_str("pub const METADATA_ADD_COLUMNS: &[(&str, &str)] = &[\n");
+    for field in fields.iter().filter(|f| !joined(f) && addable(text(f, "col_def"))) {
+        out.push_str(&format!(
+            "    (\"{}\", \"{}\"),\n",
+            text(field, "sql"),
+            text(field, "col_def")
+        ));
+    }
+    out.push_str("];\n\n");
 
     out.push_str("pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {\n    let mut columns: Vec<&'static str> = Vec::new();\n    let mut values: Vec<Value> = Vec::new();\n");
     for field in fields.iter().filter(|f| flag(f, "in_patch") && !joined(f)) {
@@ -539,6 +554,19 @@ fn generate_character_spec() {
         );
     }
     rs.push_str("\"#;\n\n");
+
+    rs.push_str("pub const CHARACTER_ADD_COLUMNS: &[(&str, &str)] = &[\n");
+    for field in fields
+        .iter()
+        .filter(|f| flag(f, "in_ddl") && addable(text(f, "col_def")))
+    {
+        rs.push_str(&format!(
+            "    (\"{}\", \"{}\"),\n",
+            text(field, "sql"),
+            text(field, "col_def")
+        ));
+    }
+    rs.push_str("];\n\n");
 
     rs.push_str(&char_keys(fields, "in_draft", "key", "CHARACTER_PAYLOAD_KEYS"));
     rs.push_str(&char_keys(fields, "in_draft", "draft", "CHARACTER_DRAFT_KEYS"));

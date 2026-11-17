@@ -12,7 +12,7 @@ src-tauri/
 ├── main.rs          # 窗口 + 状态 + invoke_handler
 ├── lib.rs           # data_dir 解析与 id、时间戳生成
 ├── commands.rs      # #[tauri::command] 转发层，不写业务
-├── db.rs            # 连接与 ensure_schema()
+├── db.rs            # 连接、ensure_schema()、版本迁移与补列
 ├── error.rs         # AppError，过 IPC 时序列化成一句中文
 ├── types.rs         # 表行与 PATCH 参数
 ├── games.rs         # 作品与用户状态
@@ -244,8 +244,10 @@ snake_case，裸 HTTP 没有这层转换。前端日志命令（`log_frontend`�
 这类非空变更永远同步不过来，同步按钮第二次点就成空转。名称的取舍也在同一决策集里：用户选择采用官方标题时，同步一并更新 `games` 的 `name`。
 
 表结构只写在 `ensure_schema()`，语句自身幂等（`CREATE TABLE` / `CREATE INDEX` 带 `IF NOT EXISTS`），
-每次开库跑一遍即可。应用处在开发期，本地库随代码重建：改结构直接改建表语句，旧库删掉重建；
-要保住本地的作品数据，先手工导出搬一次，这类操作留在本机，不进代码。
+每次开库跑一遍即可。开库接着跑 `prepare()`：先按 `user_version` 执行版本迁移，再按 spec 生成的
+补列清单给旧库 `ALTER TABLE ADD COLUMN`。加字段只改 spec；改型 / 拆表才写显式迁移。迁移前
+把数据库 `VACUUM INTO` 到备份目录，新库不备份。细节见 [architecture.md](./architecture.md)
+「Schema 变更怎么落」。
 
 建表那句 `PRAGMA foreign_keys = ON` 看着多余（内建 SQLite 带 `SQLITE_DEFAULT_FOREIGN_KEYS=1`），
 但不能删：建表全靠 `ON DELETE CASCADE`，去掉它等于把级联交给传递依赖的编译选项。
@@ -292,9 +294,19 @@ scope 够不着，必须走 `allow_local_file`。
 首页继续游玩背景、详情页 FLIP 过渡；氛围背景层不跟（模糊装饰，取景无意义），角色立绘没有
 该字段。新增封面展示处一律读这两个字段。
 
-换封面重置焦点，收口在 `metadata::upsert`：本次 patch 改了 `image_path`（含清空再填入、
-批量补全首次填封面）就强制把焦点写回 50/50，无视 patch 里带的焦点值——旧焦点对新图没有
-意义。用户只调焦点不换图时正常生效。
+三套焦点统一按「图路径是否真的变化」判定，收口在 `metadata::upsert`：本次 patch 改了
+`image_path`（含清空再填入、批量补全首次填封面）就把 `cover_focal_*` 写回 50/50；改了
+`ambience_path` 就把 `ambience_focal_*` 与 `showcase_focal_*` 一起写回 50/22。路径没变则
+保持，patch 里带的焦点值照常生效。重复选同一张图、同步没换图都不会清掉用户调过的位置。
+
+`ambience_focal_x/y` 与 `showcase_focal_x/y`（默认 50/22）分别供横幅与展厅取景，
+展厅柔和与清晰两档共用后者；互不共享，但共用一个图源，所以换图时一起归位。
+
+观感同理：`ambience_mode` 只管横幅，`showcase_mode` 只管展厅。v2 迁移把旧库的
+`ambience_mode` 回填到新列；v3 迁移把旧库的 `ambience_focal_*` 回填到 `showcase_focal_*`，
+因为展厅柔和与清晰两档都改读自己的焦点了。两次回填都保证升级后原有观感与取景在两处都不变。
+
+横幅与展厅各存自己的观感和焦点，图片共用；旧库升级时回填展厅字段，位置不跳。
 
 ### 外部 API 的测试
 

@@ -121,8 +121,9 @@ pub struct ShowcaseItem {
     pub cover_focal_x: Option<i64>,
     pub cover_focal_y: Option<i64>,
     pub ambience_path: Option<String>,
-    pub ambience_focal_x: i64,
-    pub ambience_focal_y: i64,
+    pub showcase_focal_x: i64,
+    pub showcase_focal_y: i64,
+    pub showcase_mode: String,
     pub ambience_mode: String,
 }
 
@@ -138,8 +139,9 @@ pub fn showcase_items(conn: &Connection, limit: i64) -> Result<Vec<ShowcaseItem>
                    m.cover_focal_x AS cover_focal_x,
                    m.cover_focal_y AS cover_focal_y,
                    m.ambience_path AS ambience_path,
-                   COALESCE(m.ambience_focal_x, 50) AS ambience_focal_x,
-                   COALESCE(m.ambience_focal_y, 22) AS ambience_focal_y,
+                   COALESCE(m.showcase_focal_x, 50) AS showcase_focal_x,
+                   COALESCE(m.showcase_focal_y, 22) AS showcase_focal_y,
+                   COALESCE(m.showcase_mode, 'soft') AS showcase_mode,
                    COALESCE(m.ambience_mode, 'soft') AS ambience_mode
             FROM games g
             JOIN user_game_state s ON s.game_id = g.id
@@ -148,7 +150,8 @@ pub fn showcase_items(conn: &Connection, limit: i64) -> Result<Vec<ShowcaseItem>
             WHERE s.status = 'playing'
                OR EXISTS (SELECT 1 FROM play_sessions p WHERE p.game_id = g.id)
             GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y,
-                     m.ambience_path, m.ambience_focal_x, m.ambience_focal_y, m.ambience_mode
+                     m.ambience_path, m.showcase_focal_x, m.showcase_focal_y,
+                     m.showcase_mode, m.ambience_mode
          )
          ORDER BY last_played_at DESC,
                   state_modified_at DESC,
@@ -167,8 +170,9 @@ pub fn showcase_items(conn: &Connection, limit: i64) -> Result<Vec<ShowcaseItem>
             cover_focal_x: row.get("cover_focal_x")?,
             cover_focal_y: row.get("cover_focal_y")?,
             ambience_path: row.get("ambience_path")?,
-            ambience_focal_x: row.get("ambience_focal_x")?,
-            ambience_focal_y: row.get("ambience_focal_y")?,
+            showcase_focal_x: row.get("showcase_focal_x")?,
+            showcase_focal_y: row.get("showcase_focal_y")?,
+            showcase_mode: row.get("showcase_mode")?,
             ambience_mode: row.get("ambience_mode")?,
         })
     })?;
@@ -809,11 +813,12 @@ mod tests {
         set_status(&conn, &b, "playing");
         conn.execute(
             "INSERT INTO game_metadata
-                (game_id, image_path, ambience_path, ambience_mode, ambience_focal_x, ambience_focal_y)
-             VALUES (?1, 'cover.jpg', 'cg.png', 'clear', 30, 40)
+                (game_id, image_path, ambience_path, ambience_mode,
+                 showcase_focal_x, showcase_focal_y, showcase_mode)
+             VALUES (?1, 'cover.jpg', 'cg.png', 'clear', 70, 80, 'soft')
              ON CONFLICT(game_id) DO UPDATE SET
                 image_path = 'cover.jpg', ambience_path = 'cg.png', ambience_mode = 'clear',
-                ambience_focal_x = 30, ambience_focal_y = 40",
+                showcase_focal_x = 70, showcase_focal_y = 80, showcase_mode = 'soft'",
             rusqlite::params![a],
         )
         .unwrap();
@@ -824,9 +829,15 @@ mod tests {
         assert_eq!(item.cover_path.as_deref(), Some("cover.jpg"));
         assert_eq!(item.ambience_path.as_deref(), Some("cg.png"));
         assert_eq!(item.ambience_mode, "clear");
-        assert_eq!(item.ambience_focal_x, 30);
-        assert_eq!(item.ambience_focal_y, 40);
-        assert_eq!(all.iter().find(|i| i.id == b).unwrap().ambience_mode, "soft");
+        assert_eq!(item.showcase_focal_x, 70);
+        assert_eq!(item.showcase_focal_y, 80);
+        assert_eq!(item.ambience_mode, "clear");
+        assert_eq!(item.showcase_mode, "soft");
+        let other = all.iter().find(|i| i.id == b).unwrap();
+        assert_eq!(other.ambience_mode, "soft");
+        assert_eq!(other.showcase_mode, "soft");
+        assert_eq!(other.showcase_focal_x, 50);
+        assert_eq!(other.showcase_focal_y, 22);
         assert_eq!(showcase_items(&conn, 1).unwrap().len(), 1);
     }
 

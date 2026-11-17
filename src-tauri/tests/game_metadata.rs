@@ -458,6 +458,147 @@ fn 换封面时焦点重置为居中() {
 }
 
 #[test]
+fn 重复选同一张氛围图时焦点保持() {
+    let db = Db::new();
+    let id = new_game(&db, "同图");
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(Some("/a.png".into())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(Some("/a.png".into())),
+            ambience_focal_x: Some(Some(80)),
+            ambience_focal_y: Some(Some(10)),
+            showcase_focal_x: Some(Some(70)),
+            showcase_focal_y: Some(Some(20)),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let stored = metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(Some("/a.png".into())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        (
+            stored.ambience_focal_x,
+            stored.ambience_focal_y,
+            stored.showcase_focal_x,
+            stored.showcase_focal_y
+        ),
+        (80, 10, 70, 20),
+        "图没换，之前调过的焦点该留着"
+    );
+}
+
+#[test]
+fn 换氛围图时两处焦点归位() {
+    let db = Db::new();
+    let id = new_game(&db, "换图");
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(Some("/a.png".into())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(Some("/a.png".into())),
+            ambience_focal_x: Some(Some(80)),
+            ambience_focal_y: Some(Some(10)),
+            showcase_focal_x: Some(Some(70)),
+            showcase_focal_y: Some(Some(20)),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let stored = metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(Some("/b.png".into())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        (
+            stored.ambience_focal_x,
+            stored.ambience_focal_y,
+            stored.showcase_focal_x,
+            stored.showcase_focal_y
+        ),
+        (50, 22, 50, 22),
+        "图换了，两处焦点该归位"
+    );
+}
+
+#[test]
+fn 清空氛围图也算换图() {
+    let db = Db::new();
+    let id = new_game(&db, "清空");
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(Some("/a.png".into())),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(Some("/a.png".into())),
+            ambience_focal_x: Some(Some(80)),
+            ambience_focal_y: Some(Some(10)),
+            showcase_focal_x: Some(Some(70)),
+            showcase_focal_y: Some(Some(20)),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let stored = metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            ambience_path: Some(None),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        (stored.ambience_focal_x, stored.showcase_focal_y),
+        (50, 22)
+    );
+}
+
+#[test]
 fn 不换封面只调焦点正常生效() {
     let db = Db::new();
     let id = new_game(&db, "调焦点");

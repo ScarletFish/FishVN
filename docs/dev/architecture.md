@@ -22,9 +22,9 @@
 
 | 生成物 | 内容 |
 |---|---|
-| `src-tauri/src/generated/metadata.rs` | `GameMetadata` / `MetadataPatch` / `MetaRow` / `FieldSpec` / `METADATA_FIELDS` / `COLUMNS` / `DDL_COLUMNS` / `patch_columns` / `read_row` / `to_api` / `is_set` / `is_blank_current` / `filled_labels` |
+| `src-tauri/src/generated/metadata.rs` | `GameMetadata` / `MetadataPatch` / `MetaRow` / `FieldSpec` / `METADATA_FIELDS` / `COLUMNS` / `DDL_COLUMNS` / `METADATA_ADD_COLUMNS` / `patch_columns` / `read_row` / `to_api` / `is_set` / `is_blank_current` / `filled_labels` |
 | `frontend/src/lib/generated/metadata-fields.js` | `METADATA_FIELDS` / `PATCH_KEYS` / `FORM_KEYS` |
-| `src-tauri/src/generated/characters.rs` | `CHARACTER_FIELDS` / `CHARACTER_COLUMNS` / `CHARACTER_DDL_COLUMNS` / `CharacterFieldSpec` / `GameCharacter` / `CharacterRow` / `read_row` / `to_api` / `insert_values` |
+| `src-tauri/src/generated/characters.rs` | `CHARACTER_FIELDS` / `CHARACTER_COLUMNS` / `CHARACTER_DDL_COLUMNS` / `CHARACTER_ADD_COLUMNS` / `CharacterFieldSpec` / `GameCharacter` / `CharacterRow` / `read_row` / `to_api` / `insert_values` |
 | `frontend/src/lib/generated/character-fields.js` | `CHARACTER_FIELDS` / `CHARACTER_DRAFT_META` / `CHARACTER_PAYLOAD_KEYS` / `CHARACTER_DRAFT_KEYS` / `CHARACTER_MERGE_KEYS` / `CHARACTER_NUMERIC_FIELDS` |
 | `src-tauri/src/generated/tag_key.rs` | `scope_of_root`（五根 → 范围） |
 | `frontend/src/lib/generated/tag-key.js` | `TAG_ROOT_GROUPS` / `TAG_SCOPE` / `TAG_ROUND_ROBIN` / `TAG_GROUP_ORDER` / `tagRootCategory` / `scopeOfCategory` |
@@ -36,6 +36,8 @@
 标签与特征的身份不在元数据列里：`tags` / `game_tag` / `traits` / `character_trait` 四张表在 `db.rs` 手写，字典标签 `g`+数字、本地标签 `u`+数字同表存放。聚合、查询、排除池一律按 id；译名与分类来自 `tags_zh.json` 快照，只进渲染。
 
 同步校验：`npm run check:generated`（构建后比对生成物有无未提交改动）；CI 可用 `FISHVN_GENERATED_CHECK=1 cargo check --manifest-path src-tauri/Cargo.toml`，规格与生成物不一致时构建脚本直接失败。
+
+**Schema 变更怎么落**：`spec/*.json` 是字段唯一事实来源，生成 DDL 与补列清单。启动按 `ensure_schema → 备份（仅旧库有待迁移时）→ 补列 → 版本迁移 → 再补列` 走：加列只改 spec，由补列阶段自动兼容旧库；改型 / 拆表 / 数据搬迁递增 `user_version` 并写显式迁移（`src-tauri/src/migrations.rs`），迁移序列用测试锁住历史版本不被误改。新库建完表直接把 `user_version` 写成当前版本、跳过历史迁移；补列放在版本迁移前后各一次，因为回填型迁移依赖新列先存在，而重建表后需要再补一次。迁移在事务内执行（版本迁移由 `rusqlite_migration` 保证，补列自己开事务），跨版本升级前先把数据库 `VACUUM INTO` 到备份目录。这条只管加列；`ALTER TABLE ADD COLUMN` 带 `PRIMARY KEY` / `UNIQUE` 的列在补列清单里跳过。
 
 ## 跨层不变量台账
 
@@ -51,6 +53,9 @@
 | 任务中间进度不打断 UI | 每次事件都全量重拉 | `backfill-projection.js` 纯函数投影，`needsReload` 只在终态触发重拉 |
 | 任务日志不重复、不丢序 | 推送与历史补读各写各的，日志重复或缺行 | `TaskEvent.seq` 由 `EventLog::push` 分配并随 Tauri emit 与 SSE 两条通道下发；`mergeLogRows` 按序号去重合并，`eventsSince` 只在首次订阅后补历史 |
 | 备份还原中途失败不留下空连接 | 磁盘库被覆盖且内存库为空 | `backup.rs` 的 `Reopen` RAII 与 `restore_files` 顺序 |
+| 旧库缺列仍能开库 | 加字段后老库查询直接 `no such column` | `db.rs::prepare` 的版本迁移 + 按生成清单补列；`tests/db.rs` 用旧 DDL 建库后升级并断言列齐、数据还在 |
+| 换图焦点规则一致 | 重复选同一张图静默清掉用户调好的取景 | `metadata::upsert` 按路径变化判定三套焦点；`tests/game_metadata.rs` 守同图保持 / 换图归位 / 清空归位 |
+| 两个场景分别单独调整 | 横幅与展厅共用观感或焦点，一边调另一边跟着变 | 展厅读写独立的 `showcase_mode` / `showcase_focal_*`，两档共用后者；前后端测试守 |
 | 四类同步 UPDATE 幽灵 id 一律报错 | 静默成功还计数 | `sync.rs::update_one` 统一检查 `changes == 0` |
 | 补全页列表稳定、且任务从第一条往下跑 | 任务推进重建列表、选中丢失；进度不从顶部开始 | `listGames()` 全量按名称稳定排序为唯一列表源；`games.rs::GAME_ORDER_SQL` 单一常量锚定 `scan` 与 `items_by_ids`，`tests/backfill.rs` 断言三者 id 序列相等；清单成员资格来自 `pending_ids`（`scan` 结果）并上本轮需核对的自动绑定，不随最近一轮跑了哪些而变——重试只覆盖几条时清单不缩水；任务状态只作 overlay；`backfill-list.test.js` 断言 pending→ok 与重试覆盖时待处理集合不变 |
 | 库内条目删除后工作台同步 | 删了游戏列表还留着幽灵行 | `LIBRARY_CHANGED` 是列表成员变更唯一来源；三处 delete 补通知，`loadGames` 清理失效 overlay 与选中 |
@@ -62,7 +67,7 @@
 |---|---|---|
 | 加/改一个元数据字段 | 只改 `spec/metadata.json` 一行；生成器产出 Rust 与 JS 两侧。仍须手写上游值映射（`backfill.rs` 的 `map_*`）、表单控件（`GameForm.svelte`）、详情展示（`Detail.svelte`）——`FORM_KEYS` 契约测试与 `filled_labels` 会在字段漂移时失败 | `check:generated` + `npm test` + `check:frontend` |
 | 加/改一个角色字段 | 只改 `spec/characters.json` 一行；生成器同步 DDL、列清单、`GameCharacter`、`insert_values`、draft/payload/merge 键表与数值上限。仍须手写 VNDB 映射（`vndb/characters.rs`）、`query.rs` 查询列子集、编辑控件（`CharacterEditor.svelte`）、详情展示（`DetailCharacters.svelte`）；键集合契约与 VNDB/query 校对用例会在漂移时失败 | `check:generated` + `npm test` + `check:frontend` |
-| 改表结构 | 规格里的 `col_def`（元数据与角色各一份）；其他表仍在 `db.rs` 手写 | `npm test`（建库路径全覆盖） |
+| 改表结构 | 加列只改规格里的 `col_def`（元数据与角色各一份），补列清单由生成器同步；改型 / 拆表在 `migrations.rs` 递增版本；其他表仍在 `db.rs` 手写 | `check:generated` + `npm test`（建库与旧库补列路径） |
 | 改标签分类或范围 | 只改 `spec/tags.json`；生成器产出 Rust 与 JS 两侧，消费方读生成物 | `check:generated` + `npm test` + `check:frontend` |
 | 加命令 | `commands.rs` + `generate_handler!` + `devhttp.rs` 镜像 + `api.js` | parity 测试 + `check:rust` |
 | 改首屏/启动 | `index.html` 启动页、`main.js` 的 `app:ready`、`MyList` 首次加载 | `check:frontend` + FDD 第 4 节的性能口径 |

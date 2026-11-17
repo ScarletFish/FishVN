@@ -1,7 +1,8 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::Connection;
 
@@ -11,9 +12,83 @@ pub const DB_FILE: &str = "fishvn.db";
 
 pub fn open(dir: &Path) -> Result<Connection> {
     fs::create_dir_all(dir)?;
-    let conn = Connection::open(dir.join(DB_FILE))?;
-    ensure_schema(&conn)?;
+    let existing = dir.join(DB_FILE).exists();
+    let mut conn = Connection::open(dir.join(DB_FILE))?;
+    prepare(&mut conn, dir, existing)?;
     Ok(conn)
+}
+
+pub fn prepare(conn: &mut Connection, dir: &Path, existing: bool) -> Result<()> {
+    ensure_schema(conn)?;
+    let pending = if existing {
+        crate::migrations::MIGRATIONS.pending_migrations(conn)?
+    } else {
+        0
+    };
+    if pending != 0 {
+        backup_before_migration(conn, dir)?;
+    }
+    ensure_columns(conn)?;
+    if pending != 0 {
+        crate::migrations::MIGRATIONS.to_latest(conn)?;
+        ensure_columns(conn)?;
+    } else if !existing {
+        conn.pragma_update(
+            None,
+            "user_version",
+            crate::migrations::LATEST_VERSION as i32,
+        )?;
+    }
+    Ok(())
+}
+
+fn backup_before_migration(conn: &Connection, dir: &Path) -> Result<()> {
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let id = format!("{:010}{:09}", duration.as_secs(), duration.subsec_nanos());
+    let dest = dir.join(crate::backup::BACKUP_DIR).join(id);
+    fs::create_dir_all(&dest)?;
+    let target = dest.join(DB_FILE);
+    let escaped = target.to_string_lossy().replace('\'', "''");
+    conn.execute_batch(&format!("VACUUM INTO '{escaped}'"))?;
+    Ok(())
+}
+
+pub fn ensure_columns(conn: &Connection) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+    add_missing_columns(
+        &tx,
+        "game_metadata",
+        crate::generated::metadata::METADATA_ADD_COLUMNS,
+    )?;
+    add_missing_columns(
+        &tx,
+        "characters",
+        crate::generated::characters::CHARACTER_ADD_COLUMNS,
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
+fn add_missing_columns(conn: &Connection, table: &str, columns: &[(&str, &str)]) -> Result<()> {
+    let names = {
+        let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+        let found = stmt
+            .query_map([], |row| row.get::<_, String>(1))?
+            .collect::<rusqlite::Result<HashSet<String>>>()?;
+        found
+    };
+    for (name, definition) in columns {
+        if names.contains(*name) {
+            continue;
+        }
+        conn.execute(
+            &format!("ALTER TABLE {table} ADD COLUMN {name} {definition}"),
+            [],
+        )?;
+    }
+    Ok(())
 }
 
 pub fn lock<'a>(shared: &'a Arc<Mutex<Connection>>) -> Result<MutexGuard<'a, Connection>> {

@@ -331,7 +331,9 @@ mod tests {
                 "developers":["d"],"staff":[{"name":"s"}],
                 "cover_focal_x":30,"cover_focal_y":40,"ambience_path":"a.png",
                 "ambience_mode":"soft","ambience_plate":true,
-                "ambience_focal_x":50,"ambience_focal_y":22}"#,
+                "ambience_focal_x":50,"ambience_focal_y":22,
+                "showcase_focal_x":50,"showcase_focal_y":22,
+                "showcase_mode":"soft"}"#,
         )
         .unwrap();
 

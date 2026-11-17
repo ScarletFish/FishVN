@@ -414,6 +414,29 @@ pub const CHARACTER_DDL_COLUMNS: &str = r#"          game_id     TEXT NOT NULL R
           sort_order  INTEGER NOT NULL DEFAULT 0,
           PRIMARY KEY (game_id, id)"#;
 
+pub const CHARACTER_ADD_COLUMNS: &[(&str, &str)] = &[
+    ("game_id", "TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE"),
+    ("id", "TEXT NOT NULL"),
+    ("name", "TEXT"),
+    ("original", "TEXT"),
+    ("aliases", "TEXT"),
+    ("description", "TEXT"),
+    ("gender", "TEXT"),
+    ("age", "INTEGER"),
+    ("birthday", "TEXT"),
+    ("blood_type", "TEXT"),
+    ("height", "INTEGER"),
+    ("weight", "INTEGER"),
+    ("bust", "INTEGER"),
+    ("waist", "INTEGER"),
+    ("hips", "INTEGER"),
+    ("cup", "TEXT"),
+    ("role", "TEXT"),
+    ("image_id", "TEXT"),
+    ("image_path", "TEXT"),
+    ("sort_order", "INTEGER NOT NULL DEFAULT 0"),
+];
+
 pub const CHARACTER_PAYLOAD_KEYS: &[&str] = &["id", "name", "original", "aliases", "description", "gender", "age", "birthday", "blood_type", "height", "weight", "bust", "waist", "hips", "cup", "role", "image_path", "traits", "va"];
 
 pub const CHARACTER_DRAFT_KEYS: &[&str] = &["id", "name", "original", "aliases", "description", "gender", "age", "birthday", "bloodType", "height", "weight", "bust", "waist", "hips", "cup", "role", "imagePath", "traits", "va"];

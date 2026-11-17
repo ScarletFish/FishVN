@@ -21,6 +21,9 @@
     { "key": "ambience_mode", "sql": "ambience_mode", "ty": "mode", "nullable": false, "item": null, "col_def": "TEXT NOT NULL DEFAULT 'soft'", "clearable": false, "blank": "not_applicable", "label": null, "source": "local", "editable": true, "in_patch": true },
     { "key": "ambience_plate", "sql": "ambience_plate", "ty": "bool", "nullable": false, "item": null, "col_def": "INTEGER NOT NULL DEFAULT 0", "clearable": false, "blank": "not_applicable", "label": null, "source": "local", "editable": true, "in_patch": true },
     { "key": "ambience_focal_x", "sql": "ambience_focal_x", "ty": "integer", "nullable": false, "item": null, "col_def": "INTEGER NOT NULL DEFAULT 50", "clearable": true, "blank": "not_applicable", "label": null, "source": "local", "editable": true, "in_patch": true },
-    { "key": "ambience_focal_y", "sql": "ambience_focal_y", "ty": "integer", "nullable": false, "item": null, "col_def": "INTEGER NOT NULL DEFAULT 22", "clearable": true, "blank": "not_applicable", "label": null, "source": "local", "editable": true, "in_patch": true }
+    { "key": "ambience_focal_y", "sql": "ambience_focal_y", "ty": "integer", "nullable": false, "item": null, "col_def": "INTEGER NOT NULL DEFAULT 22", "clearable": true, "blank": "not_applicable", "label": null, "source": "local", "editable": true, "in_patch": true },
+    { "key": "showcase_focal_x", "sql": "showcase_focal_x", "ty": "integer", "nullable": false, "item": null, "col_def": "INTEGER NOT NULL DEFAULT 50", "clearable": true, "blank": "not_applicable", "label": null, "source": "local", "editable": false, "in_patch": true },
+    { "key": "showcase_focal_y", "sql": "showcase_focal_y", "ty": "integer", "nullable": false, "item": null, "col_def": "INTEGER NOT NULL DEFAULT 22", "clearable": true, "blank": "not_applicable", "label": null, "source": "local", "editable": false, "in_patch": true },
+    { "key": "showcase_mode", "sql": "showcase_mode", "ty": "mode", "nullable": false, "item": null, "col_def": "TEXT NOT NULL DEFAULT 'soft'", "clearable": false, "blank": "not_applicable", "label": null, "source": "local", "editable": false, "in_patch": true }
   ]
 }

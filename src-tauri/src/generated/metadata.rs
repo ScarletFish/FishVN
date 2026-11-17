@@ -66,6 +66,9 @@ pub struct GameMetadata {
     pub ambience_plate: bool,
     pub ambience_focal_x: i64,
     pub ambience_focal_y: i64,
+    pub showcase_focal_x: i64,
+    pub showcase_focal_y: i64,
+    pub showcase_mode: String,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, serde::Deserialize)]
@@ -104,6 +107,11 @@ pub struct MetadataPatch {
     pub ambience_focal_x: Option<Option<i64>>,
     #[serde(default, deserialize_with = "crate::types::double_option")]
     pub ambience_focal_y: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub showcase_focal_x: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub showcase_focal_y: Option<Option<i64>>,
+    pub showcase_mode: Option<String>,
 }
 
 impl MetadataPatch {
@@ -356,6 +364,42 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         in_patch: true,
         joined: false,
     },
+    FieldSpec {
+        key: "showcase_focal_x",
+        sql: "showcase_focal_x",
+        ty: FieldType::Integer,
+        clearable: true,
+        blank: BlankRule::NotApplicable,
+        label: None,
+        source: ValueSource::Local,
+        editable: false,
+        in_patch: true,
+        joined: false,
+    },
+    FieldSpec {
+        key: "showcase_focal_y",
+        sql: "showcase_focal_y",
+        ty: FieldType::Integer,
+        clearable: true,
+        blank: BlankRule::NotApplicable,
+        label: None,
+        source: ValueSource::Local,
+        editable: false,
+        in_patch: true,
+        joined: false,
+    },
+    FieldSpec {
+        key: "showcase_mode",
+        sql: "showcase_mode",
+        ty: FieldType::Mode,
+        clearable: false,
+        blank: BlankRule::NotApplicable,
+        label: None,
+        source: ValueSource::Local,
+        editable: false,
+        in_patch: true,
+        joined: false,
+    },
 ];
 
 pub fn is_set(patch: &crate::types::MetadataPatch, key: &str) -> bool {
@@ -378,6 +422,9 @@ pub fn is_set(patch: &crate::types::MetadataPatch, key: &str) -> bool {
         "ambience_plate" => patch.ambience_plate.is_some(),
         "ambience_focal_x" => patch.ambience_focal_x.is_some(),
         "ambience_focal_y" => patch.ambience_focal_y.is_some(),
+        "showcase_focal_x" => patch.showcase_focal_x.is_some(),
+        "showcase_focal_y" => patch.showcase_focal_y.is_some(),
+        "showcase_mode" => patch.showcase_mode.is_some(),
         _ => false,
     }
 }
@@ -386,7 +433,7 @@ pub fn field(key: &str) -> Option<&'static FieldSpec> {
     METADATA_FIELDS.iter().find(|f| f.key == key)
 }
 
-pub const COLUMNS: &str = "game_id, image_id, alias, released, rating, votecount, length_minutes, description, image_path, titles, developers, staff, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y";
+pub const COLUMNS: &str = "game_id, image_id, alias, released, rating, votecount, length_minutes, description, image_path, titles, developers, staff, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y, showcase_focal_x, showcase_focal_y, showcase_mode";
 
 pub const DDL_COLUMNS: &str = r#"          game_id      TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
           image_id     TEXT,
@@ -406,8 +453,35 @@ pub const DDL_COLUMNS: &str = r#"          game_id      TEXT PRIMARY KEY REFEREN
           ambience_mode TEXT NOT NULL DEFAULT 'soft',
           ambience_plate INTEGER NOT NULL DEFAULT 0,
           ambience_focal_x INTEGER NOT NULL DEFAULT 50,
-          ambience_focal_y INTEGER NOT NULL DEFAULT 22
+          ambience_focal_y INTEGER NOT NULL DEFAULT 22,
+          showcase_focal_x INTEGER NOT NULL DEFAULT 50,
+          showcase_focal_y INTEGER NOT NULL DEFAULT 22,
+          showcase_mode TEXT NOT NULL DEFAULT 'soft'
 "#;
+
+pub const METADATA_ADD_COLUMNS: &[(&str, &str)] = &[
+    ("image_id", "TEXT"),
+    ("alias", "TEXT"),
+    ("released", "TEXT"),
+    ("rating", "REAL"),
+    ("votecount", "INTEGER"),
+    ("length_minutes", "INTEGER"),
+    ("description", "TEXT"),
+    ("image_path", "TEXT"),
+    ("titles", "TEXT"),
+    ("developers", "TEXT"),
+    ("staff", "TEXT"),
+    ("cover_focal_x", "INTEGER NOT NULL DEFAULT 50"),
+    ("cover_focal_y", "INTEGER NOT NULL DEFAULT 50"),
+    ("ambience_path", "TEXT"),
+    ("ambience_mode", "TEXT NOT NULL DEFAULT 'soft'"),
+    ("ambience_plate", "INTEGER NOT NULL DEFAULT 0"),
+    ("ambience_focal_x", "INTEGER NOT NULL DEFAULT 50"),
+    ("ambience_focal_y", "INTEGER NOT NULL DEFAULT 22"),
+    ("showcase_focal_x", "INTEGER NOT NULL DEFAULT 50"),
+    ("showcase_focal_y", "INTEGER NOT NULL DEFAULT 22"),
+    ("showcase_mode", "TEXT NOT NULL DEFAULT 'soft'"),
+];
 
 pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {
     let mut columns: Vec<&'static str> = Vec::new();
@@ -525,6 +599,24 @@ pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Va
             None => Value::Null,
         });
     }
+    if let Some(raw) = &patch.showcase_focal_x {
+        columns.push("showcase_focal_x");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.showcase_focal_y {
+        columns.push("showcase_focal_y");
+        values.push(match raw {
+            Some(v) => Value::Integer(*v),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.showcase_mode {
+        columns.push("showcase_mode");
+        values.push(Value::Text(raw.clone()));
+    }
     Ok((columns, values))
 }
 
@@ -564,6 +656,9 @@ pub struct MetaRow {
     pub ambience_plate: bool,
     pub ambience_focal_x: i64,
     pub ambience_focal_y: i64,
+    pub showcase_focal_x: i64,
+    pub showcase_focal_y: i64,
+    pub showcase_mode: String,
 }
 
 pub fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MetaRow> {
@@ -587,6 +682,9 @@ pub fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MetaRow> {
         ambience_plate: row.get("ambience_plate")?,
         ambience_focal_x: row.get("ambience_focal_x")?,
         ambience_focal_y: row.get("ambience_focal_y")?,
+        showcase_focal_x: row.get("showcase_focal_x")?,
+        showcase_focal_y: row.get("showcase_focal_y")?,
+        showcase_mode: row.get("showcase_mode")?,
     })
 }
 
@@ -612,6 +710,9 @@ pub fn to_api(row: &MetaRow) -> Result<GameMetadata> {
         ambience_plate: row.ambience_plate,
         ambience_focal_x: row.ambience_focal_x,
         ambience_focal_y: row.ambience_focal_y,
+        showcase_focal_x: row.showcase_focal_x,
+        showcase_focal_y: row.showcase_focal_y,
+        showcase_mode: row.showcase_mode.clone(),
     })
 }
 

@@ -9,6 +9,7 @@ pub enum AppError {
     Conflict(String),
     RateLimited,
     Upstream(String),
+    Migration(String),
     Cancelled,
     Db(rusqlite::Error),
     Json(serde_json::Error),
@@ -23,6 +24,7 @@ impl AppError {
             Self::Conflict(_) => ("conflict", false),
             Self::RateLimited => ("rate-limited", false),
             Self::Upstream(_) => ("upstream", true),
+            Self::Migration(_) => ("migration", true),
             Self::Cancelled => ("cancelled", false),
             Self::Db(_) => ("db", true),
             Self::Json(_) => ("json", true),
@@ -48,6 +50,7 @@ impl fmt::Display for AppError {
             Self::Io(e) => write!(f, "{e}"),
             Self::RateLimited => f.write_str("VNDB 请求太频繁，已触发限流，请稍后再试"),
             Self::Upstream(m) => write!(f, "VNDB 服务异常：{m}"),
+            Self::Migration(m) => write!(f, "数据库迁移失败：{m}"),
             Self::Cancelled => f.write_str("任务已取消"),
         }
     }
@@ -76,6 +79,12 @@ impl From<serde_json::Error> for AppError {
 impl From<std::io::Error> for AppError {
     fn from(e: std::io::Error) -> Self {
         Self::Io(e)
+    }
+}
+
+impl From<rusqlite_migration::Error> for AppError {
+    fn from(e: rusqlite_migration::Error) -> Self {
+        Self::Migration(e.to_string())
     }
 }
 

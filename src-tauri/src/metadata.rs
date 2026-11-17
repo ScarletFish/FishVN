@@ -32,9 +32,16 @@ pub fn upsert(conn: &Connection, game_id: &str, patch: &MetadataPatch) -> Result
     }
 
     let mut patch = patch.clone();
-    if cover_swapped(&get(conn, game_id)?, &patch) {
+    let current = get(conn, game_id)?;
+    if cover_swapped(&current, &patch) {
         patch.cover_focal_x = Some(Some(50));
         patch.cover_focal_y = Some(Some(50));
+    }
+    if ambience_swapped(&current, &patch) {
+        patch.ambience_focal_x = Some(Some(50));
+        patch.ambience_focal_y = Some(Some(22));
+        patch.showcase_focal_x = Some(Some(50));
+        patch.showcase_focal_y = Some(Some(22));
     }
 
     let (columns, mut values) = patch_columns(&patch)?;
@@ -111,5 +118,13 @@ fn cover_swapped(current: &Option<GameMetadata>, patch: &MetadataPatch) -> bool 
         return false;
     };
     let cur = current.as_ref().and_then(|m| m.image_path.clone());
+    cur != next.clone()
+}
+
+fn ambience_swapped(current: &Option<GameMetadata>, patch: &MetadataPatch) -> bool {
+    let Some(next) = patch.ambience_path.as_ref() else {
+        return false;
+    };
+    let cur = current.as_ref().and_then(|m| m.ambience_path.clone());
     cur != next.clone()
 }

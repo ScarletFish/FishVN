@@ -199,6 +199,7 @@ pub fn variant(err: &fishvn::error::AppError) -> &'static str {
         Conflict(_) => "Conflict",
         RateLimited => "RateLimited",
         Upstream(_) => "Upstream",
+        Migration(_) => "Migration",
         Cancelled => "Cancelled",
         Db(_) | Json(_) | Io(_) => "db",
     }
