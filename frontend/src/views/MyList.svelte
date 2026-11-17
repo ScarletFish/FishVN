@@ -35,9 +35,9 @@
   let unwatchItems = null;
 
   async function deleteGame(item) {
-    const ok = await confirm('deleteGame', { name: item.name });
-    if (!ok) return;
-    await api.deleteGame(item.id);
+    const result = await confirm('deleteGame', { name: item.name });
+    if (!result) return;
+    await api.deleteGame(item.id, result.removeFiles);
     notifyLibraryChanged();
     notifyLibraryTagsChanged();
     await load();

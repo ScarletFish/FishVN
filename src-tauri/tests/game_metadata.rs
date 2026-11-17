@@ -18,7 +18,7 @@ fn alias_patch(alias: &str) -> MetadataPatch {
 fn 删作品连带删掉元数据() {
     let db = Db::new();
     let id = new_game(&db, "待删");
-    metadata::upsert(&db, &id, &alias_patch("别名")).expect("写元数据失败");
+    metadata::upsert(&db, &id, &alias_patch("别名"), None).expect("写元数据失败");
 
     delete_game(&db, &id).expect("删除失败");
 
@@ -37,8 +37,8 @@ fn 一部作品只有一行重复写是更新() {
     let db = Db::new();
     let id = new_game(&db, "重复写");
 
-    metadata::upsert(&db, &id, &alias_patch("第一次")).unwrap();
-    metadata::upsert(&db, &id, &alias_patch("第二次")).unwrap();
+    metadata::upsert(&db, &id, &alias_patch("第一次"), None).unwrap();
+    metadata::upsert(&db, &id, &alias_patch("第二次"), None).unwrap();
 
     assert_eq!(
         metadata::get(&db, &id).unwrap().unwrap().alias.as_deref(),
@@ -75,6 +75,7 @@ fn 纯本地作品只填几个字段也存得下() {
             developers: Some(Some(vec!["同人社团".into()])),
             ..Default::default()
         },
+        None,
     )
     .expect("存本地资料失败");
 
@@ -100,6 +101,7 @@ fn 外层不给就不动内层置空才清掉() {
             released: Some(Some("2004-01-30".into())),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -110,6 +112,7 @@ fn 外层不给就不动内层置空才清掉() {
             alias: Some(None),
             ..Default::default()
         },
+        None,
     )
     .expect("只给别名就该成功");
     let after = metadata::get(&db, &id).unwrap().unwrap();
@@ -126,10 +129,13 @@ fn 空补丁没有可更新的字段() {
     let db = Db::new();
     let id = new_game(&db, "空补丁");
 
-    let err = metadata::upsert(&db, &id, &MetadataPatch::default()).unwrap_err();
+    let err = metadata::upsert(&db, &id, &MetadataPatch::default(), None).unwrap_err();
     assert_eq!(variant(&err), "BadRequest");
     assert_eq!(message(&err), "没有可更新的字段");
-    assert!(metadata::get(&db, &id).unwrap().is_none(), "拒绝后资料行保持为空");
+    assert!(
+        metadata::get(&db, &id).unwrap().is_none(),
+        "拒绝后资料行保持为空"
+    );
 }
 
 #[test]
@@ -139,7 +145,7 @@ fn 作品不存在时两个入口都报_not_found() {
 
     assert_eq!(variant(&metadata::get(&db, ghost).unwrap_err()), "NotFound");
     assert_eq!(
-        variant(&metadata::upsert(&db, ghost, &alias_patch("别名")).unwrap_err()),
+        variant(&metadata::upsert(&db, ghost, &alias_patch("别名"), None).unwrap_err()),
         "NotFound"
     );
 }
@@ -170,6 +176,7 @@ fn 标签往返保留关联属性() {
             tags: Some(Some(tags)),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -200,6 +207,7 @@ fn 只给名字的标签分配本地id() {
             }])),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -235,6 +243,7 @@ fn 标签整列替换() {
             ])),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -248,6 +257,7 @@ fn 标签整列替换() {
             }])),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -283,6 +293,7 @@ fn 本地化标题原样往返() {
             titles: Some(Some(titles.clone())),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -319,6 +330,7 @@ fn 制作人员整列替换且往返不断() {
             staff: Some(Some(staff.clone())),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -334,6 +346,7 @@ fn 制作人员整列替换且往返不断() {
             }])),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -435,6 +448,7 @@ fn 换封面时焦点重置为居中() {
             cover_focal_y: Some(Some(20)),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -447,6 +461,7 @@ fn 换封面时焦点重置为居中() {
             cover_focal_y: Some(Some(90)),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -468,6 +483,7 @@ fn 重复选同一张氛围图时焦点保持() {
             ambience_path: Some(Some("/a.png".into())),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
     metadata::upsert(
@@ -481,6 +497,7 @@ fn 重复选同一张氛围图时焦点保持() {
             showcase_focal_y: Some(Some(20)),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -491,6 +508,7 @@ fn 重复选同一张氛围图时焦点保持() {
             ambience_path: Some(Some("/a.png".into())),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -517,6 +535,7 @@ fn 换氛围图时两处焦点归位() {
             ambience_path: Some(Some("/a.png".into())),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
     metadata::upsert(
@@ -530,6 +549,7 @@ fn 换氛围图时两处焦点归位() {
             showcase_focal_y: Some(Some(20)),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -540,6 +560,7 @@ fn 换氛围图时两处焦点归位() {
             ambience_path: Some(Some("/b.png".into())),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -566,6 +587,7 @@ fn 清空氛围图也算换图() {
             ambience_path: Some(Some("/a.png".into())),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
     metadata::upsert(
@@ -579,6 +601,7 @@ fn 清空氛围图也算换图() {
             showcase_focal_y: Some(Some(20)),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -589,13 +612,11 @@ fn 清空氛围图也算换图() {
             ambience_path: Some(None),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
-    assert_eq!(
-        (stored.ambience_focal_x, stored.showcase_focal_y),
-        (50, 22)
-    );
+    assert_eq!((stored.ambience_focal_x, stored.showcase_focal_y), (50, 22));
 }
 
 #[test]
@@ -609,6 +630,7 @@ fn 不换封面只调焦点正常生效() {
             image_path: Some(Some("/covers/a.jpg".into())),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -620,6 +642,7 @@ fn 不换封面只调焦点正常生效() {
             cover_focal_y: Some(Some(20)),
             ..Default::default()
         },
+        None,
     )
     .unwrap();
 
@@ -641,6 +664,7 @@ fn 清空自定义横幅写回空值() {
             ambience_path: Some(Some("D:/kv.png".into())),
             ..Default::default()
         },
+        None,
     )
     .expect("写横幅失败");
 
@@ -651,6 +675,7 @@ fn 清空自定义横幅写回空值() {
             ambience_path: Some(None),
             ..Default::default()
         },
+        None,
     )
     .expect("清横幅失败");
 
@@ -658,4 +683,79 @@ fn 清空自定义横幅写回空值() {
         .expect("读元数据失败")
         .expect("元数据不该是空的");
     assert_eq!(stored.ambience_path, None, "清空后应回到跟随封面");
+}
+
+#[test]
+fn 保存时把库外封面复制进游戏目录() {
+    let db = Db::new();
+    let dir = tempfile::tempdir().unwrap();
+    let id = new_game(&db, "导入封面");
+    let outside = dir.path().join("选中的封面.jpg");
+    std::fs::write(&outside, b"fake jpeg bytes").unwrap();
+
+    let patch = MetadataPatch {
+        image_path: Some(Some(outside.to_string_lossy().into_owned())),
+        ..Default::default()
+    };
+    metadata::upsert(&db, &id, &patch, Some(dir.path())).unwrap();
+
+    let stored = metadata::get(&db, &id).unwrap().unwrap();
+    let path = stored.image_path.unwrap();
+    assert!(
+        path.contains(&id) && path.contains("source"),
+        "路径应改写为库内：{path}"
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), b"fake jpeg bytes");
+}
+
+#[test]
+fn 图片不存在时保存失败且不落库() {
+    let db = Db::new();
+    let dir = tempfile::tempdir().unwrap();
+    let id = new_game(&db, "坏图");
+    let missing = dir.path().join("不存在.jpg");
+
+    let patch = MetadataPatch {
+        image_path: Some(Some(missing.to_string_lossy().into_owned())),
+        alias: Some(Some("不该写进去".into())),
+        ..Default::default()
+    };
+    let err = metadata::upsert(&db, &id, &patch, Some(dir.path())).unwrap_err();
+    assert!(
+        message(&err).contains("图片文件不存在"),
+        "错误应说明原因：{}",
+        message(&err)
+    );
+
+    let stored = metadata::get(&db, &id).unwrap();
+    assert!(
+        stored.and_then(|m| m.alias).is_none(),
+        "保存失败时不应写入任何字段"
+    );
+}
+
+#[test]
+fn 导入多张图其中一张失败时不留已复制的文件() {
+    let db = Db::new();
+    let dir = tempfile::tempdir().unwrap();
+    let id = new_game(&db, "半途失败");
+    let good = dir.path().join("好的封面.jpg");
+    std::fs::write(&good, b"good bytes").unwrap();
+    let missing = dir.path().join("坏的横幅.jpg");
+
+    let patch = MetadataPatch {
+        image_path: Some(Some(good.to_string_lossy().into_owned())),
+        ambience_path: Some(Some(missing.to_string_lossy().into_owned())),
+        ..Default::default()
+    };
+    assert!(metadata::upsert(&db, &id, &patch, Some(dir.path())).is_err());
+
+    let source = dir.path().join("covers").join(&id).join("source");
+    let leftover: Vec<_> = std::fs::read_dir(&source)
+        .map(|entries| entries.flatten().collect())
+        .unwrap_or_default();
+    assert!(
+        leftover.is_empty(),
+        "失败后不该留下已复制的图：{leftover:?}"
+    );
 }

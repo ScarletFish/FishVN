@@ -220,7 +220,7 @@ parity 测试约束；`cover-src.js` 在 `DEV_HTTP` 下走这条路由，Tauri �
 - 资料行可有可无，且行不存在与行存在但字段为空是两种状态（「没填过」与「填了空的」），调用方要分得清
 - 作品正式名在 `games.name`，`game_metadata` 不重复存。VNDB 那份 `titles` 里已带 `official` / `main` 标记的正式标题，别名另存 `alias`
 - 状态行、安装行都随作品删除而清除（`CASCADE`）
-- `game_metadata.image_id` 是 VNDB 的 cv 编号，本项目**不写它**：下载判重靠 `covers/vndb/<cv 编号>.jpg` 是否存在，同步冲突靠 `image_path` 是否为空。`image_path` 是本地文件的位置，两者不是一回事
+- `game_metadata.image_id` 是 VNDB 的 cv 编号，本项目**不写它**：下载判重靠 VNDB 编号在各游戏 `source/` 下是否有文件，同步冲突靠 `image_path` 是否为空。`image_path` 是本地文件的位置，两者不是一回事
 - JSON 文本列（`titles` / `tags` / `developers` / `staff` / `aliases` / `traits` / `gender` / `exes`）：库里是文本，对外一律给数组或结构；要按其中某个键筛，只能整列取出后在 Rust 侧解
 - `characters.id` 平时是 VNDB 的 c 编号，用户手建的行是 `local-<uuid>`，两种混排
 - `characters.traits` 是 trait 全量数组，本地录入不给入口，只有 VNDB 同步会写
@@ -269,7 +269,7 @@ parity 测试约束；`cover-src.js` 在 `DEV_HTTP` 下走这条路由，Tauri �
 两份清单都不收。`image` crate 关掉 default-features、只开这四种 —— 默认档会把 avif（libdav1d）
 与 exr/rayon/rav1e 那套拖进来。改一边就同步改另一边——没有构建检查兜底。
 
-封面从 `t.vndb.org` 拉取，落盘到 `covers/vndb/<cv 编号>.jpg`；该文件已存在即跳过下载。
+封面从 `t.vndb.org` 拉取，落盘到 `covers/<game_id>/source/<cv 或 ch 编号>.jpg`：图片按所属作品分目录，同一 VNDB 角色出现在多部作品时各存一份。判重按 VNDB 编号扫各游戏 `source/`——已有就复制到目标游戏目录，没有才下载，避免同一张图重复联网。
 网络读体中断时按 3 次退避重试（300ms 递增），仍失败才放弃该封面；HTTP 非 2xx 直接放弃、不重试。
 失败不写文件（没有半张图留盘），下次拉取元数据——表单里选中搜索结果即拉取，或批量补全——会重下
 该封面；单张失败只报错，不让整次同步失败。读超时与封面体积的约束见 [vndb-api.md](./vndb-api.md)
@@ -290,6 +290,13 @@ scope 够不着，必须走 `allow_local_file`。
 
 缓存内容寻址：路径、size、mtime 变了就是新 key，旧缓存自然失效，不必显式删。mtime 哈希到
 纳秒；size 一并参与哈希，兜底 mtime 精度粗的文件系统。
+
+缩图落在源图所属游戏的 `thumbs/` 下（库外源图落公共 `covers/thumbs/`），与 `source/` 同级。
+用户经表单选的本地图在保存时由 `metadata::upsert` 复制进该游戏 `source/` 并改写路径，图片缺失
+则整个保存失败、不落库；删游戏勾选「同时删除封面与立绘」时删整个 `covers/<game_id>/` 目录。
+
+目录结构由 `scripts/migrate_covers.py` 一次性迁移：按 `image_path` 搬文件、改写数据库路径，
+缩图不搬（旧 key 自然作废），旧集中池留作回滚点。
 
 ### 封面展示焦点
 

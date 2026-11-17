@@ -184,6 +184,7 @@ fn 列表带出封面路径_没有元数据行时为_none() {
             image_path: Some(Some("D:\\covers\\vndb\\cv75598.jpg".into())),
             ..Default::default()
         },
+        None,
     )
     .expect("写元数据失败");
 
@@ -215,6 +216,7 @@ fn 联表封面不放大安装计数() {
             image_path: Some(Some("D:\\covers\\cv1.jpg".into())),
             ..Default::default()
         },
+        None,
     )
     .expect("写元数据失败");
 
@@ -450,4 +452,32 @@ fn patch只给vndb_id置null不动name() {
     let game = get_game(&db, &id).unwrap();
     assert_eq!(game.vndb_id, None);
     assert_eq!(game.name, "只置空", "没给的字段不该被动到");
+}
+
+#[test]
+fn delete勾选时删游戏目录不勾选时保留() {
+    use fishvn::commands::delete_game_with_files;
+
+    let db = Db::new();
+    let tree = Tree::new();
+    let kept = new_game(&db, "保留文件");
+    let removed = new_game(&db, "删除文件");
+    for id in [&kept, &removed] {
+        let source = tree.root.join("covers").join(id).join("source");
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::write(source.join("cv1.jpg"), b"jpg").unwrap();
+    }
+
+    delete_game_with_files(&db, &kept, false, &tree.root).unwrap();
+    delete_game_with_files(&db, &removed, true, &tree.root).unwrap();
+
+    assert!(
+        tree.root.join("covers").join(&kept).is_dir(),
+        "不勾选时目录该留着"
+    );
+    assert!(
+        !tree.root.join("covers").join(&removed).exists(),
+        "勾选时目录该删掉"
+    );
+    assert!(find(&db, &kept).is_none() && find(&db, &removed).is_none());
 }

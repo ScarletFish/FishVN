@@ -74,8 +74,8 @@ export const api = {
     gamesCache = null;
     return result;
   },
-  deleteGame: async (id) => {
-    const result = await call('delete_game', { id });
+  deleteGame: async (id, removeFiles = false) => {
+    const result = await call('delete_game', { id, removeFiles });
     gamesCache = null;
     return result;
   },

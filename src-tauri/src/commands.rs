@@ -177,9 +177,32 @@ pub fn update_game(shared: Shared<'_>, id: String, patch: GamePatch) -> Result<G
     })
 }
 
+pub fn delete_game_with_files(
+    conn: &Connection,
+    id: &str,
+    remove_files: bool,
+    data_dir: &Path,
+) -> Result<()> {
+    if remove_files {
+        let dir = data_dir.join("covers").join(id);
+        if dir.is_dir() {
+            std::fs::remove_dir_all(&dir)?;
+        }
+    }
+    games::delete_game(conn, id)
+}
+
 #[tauri::command]
-pub fn delete_game(shared: Shared<'_>, id: String) -> Result<()> {
-    traced("delete_game", || games::delete_game(&*lock(&shared)?, &id))
+pub fn delete_game(
+    shared: Shared<'_>,
+    app: tauri::AppHandle,
+    id: String,
+    remove_files: bool,
+) -> Result<()> {
+    let dir = data_dir_or_err(&app)?;
+    traced("delete_game", || {
+        delete_game_with_files(&*lock(&shared)?, &id, remove_files, &dir)
+    })
 }
 
 #[tauri::command]
@@ -289,11 +312,13 @@ pub fn get_game_metadata(shared: Shared<'_>, id: String) -> Result<Option<GameMe
 #[tauri::command]
 pub fn update_game_metadata(
     shared: Shared<'_>,
+    app: tauri::AppHandle,
     id: String,
     patch: MetadataPatch,
 ) -> Result<GameMetadata> {
+    let dir = data_dir_or_err(&app)?;
     traced("update_game_metadata", || {
-        metadata::upsert(&*lock(&shared)?, &id, &patch)
+        metadata::upsert(&*lock(&shared)?, &id, &patch, Some(&dir))
     })
 }
 

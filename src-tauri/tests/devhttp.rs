@@ -176,12 +176,14 @@ fn 镜像命令按前端字段名取参() {
         "src": "D:\\pics\\cover.jpg",
         "path": "D:\\other\\file.jpg",
         "patch": {"theme": "dark"},
-        "merge": {"keep": "v1"}
+        "merge": {"keep": "v1"},
+        "remove_files": true
     }))
     .unwrap();
 
     assert_eq!(args.src().unwrap(), "D:\\pics\\cover.jpg");
     assert_eq!(args.path().unwrap(), "D:\\other\\file.jpg");
+    assert_eq!(args.remove_files, Some(true));
     assert_eq!(args.parse::<serde_json::Value>(args.patch.as_ref(), "patch").unwrap()["theme"], "dark");
     assert_eq!(args.parse::<serde_json::Value>(args.merge.as_ref(), "merge").unwrap()["keep"], "v1");
 }

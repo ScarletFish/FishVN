@@ -139,9 +139,9 @@
   async function removeGame() {
     menuOpen = false;
     try {
-      const ok = await confirm('deleteGame', { name: game?.name ?? '' });
-      if (!ok) return;
-      await api.deleteGame(gameId);
+      const result = await confirm('deleteGame', { name: game?.name ?? '' });
+      if (!result) return;
+      await api.deleteGame(gameId, result.removeFiles);
       notifyLibraryChanged();
       notifyLibraryTagsChanged();
       toast(t('detail.deleted'));

@@ -78,6 +78,10 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - `/dev-http` 是唯一的跨源转发入口，指向开发期 HTTP 通道；生产构建里没有它
 - 本地图片在 `DEV_HTTP` 下不走 `convertFileSrc`，改由 `cover-src.js` 生成 `/dev-http/file?path=...`，经 Vite 代理取本地字节；Tauri 模式保持 asset 协议那条路
 
+## 确认框返回值
+
+`confirm()` 对 `deleteGame` 返回 `{ confirmed, removeFiles }`，其他 action 返回布尔值；取消一律 `false`。删除游戏的三个入口（Dashboard / MyList / Detail）把 `removeFiles` 传给 `api.deleteGame(id, removeFiles)`，勾选后后端删整个 `covers/<game_id>/` 目录。新增确认场景沿用布尔返回，要带选项得在 `ConfirmDialog` 里显式加分支。
+
 ## 注释
 
 代码里不写注释，前端惯例写进本文与索引里的各分册。规则与例外见 [comments.md](./comments.md)。

@@ -67,6 +67,7 @@ fn spawn_image(
             Some(&job.url),
             job.thumb.as_deref(),
             Some(&job.image_id),
+            &job.game_id,
             &data_dir,
         )
         .await
@@ -111,6 +112,7 @@ pub(super) async fn fetch_image(
     url: Option<&str>,
     thumb: Option<&str>,
     id: Option<&str>,
+    game_id: &str,
     data_dir: &std::path::Path,
 ) -> std::result::Result<Option<String>, ImageError> {
     let (Some(url), Some(id)) = (url, id) else {
@@ -120,7 +122,7 @@ pub(super) async fn fetch_image(
         return Ok(None);
     }
 
-    let dir = data_dir.join("covers").join("vndb");
+    let dir = data_dir.join("covers").join(game_id).join("source");
     let dst = dir.join(format!("{id}.jpg"));
     if dst.is_file() {
         return Ok(Some(dst.to_string_lossy().into_owned()));
@@ -195,7 +197,10 @@ pub(super) async fn fetch_image(
         }
     }
     let e = last_err.unwrap_or(ImageError::Network);
-    tauri_plugin_log::log::warn!("图片下载失败 {url}（重试 {IMAGE_RETRIES} 次）：{}", e.code());
+    tauri_plugin_log::log::warn!(
+        "图片下载失败 {url}（重试 {IMAGE_RETRIES} 次）：{}",
+        e.code()
+    );
     Err(e)
 }
 
@@ -325,6 +330,7 @@ mod tests {
             Some(&format!("{base}/cv01.jpg")),
             Some(&format!("{base}/cv.t01.jpg")),
             Some("cv1"),
+            "g1",
             dir.path(),
         )
         .await
@@ -348,6 +354,7 @@ mod tests {
             Some(&format!("{base}/cv01.jpg")),
             Some(&format!("{base}/cv.t01.jpg")),
             Some("cv1"),
+            "g1",
             dir.path(),
         )
         .await
@@ -383,6 +390,7 @@ mod tests {
             Some(&format!("{base}/ch01.jpg")),
             None,
             Some("ch1"),
+            "g1",
             dir.path(),
         )
         .await
@@ -406,6 +414,7 @@ mod tests {
             Some(&format!("{base}/cv01.jpg")),
             Some(&format!("{base}/cv.t01.jpg")),
             Some("cv9"),
+            "g1",
             dir.path(),
         )
         .await
@@ -417,11 +426,46 @@ mod tests {
             Some("http://127.0.0.1:1/never.jpg"),
             None,
             Some("cv9"),
+            "g1",
             dir.path(),
         )
         .await
         .unwrap();
         assert_eq!(again, first, "本地已有同名文件时直接复用，不再发请求");
+    }
+
+    #[tokio::test]
+    async fn 另一游戏有同名图时仍下载到自己的目录() {
+        let app = Router::new().route("/cv01.jpg", get(|| async { vec![7u8; 24] }));
+        let base = serve(app).await;
+        let dir = tempfile::tempdir().unwrap();
+
+        let existing_dir = dir.path().join("covers").join("游戏甲").join("source");
+        std::fs::create_dir_all(&existing_dir).unwrap();
+        std::fs::write(existing_dir.join("cv9.jpg"), vec![9u8; 8]).unwrap();
+
+        let path = fetch_image(
+            &client(),
+            Some(&format!("{base}/cv01.jpg")),
+            None,
+            Some("cv9"),
+            "游戏乙",
+            dir.path(),
+        )
+        .await
+        .unwrap()
+        .expect("判重只看自己的目录，应走下载");
+
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            vec![7u8; 24],
+            "应是新下载的内容"
+        );
+        assert_eq!(
+            std::fs::read(existing_dir.join("cv9.jpg")).unwrap(),
+            vec![9u8; 8],
+            "别的游戏的文件不该被动"
+        );
     }
 
     #[test]

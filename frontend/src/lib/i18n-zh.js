@@ -421,6 +421,7 @@ export const DICT_ZH = {
     deleteGame: {
       title: '删除游戏',
       message: '《{name}》将从列表中移除，游玩记录与安装记录一并删除；磁盘上的文件不会被删除',
+      removeFiles: '同时删除封面与立绘',
       confirm: '删除',
       cancel: '取消',
     },

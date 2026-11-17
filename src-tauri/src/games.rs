@@ -145,7 +145,7 @@ pub fn create_game(conn: &Connection, input: &NewGame) -> Result<Game> {
         params![&game.id, DEFAULT_STATUS],
     )?;
     if let Some(patch) = &input.metadata {
-        metadata::upsert(&tx, &game.id, patch)?;
+        metadata::upsert(&tx, &game.id, patch, None)?;
     }
     tx.commit()?;
     crate::sync::invalidate_plan();

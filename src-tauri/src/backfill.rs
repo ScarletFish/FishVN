@@ -543,7 +543,7 @@ async fn apply_sync(
             let has_dict_tags = crate::tagstore::has_dict_tags(&guard, &game_id)?;
             if let Some(patch) = patch_for(current.as_ref(), &sync, has_dict_tags) {
                 filled = patch.filled_labels();
-                metadata::upsert(&guard, &game_id, &patch)?;
+                metadata::upsert(&guard, &game_id, &patch, None)?;
             }
             let char_count = apply_characters(&guard, &game_id, &sync.characters)?;
             Ok::<(Vec<&'static str>, usize), AppError>((filled, char_count))

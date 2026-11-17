@@ -1,7 +1,9 @@
 mod common;
 
 use common::{new_game_in as new_game, Db};
-use fishvn::backfill::{BindSource, ItemState, items_by_ids, patch_for, reset, scan, status_or_plan};
+use fishvn::backfill::{
+    items_by_ids, patch_for, reset, scan, status_or_plan, BindSource, ItemState,
+};
 use fishvn::metadata;
 use fishvn::types::MetadataPatch;
 use fishvn::vndb::VnSync;
@@ -46,18 +48,28 @@ fn 扫描只收资料有空白的作品() {
     let no_characters = new_game(&db, "没角色");
     let complete = new_game(&db, "齐全");
 
-    metadata::upsert(&db, &no_desc, &MetadataPatch {
-        image_path: Some(Some("/covers/a.jpg".into())),
-        ..Default::default()
-    })
+    metadata::upsert(
+        &db,
+        &no_desc,
+        &MetadataPatch {
+            image_path: Some(Some("/covers/a.jpg".into())),
+            ..Default::default()
+        },
+        None,
+    )
     .unwrap();
-    metadata::upsert(&db, &no_cover, &MetadataPatch {
-        description: Some(Some("有简介".into())),
-        ..Default::default()
-    })
+    metadata::upsert(
+        &db,
+        &no_cover,
+        &MetadataPatch {
+            description: Some(Some("有简介".into())),
+            ..Default::default()
+        },
+        None,
+    )
     .unwrap();
-    metadata::upsert(&db, &no_characters, &full_meta_patch()).unwrap();
-    metadata::upsert(&db, &complete, &full_meta_patch()).unwrap();
+    metadata::upsert(&db, &no_characters, &full_meta_patch(), None).unwrap();
+    metadata::upsert(&db, &complete, &full_meta_patch(), None).unwrap();
     fishvn::characters::replace_all(
         &db,
         &complete,
@@ -84,7 +96,10 @@ fn 扫描带上未绑定作品由匹配阶段补_id() {
     let id = new_game(&db, "没绑 VNDB");
 
     let items = scan(&db).unwrap();
-    let item = items.iter().find(|i| i.game_id == id).expect("未绑定也要收");
+    let item = items
+        .iter()
+        .find(|i| i.game_id == id)
+        .expect("未绑定也要收");
     assert_eq!(item.name, "没绑 VNDB");
     assert_eq!(item.vndb_id, None);
 }
@@ -93,7 +108,7 @@ fn 扫描带上未绑定作品由匹配阶段补_id() {
 fn 没跑过补全时状态里先摆出计划清单() {
     let db = Db::new();
     let bare = new_game(&db, "啥都没有");
-    metadata::upsert(&db, &bare, &full_meta_patch()).unwrap();
+    metadata::upsert(&db, &bare, &full_meta_patch(), None).unwrap();
     fishvn::characters::replace_all(
         &db,
         &bare,
@@ -146,11 +161,16 @@ fn 按_id_取条目过滤且空列表不求值() {
 fn 按空白判定的补丁落库后旧值不动新值填上() {
     let db = Db::new();
     let id = new_game(&db, "半填");
-    metadata::upsert(&db, &id, &MetadataPatch {
-        alias: Some(Some("用户别名".into())),
-        description: Some(Some("用户简介".into())),
-        ..Default::default()
-    })
+    metadata::upsert(
+        &db,
+        &id,
+        &MetadataPatch {
+            alias: Some(Some("用户别名".into())),
+            description: Some(Some("用户简介".into())),
+            ..Default::default()
+        },
+        None,
+    )
     .unwrap();
 
     let sync = VnSync {
@@ -163,12 +183,25 @@ fn 按空白判定的补丁落库后旧值不动新值填上() {
         },
         characters: vec![],
     };
-    let patch = patch_for(metadata::get(&db, &id).unwrap().as_ref(), &sync, false).expect("还有空白字段");
-    metadata::upsert(&db, &id, &patch).unwrap();
+    let patch =
+        patch_for(metadata::get(&db, &id).unwrap().as_ref(), &sync, false).expect("还有空白字段");
+    metadata::upsert(&db, &id, &patch, None).unwrap();
 
     let after = metadata::get(&db, &id).unwrap().unwrap();
-    assert_eq!(after.alias.as_deref(), Some("用户别名"), "用户填过的别名不能被覆盖");
-    assert_eq!(after.description.as_deref(), Some("用户简介"), "用户填过的简介不能被覆盖");
-    assert_eq!(after.released.as_deref(), Some("2020-05-01"), "空白的发行日要填上");
+    assert_eq!(
+        after.alias.as_deref(),
+        Some("用户别名"),
+        "用户填过的别名不能被覆盖"
+    );
+    assert_eq!(
+        after.description.as_deref(),
+        Some("用户简介"),
+        "用户填过的简介不能被覆盖"
+    );
+    assert_eq!(
+        after.released.as_deref(),
+        Some("2020-05-01"),
+        "空白的发行日要填上"
+    );
     assert_eq!(after.rating, Some(80.5), "空白的评分要填上");
 }

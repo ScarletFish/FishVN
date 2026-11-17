@@ -58,6 +58,8 @@ pub struct Args {
     #[serde(default)]
     pub id: Option<String>,
     #[serde(default)]
+    pub remove_files: Option<bool>,
+    #[serde(default)]
     pub input: Option<Value>,
     #[serde(default)]
     pub merge: Option<Value>,
@@ -230,7 +232,17 @@ handler!(create_game, |c, a| games::create_game(
 handler!(update_game, |c, a| {
     games::update_game(c, a.id()?, &a.parse(a.patch.as_ref(), "patch")?)
 });
-handler!(delete_game, |c, a| games::delete_game(c, a.id()?));
+async fn delete_game(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let id = a.id()?.to_owned();
+    let dir = crate::data_dir(&dev.app)
+        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    finish(commands::delete_game_with_files(
+        &dev.conn.lock().unwrap(),
+        &id,
+        a.remove_files.unwrap_or(false),
+        &dir,
+    ))
+}
 handler!(get_game_state, |c, a| games::get_game_state(c, a.id()?));
 handler!(update_game_state, |c, a| {
     games::update_game_state(c, a.id()?, &a.parse(a.patch.as_ref(), "patch")?)
@@ -259,9 +271,12 @@ handler!(get_game_metadata, |c, a| metadata::get(c, a.id()?));
 handler!(write_text_file, |_c, a| {
     commands::write_text_file_impl(a.need(a.path.as_ref(), "path")?, a.need(a.contents.as_ref(), "contents")?)
 });
-handler!(update_game_metadata, |c, a| {
-    metadata::upsert(c, a.id()?, &a.parse(a.patch.as_ref(), "patch")?)
-});
+async fn update_game_metadata(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let patch: crate::types::MetadataPatch = a.parse(a.patch.as_ref(), "patch")?;
+    let dir = crate::data_dir(&dev.app)
+        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    finish(metadata::upsert(&dev.conn.lock().unwrap(), a.id()?, &patch, Some(&dir)))
+}
 handler!(list_game_characters, |c, a| characters::list(c, a.id()?));
 handler!(list_staff, |c, _a| characters::list_all_staff(c));
 handler!(update_staff, |c, a| {

@@ -14,8 +14,9 @@ npm-debug.log*
 # agent 截图
 .openchamber/
 
-# 本地工具脚本（个人维护，不入库）
+# 本地工具脚本（一次性/工具性）
 scripts/make_hero.py
+scripts/migrate_covers.py
 
 # agent 记忆与工作区数据
 docs/dev/plans

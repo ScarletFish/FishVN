@@ -19,7 +19,7 @@ pub fn cached(src: &str, data_dir: &Path) -> Result<PathBuf> {
         return Err(AppError::BadRequest("封面不是文件".into()));
     }
 
-    let dir = data_dir.join("covers");
+    let dir = cache_dir(&src, data_dir);
     let dst = dir.join(format!("{}.jpg", cache_key(&src, &meta)));
     if dst.is_file() {
         return Ok(dst);
@@ -27,6 +27,16 @@ pub fn cached(src: &str, data_dir: &Path) -> Result<PathBuf> {
     std::fs::create_dir_all(&dir)?;
     generate(&src, &dst)?;
     Ok(dst)
+}
+
+fn cache_dir(src: &Path, data_dir: &Path) -> PathBuf {
+    let root = data_dir.join("covers");
+    if let Ok(rel) = src.strip_prefix(&root) {
+        if let Some(game_id) = rel.components().next() {
+            return root.join(game_id).join("thumbs");
+        }
+    }
+    root.join("thumbs")
 }
 
 fn cache_key(src: &Path, meta: &std::fs::Metadata) -> u64 {
@@ -140,6 +150,34 @@ mod tests {
         out.extend(&jpeg[2..]);
         std::fs::File::create(&p).unwrap().write_all(&out).unwrap();
         p
+    }
+
+    #[test]
+    fn 库内源图的缩图落到所属游戏目录() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src_dir = tmp.path().join("covers").join("游戏甲").join("source");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        let src = src_dir.join("cover.jpg");
+        std::fs::copy(sample_with_exif(tmp.path(), 700, 980, 1), &src).unwrap();
+
+        let out = cached(src.to_str().unwrap(), tmp.path()).unwrap();
+        assert!(
+            out.starts_with(tmp.path().join("covers").join("游戏甲").join("thumbs")),
+            "缩图应在游戏自己的 thumbs 下：{}",
+            out.display()
+        );
+    }
+
+    #[test]
+    fn 库外源图的缩图落公共目录() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = sample(tmp.path(), 700, 980);
+        let out = cached(src.to_str().unwrap(), tmp.path()).unwrap();
+        assert!(
+            out.starts_with(tmp.path().join("covers").join("thumbs")),
+            "缩图应在公共 thumbs 下：{}",
+            out.display()
+        );
     }
 
     #[test]
