@@ -171,6 +171,10 @@ devhttp 的 parity 测试会比对 `COMMANDS` 与 `commands.rs` 声明的命令�
 snake_case，裸 HTTP 没有这层转换。前端日志命令（`log_frontend`）不经 devhttp——浏览器
 会话的前端异常直接看 devtools，对应豁免记录在 devhttp 集成测试里。
 
+`GET /file?path=<本地路径>` 是唯一的非命令路由，直接回传本地图片字节并按扩展名设
+Content-Type，供浏览器模式渲染封面。它不经 `Json` 包装，因此不进 `COMMANDS` 清单，也不受
+parity 测试约束；`cover-src.js` 在 `DEV_HTTP` 下走这条路由，Tauri 模式仍走 asset 协议。
+
 ### 日志
 
 日志走 `tauri-plugin-log`，写入系统日志目录（Windows 为 `%LOCALAPPDATA%\{bundleIdentifier}\logs`），单文件 5MB 触发轮转并保留一个备份，时间戳用本地时区，级别默认 `info`，可用环境变量 `FISHVN_LOG_LEVEL` 覆盖（`off` / `error` / `warn` / `info` / `debug` / `trace`，写错或留空回落到 `info`）。开发与安装版写同一处，排查问题直接看这个目录。

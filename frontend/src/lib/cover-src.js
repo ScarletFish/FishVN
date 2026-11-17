@@ -1,8 +1,13 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { api } from './api.js';
+import { DEV_HTTP, DEV_HTTP_BASE } from './env.js';
 
 const cache = new Map();
 const inFlight = new Map();
+
+function httpFileUrl(path) {
+  return `${DEV_HTTP_BASE}/file?path=${encodeURIComponent(path)}`;
+}
 
 function load(key, produce) {
   const hit = cache.get(key);
@@ -25,7 +30,11 @@ export function coverSrc(path) {
   if (!path) return Promise.resolve(null);
 
   return load(path, () =>
-    api.thumbnail(path).then((thumb) => api.allowLocalFile(thumb).then(() => convertFileSrc(thumb)))
+    api.thumbnail(path).then((thumb) =>
+      DEV_HTTP
+        ? httpFileUrl(thumb)
+        : api.allowLocalFile(thumb).then(() => convertFileSrc(thumb))
+    )
   );
 }
 
@@ -33,6 +42,8 @@ export function fullSrc(path) {
   if (!path) return Promise.resolve(null);
 
   return load(`full:${path}`, () =>
-    api.allowLocalFile(path).then(() => convertFileSrc(path))
+    DEV_HTTP
+      ? Promise.resolve(httpFileUrl(path))
+      : api.allowLocalFile(path).then(() => convertFileSrc(path))
   );
 }

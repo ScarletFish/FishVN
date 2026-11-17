@@ -76,6 +76,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 - 测试态把 `resolve.conditions` 设为 `['browser']`：svelte 要解析到浏览器构建，SSR 构建里 `mount()` 直接抛错。非测试态**完全不写 `resolve` 键** —— 写成 `conditions: []` 同样会顶掉 vite 的默认条件，产物里会混进 svelte 的服务端模块（构建不报错，只有运行才炸）
 - dev server 的 `host` / `port` 必须与 `tauri.conf.json` 的 `devUrl` 同协议族、同端口：写 `localhost` 会让 vite 只绑 `::1`，devUrl 的 IPv4 字面量就够不着；`strictPort: true` 让端口占用直接失败，不自动往上换 —— 换了端口 devUrl 就指空
 - `/dev-http` 是唯一的跨源转发入口，指向开发期 HTTP 通道；生产构建里没有它
+- 本地图片在 `DEV_HTTP` 下不走 `convertFileSrc`，改由 `cover-src.js` 生成 `/dev-http/file?path=...`，经 Vite 代理取本地字节；Tauri 模式保持 asset 协议那条路
 
 ## 注释
 

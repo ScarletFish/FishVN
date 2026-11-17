@@ -1,5 +1,8 @@
 //! devhttp 的路由是命令层的镜像，两边手写维护。加命令时漏了路由，
 //! 编译照过，浏览器里只看到一个看不出原因的 404
+//!
+//! file_response 的反例：content-type 写死或按错扩展名、字节被改写、
+//! 跳过扩展名校验、跳过文件存在校验，对应用例分别变红
 
 #![cfg(debug_assertions)]
 
@@ -7,6 +10,7 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use axum::http::StatusCode;
 use fishvn::tasks::EventLog;
 use fishvn::types::TaskEvent;
 use futures_util::StreamExt;
@@ -136,4 +140,48 @@ fn 路由表覆盖全部命令() {
         extra.is_empty(),
         "devhttp 里有 commands.rs 没有的命令：{extra:?}"
     );
+}
+
+#[tokio::test]
+async fn 文件路由按扩展名回传字节与类型() {
+    let dir = tempfile::tempdir().unwrap();
+    let bytes = vec![7u8, 11, 13, 17];
+    let path = dir.path().join("cover.png");
+    std::fs::write(&path, &bytes).unwrap();
+
+    let resp = fishvn::devhttp::file_response(path.to_str().unwrap());
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(resp.headers().get("content-type").unwrap(), "image/png");
+    let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(body.as_ref(), bytes);
+}
+
+#[test]
+fn 文件路由对非图片扩展名返回400() {
+    let resp = fishvn::devhttp::file_response("C:\\pics\\notes.txt");
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[test]
+fn 文件路由对不存在的图片返回404() {
+    let resp = fishvn::devhttp::file_response("C:\\pics\\missing.png");
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[test]
+fn 镜像命令按前端字段名取参() {
+    let args: fishvn::devhttp::Args = serde_json::from_value(serde_json::json!({
+        "src": "D:\\pics\\cover.jpg",
+        "path": "D:\\other\\file.jpg",
+        "patch": {"theme": "dark"},
+        "merge": {"keep": "v1"}
+    }))
+    .unwrap();
+
+    assert_eq!(args.src().unwrap(), "D:\\pics\\cover.jpg");
+    assert_eq!(args.path().unwrap(), "D:\\other\\file.jpg");
+    assert_eq!(args.parse::<serde_json::Value>(args.patch.as_ref(), "patch").unwrap()["theme"], "dark");
+    assert_eq!(args.parse::<serde_json::Value>(args.merge.as_ref(), "merge").unwrap()["keep"], "v1");
 }

@@ -1,10 +1,11 @@
 use std::collections::VecDeque;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use axum::body::Body;
 use axum::extract::{Query, State as AxumState};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{header::CONTENT_TYPE, HeaderMap, HeaderValue, StatusCode};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -59,6 +60,8 @@ pub struct Args {
     #[serde(default)]
     pub input: Option<Value>,
     #[serde(default)]
+    pub merge: Option<Value>,
+    #[serde(default)]
     pub patch: Option<Value>,
     #[serde(default)]
     pub game_id: Option<String>,
@@ -69,9 +72,9 @@ pub struct Args {
     #[serde(default)]
     pub path: Option<String>,
     #[serde(default)]
-    pub contents: Option<String>,
+    pub src: Option<String>,
     #[serde(default)]
-    pub config: Option<Value>,
+    pub contents: Option<String>,
     #[serde(default)]
     pub characters: Option<Value>,
     #[serde(default)]
@@ -125,6 +128,10 @@ impl Args {
 
     pub fn path(&self) -> Result<&str> {
         self.need(self.path.as_ref(), "path")
+    }
+
+    pub fn src(&self) -> Result<&str> {
+        self.need(self.src.as_ref(), "src")
     }
 
     pub fn task(&self) -> Result<&str> {
@@ -258,11 +265,11 @@ handler!(update_game_metadata, |c, a| {
 handler!(list_game_characters, |c, a| characters::list(c, a.id()?));
 handler!(list_staff, |c, _a| characters::list_all_staff(c));
 handler!(update_staff, |c, a| {
-    let patch: characters::StaffUpdate = a.parse(a.input.as_ref(), "input")?;
+    let patch: characters::StaffUpdate = a.parse(a.patch.as_ref(), "patch")?;
     characters::update_staff(c, &patch)
 });
 handler!(merge_staff, |c, a| {
-    let merge: characters::StaffMerge = a.parse(a.input.as_ref(), "input")?;
+    let merge: characters::StaffMerge = a.parse(a.merge.as_ref(), "merge")?;
     characters::merge_staff(c, &merge)
 });
 handler!(save_game_characters, |c, a| {
@@ -500,13 +507,10 @@ async fn tag_dictionary(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -
 }
 
 async fn update_config(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
-    let config: settings::AppConfig = a.parse(a.config.as_ref(), "config")?;
+    let patch: settings::ConfigPatch = a.parse(a.patch.as_ref(), "patch")?;
     let dir = crate::data_dir(&dev.app)
         .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
-    finish(
-        settings::update(&dir, config)
-            .map(|_| settings::current()),
-    )
+    finish(settings::patch(&dir, patch))
 }
 
 handler!(apply_sync_plan, |c, a| {
@@ -633,9 +637,50 @@ async fn resume_backfill(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) 
 
 async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
     finish(
-        a.path()
+        a.src()
             .and_then(|p| commands::thumbnail(dev.app.clone(), p.to_owned())),
     )
+}
+
+#[derive(Deserialize)]
+struct FileQuery {
+    path: String,
+}
+
+fn image_mime(path: &str) -> Option<&'static str> {
+    let ext = Path::new(path).extension()?.to_str()?.to_ascii_lowercase();
+    match ext.as_str() {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        "bmp" => Some("image/bmp"),
+        _ => None,
+    }
+}
+
+fn try_file_response(path: &str) -> std::result::Result<Response, Fail> {
+    let path = path.trim();
+    let Some(mime) = image_mime(path) else {
+        return Err(Fail(StatusCode::BAD_REQUEST, format!("不支持的图片格式：{path}")));
+    };
+    let bytes = std::fs::read(path)
+        .map_err(|e| Fail(StatusCode::NOT_FOUND, format!("读文件失败：{e}")))?;
+    let mut resp = Response::new(Body::from(bytes));
+    resp.headers_mut()
+        .insert(CONTENT_TYPE, HeaderValue::from_static(mime));
+    Ok(resp)
+}
+
+pub fn file_response(path: &str) -> Response {
+    match try_file_response(path) {
+        Ok(resp) => resp,
+        Err(e) => e.into_response(),
+    }
+}
+
+async fn file(Query(q): Query<FileQuery>) -> Response {
+    file_response(&q.path)
 }
 
 pub fn router(dev: Dev) -> Router {
@@ -693,6 +738,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/restore_backup", post(restore_backup))
         .route("/delete_backup", post(delete_backup))
         .route("/thumbnail", post(thumbnail))
+        .route("/file", get(file))
         .route("/get_config", post(get_config))
         .route("/tag_dictionary", post(tag_dictionary))
         .route("/update_config", post(update_config))
