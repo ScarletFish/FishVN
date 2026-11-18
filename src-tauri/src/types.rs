@@ -145,6 +145,8 @@ pub struct GameListItem {
     pub cover_path: Option<String>,
     pub cover_focal_x: Option<i64>,
     pub cover_focal_y: Option<i64>,
+    pub series_name: Option<String>,
+    pub sort_name: Option<String>,
     pub va_names: Option<String>,
     pub va_original_names: Option<String>,
     pub tag_names: Option<String>,
@@ -333,7 +335,8 @@ mod tests {
                 "ambience_mode":"soft","ambience_plate":true,
                 "ambience_focal_x":50,"ambience_focal_y":22,
                 "showcase_focal_x":50,"showcase_focal_y":22,
-                "showcase_mode":"soft"}"#,
+                "showcase_mode":"soft",
+                "series_name":"S","sort_name":"01"}"#,
         )
         .unwrap();
 

@@ -20,7 +20,7 @@
     LIBRARY_CHANGED,
   } from '../lib/library-events.js';
   import { openForm } from '../lib/add-game.svelte.js';
-  import { dashboardSort, dashboardGroup, gameComparator } from '../lib/list-sort.svelte.js';
+  import { dashboardSort, dashboardGroup, gameComparator, groupBySeries } from '../lib/list-sort.svelte.js';
   import { neighborsFromSections } from '../lib/detail-nav.js';
   import SortSelect from '../components/SortSelect.svelte';
   import Seg from '../components/Seg.svelte';
@@ -51,17 +51,23 @@
     HOME_STATUS_KEYS.map((status) => ({
       status,
       label: statusLabel(status),
-      items: games
-        .filter(
-          (game) => game.status === status && (includeUninstalled || game.installation_count > 0)
-        )
-        .sort(gameComparator(dashboardSort.by)),
+      items: groupBySeries(
+        games
+          .filter(
+            (game) => game.status === status && (includeUninstalled || game.installation_count > 0)
+          )
+          .sort(gameComparator(dashboardSort.by))
+      ),
     })).filter((section) => section.items.length > 0)
   );
 
-  const localNeighborIds = $derived(neighborsFromSections(localSections));
+  const localFlatItems = $derived(groupBySeries(localSections.flatMap((s) => s.items)));
+  const localNeighborIds = $derived(
+    dashboardGroup.by === 'flat'
+      ? localFlatItems.map((g) => g.id)
+      : neighborsFromSections(localSections)
+  );
   const recentNeighborIds = $derived(recent.map((g) => g.id));
-  const localFlatItems = $derived(localSections.flatMap((s) => s.items));
 
   function openLocal(item) {
     const card = document.querySelector(

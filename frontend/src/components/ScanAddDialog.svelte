@@ -1,6 +1,7 @@
 <script>
   import Icon from './Icon.svelte';
   import Modal from './Modal.svelte';
+  import SuggestField from './SuggestField.svelte';
   import { t } from '../lib/i18n.js';
   import { api } from '../lib/api.js';
   import { subscribe } from '../lib/events.js';
@@ -136,7 +137,7 @@
       try {
         const game = await api.createGame({ name: c.name });
         await api.saveInstallations(game.id, [
-          { id: null, dir_path: c.dir_path, entry_path: entries[c.dir_path] || null },
+          { id: null, dir_path: c.dir_path, entry_path: (entries[c.dir_path] ?? '').trim() || null },
         ]);
         added += 1;
       } catch {
@@ -180,7 +181,7 @@
     </div>
     <div class="scan-rows-scroll" use:panelScrollbars>
       <ul class="scan-rows">
-        {#each candidates as c, index (c.dir_path)}
+        {#each candidates as c (c.dir_path)}
           <li class="scan-row" class:is-registered={c.registered}>
             <label>
               <input
@@ -191,20 +192,15 @@
                 onchange={() => toggle(c.dir_path)}
               />
               <span class="scan-row__name">{c.name}</span>
-              <input
-                type="text"
-                class="scan-row__entry"
-                list={`scan-exes-${index}`}
+              <SuggestField
+                class="scan-row__entry-wrap"
+                inputClass="scan-row__entry"
                 value={entries[c.dir_path] ?? ''}
+                options={c.exes}
                 disabled={c.registered}
-                aria-label={t('scan.entryOf', { name: c.name })}
-                onchange={(e) => setEntry(c.dir_path, e.currentTarget.value.trim())}
+                ariaLabel={t('scan.entryOf', { name: c.name })}
+                onchange={(next) => setEntry(c.dir_path, next)}
               />
-              <datalist id={`scan-exes-${index}`}>
-                {#each c.exes as exe (exe)}
-                  <option value={exe}></option>
-                {/each}
-              </datalist>
               {#if ambiguous(c)}
                 <span
                   class="scan-row__hint"

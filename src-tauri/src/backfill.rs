@@ -385,6 +385,8 @@ pub fn patch_for(
         showcase_focal_x: None,
         showcase_focal_y: None,
         showcase_mode: None,
+        series_name: None,
+        sort_name: None,
         titles: fill(is_blank_current(&cur, "titles"), map_titles(vn)),
         tags: fill(!has_dict_tags, map_tags(vn)),
         developers: fill(is_blank_current(&cur, "developers"), map_developers(vn)),

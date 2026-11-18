@@ -16,7 +16,7 @@
     LIBRARY_CHANGED,
   } from '../lib/library-events.js';
   import { openForm, getAddGameMenuItems } from '../lib/add-game.svelte.js';
-  import { gameComparator, myListSort, myListGroup } from '../lib/list-sort.svelte.js';
+  import { gameComparator, groupBySeries, myListSort, myListGroup } from '../lib/list-sort.svelte.js';
   import Menu from '../components/Menu.svelte';
   import SortSelect from '../components/SortSelect.svelte';
   import Seg from '../components/Seg.svelte';
@@ -111,18 +111,24 @@
     STATUS_KEYS.map((status) => ({
       status,
       label: statusLabel(status),
-      items: filtered.filter((g) => g.status === status),
+      items: groupBySeries(filtered.filter((g) => g.status === status)),
     })).filter((s) => s.items.length > 0)
   );
 
-  const neighborIds = $derived(filtered.map((g) => g.id));
+  const flatItems = $derived(groupBySeries(filtered));
+
+  const neighborIds = $derived(
+    myListGroup.by === 'flat'
+      ? flatItems.map((g) => g.id)
+      : neighborsFromSections(sections)
+  );
 
   const scrollAnim = createScrollAnim();
 
   const animSig = $derived(
     loading || error || filtered.length === 0
       ? null
-      : `${filter}|${filtered.map((g) => g.id).join(',')}`
+      : `${filter}|${flatItems.map((g) => g.id).join(',')}`
   );
 
   $effect(() => {
@@ -213,15 +219,15 @@
     </div>
   {:else}
     {#if myListGroup.by === 'flat'}
-      {#if filtered.length >= 60}
-        <WindowedGrid items={filtered}>
+      {#if flatItems.length >= 60}
+        <WindowedGrid items={flatItems}>
           {#snippet children(item)}
             <GameCard {item} onopen={() => openFromCard(item)} onedit={openForm} ondelet={deleteGame} />
           {/snippet}
         </WindowedGrid>
       {:else}
         <div class="cover-grid">
-          {#each filtered as item (item.id)}
+          {#each flatItems as item (item.id)}
             <GameCard {item} onopen={() => openFromCard(item)} onedit={openForm} ondelet={deleteGame} />
           {/each}
         </div>

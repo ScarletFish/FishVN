@@ -24,6 +24,8 @@
     { "key": "ambience_focal_y", "sql": "ambience_focal_y", "ty": "integer", "nullable": false, "item": null, "col_def": "INTEGER NOT NULL DEFAULT 22", "clearable": true, "blank": "not_applicable", "label": null, "source": "local", "editable": true, "in_patch": true },
     { "key": "showcase_focal_x", "sql": "showcase_focal_x", "ty": "integer", "nullable": false, "item": null, "col_def": "INTEGER NOT NULL DEFAULT 50", "clearable": true, "blank": "not_applicable", "label": null, "source": "local", "editable": false, "in_patch": true },
     { "key": "showcase_focal_y", "sql": "showcase_focal_y", "ty": "integer", "nullable": false, "item": null, "col_def": "INTEGER NOT NULL DEFAULT 22", "clearable": true, "blank": "not_applicable", "label": null, "source": "local", "editable": false, "in_patch": true },
-    { "key": "showcase_mode", "sql": "showcase_mode", "ty": "mode", "nullable": false, "item": null, "col_def": "TEXT NOT NULL DEFAULT 'soft'", "clearable": false, "blank": "not_applicable", "label": null, "source": "local", "editable": false, "in_patch": true }
+    { "key": "showcase_mode", "sql": "showcase_mode", "ty": "mode", "nullable": false, "item": null, "col_def": "TEXT NOT NULL DEFAULT 'soft'", "clearable": false, "blank": "not_applicable", "label": null, "source": "local", "editable": false, "in_patch": true },
+    { "key": "series_name", "sql": "series_name", "ty": "text", "nullable": true, "item": null, "col_def": "TEXT", "clearable": true, "blank": "trim_empty", "label": null, "source": "local", "editable": true, "in_patch": true },
+    { "key": "sort_name", "sql": "sort_name", "ty": "text", "nullable": true, "item": null, "col_def": "TEXT", "clearable": true, "blank": "trim_empty", "label": null, "source": "local", "editable": true, "in_patch": true }
   ]
 }

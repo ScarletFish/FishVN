@@ -83,6 +83,11 @@
   white-space: nowrap;
 }
 
+.scan-row__entry-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
 .scan-row__entry {
   flex: 1;
   min-width: 0;

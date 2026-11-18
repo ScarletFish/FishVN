@@ -4,9 +4,13 @@
   import { DEFAULT_STATUS, statusOptions } from '../../lib/status.js';
   import PlaytimeField from '../PlaytimeField.svelte';
   import SelectDd from '../SelectDd.svelte';
+  import SuggestField from '../SuggestField.svelte';
 
   let {
     name = $bindable(''),
+    seriesName = $bindable(''),
+    sortName = $bindable(''),
+    seriesOptions = [],
     status = $bindable(DEFAULT_STATUS),
     statusOpen = $bindable(false),
     userRating = $bindable(null),
@@ -67,6 +71,29 @@
     {#if nameError}
       <p class="form-hint form-hint--error">{nameError}</p>
     {/if}
+  </div>
+
+  <div class="form-group">
+    <label for="game-form-series">{t('gameForm.field.seriesName')}</label>
+    <SuggestField
+      id="game-form-series"
+      bind:value={seriesName}
+      options={seriesOptions}
+      placeholder={t('gameForm.placeholder.seriesName')}
+      disabled={saving}
+    />
+    <p class="form-hint">{t('gameForm.hint.sortFields')}</p>
+  </div>
+
+  <div class="form-group">
+    <label for="game-form-sort">{t('gameForm.field.sortName')}</label>
+    <input
+      id="game-form-sort"
+      type="text"
+      bind:value={sortName}
+      placeholder={t('gameForm.placeholder.sortName')}
+      disabled={saving}
+    />
   </div>
 
   <div class="form-group">

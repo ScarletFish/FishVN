@@ -660,6 +660,10 @@ export const DICT_ZH = {
       tech: '技术向',
     },
   },
+  suggestField: {
+    toggle: '展开候选',
+    empty: '无匹配候选，可直接输入',
+  },
   gameForm: {
     title: '添加游戏',
     namePlaceholder: '新游戏',
@@ -672,6 +676,8 @@ export const DICT_ZH = {
     },
     field: {
       name: '游戏名',
+      seriesName: '系列名',
+      sortName: '系列内序号',
       status: '状态',
       userRating: '我的评分',
       notes: '感想',
@@ -724,6 +730,7 @@ export const DICT_ZH = {
       sampleAlias: '副标题',
     },
     hint: {
+      sortFields: '仅用于列表排序，相同系列名的作品会聚成一组',
       ratingScale: '0～100（百分制）',
       userRating: '0～100（百分制）',
       staff: '详情页将按职能分组展示',
@@ -731,6 +738,8 @@ export const DICT_ZH = {
     },
     placeholder: {
       notes: '写点什么……',
+      seriesName: '如：命运石之门',
+      sortName: '如：01、02',
       empty: '尚未同步',
       rating: '0～100',
       votecount: '如 19334',

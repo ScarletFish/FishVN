@@ -481,3 +481,19 @@ fn delete勾选时删游戏目录不勾选时保留() {
     );
     assert!(find(&db, &kept).is_none() && find(&db, &removed).is_none());
 }
+
+#[test]
+fn 系列与排序字段随元数据写入并出现在列表() {
+    let db = Db::new();
+    let id = new_game(&db, "壳之少女");
+    let patch = MetadataPatch {
+        series_name: Some(Some("之少女".into())),
+        sort_name: Some(Some("01".into())),
+        ..Default::default()
+    };
+    metadata::upsert(&db, &id, &patch, None).unwrap();
+
+    let item = find(&db, &id).expect("作品应在列表里");
+    assert_eq!(item.series_name.as_deref(), Some("之少女"));
+    assert_eq!(item.sort_name.as_deref(), Some("01"));
+}

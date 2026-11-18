@@ -72,6 +72,9 @@
   let touched = $state({});
 
   let alias = $state('');
+  let seriesName = $state('');
+  let sortName = $state('');
+  let seriesOptions = $state([]);
   let released = $state('');
   let rating = $state('');
   let votecount = $state('');
@@ -223,6 +226,8 @@
       touched = {};
       released = '';
       alias = '';
+      seriesName = '';
+      sortName = '';
       rating = '';
       votecount = '';
       lengthMinutes = '';
@@ -254,6 +259,13 @@
       loading = Boolean(gameId);
       loadTagDict();
       loadLibraryTags();
+      api.listGames()
+        .then((list) => {
+          seriesOptions = [...new Set(list.map((g) => g.series_name?.trim()).filter(Boolean))].sort(
+            (a, b) => a.localeCompare(b, 'zh-CN')
+          );
+        })
+        .catch(() => {});
       if (gameId) {
         loadExisting(gameId);
       } else if (prefill) {
@@ -289,6 +301,8 @@
       notes = state.notes ?? '';
       released = meta?.released ?? '';
       alias = meta?.alias ?? '';
+      seriesName = meta?.series_name ?? '';
+      sortName = meta?.sort_name ?? '';
       rating = meta?.rating != null ? String(meta.rating) : '';
       votecount = meta?.votecount != null ? String(meta.votecount) : '';
       lengthMinutes = meta?.length_minutes != null ? String(meta.length_minutes) : '';
@@ -413,6 +427,8 @@
     }
     const patch = buildMetadataPatch({
       alias,
+      seriesName,
+      sortName,
       released,
       rating,
       votecount,
@@ -483,7 +499,7 @@
   asideTitle={asideMode === 'tags' ? t('tagPicker.title') : asideMode === 'traits' ? t('tagPicker.titleTraits') : t('gameForm.search.title')}
   onclose={close}
 >
-  <form class="form-panel" onsubmit={submit}>
+  <form class="form-panel" autocomplete="off" onsubmit={submit}>
     <Tabs.Root bind:value={() => tab, selectTab}>
       <Tabs.List class="modal-tabs">
         {#each TABS as key (key)}
@@ -501,6 +517,9 @@
       <div class="modal-panel" class:active={tab === 'basic'}>
         <BasicPanel
           bind:name
+          bind:seriesName
+          bind:sortName
+          {seriesOptions}
           bind:status
           bind:statusOpen
           bind:userRating

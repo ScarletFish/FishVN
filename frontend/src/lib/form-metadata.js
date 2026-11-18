@@ -92,6 +92,8 @@ export function buildStatePatch({ status, userRating, notes, playSeconds }) {
 export function buildMetadataPatch(fields) {
   return {
     alias: (fields.alias ?? '').trim() || null,
+    series_name: (fields.seriesName ?? '').trim() || null,
+    sort_name: (fields.sortName ?? '').trim() || null,
     released: (fields.released ?? '').trim() || null,
     rating: toNumber(fields.rating),
     votecount: toInteger(fields.votecount),

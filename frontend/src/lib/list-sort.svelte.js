@@ -48,3 +48,41 @@ export function gameComparator(by) {
   if (by === 'added') return (a, b) => b.created_at - a.created_at;
   return (a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'zh-CN');
 }
+
+function compareSortName(a, b) {
+  const x = a.sort_name?.trim() ?? '';
+  const y = b.sort_name?.trim() ?? '';
+  if (!x && !y) return 0;
+  if (!x) return 1;
+  if (!y) return -1;
+  return x.localeCompare(y, 'zh-CN');
+}
+
+export function groupBySeries(items) {
+  if (!items?.length) return items ?? [];
+
+  const buckets = new Map();
+  for (const item of items) {
+    const series = item.series_name?.trim();
+    if (!series) continue;
+    if (!buckets.has(series)) buckets.set(series, []);
+    buckets.get(series).push(item);
+  }
+  for (const [series, members] of buckets) {
+    if (members.length < 2) buckets.delete(series);
+  }
+
+  const emitted = new Set();
+  const out = [];
+  for (const item of items) {
+    const series = item.series_name?.trim();
+    if (series && buckets.has(series)) {
+      if (emitted.has(series)) continue;
+      emitted.add(series);
+      out.push(...buckets.get(series).slice().sort(compareSortName));
+    } else {
+      out.push(item);
+    }
+  }
+  return out;
+}

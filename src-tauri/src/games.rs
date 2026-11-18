@@ -22,6 +22,8 @@ const LIST_GAMES_SQL: &str = "SELECT g.id, g.name, g.vndb_id, g.created_at,
                 m.image_path AS cover_path,
                 m.cover_focal_x AS cover_focal_x,
                 m.cover_focal_y AS cover_focal_y,
+                m.series_name AS series_name,
+                m.sort_name AS sort_name,
                 m.alias AS alias,
                 m.rating AS vndb_rating,
                 (SELECT GROUP_CONCAT(DISTINCT TRIM(s.name || ' ' || COALESCE(s.original, '')))
@@ -37,7 +39,7 @@ const LIST_GAMES_SQL: &str = "SELECT g.id, g.name, g.vndb_id, g.created_at,
          JOIN user_game_state s ON s.game_id = g.id
          LEFT JOIN installations i ON i.game_id = g.id
          LEFT JOIN game_metadata m ON m.game_id = g.id
-         GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y, m.alias, m.rating";
+         GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y, m.series_name, m.sort_name, m.alias, m.rating";
 
 pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
     let sql = format!("{LIST_GAMES_SQL} {GAME_ORDER_SQL}");
@@ -57,6 +59,8 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
             cover_path: row.get("cover_path")?,
             cover_focal_x: row.get("cover_focal_x")?,
             cover_focal_y: row.get("cover_focal_y")?,
+            series_name: row.get("series_name")?,
+            sort_name: row.get("sort_name")?,
             va_names: row.get("va_names")?,
             va_original_names: row.get("va_original_names")?,
             tag_names: None,

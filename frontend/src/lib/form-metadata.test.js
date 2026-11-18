@@ -30,6 +30,8 @@ test('只读的本地化标题进补丁但不进表单', () => {
 function blank() {
   return {
     alias: '',
+    seriesName: '',
+    sortName: '',
     released: '',
     rating: '',
     votecount: '',
@@ -162,6 +164,8 @@ test('平均时长只拦负数与非数字，没填的不算错', () => {
 test('空白表单其余字段全 null，焦点回落默认值', () => {
   expect(buildMetadataPatch(blank())).toEqual({
     alias: null,
+    series_name: null,
+    sort_name: null,
     released: null,
     rating: null,
     votecount: null,

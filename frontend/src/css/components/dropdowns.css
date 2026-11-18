@@ -52,16 +52,6 @@
   color: var(--fg-secondary);
 }
 
-.select-dd-chevron {
-  flex-shrink: 0;
-  color: var(--fg-muted);
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-
-.select-dd.is-open .select-dd-chevron {
-  transform: rotate(180deg);
-}
-
 .select-dd-menu {
   position: absolute;
   top: calc(100% + var(--space-1));

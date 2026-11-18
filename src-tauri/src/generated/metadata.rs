@@ -69,6 +69,8 @@ pub struct GameMetadata {
     pub showcase_focal_x: i64,
     pub showcase_focal_y: i64,
     pub showcase_mode: String,
+    pub series_name: Option<String>,
+    pub sort_name: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, serde::Deserialize)]
@@ -112,6 +114,10 @@ pub struct MetadataPatch {
     #[serde(default, deserialize_with = "crate::types::double_option")]
     pub showcase_focal_y: Option<Option<i64>>,
     pub showcase_mode: Option<String>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub series_name: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::types::double_option")]
+    pub sort_name: Option<Option<String>>,
 }
 
 impl MetadataPatch {
@@ -400,6 +406,30 @@ pub const METADATA_FIELDS: &[FieldSpec] = &[
         in_patch: true,
         joined: false,
     },
+    FieldSpec {
+        key: "series_name",
+        sql: "series_name",
+        ty: FieldType::Text,
+        clearable: true,
+        blank: BlankRule::TrimEmpty,
+        label: None,
+        source: ValueSource::Local,
+        editable: true,
+        in_patch: true,
+        joined: false,
+    },
+    FieldSpec {
+        key: "sort_name",
+        sql: "sort_name",
+        ty: FieldType::Text,
+        clearable: true,
+        blank: BlankRule::TrimEmpty,
+        label: None,
+        source: ValueSource::Local,
+        editable: true,
+        in_patch: true,
+        joined: false,
+    },
 ];
 
 pub fn is_set(patch: &crate::types::MetadataPatch, key: &str) -> bool {
@@ -425,6 +455,8 @@ pub fn is_set(patch: &crate::types::MetadataPatch, key: &str) -> bool {
         "showcase_focal_x" => patch.showcase_focal_x.is_some(),
         "showcase_focal_y" => patch.showcase_focal_y.is_some(),
         "showcase_mode" => patch.showcase_mode.is_some(),
+        "series_name" => patch.series_name.is_some(),
+        "sort_name" => patch.sort_name.is_some(),
         _ => false,
     }
 }
@@ -433,7 +465,7 @@ pub fn field(key: &str) -> Option<&'static FieldSpec> {
     METADATA_FIELDS.iter().find(|f| f.key == key)
 }
 
-pub const COLUMNS: &str = "game_id, image_id, alias, released, rating, votecount, length_minutes, description, image_path, titles, developers, staff, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y, showcase_focal_x, showcase_focal_y, showcase_mode";
+pub const COLUMNS: &str = "game_id, image_id, alias, released, rating, votecount, length_minutes, description, image_path, titles, developers, staff, cover_focal_x, cover_focal_y, ambience_path, ambience_mode, ambience_plate, ambience_focal_x, ambience_focal_y, showcase_focal_x, showcase_focal_y, showcase_mode, series_name, sort_name";
 
 pub const DDL_COLUMNS: &str = r#"          game_id      TEXT PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
           image_id     TEXT,
@@ -456,7 +488,9 @@ pub const DDL_COLUMNS: &str = r#"          game_id      TEXT PRIMARY KEY REFEREN
           ambience_focal_y INTEGER NOT NULL DEFAULT 22,
           showcase_focal_x INTEGER NOT NULL DEFAULT 50,
           showcase_focal_y INTEGER NOT NULL DEFAULT 22,
-          showcase_mode TEXT NOT NULL DEFAULT 'soft'
+          showcase_mode TEXT NOT NULL DEFAULT 'soft',
+          series_name  TEXT,
+          sort_name    TEXT
 "#;
 
 pub const METADATA_ADD_COLUMNS: &[(&str, &str)] = &[
@@ -481,6 +515,8 @@ pub const METADATA_ADD_COLUMNS: &[(&str, &str)] = &[
     ("showcase_focal_x", "INTEGER NOT NULL DEFAULT 50"),
     ("showcase_focal_y", "INTEGER NOT NULL DEFAULT 22"),
     ("showcase_mode", "TEXT NOT NULL DEFAULT 'soft'"),
+    ("series_name", "TEXT"),
+    ("sort_name", "TEXT"),
 ];
 
 pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Value>)> {
@@ -617,6 +653,20 @@ pub fn patch_columns(patch: &MetadataPatch) -> Result<(Vec<&'static str>, Vec<Va
         columns.push("showcase_mode");
         values.push(Value::Text(raw.clone()));
     }
+    if let Some(raw) = &patch.series_name {
+        columns.push("series_name");
+        values.push(match raw {
+            Some(v) => Value::Text(v.clone()),
+            None => Value::Null,
+        });
+    }
+    if let Some(raw) = &patch.sort_name {
+        columns.push("sort_name");
+        values.push(match raw {
+            Some(v) => Value::Text(v.clone()),
+            None => Value::Null,
+        });
+    }
     Ok((columns, values))
 }
 
@@ -632,6 +682,8 @@ pub fn is_blank_current(meta: &GameMetadata, key: &str) -> bool {
         "titles" => meta.titles.as_ref().is_none_or(|v| v.is_empty()),
         "developers" => meta.developers.as_ref().is_none_or(|v| v.is_empty()),
         "staff" => meta.staff.as_ref().is_none_or(|v| v.is_empty()),
+        "series_name" => meta.series_name.as_deref().is_none_or(|v| v.trim().is_empty()),
+        "sort_name" => meta.sort_name.as_deref().is_none_or(|v| v.trim().is_empty()),
         _ => false,
     }
 }
@@ -659,6 +711,8 @@ pub struct MetaRow {
     pub showcase_focal_x: i64,
     pub showcase_focal_y: i64,
     pub showcase_mode: String,
+    pub series_name: Option<String>,
+    pub sort_name: Option<String>,
 }
 
 pub fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MetaRow> {
@@ -685,6 +739,8 @@ pub fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MetaRow> {
         showcase_focal_x: row.get("showcase_focal_x")?,
         showcase_focal_y: row.get("showcase_focal_y")?,
         showcase_mode: row.get("showcase_mode")?,
+        series_name: row.get("series_name")?,
+        sort_name: row.get("sort_name")?,
     })
 }
 
@@ -713,6 +769,8 @@ pub fn to_api(row: &MetaRow) -> Result<GameMetadata> {
         showcase_focal_x: row.showcase_focal_x,
         showcase_focal_y: row.showcase_focal_y,
         showcase_mode: row.showcase_mode.clone(),
+        series_name: row.series_name.clone(),
+        sort_name: row.sort_name.clone(),
     })
 }
 
