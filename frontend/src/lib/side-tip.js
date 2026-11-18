@@ -1,4 +1,5 @@
 import { subscribeTheme } from './theme.js';
+import { createTipBody } from './tip-body.js';
 
 const SHOW_DELAY = 400;
 const HIDE_DELAY = 120;
@@ -6,13 +7,16 @@ const HIDE_DELAY = 120;
 const tip = document.createElement('div');
 tip.className = 'sidebar-tooltip';
 
-const text = document.createElement('div');
-text.className = 'sidebar-tooltip-text';
+const bubble = document.createElement('div');
+bubble.className = 'sidebar-tooltip-text';
+
+const body = createTipBody();
+bubble.append(body.root);
 
 const arrow = document.createElement('div');
 arrow.className = 'sidebar-tooltip-arrow';
 
-tip.append(text, arrow);
+tip.append(bubble, arrow);
 document.body.appendChild(tip);
 
 let showTimer = null;
@@ -49,13 +53,17 @@ function hideInstant() {
   });
 }
 
+function apply(node, label) {
+  body.set(label, node.getAttribute('data-tip-key'));
+}
+
 function reveal(node) {
   const label = node.getAttribute('data-tip');
   if (!label) {
     hideNow();
     return;
   }
-  text.textContent = label;
+  apply(node, label);
   const box = node.getBoundingClientRect();
   tip.style.top = box.top + box.height / 2 + 'px';
   tip.classList.add('is-visible');
@@ -69,9 +77,9 @@ function watch(node) {
       hideNow();
       return;
     }
-    if (tip.classList.contains('is-visible')) text.textContent = label;
+    if (tip.classList.contains('is-visible')) apply(node, label);
   });
-  watcher.observe(node, { attributes: true, attributeFilter: ['data-tip'] });
+  watcher.observe(node, { attributes: true, attributeFilter: ['data-tip', 'data-tip-key'] });
 }
 
 document.addEventListener('mouseover', (event) => {

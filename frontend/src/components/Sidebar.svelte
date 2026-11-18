@@ -6,11 +6,12 @@
 
 <aside class="sidebar" class:collapsed inert={collapsed} aria-hidden={collapsed}>
   <nav class="sidebar-nav">
-    {#each items as item (item.id)}
+    {#each items as item, i (item.id)}
       <button
         class="nav-btn"
         class:active={current === item.id}
         data-tip={item.tip ?? item.label}
+        data-tip-key={i + 1}
         aria-label={item.label}
         aria-current={current === item.id ? 'page' : undefined}
         onmousedown={(event) => event.preventDefault()}

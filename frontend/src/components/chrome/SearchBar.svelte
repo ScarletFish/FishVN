@@ -397,6 +397,7 @@
       class="titlebar__iconbtn"
       aria-label={t('titlebar.search')}
       data-tooltip={t('titlebar.search')}
+      data-tooltip-key="Ctrl+F"
       onclick={(e) => {
         e.stopPropagation();
         openPanel();

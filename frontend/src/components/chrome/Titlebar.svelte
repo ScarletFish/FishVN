@@ -75,6 +75,7 @@
       class:is-collapsed={sidebarCollapsed}
       aria-label={sidebarCollapsed ? t('titlebar.expandSidebar') : t('titlebar.collapseSidebar')}
       data-tooltip={sidebarCollapsed ? t('titlebar.expandSidebar') : t('titlebar.collapseSidebar')}
+      data-tooltip-key="Ctrl+B"
       onclick={ontogglesidebar}
     >
       <Icon name="sidebar" size="lg" />
@@ -107,14 +108,9 @@
     <SearchBar {onsettings} />
   </div>
 
-  <div class="titlebar__brandblock">
-    <span class="titlebar__mark">
-      <svg viewBox="18 18 547 307"><use href="#fishvn-fish"></use></svg>
-    </span>
-    <span class="titlebar__brand"
-      ><span class="titlebar__brand-fish">Fish</span><span class="titlebar__brand-vn">VN</span></span
-    >
-  </div>
+  <span class="titlebar__brand"
+    ><span class="titlebar__brand-fish">Fish</span><span class="titlebar__brand-vn">VN</span></span
+  >
 
   <div class="titlebar__controls">
     <button
@@ -123,7 +119,7 @@
       aria-label={t('titlebar.minimize')}
       onclick={() => tauriWin?.minimize()}
     >
-      <svg viewBox="0 0 14 14"><line x1="3" y1="7" x2="11" y2="7" stroke="currentColor" stroke-width="1.5" /></svg>
+      <Icon name="minus" size="md" />
     </button>
     <button
       type="button"
@@ -135,11 +131,7 @@
           .then(updateMaximizeIcon)
           .catch(() => {})}
     >
-      {#if maximized}
-        <svg viewBox="0 0 14 14"><rect x="4.5" y="5.5" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" /><path d="M2 2.5h7.5v1H3v6.5H2V2.5z" fill="currentColor" /></svg>
-      {:else}
-        <svg viewBox="0 0 14 14"><rect x="3" y="3" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" /></svg>
-      {/if}
+      <Icon name={maximized ? 'copy' : 'square'} size="md" />
     </button>
     <button
       type="button"
@@ -147,7 +139,7 @@
       aria-label={t('common.close')}
       onclick={() => tauriWin?.close()}
     >
-      <svg viewBox="0 0 14 14"><line x1="4" y1="4" x2="10" y2="10" stroke="currentColor" stroke-width="1.5" /><line x1="10" y1="4" x2="4" y2="10" stroke="currentColor" stroke-width="1.5" /></svg>
+      <Icon name="x" size="md" />
     </button>
   </div>
 </div>

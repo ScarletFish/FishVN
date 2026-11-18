@@ -39,6 +39,7 @@
   import { syncShowCardTitle } from './lib/card-prefs.js';
   import { syncReduceMotion } from './lib/motion.js';
   import { getSidebarCollapsed, setSidebarCollapsed } from './lib/sidebar-pref.js';
+  import { navKeyIndex, isSidebarToggleKey } from './lib/shortcuts.js';
   import { notifyConfigChanged } from './lib/config-events.js';
   import { getScrollViewport } from './lib/scrollbars.js';
   import { addGame } from './lib/add-game.svelte.js';
@@ -334,6 +335,26 @@
     closeDetail();
   }
 
+  function onGlobalKeydown(event) {
+    const appBlocked = document.getElementById('app')?.inert;
+    if (isSidebarToggleKey(event)) {
+      if (appBlocked) return;
+      event.preventDefault();
+      toggleSidebar();
+      return;
+    }
+    const index = navKeyIndex(event, NAV.length);
+    if (index === null) return;
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable))
+      return;
+    if (appBlocked) return;
+    if (document.querySelector('.titlebar__search.is-open')) return;
+    event.preventDefault();
+    leaveView();
+    current = NAV[index].id;
+  }
+
   $effect(() => {
     function onOpenGame(e) {
       openDetail(e.detail);
@@ -344,6 +365,7 @@
   });
 </script>
 
+<svelte:window onkeydown={onGlobalKeydown} />
 <IconContext values={{ weight: 'regular', color: 'currentColor' }}>
 <div class="shell">
   <Titlebar

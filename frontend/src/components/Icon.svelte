@@ -31,6 +31,9 @@
   import DotsThreeVerticalIcon from 'phosphor-svelte/lib/DotsThreeVerticalIcon';
   import DotsSixVerticalIcon from 'phosphor-svelte/lib/DotsSixVerticalIcon';
   import SidebarSimpleIcon from 'phosphor-svelte/lib/SidebarSimpleIcon';
+  import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
+  import SquareIcon from 'phosphor-svelte/lib/SquareIcon';
+  import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
 
   const ICONS = {
     house: HouseIcon,
@@ -65,6 +68,9 @@
     'dots-three': DotsThreeVerticalIcon,
     'dots-six': DotsSixVerticalIcon,
     sidebar: SidebarSimpleIcon,
+    minus: MinusIcon,
+    square: SquareIcon,
+    copy: CopyIcon,
   };
 
   const SIZE_CLASS = {

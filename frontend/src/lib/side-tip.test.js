@@ -64,6 +64,27 @@ test('侧栏气泡全局只有一枚，换项就地换字，离开才收起', as
   vi.useRealTimers();
 });
 
+test('带快捷键标记的项出编号徽标，换到无标记的项即收起', () => {
+  vi.useFakeTimers();
+  const first = button('首页');
+  first.setAttribute('data-tip-key', '1');
+  const second = button('设置');
+
+  enter(first);
+  vi.advanceTimersByTime(400);
+  const key = tipEl().querySelector('.tip-key');
+  expect(key.textContent).toBe('1');
+  expect(key.hidden).toBe(false);
+
+  enter(second);
+  expect(key.textContent).toBe('');
+  expect(key.hidden).toBe(true);
+
+  first.remove();
+  second.remove();
+  vi.useRealTimers();
+});
+
 test('主题落定即收起气泡，不等指针移动也不走淡出', async () => {
   vi.useFakeTimers();
   const el = button('切换日间 / 夜间');

@@ -1,9 +1,15 @@
 
+import { createTipBody } from './tip-body.js';
+
 const SHOW_DELAY = 500;
 const HIDE_DELAY = 80;
 
 const el = document.createElement('div');
 el.id = 'globalTooltip';
+
+const body = createTipBody();
+el.append(body.root);
+
 document.body.appendChild(el);
 
 let showTimer = null;
@@ -29,7 +35,7 @@ document.addEventListener('mouseover', (e) => {
 
   showTimer = setTimeout(() => {
     el.classList.toggle('is-rich', target.hasAttribute('data-tooltip-rich'));
-    el.textContent = target.getAttribute('data-tooltip');
+    body.set(target.getAttribute('data-tooltip'), target.getAttribute('data-tooltip-key'));
     position(entryX, entryY);
     el.classList.remove('is-exiting');
     el.classList.add('is-visible');

@@ -4,15 +4,19 @@
 
 默认视图是首页（`App.svelte` 的 `current` 初值 `'home'`），模块按 `config.dashboard_layout` 的顺序渲染，只渲染认识的模块 id，配置里多余的 id 被忽略。模块的注册表、开关与调序的纯函数在 `lib/dashboard-layout.js`，设置弹窗与首页共用这一份。首页监听 `lib/config-events.js` 的 `CONFIG_CHANGED` 事件并整页重载——设置弹窗每次成功保存配置后必须广播，否则首页与统计口径不刷新。品牌页的就绪事件（`app:ready`）由「启动时实际挂载的那个视图」派发——MyList 与 Dashboard 的首次加载各自派发，监听侧 `{ once: true }`，重复派发无害；新增默认视图或改默认视图时必须确认这条链路有人接手。
 
+## 快捷键
+
+数字键 `1`~`6` 按侧栏顺序切页，编号是 `NAV` 数组下标 + 1，不硬编码页 id；`Ctrl+B` 开合侧栏。键位判定在 `lib/shortcuts.js`，上下文守卫留在 `App.svelte`：数字键跳过可编辑元素、`#app` 的 `inert` 与搜索面板展开，`Ctrl+B` 只受 `inert` 拦；两者都跳过修饰键组合与输入法组合。侧栏气泡的编号走 `data-tip-key`，标题栏按钮走 `data-tooltip-key`。
+
 ## 启动页
 
 窗口以 `visible: false` 创建，前端在「内容就绪」与「加载页该出现」两者先到者处 show，Rust 侧 1.5 秒兜底。窗口出现时必定已有内容：快机直接是完整首页，慢机是同一帧出现的加载页，中间没有空白窗口。窗口背景色在 setup 里按已存主题设置，先于 webview 首帧，深色用户看不到浅色底；主题选跟随系统时按窗口当前系统主题解析。
 
 `splash` 是纯 HTML/CSS，JS 不执行也照样显示 —— 前端整体挂掉时 Rust 兜底 show 出来的是静态加载页，不是空窗。判定落在 `index.html` 的内联脚本里：内容在该阈值内就绪则窗口跳过加载页，否则窗口与加载页同时出现。加载页有最短可见时长，避免出现即被撤走。
 
-品牌鱼形只有一份 `path`：`index.html` 的 `#fishvn-fish` 精灵。启动页大图标与标题栏单色鱼都靠 `<use>` 引用它，换鱼形只改这一处。同一份 path 有两种用法：启动页是负形（`--splash-accent` 底色、鱼挖成白），标题栏是正形（`color: var(--accent)`），不另画一套。
+品牌鱼形只有一份 `path`：`index.html` 的 `#fishvn-fish` 精灵，启动页大图标靠 `<use>` 引用它，换鱼形只改这一处。启动页是负形用法（`--splash-accent` 底色、鱼挖成白）。
 
-`frontend/public/favicon.svg` 与 `src-tauri/icons/*` 是构建期资源，拿不到运行时 token，因此是品牌的独立拷贝：底色写死浅色默认 `--accent`，鱼写死 `--fg-on-accent`，不跟主题或色系联动——外部识别锚定默认品牌色是有意为之。改图标用 `npx tauri icon frontend/public/favicon.svg -o src-tauri/icons` 重生成，多出来的 `android/`、`ios/` 删掉；鱼占方块宽度的比例写了两遍（favicon 的 `transform`、启动页 `#splash .brand-mark svg` 的 `width`），改一处要两处一起改。
+`frontend/public/favicon.svg` 与 `src-tauri/icons/*` 是构建期资源，拿不到运行时 token，因此是品牌的独立拷贝：底色写死浅色默认 `--accent`，鱼写死 `--fg-on-accent`，不跟主题或色系联动——外部识别锚定默认品牌色是有意为之。设置里「关于」页的 112px 大图直接取 `/favicon.svg`，不走精灵的 `<use>`，改品牌图时两处一起看。改图标用 `npx tauri icon frontend/public/favicon.svg -o src-tauri/icons` 重生成，多出来的 `android/`、`ios/` 删掉；鱼占方块宽度的比例写了两遍（favicon 的 `transform`、启动页 `#splash .brand-mark svg` 的 `width`），改一处要两处一起改。
 
 ## 窗口尺寸
 
