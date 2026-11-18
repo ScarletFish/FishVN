@@ -394,7 +394,8 @@ body {
   --showcase-clear-bottom: calc(
     var(--showcase-thumb-w) * 4 / 3 + var(--space-2) * 2 + var(--space-5)
   ); /* 展厅清晰层下沿：缩略图条高 + 条内上下内边距 + 底栏下内边距 */
-  --backfill-panel-w: 23.75rem; /* 380px  补全页右栏宽，定宽才能做推动展开 */
+  --backfill-panel-w: 26rem; /* 416px  补全页右栏宽，定宽才能做推动展开 */
+  --backfill-panel-cover-w: 12rem; /* 192px  面板详情封面宽，3:4 后高 256px */
   --backfill-cand-w: 6rem; /* 96px  补全面板候选封面宽，3:4 后高 128px */
   --menu-plain-size: 1.75rem; /* 28px  裸图标菜单按钮的边长 */
   --toggle-w: 2.5rem;  /* 40px  开关轨道默认宽，--sm 覆盖为 32px */

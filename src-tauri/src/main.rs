@@ -253,6 +253,8 @@ fn main() {
             commands::backfill_item,
             commands::pause_backfill,
             commands::resume_backfill,
+            commands::backfill_runs,
+            commands::backfill_run,
             commands::inspect_path,
             commands::scan_dir,
             commands::dir_size,

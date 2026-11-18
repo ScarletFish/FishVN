@@ -5,6 +5,7 @@ import {
   clampRating,
   cleanInteger,
   cleanRating,
+  hasMetadataContent,
   isValidBirthday,
   lengthMinutesRejected,
   normalizeInteger,
@@ -231,6 +232,43 @@ test('不写 titles 与 image_id', () => {
   const patch = buildMetadataPatch(blank());
   expect(Object.keys(patch)).not.toContain('titles');
   expect(Object.keys(patch)).not.toContain('image_id');
+});
+
+test('空白表单没有资料内容，新建时不该落元数据行', () => {
+  expect(hasMetadataContent(buildMetadataPatch(blank()))).toBe(false);
+  expect(hasMetadataContent(null)).toBe(false);
+});
+
+test('只动焦点与观感不算资料内容，条目仍留在待处理', () => {
+  const patch = buildMetadataPatch({
+    ...blank(),
+    focusX: 30,
+    focusY: 70,
+    ambienceMode: 'clear',
+    ambiencePlate: true,
+  });
+  expect(hasMetadataContent(patch)).toBe(false);
+});
+
+test('填过任一资料字段就算写过元数据', () => {
+  const cases = [
+    { alias: '别称' },
+    { seriesName: '系列' },
+    { sortName: 'ソート' },
+    { released: '2016-05-27' },
+    { rating: '8.5' },
+    { votecount: '120' },
+    { lengthMinutes: '600' },
+    { description: '简介' },
+    { coverPath: 'covers/a.jpg' },
+    { ambiencePath: 'banners/a.jpg' },
+    { developers: 'TYPE-MOON' },
+    { tags: [{ id: 'g1', name: 'Gore', category: 'cont', rating: 3, vn_count: 640, spoiler: 0 }] },
+    { staff: [{ role: 'art', name: 'Kazuaki', original: null, note: null }] },
+  ];
+  for (const fields of cases) {
+    expect(hasMetadataContent(buildMetadataPatch({ ...blank(), ...fields }))).toBe(true);
+  }
 });
 
 test('只有空白与全角空格的字段算空', () => {

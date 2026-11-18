@@ -219,6 +219,14 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
               SELECT 1 FROM character_va WHERE staff_id = OLD.staff_id
             );
         END;
+
+        CREATE TABLE IF NOT EXISTS backfill_run (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          started_at INTEGER NOT NULL,
+          ended_at   INTEGER NOT NULL,
+          summary    TEXT NOT NULL,
+          events     TEXT NOT NULL
+        );
         ",
         crate::generated::metadata::DDL_COLUMNS,
         crate::generated::characters::CHARACTER_DDL_COLUMNS,

@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
-use rusqlite::{Connection, params_from_iter};
-use serde::Serialize;
+use rusqlite::{params_from_iter, Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
 use tauri_plugin_log::log;
 
 use crate::characters;
@@ -15,6 +15,7 @@ use crate::metadata;
 use crate::tasks::{EventLog, Progress, Task, Tasks};
 use crate::types::{
     GameCharacter, GameMetadata, GamePatch, LocalizedTitle, MetadataPatch, MetadataStaff, MetadataTag,
+    TaskEvent,
 };
 use crate::vndb::{
     self, download_images, ImageJob, ImageKind, RateLimiter, VnMetadata, VnSync,
@@ -57,11 +58,7 @@ const BATCH_ATTEMPTS: u32 = 2;
 
 const SCAN_SQL: &str = "SELECT g.id, g.name, g.vndb_id
      FROM games g
-     LEFT JOIN game_metadata m ON m.game_id = g.id
-     WHERE m.game_id IS NULL
-        OR COALESCE(m.description, '') = ''
-        OR COALESCE(m.image_path, '') = ''
-        OR NOT EXISTS (SELECT 1 FROM characters c WHERE c.game_id = g.id)";
+     WHERE NOT EXISTS (SELECT 1 FROM game_metadata m WHERE m.game_id = g.id)";
 
 const BY_IDS_PREFIX: &str = "SELECT g.id, g.name, g.vndb_id FROM games AS g WHERE g.id IN (";
 
@@ -113,7 +110,7 @@ pub struct BackfillItemState {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct BackfillReport {
     pub total: usize,
     pub fetched: usize,
@@ -487,8 +484,11 @@ async fn resolve_vndb_id(
                         released: hit.released.clone(),
                     })
                     .collect();
-                task.report_note(
-                    "resolve",
+                task.report_resolve(
+                    &item.game_id,
+                    hit_count,
+                    &first_id,
+                    &first_title,
                     &format!(
                         "「{}」命中 {} 条，取 {}《{}》",
                         item.name, hit_count, first_id, first_title
@@ -543,9 +543,12 @@ async fn apply_sync(
             let current = metadata::get(&guard, &game_id)?;
             let mut filled = Vec::new();
             let has_dict_tags = crate::tagstore::has_dict_tags(&guard, &game_id)?;
-            if let Some(patch) = patch_for(current.as_ref(), &sync, has_dict_tags) {
-                filled = patch.filled_labels();
-                metadata::upsert(&guard, &game_id, &patch, None)?;
+            match patch_for(current.as_ref(), &sync, has_dict_tags) {
+                Some(patch) => {
+                    filled = patch.filled_labels();
+                    metadata::upsert(&guard, &game_id, &patch, None)?;
+                }
+                None => metadata::ensure_row(&guard, &game_id)?,
             }
             let char_count = apply_characters(&guard, &game_id, &sync.characters)?;
             Ok::<(Vec<&'static str>, usize), AppError>((filled, char_count))
@@ -722,7 +725,10 @@ pub async fn run(
     items: Vec<BackfillItem>,
 ) -> BackfillReport {
     let task = Task::new(BACKFILL, app.clone(), events, tasks.register(BACKFILL), run_id);
+    task.record();
+    let started_at = crate::tasks::now_ms();
     let total = items.len() as i64;
+    let search_total = items.iter().filter(|item| item.vndb_id.is_none()).count() as i64;
     let mut report = BackfillReport {
         total: items.len(),
         ..Default::default()
@@ -735,13 +741,22 @@ pub async fn run(
             return report;
         }
     };
-    set_status(|s| s.stage = "fetch".to_owned());
+    if search_total > 0 {
+        set_status(|s| {
+            s.stage = "resolve".to_owned();
+            s.total = search_total;
+            s.done = 0;
+        });
+    } else {
+        set_status(|s| s.stage = "fetch".to_owned());
+    }
     let names: std::collections::HashMap<&str, &str> = items
         .iter()
         .map(|item| (item.game_id.as_str(), item.name.as_str()))
         .collect();
 
     let mut processed = 0i64;
+    let mut searched = 0i64;
     let mut jobs: Vec<ImageJob> = Vec::new();
     let mut cancelled = false;
 
@@ -764,18 +779,15 @@ pub async fn run(
         let outcome = bind_item(&task, &conn, &rate, item, &mut report).await;
         if searching {
             task.leave();
+            searched += 1;
+            set_status(|s| s.done = searched);
         }
         match outcome {
             Ok(Some(vndb_id)) => ready.push(vndb::BatchItem {
                 game_id: item.game_id.clone(),
                 vndb_id,
             }),
-            Ok(None) => {
-                if searching {
-                    processed += 1;
-                    set_status(|s| s.done = processed);
-                }
-            }
+            Ok(None) => {}
             Err(AppError::Cancelled) => {
                 cancelled = true;
                 if searching {
@@ -783,13 +795,17 @@ pub async fn run(
                 }
                 break;
             }
-            Err(_) => {
-                if searching {
-                    processed += 1;
-                    set_status(|s| s.done = processed);
-                }
-            }
+            Err(_) => {}
         }
+    }
+
+    let fetch_total = ready.len() as i64;
+    if !cancelled {
+        set_status(|s| {
+            s.stage = "fetch".to_owned();
+            s.total = fetch_total;
+            s.done = 0;
+        });
     }
 
     let mut start = 0usize;
@@ -877,11 +893,11 @@ pub async fn run(
         processed += chunk.len() as i64;
         set_status(|s| s.done = processed);
         for entry in chunk {
-            task.report_item("backfill", Some(processed), Some(total), &entry.game_id);
+            task.report_item("backfill", Some(processed), Some(fetch_total), &entry.game_id);
         }
         log::debug!(
             target: "backfill",
-            "批次完成：{} 部，累计 {processed}/{total}，{}ms",
+            "批次完成：{} 部，累计 {processed}/{fetch_total}，{}ms",
             chunk.len(),
             started.elapsed().as_millis()
         );
@@ -906,11 +922,12 @@ pub async fn run(
         let mirror = StatusMirror(&task);
         let touched = apply_images(&conn, jobs, &dir, &mirror).await;
         for id in touched {
-            task.report_item("backfill", Some(processed), Some(total), &id);
+            task.report_item("backfill", Some(processed), Some(fetch_total), &id);
         }
     }
 
-    finish_run(&task, total, processed, report);
+    finish_run(&task, fetch_total, processed, report);
+    persist_run(&conn, started_at, report, task.take_record()).await;
     report
 }
 
@@ -1031,6 +1048,112 @@ fn finish_run(task: &Task, total: i64, done: i64, mut report: BackfillReport) {
         s.paused = false;
         s.finished = Some(report);
     });
+}
+
+const RUN_KEEP: i64 = 20;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BackfillRunSummary {
+    pub id: i64,
+    pub started_at: i64,
+    pub ended_at: i64,
+    pub summary: BackfillReport,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BackfillRunDetail {
+    #[serde(flatten)]
+    pub run: BackfillRunSummary,
+    pub events: Vec<TaskEvent>,
+}
+
+fn trim_images(events: &[TaskEvent]) -> Vec<TaskEvent> {
+    let mut out = Vec::with_capacity(events.len());
+    let mut last_image = None;
+    for event in events {
+        if event.phase == "images" {
+            last_image = Some(event.clone());
+            continue;
+        }
+        out.push(event.clone());
+    }
+    if let Some(event) = last_image {
+        out.push(event);
+    }
+    out
+}
+
+pub fn save_run(
+    conn: &Connection,
+    started_at: i64,
+    ended_at: i64,
+    report: &BackfillReport,
+    events: &[TaskEvent],
+) -> Result<()> {
+    let summary = serde_json::to_string(report)?;
+    let body = serde_json::to_string(&trim_images(events))?;
+    conn.execute(
+        "INSERT INTO backfill_run (started_at, ended_at, summary, events) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params![started_at, ended_at, summary, body],
+    )?;
+    conn.execute(
+        "DELETE FROM backfill_run WHERE id NOT IN (SELECT id FROM backfill_run ORDER BY id DESC LIMIT ?1)",
+        rusqlite::params![RUN_KEEP],
+    )?;
+    Ok(())
+}
+
+async fn persist_run(
+    conn: &Arc<Mutex<Connection>>,
+    started_at: i64,
+    report: BackfillReport,
+    events: Vec<TaskEvent>,
+) {
+    let ended_at = crate::tasks::now_ms();
+    let conn = conn.clone();
+    let _ = tauri::async_runtime::spawn_blocking(move || {
+        let Ok(guard) = crate::db::lock(&conn) else {
+            return;
+        };
+        if let Err(e) = save_run(&guard, started_at, ended_at, &report, &events) {
+            log::warn!(target: "backfill", "运行日志落库失败：{e}");
+        }
+    })
+    .await;
+}
+
+fn read_run_row(row: &rusqlite::Row) -> rusqlite::Result<BackfillRunSummary> {
+    let raw: String = row.get("summary")?;
+    Ok(BackfillRunSummary {
+        id: row.get("id")?,
+        started_at: row.get("started_at")?,
+        ended_at: row.get("ended_at")?,
+        summary: serde_json::from_str(&raw).unwrap_or_default(),
+    })
+}
+
+pub fn runs(conn: &Connection, limit: usize) -> Result<Vec<BackfillRunSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, started_at, ended_at, summary FROM backfill_run ORDER BY id DESC LIMIT ?1",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![limit as i64], read_run_row)?;
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(AppError::from)
+}
+
+pub fn run_detail(conn: &Connection, id: i64) -> Result<Option<BackfillRunDetail>> {
+    conn.query_row(
+        "SELECT id, started_at, ended_at, summary, events FROM backfill_run WHERE id = ?1",
+        rusqlite::params![id],
+        |row| {
+            Ok(BackfillRunDetail {
+                run: read_run_row(row)?,
+                events: serde_json::from_str(&row.get::<_, String>("events")?).unwrap_or_default(),
+            })
+        },
+    )
+    .optional()
+    .map_err(AppError::from)
 }
 
 #[cfg(test)]

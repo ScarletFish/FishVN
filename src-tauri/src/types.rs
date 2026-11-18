@@ -136,12 +136,15 @@ pub struct GameListItem {
     pub name: String,
     pub vndb_id: Option<String>,
     pub alias: Option<String>,
+    pub titles: Option<Vec<LocalizedTitle>>,
+    pub released: Option<String>,
     pub created_at: i64,
     pub status: Status,
     pub user_rating: Option<f64>,
     pub vndb_rating: Option<f64>,
     pub installation_count: i64,
     pub can_launch: bool,
+    pub has_metadata: bool,
     pub cover_path: Option<String>,
     pub cover_focal_x: Option<i64>,
     pub cover_focal_y: Option<i64>,
@@ -288,7 +291,7 @@ pub struct InstallationInput {
     pub launch_args: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TaskEvent {
     pub phase: String,
     #[serde(default)]
@@ -303,6 +306,12 @@ pub struct TaskEvent {
     pub run_id: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub game_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hit_count: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub picked_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub picked_title: Option<String>,
     #[serde(default)]
     pub seq: u64,
 }

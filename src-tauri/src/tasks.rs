@@ -10,6 +10,8 @@ use crate::types::TaskEvent;
 
 pub const LOG_CAP: usize = 2048;
 
+const RECORD_CAP: usize = 5000;
+
 pub(crate) fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -80,6 +82,7 @@ pub struct Task {
     cancel: Arc<AtomicBool>,
     run_id: u64,
     current: Mutex<Option<String>>,
+    record: Mutex<Option<Vec<TaskEvent>>>,
 }
 
 impl Task {
@@ -97,6 +100,7 @@ impl Task {
             cancel,
             run_id,
             current: Mutex::new(None),
+            record: Mutex::new(None),
         }
     }
 
@@ -112,6 +116,37 @@ impl Task {
             Ok(mut current) => *current = None,
             Err(poison) => *poison.into_inner() = None,
         }
+    }
+
+    pub fn record(&self) {
+        *self.record.lock().unwrap_or_else(|poison| poison.into_inner()) = Some(Vec::new());
+    }
+
+    pub fn take_record(&self) -> Vec<TaskEvent> {
+        self.record
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .take()
+            .unwrap_or_default()
+    }
+
+    pub fn report_resolve(
+        &self,
+        game_id: &str,
+        hit_count: usize,
+        picked_id: &str,
+        picked_title: &str,
+        detail: &str,
+    ) {
+        self.emit(TaskEvent {
+            phase: "resolve".to_owned(),
+            detail: Some(detail.to_owned()),
+            game_id: Some(game_id.to_owned()),
+            hit_count: Some(hit_count),
+            picked_id: Some(picked_id.to_owned()),
+            picked_title: Some(picked_title.to_owned()),
+            ..Default::default()
+        });
     }
 
     fn current_id(&self) -> Option<String> {
@@ -130,22 +165,34 @@ impl Task {
         error: Option<String>,
         game_id: Option<&str>,
     ) {
-        let game_id = game_id.map(str::to_owned).or_else(|| self.current_id());
+        self.emit(TaskEvent {
+            phase: phase.to_owned(),
+            done,
+            total,
+            detail,
+            error,
+            game_id: game_id.map(str::to_owned),
+            ..Default::default()
+        });
+    }
+
+    fn emit(&self, mut event: TaskEvent) {
+        event.ts = now_ms();
+        event.run_id = self.run_id;
+        event.seq = 0;
+        event.game_id = event.game_id.take().or_else(|| self.current_id());
+        if let Some(events) = self
+            .record
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .as_mut()
+        {
+            if events.len() < RECORD_CAP {
+                events.push(event.clone());
+            }
+        }
         let logged = match self.log.lock() {
-            Ok(mut log) => log.push(
-                &self.name,
-                TaskEvent {
-                    phase: phase.to_owned(),
-                    ts: now_ms(),
-                    done,
-                    total,
-                    detail,
-                    error,
-                    game_id,
-                    run_id: self.run_id,
-                    seq: 0,
-                },
-            ),
+            Ok(mut log) => log.push(&self.name, event),
             Err(_) => return,
         };
         let _ = self.app.emit(&self.name, logged.event);
@@ -214,14 +261,7 @@ mod tests {
     fn event(phase: &str) -> TaskEvent {
         TaskEvent {
             phase: phase.to_owned(),
-            ts: 0,
-            done: None,
-            total: None,
-            detail: None,
-            error: None,
-            run_id: 0,
-            game_id: None,
-            seq: 0,
+            ..Default::default()
         }
     }
 

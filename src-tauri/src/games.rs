@@ -7,7 +7,7 @@ use crate::error::{write_conflict, AppError, Result};
 use crate::metadata;
 use crate::tagdict;
 use crate::types::{
-    Game, GameListItem, GamePatch, NewGame, StatePatch, Status, UserGameState,
+    Game, GameListItem, GamePatch, LocalizedTitle, NewGame, StatePatch, Status, UserGameState,
 };
 use crate::{new_id, now};
 
@@ -19,12 +19,15 @@ const LIST_GAMES_SQL: &str = "SELECT g.id, g.name, g.vndb_id, g.created_at,
                 s.status, s.user_rating,
                 COUNT(i.id) AS installation_count,
                 MAX(CASE WHEN i.entry_path IS NOT NULL THEN 1 ELSE 0 END) AS can_launch,
+                MAX(CASE WHEN m.game_id IS NOT NULL THEN 1 ELSE 0 END) AS has_metadata,
                 m.image_path AS cover_path,
                 m.cover_focal_x AS cover_focal_x,
                 m.cover_focal_y AS cover_focal_y,
                 m.series_name AS series_name,
                 m.sort_name AS sort_name,
                 m.alias AS alias,
+                m.titles AS titles,
+                m.released AS released,
                 m.rating AS vndb_rating,
                 (SELECT GROUP_CONCAT(DISTINCT TRIM(s.name || ' ' || COALESCE(s.original, '')))
                  FROM character_va cv
@@ -39,7 +42,7 @@ const LIST_GAMES_SQL: &str = "SELECT g.id, g.name, g.vndb_id, g.created_at,
          JOIN user_game_state s ON s.game_id = g.id
          LEFT JOIN installations i ON i.game_id = g.id
          LEFT JOIN game_metadata m ON m.game_id = g.id
-         GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y, m.series_name, m.sort_name, m.alias, m.rating";
+         GROUP BY g.id, m.image_path, m.cover_focal_x, m.cover_focal_y, m.series_name, m.sort_name, m.alias, m.titles, m.released, m.rating";
 
 pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
     let sql = format!("{LIST_GAMES_SQL} {GAME_ORDER_SQL}");
@@ -50,12 +53,15 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
             name: row.get("name")?,
             vndb_id: row.get("vndb_id")?,
             alias: row.get("alias")?,
+            titles: read_titles(row.get("titles")?),
+            released: row.get("released")?,
             created_at: row.get("created_at")?,
             status: row.get("status")?,
             user_rating: row.get("user_rating")?,
             vndb_rating: row.get("vndb_rating")?,
             installation_count: row.get("installation_count")?,
             can_launch: row.get::<_, i64>("can_launch")? == 1,
+            has_metadata: row.get::<_, i64>("has_metadata")? == 1,
             cover_path: row.get("cover_path")?,
             cover_focal_x: row.get("cover_focal_x")?,
             cover_focal_y: row.get("cover_focal_y")?,
@@ -73,6 +79,10 @@ pub fn list_games(conn: &Connection) -> Result<Vec<GameListItem>> {
     }
     attach_tag_names(conn, &mut out)?;
     Ok(out)
+}
+
+fn read_titles(raw: Option<String>) -> Option<Vec<LocalizedTitle>> {
+    serde_json::from_str(&raw?).ok()
 }
 
 fn attach_tag_names(conn: &Connection, items: &mut [GameListItem]) -> Result<()> {

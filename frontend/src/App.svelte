@@ -407,7 +407,7 @@
       {:else if current === 'query'}
         <Query onopen={openDetail} scroll={queryScroll} />
       {:else if current === 'backfill'}
-        <Backfill scroll={backfillScroll} />
+        <Backfill scroll={backfillScroll} onopendetail={openDetail} />
       {:else if current === 'stats'}
         {#if StatsView}
           <StatsView />

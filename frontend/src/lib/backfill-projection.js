@@ -42,6 +42,7 @@ export function projectEvent(status, ev) {
   }
   const done = ev.done ?? status.done;
   const total = ev.total ?? status.total;
+  const stage = ev.phase === 'backfill' && ev.game_id ? 'fetch' : status.stage;
   let items = status.items ?? [];
   if (ev.game_id) {
     items = items.map((item) =>
@@ -50,10 +51,15 @@ export function projectEvent(status, ev) {
         : item,
     );
   }
-  if (done === status.done && total === status.total && items === (status.items ?? [])) {
+  if (
+    done === status.done &&
+    total === status.total &&
+    stage === status.stage &&
+    items === (status.items ?? [])
+  ) {
     return status;
   }
-  return { ...status, done, total, items };
+  return { ...status, stage, done, total, items };
 }
 
 const LOG_LIMIT = 400;

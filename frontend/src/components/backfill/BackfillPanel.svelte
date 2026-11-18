@@ -7,11 +7,11 @@
   import { createVnMergeFlow } from '../../lib/vn-merge-flow.svelte.js';
   import { buildMetadataPatch } from '../../lib/form-metadata.js';
   import { BANNER_FOCAL } from '../../lib/cover-focal.js';
+  import { coverSrc } from '../../lib/cover-src.js';
   import { openExternal } from '../../lib/open-external.js';
   import VnMergeDialog from '../VnMergeDialog.svelte';
-  import { STATE_BADGE, STATE_LABEL } from '../../lib/backfill-labels.js';
 
-  let { item, running = false, onchanged, onopenform, onclose } = $props();
+  let { item, running = false, onchanged, onopenform, onopendetail, onclose } = $props();
 
   const PHASES = {
     meta: 'gameForm.search.phaseMeta',
@@ -26,6 +26,7 @@
   let searched = $state(false);
   let busy = $state(false);
   let mergeOpen = $state(false);
+  let rebind = $state(false);
   let done = $state(null);
 
   let lastId = null;
@@ -36,19 +37,31 @@
     search.reset();
     flow.reset();
     searched = false;
+    rebind = false;
     done = null;
   });
 
-  const guessed = $derived(item.bind_source === 'search');
-  const hint = $derived(
-    item.state === null
-      ? 'backfillPage.panelLibrary'
-      : guessed
-        ? 'backfillPage.panelGuessed'
-        : 'backfillPage.panelDirect',
-  );
-  const bound = $derived(item.hit_title ?? '');
-  const year = $derived(item.hit_released ? item.hit_released.slice(0, 4) : '');
+  let cover = $state(null);
+  $effect(() => {
+    const path = item.cover_path;
+    cover = null;
+    if (!path) return;
+    let alive = true;
+    coverSrc(path)
+      .then((url) => {
+        if (alive) cover = url;
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  });
+
+  const unbound = $derived(!item.vndb_id);
+  const showSearch = $derived(unbound || rebind);
+  const hint = $derived(unbound ? 'backfillPage.panelGuessed' : 'backfillPage.panelDirect');
+  const bound = $derived(item.title ?? '');
+  const year = $derived(item.year || (item.hit_released ? item.hit_released.slice(0, 4) : ''));
 
   const candidates = $derived(
     search.hits.length
@@ -203,21 +216,57 @@
 </script>
 
 <div class="bf-panel__head">
-  {#if item.state}
-    <span class="bf-badge {STATE_BADGE[item.state]}">
-      {t(STATE_LABEL[item.state])}
-    </span>
-  {:else}
-    <span class="bf-badge bf-badge--pending">{t('backfillPage.library')}</span>
-  {/if}
+  <span class="bf-panel__name" data-tooltip={item.name}>{item.name}</span>
   <button type="button" class="bf-panel__close" aria-label={t('common.close')} onclick={onclose}>
     ×
   </button>
 </div>
 
-<p class="bf-note">{t(hint)}</p>
+{#if unbound}
+  <p class="bf-note">{t(hint)}</p>
+{/if}
 
-{#if guessed}
+{#if !unbound}
+  <div class="bf-identity">
+    <span class="bf-identity__cover">
+      {#if cover}
+        <img src={cover} alt="" loading="lazy" decoding="async" />
+      {:else}
+        <span class="bf-cand__ph">{(item.name || '?')[0]}</span>
+      {/if}
+    </span>
+    <div class="bf-identity__fields">
+      <div class="bf-field bf-field--stack">
+        <span class="bf-field__label">{t(hint)}</span>
+        {#if bound || item.vndb_id}
+          <span class="bf-field__value">
+            <span>
+              {bound || item.vndb_id}
+              {#if year}<span class="bf-field__muted">{year}</span>{/if}
+            </span>
+            {#if item.vndb_id}
+              <a
+                class="bf-vndb-link"
+                href={`https://vndb.org/${item.vndb_id}`}
+                onclick={(e) => {
+                  e.preventDefault();
+                  openVndb();
+                }}
+              >
+                {item.vndb_id} · {t('backfillPage.openVndb')}
+                <Icon name="arrow-up-right" size="sm" />
+              </a>
+            {/if}
+          </span>
+        {:else}
+          <span class="bf-field__muted">—</span>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showSearch}
   <div class="bf-search">
     <input
       class="bf-input"
@@ -231,7 +280,7 @@
     />
     <button
       type="button"
-      class="btn btn-ghost btn-sm"
+      class="bf-search__go"
       disabled={search.searching || flow.pulling || !(keyword ?? '').trim()}
       onclick={runSearch}
     >
@@ -261,7 +310,7 @@
   </div>
 {/if}
 
-{#if guessed && candidates.length}
+{#if showSearch && candidates.length}
   <ul class="bf-cands">
     {#each candidates as cand (cand.id)}
       <li>
@@ -294,39 +343,9 @@
   <p class="bf-field__muted">{t('backfillPage.candidatesEmpty')}</p>
 {/if}
 
-{#if guessed && search.searchError}
+{#if showSearch && search.searchError}
   <p class="bf-field__value bf-field__value--error">{search.searchError}</p>
 {/if}
-
-<div class="bf-field">
-  <span class="bf-field__label">{t('backfillPage.panelLocal')}</span>
-  <span class="bf-field__value">{item.name}</span>
-</div>
-
-<div class="bf-field">
-  <span class="bf-field__label">{t('backfillPage.panelBound')}</span>
-  {#if bound || item.vndb_id}
-    <span class="bf-field__value">
-      {bound || item.vndb_id}
-      {#if year}<span class="bf-field__muted">{year}</span>{/if}
-    </span>
-    {#if item.vndb_id}
-      <a
-        class="bf-vndb-link"
-        href={`https://vndb.org/${item.vndb_id}`}
-        onclick={(e) => {
-          e.preventDefault();
-          openVndb();
-        }}
-      >
-        {item.vndb_id} · {t('backfillPage.openVndb')}
-        <Icon name="arrow-up-right" size="sm" />
-      </a>
-    {/if}
-  {:else}
-    <span class="bf-field__muted">—</span>
-  {/if}
-</div>
 
 {#if done}
   <div class="bf-field">
@@ -357,22 +376,46 @@
 {/if}
 
 <div class="bf-panel__actions">
-  <button
-    type="button"
-    class="btn btn-ghost btn-sm"
-    disabled={busy || flow.pulling || running || !item.vndb_id}
-    onclick={retry}
-  >
-    {t('backfillPage.retryOne')}
-  </button>
-  <button
-    type="button"
-    class="btn btn-ghost btn-sm"
-    disabled={busy || flow.pulling || running}
-    onclick={() => onopenform?.(item.game_id)}
-  >
-    {t('backfillPage.openInForm')}
-  </button>
+  {#if !unbound}
+    <div class="bf-panel__buttons">
+      {#if !rebind}
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          disabled={busy || flow.pulling || running}
+          onclick={() => (rebind = true)}
+        >
+          {t('backfillPage.rebind')}
+        </button>
+      {/if}
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm"
+        disabled={busy || flow.pulling || running}
+        onclick={retry}
+      >
+        {t('backfillPage.retryOne')}
+      </button>
+    </div>
+  {/if}
+  <div class="bf-panel__links">
+    <button
+      type="button"
+      class="bf-link"
+      disabled={busy || flow.pulling || running}
+      onclick={() => onopendetail?.(item.game_id)}
+    >
+      {t('backfillPage.openDetail')}
+    </button>
+    <button
+      type="button"
+      class="bf-link"
+      disabled={busy || flow.pulling || running}
+      onclick={() => onopenform?.(item.game_id)}
+    >
+      {t('backfillPage.openInForm')}
+    </button>
+  </div>
 </div>
 
 <VnMergeDialog

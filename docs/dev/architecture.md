@@ -57,9 +57,13 @@
 | 换图焦点规则一致 | 重复选同一张图静默清掉用户调好的取景 | `metadata::upsert` 按路径变化判定三套焦点；`tests/game_metadata.rs` 守同图保持 / 换图归位 / 清空归位 |
 | 两个场景分别单独调整 | 横幅与展厅共用观感或焦点，一边调另一边跟着变 | 展厅读写独立的 `showcase_mode` / `showcase_focal_*`，两档共用后者；前后端测试守 |
 | 四类同步 UPDATE 幽灵 id 一律报错 | 静默成功还计数 | `sync.rs::update_one` 统一检查 `changes == 0` |
-| 补全页列表稳定、且任务从第一条往下跑 | 任务推进重建列表、选中丢失；进度不从顶部开始 | `listGames()` 全量按名称稳定排序为唯一列表源；`games.rs::GAME_ORDER_SQL` 单一常量锚定 `scan` 与 `items_by_ids`，`tests/backfill.rs` 断言三者 id 序列相等；清单成员资格来自 `pending_ids`（`scan` 结果）并上本轮需核对的自动绑定，不随最近一轮跑了哪些而变——重试只覆盖几条时清单不缩水；任务状态只作 overlay；`backfill-list.test.js` 断言 pending→ok 与重试覆盖时待处理集合不变 |
+| 补全页列表稳定、且任务从第一条往下跑 | 任务推进重建列表、选中丢失；进度不从顶部开始 | `listGames()` 全量按名称稳定排序为唯一列表源；`games.rs::GAME_ORDER_SQL` 单一常量锚定 `scan` 与 `items_by_ids`，`tests/backfill.rs` 断言三者 id 序列相等；待处理成员资格来自 `listGames()` 的 `has_metadata`，与 `SCAN_SQL` 同源，不随最近一轮跑了哪些而变；任务状态只作 overlay；`backfill-list.test.js` 断言待处理只按有无元数据行判定 |
 | 库内条目删除后工作台同步 | 删了游戏列表还留着幽灵行 | `LIBRARY_CHANGED` 是列表成员变更唯一来源；三处 delete 补通知，`loadGames` 清理失效 overlay 与选中 |
-| 猜测绑定能被集中复核 | 按名称自动绑定的条目跑完就找不到了，错配无从发现 | `backfill.rs::resolve_vndb_id` 以 `bind_source: search` 标记并记 `hit_count` / `candidates`；`backfill-list.js::visibleRows` 的 `review` 分支不受 `onlyNoId` 影响（自动绑定后 id 已写回库）；`accept()` 改绑 patch 把来源改成 `existing` 即自动退出；`BackfillPanel` 只对 `search` 行开放就地改绑 |
+| `game_metadata` 行存在即「已对账」 | 判定退回字段完整性，用户手填过的条目反复进待处理 | `games.rs::LIST_GAMES_SQL` 的 `has_metadata` 与 `backfill.rs::SCAN_SQL` 同源；`tests/backfill.rs` 与 `backfill-list.test.js` 守 |
+| 空壳元数据行不该出现 | 新建/编辑顺手落一行全 NULL，条目永久掉出待处理，批量补全与 `SCAN_SQL` 都扫不到 | `form-metadata.js::hasMetadataContent` 只认资料字段（不含焦点与观感默认值）：新建无内容时不带 patch，编辑时本来无行且无内容则跳过写入；`form-metadata.test.js` 守 |
+| 补全页多选只落在可见行上 | 用户看着 3 行、实际补了 30 行；「补全所选」跑看不到的条目 | 选中集决策收在 `backfill-list.js::pickOnClick` 纯函数（区间按 `items` 现算，锚点被筛掉退化为单选），视图侧切范围 / 「仅看无 ID」时裁掉不可见选中并提示；`backfill-list.test.js` 守区间与 +/- 规则 |
+| `vndb_id` 没有手填入口 | 手填的 id 可能指向不存在的作品，此后拉取永远失败 | 表单里只能走搜索候选（`vn-merge-flow` 逐字段确认后写入）；另一条写入路径是同步创建；`tests/games.rs` 守格式与唯一性 |
+| 猜测绑定能被集中复核 | 按名称自动绑定的条目跑完就找不到了，错配无从发现 | `backfill.rs::resolve_vndb_id` 以 `bind_source: search` 标记并记 `hit_count` / `picked_id` / `picked_title`；行上对 `search` 显示「搜索匹配」与命中条数，扫一眼即可发现错配；`accept()` 改绑 patch 把来源改成 `existing` 即自动退出；`BackfillPanel` 对任何有 `vndb_id` 的行开放「换绑」，不依赖运行期状态 |
 
 ## 改动影响面矩阵
 
@@ -74,7 +78,7 @@
 | 加查询条件 | `query.rs` 的条件构造与 `row_matches` | `npm test` |
 | 改同步规则 | `sync.rs` 的判定与应用 + [vndb-sync.md](./vndb-sync.md) | `npm test` |
 | 改标签展示/过滤 | [tags.md](./tags.md) 的规则与 `tagdict` | `check:frontend` + `npm test` |
-| 改补全页列表或筛选 | `backfill-list.js` 纯函数 + `backfill-store.svelte.js` 的 games/pendingIds/localOverlay + `Backfill.svelte`；新增库内成员变化入口要补 `notifyLibraryChanged` | `npm test -w frontend` + `check:frontend` |
+| 改补全页列表或筛选 | `backfill-list.js` 纯函数（待处理判定读 `has_metadata`、标题走 `titles` 链、`pickOnClick` 选中集决策）+ `backfill-store.svelte.js` 的 games/localOverlay + `Backfill.svelte`；新增库内成员变化入口要补 `notifyLibraryChanged` | `npm test -w frontend` + `check:frontend` |
 | 改库内列表顺序 | `games.rs::GAME_ORDER_SQL` 单一常量（同时被 `scan` / `items_by_ids` 使用）；**全局影响** MyList / Dashboard / SearchBar，须确认任务顺序仍与列表一致 | `npm test`（含顺序一致性用例）+ `check:frontend` |
 
 ## 性能边界

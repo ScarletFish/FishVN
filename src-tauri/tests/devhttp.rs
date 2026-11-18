@@ -20,14 +20,9 @@ fn push(log: &Mutex<EventLog>, phase: &str, done: Option<i64>, total: Option<i64
         "vndb-sync",
         TaskEvent {
             phase: phase.to_owned(),
-            ts: 0,
             done,
             total,
-            detail: None,
-            error: None,
-            run_id: 0,
-            game_id: None,
-            seq: 0,
+            ..Default::default()
         },
     );
 }

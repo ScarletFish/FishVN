@@ -89,6 +89,29 @@ export function buildStatePatch({ status, userRating, notes, playSeconds }) {
   return patch;
 }
 
+const CONTENT_KEYS = [
+  'alias',
+  'series_name',
+  'sort_name',
+  'released',
+  'rating',
+  'votecount',
+  'length_minutes',
+  'description',
+  'image_path',
+  'ambience_path',
+];
+
+export function hasMetadataContent(patch) {
+  if (!patch) return false;
+  if (CONTENT_KEYS.some((key) => patch[key] != null && patch[key] !== '')) return true;
+  return (
+    (patch.tags?.length ?? 0) > 0 ||
+    (patch.developers?.length ?? 0) > 0 ||
+    (patch.staff?.length ?? 0) > 0
+  );
+}
+
 export function buildMetadataPatch(fields) {
   return {
     alias: (fields.alias ?? '').trim() || null,

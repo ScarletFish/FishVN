@@ -575,11 +575,7 @@ pub async fn sync_vndb(
             ts: crate::tasks::now_ms(),
             done,
             total,
-            detail: None,
-            error: None,
-            run_id: 0,
-            game_id: None,
-            seq: 0,
+            ..Default::default()
         };
         let logged = match log.inner().lock() {
             Ok(mut log) => log.push(SYNC_PROGRESS, event),
@@ -650,11 +646,7 @@ pub async fn apply_sync_plan(
                     ts: crate::tasks::now_ms(),
                     done,
                     total,
-                    detail: None,
-                    error: None,
-                    run_id: 0,
-                    game_id: None,
-                    seq: 0,
+                    ..Default::default()
                 };
                 if let Ok(mut log) = log.inner().lock() {
                     let logged = log.push(SYNC_PROGRESS, event);
@@ -760,6 +752,24 @@ pub fn pause_backfill() -> backfill::BackfillStatus {
 #[tauri::command]
 pub fn resume_backfill() -> backfill::BackfillStatus {
     backfill::set_paused(false)
+}
+
+#[tauri::command]
+pub fn backfill_runs(
+    shared: State<'_, Arc<Mutex<Connection>>>,
+    limit: Option<usize>,
+) -> Result<Vec<backfill::BackfillRunSummary>> {
+    let guard = lock(&shared)?;
+    backfill::runs(&guard, limit.unwrap_or(20))
+}
+
+#[tauri::command]
+pub fn backfill_run(
+    shared: State<'_, Arc<Mutex<Connection>>>,
+    id: i64,
+) -> Result<Option<backfill::BackfillRunDetail>> {
+    let guard = lock(&shared)?;
+    backfill::run_detail(&guard, id)
 }
 
 #[tauri::command]

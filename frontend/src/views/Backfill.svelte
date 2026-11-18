@@ -6,9 +6,10 @@
   import { confirm } from '../lib/confirm.svelte.js';
   import { getScrollViewport } from '../lib/scrollbars.js';
   import { notifyBackfillRefresh } from '../lib/task-events.js';
-  import { STATE_BADGE, STATE_DOT, STATE_LABEL } from '../lib/backfill-labels.js';
+  import { formatDateTime } from '../lib/format.js';
+  import { STATE_DOT } from '../lib/backfill-labels.js';
   import { mergeProgress } from '../lib/backfill-log.js';
-  import { countsOf, focusRows, mergeCatalog, pickRow, visibleRows } from '../lib/backfill-list.js';
+  import { focusRows, mergeCatalog, pickOnClick, pickRow, prunePicks, visibleRows } from '../lib/backfill-list.js';
   import {
     backfillStore,
     watchBackfill,
@@ -18,21 +19,23 @@
   } from '../lib/backfill-store.svelte.js';
   import BackfillPanel from '../components/backfill/BackfillPanel.svelte';
   import Seg from '../components/Seg.svelte';
+  import SelectDd from '../components/SelectDd.svelte';
   import BackfillLog from '../components/backfill/BackfillLog.svelte';
   import { openForm } from '../lib/add-game.svelte.js';
 
-  let { scroll = 0 } = $props();
+  let { scroll = 0, onopendetail } = $props();
 
   const status = $derived(backfillStore.status);
   const rows = $derived(
     mergeCatalog(backfillStore.games, status?.items, backfillStore.localOverlay),
   );
-  const focus = $derived(focusRows(rows, backfillStore.pendingIds));
+  const focus = $derived(focusRows(rows));
   const scopeOn = $derived(backfillStore.scope === 'focus' && focus.size > 0);
   const scope = $derived(scopeOn ? focus : null);
-  const counts = $derived(countsOf(rows, scope));
-  const items = $derived(visibleRows(rows, backfillStore.filter, scope, backfillStore.onlyNoId));
+  const items = $derived(visibleRows(rows, scope, backfillStore.onlyNoId));
   const selected = $derived(pickRow(rows, backfillStore.selected));
+  const picked = $derived(backfillStore.picked);
+  const pickedSet = $derived(new Set(backfillStore.picked));
   const running = $derived(Boolean(status?.running));
   const paused = $derived(Boolean(status?.paused));
   const hasItems = $derived(rows.length > 0);
@@ -45,20 +48,18 @@
   const imagesRatio = $derived(imagesTotal > 0 ? Math.min(1, imagesDone / imagesTotal) : 0);
   const activeItem = $derived(rows.find((it) => it.state === 'active') ?? null);
 
-  const FILTERS = [
-    { key: 'all', label: 'backfillPage.filter.all' },
-    { key: 'ok', label: 'backfillPage.filter.ok' },
-    { key: 'review', label: 'backfillPage.filter.review' },
-    { key: 'unmatched', label: 'backfillPage.filter.unmatched' },
-    { key: 'failed', label: 'backfillPage.filter.failed' },
-  ];
-
   let starting = $state(false);
   let stopping = $state(false);
   let restored = $state(false);
+  let runList = $state([]);
+  let runPick = $state('current');
+  let historyLogs = $state(null);
+  let wasRunning = $state(false);
+  let autoPicked = $state(false);
 
   onMount(async () => {
     await watchBackfill();
+    loadRuns();
   });
 
   onDestroy(() => {
@@ -76,44 +77,64 @@
     });
   });
 
-  function pick(it) {
-    backfillStore.selected = backfillStore.selected === it.game_id ? null : it.game_id;
+  function rowClick(it, ev) {
+    if (running) return;
+    const next = pickOnClick(
+      {
+        picked: backfillStore.picked,
+        anchorId: backfillStore.anchorId,
+        selected: backfillStore.selected,
+      },
+      items,
+      it.game_id,
+      { shift: ev.shiftKey, toggle: ev.metaKey || ev.ctrlKey },
+    );
+    backfillStore.picked = next.picked;
+    backfillStore.anchorId = next.anchorId;
+    backfillStore.selected = next.selected;
   }
 
-  function clearHiddenSelection() {
-    if (!backfillStore.selected) return;
-    const next = visibleRows(rows, backfillStore.filter, scope, backfillStore.onlyNoId);
-    if (!next.some((it) => it.game_id === backfillStore.selected)) backfillStore.selected = null;
-  }
-
-  function setFilter(key) {
-    backfillStore.filter = key;
-    clearHiddenSelection();
+  function pruneSelection() {
+    const next = visibleRows(rows, scope, backfillStore.onlyNoId);
+    const alive = new Set(next.map((it) => it.game_id));
+    const kept = prunePicks(backfillStore, alive);
+    const dropped = backfillStore.picked.length - kept.picked.length;
+    backfillStore.picked = kept.picked;
+    backfillStore.anchorId = kept.anchorId;
+    backfillStore.selected = kept.selected;
+    if (dropped > 0) toast(t('backfillPage.pickedCleared', { count: dropped }), 'info');
   }
 
   function toggleNoId() {
     backfillStore.onlyNoId = !backfillStore.onlyNoId;
-    clearHiddenSelection();
+    pruneSelection();
   }
 
   function setScope(next) {
     if (next === 'focus' && focus.size === 0) return;
     backfillStore.scope = next;
-    clearHiddenSelection();
+    pruneSelection();
   }
 
-  async function start() {
-    if (starting || running) return;
+  async function launch(ids) {
+    if (starting || running) return false;
     starting = true;
     try {
-      await api.startBackfill();
+      await api.startBackfill(ids);
       notifyBackfillRefresh();
       await reloadBackfill();
+      return true;
     } catch (e) {
       toast(e.message, 'error');
+      return false;
     } finally {
       starting = false;
     }
+  }
+
+  async function start() {
+    const ids = [...backfillStore.picked];
+    if (await launch(ids.length ? ids : undefined)) backfillStore.picked = [];
   }
 
   async function togglePause() {
@@ -144,25 +165,20 @@
     if (!running) stopping = false;
   });
 
-  async function retryFailed() {
-    const ids = rows
-      .filter((it) => it.state === 'failed' || it.state === 'unmatched')
-      .filter((it) => !scopeOn || focus.has(it.game_id))
-      .map((it) => it.game_id);
-    if (!ids.length || running) return;
-    starting = true;
-    try {
-      await api.startBackfill(ids);
-      notifyBackfillRefresh();
-      await reloadBackfill();
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      starting = false;
-    }
-  }
+  const failedRows = $derived(
+    rows.filter(
+      (row) =>
+        (row.state === 'failed' || row.state === 'unmatched') &&
+        (!scopeOn || focus.has(row.game_id)),
+    ),
+  );
 
-  const failedCount = $derived(counts.failed + counts.unmatched);
+  const failedCount = $derived(failedRows.length);
+
+  async function retryFailed() {
+    const ids = failedRows.map((it) => it.game_id);
+    if (ids.length) await launch(ids);
+  }
 
   const shownLogs = $derived(
     backfillStore.logs.filter((r) => {
@@ -173,15 +189,78 @@
     }),
   );
 
-  const logRows = $derived(mergeProgress(shownLogs));
+  const displayLogs = $derived(runPick === 'current' ? shownLogs : (historyLogs ?? []));
+  const logRows = $derived(mergeProgress(displayLogs));
+
+  const runOptions = $derived([
+    ...(running || shownLogs.length
+      ? [{ value: 'current', label: t('backfillPage.logCurrent') }]
+      : []),
+    ...runList.map((run) => ({
+      value: String(run.id),
+      label: t('backfillPage.logItem', {
+        time: formatDateTime((run.started_at ?? 0) / 1000).slice(5),
+        done: run.summary?.fetched ?? 0,
+        total: run.summary?.total ?? 0,
+      }),
+    })),
+  ]);
 
   const showLog = $derived(running || (!backfillStore.logHidden && !selected));
   const showPanel = $derived(
-    running || Boolean(selected) || (!backfillStore.logHidden && shownLogs.length > 0),
+    running ||
+      Boolean(selected) ||
+      (!backfillStore.logHidden && (shownLogs.length > 0 || runList.length > 0)),
   );
+
+  async function loadRuns() {
+    try {
+      runList = await api.backfillRuns(20);
+    } catch {
+      runList = [];
+    }
+  }
+
+  async function pickRun(value) {
+    runPick = value;
+    if (value === 'current') {
+      historyLogs = null;
+      return;
+    }
+    historyLogs = [];
+    try {
+      const detail = await api.backfillRun(Number(value));
+      historyLogs = (detail?.events ?? []).map((ev, i) => ({
+        seq: i + 1,
+        name: 'vndb-backfill',
+        event: ev,
+      }));
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
 
   $effect(() => {
     if (running) backfillStore.logHidden = false;
+  });
+
+  $effect(() => {
+    if (running === wasRunning) return;
+    wasRunning = running;
+    if (running) {
+      runPick = 'current';
+      historyLogs = null;
+      return;
+    }
+    loadRuns();
+  });
+
+  $effect(() => {
+    if (autoPicked || runPick !== 'current' || running || shownLogs.length || !runList.length) {
+      return;
+    }
+    autoPicked = true;
+    pickRun(String(runList[0].id));
   });
 
   function collapseLog() {
@@ -224,6 +303,11 @@
           {stopping ? t('backfillPage.stopping') : t('mylist.backfillCancel')}
         </button>
       {:else}
+        {#if picked.length === 1}
+          <span class="bf-shift-tip" data-tooltip={t('backfillPage.shiftHint')}>
+            {t('backfillPage.shiftTip')}
+          </span>
+        {/if}
         {#if failedCount > 0}
           <button type="button" class="btn btn-ghost btn-sm" disabled={starting} onclick={retryFailed}>
             {t('backfillPage.retryFailed', { count: failedCount })}
@@ -232,10 +316,12 @@
         <button
           type="button"
           class="btn btn-primary btn-sm"
-          disabled={starting || counts.todo === 0}
+          disabled={starting || (picked.length === 0 && focus.size === 0)}
           onclick={start}
         >
-          {t('backfillPage.start')}
+          {picked.length
+            ? t('backfillPage.startPicked', { count: picked.length })
+            : t('backfillPage.start')}
         </button>
       {/if}
     </div>
@@ -251,6 +337,8 @@
             {t('backfillPage.stopping')}
           {:else if stage === 'images'}
             {t('backfillPage.imagesRunning', { done: imagesDone, total: imagesTotal })}
+          {:else if stage === 'resolve'}
+            {t('backfillPage.matchRunning', { done, total })}
           {:else}
             {t('backfillPage.running', { done, total })}
           {/if}
@@ -287,17 +375,6 @@
             { value: 'all', label: t('backfillPage.scopeAll'), count: rows.length },
           ]}
         />
-        <Seg
-          role="tablist"
-          value={backfillStore.filter}
-          onchange={(v) => setFilter(v)}
-          options={FILTERS.map((f) => ({
-            value: f.key,
-            label: t(f.label),
-            count: counts[f.key] ?? 0,
-            tooltip: f.key === 'review' ? t('backfillPage.reviewHint') : undefined,
-          }))}
-        />
       </div>
       <div class="bf-filters__right">
         {#if !running && backfillStore.logHidden && logRows.length}
@@ -310,7 +387,6 @@
           class="bf-toggle"
           class:is-active={backfillStore.onlyNoId}
           aria-pressed={backfillStore.onlyNoId}
-          disabled={backfillStore.filter === 'review'}
           data-tooltip={t('backfillPage.onlyNoIdHint')}
           onclick={toggleNoId}
         >
@@ -338,46 +414,32 @@
           <button
             type="button"
             class="bf-row"
-            class:is-selected={backfillStore.selected === it.game_id}
+            class:is-selected={pickedSet.has(it.game_id)}
             class:is-active={it.state === 'active'}
+            aria-pressed={pickedSet.has(it.game_id)}
             disabled={running}
-            onclick={() => pick(it)}
+            onclick={(ev) => rowClick(it, ev)}
           >
             <span class="bf-row__dot {STATE_DOT[it.state]}"></span>
             <span class="bf-row__local" data-tooltip={it.name}>{it.name}</span>
-            <span class="bf-row__bound" class:is-blank={it.state === 'pending' && !it.vndb_id}>
-              {#if it.state === 'ok'}
-                <span class="bf-row__title" data-tooltip={it.hit_title ?? it.vndb_id}>
-                  {it.hit_title ?? it.vndb_id ?? ''}
-                </span>
-                <span class="bf-row__sub">
-                  {#if it.vndb_id}<span>{it.vndb_id}</span>{/if}
-                  {#if it.hit_released}<span>{it.hit_released.slice(0, 4)}</span>{/if}
-                  {#if it.filled.length}<span>{t('backfillPage.filledCount', { count: it.filled.length })}</span>{/if}
-                  {#if it.bind_source === 'search'}
-                    <span class="bf-row__src">
-                      {t('backfillPage.sourceSearch')}{#if it.hit_count > 1} · {t('backfillPage.hits', { count: it.hit_count })}{/if}
-                    </span>
-                  {:else if it.bind_source === 'existing'}
-                    <span>{t('backfillPage.sourceExisting')}</span>
-                  {/if}
-                </span>
-              {:else if it.state === 'unmatched'}
-                <span class="bf-row__sub">{it.error ?? t('backfillPage.filter.unmatched')}</span>
-              {:else if it.state === 'failed'}
-                <span class="bf-row__title bf-row__title--error">{it.error ?? t('backfillPage.filter.failed')}</span>
-                <span class="bf-row__sub">
-                  {#if it.vndb_id}<span>{it.vndb_id}</span>{/if}
-                </span>
-              {:else if it.state === 'active'}
-                <span class="bf-row__title bf-row__title--muted">{t('backfillPage.filter.active')}</span>
-              {:else}
-                <span class="bf-row__sub">{it.vndb_id ?? ''}</span>
-              {/if}
+            <span class="bf-row__bound" class:is-blank={!it.title}>
+              <span class="bf-row__title" class:bf-row__title--muted={it.state === 'active'} data-tooltip={it.title}>
+                {it.title}
+              </span>
+              <span class="bf-row__sub">
+                {#if it.year}<span>{it.year}</span>{/if}
+                {#if it.vndb_id}<span>{it.vndb_id}</span>{/if}
+                {#if it.filled.length}<span>{t('backfillPage.filledCount', { count: it.filled.length })}</span>{/if}
+                {#if it.bind_source === 'search'}
+                  <span class="bf-row__src">
+                    {t('backfillPage.sourceSearch')}{#if it.hit_count > 1} · {t('backfillPage.hits', { count: it.hit_count })}{/if}
+                  </span>
+                {:else if it.bind_source === 'existing'}
+                  <span>{t('backfillPage.sourceExisting')}</span>
+                {/if}
+                {#if it.error}<span class="is-error">{it.error}</span>{/if}
+              </span>
             </span>
-            {#if it.state}
-              <span class="bf-badge {STATE_BADGE[it.state]}">{t(STATE_LABEL[it.state])}</span>
-            {/if}
           </button>
         {/each}
       </div>
@@ -389,7 +451,16 @@
               <div class="bf-panel__head">
                 <span class="bf-panel__title-row">
                   <span class="bf-panel__title">{t('backfillPage.logTitle')}</span>
-                  <span class="bf-panel__meta">{logRows.length}</span>
+                  {#if runOptions.length > 1}
+                    <SelectDd
+                      options={runOptions}
+                      bind:value={runPick}
+                      onchange={pickRun}
+                      ariaLabel={t('backfillPage.logPick')}
+                    />
+                  {:else}
+                    <span class="bf-panel__meta">{logRows.length}</span>
+                  {/if}
                 </span>
                 {#if !running}
                   <button type="button" class="bf-panel__collapse" onclick={collapseLog}>
@@ -397,13 +468,14 @@
                   </button>
                 {/if}
               </div>
-              <BackfillLog logs={shownLogs} {status} />
+              <BackfillLog logs={displayLogs} status={runPick === 'current' ? status : null} />
             {:else}
               <BackfillPanel
                 item={selected}
                 {running}
                 onchanged={mergeBackfillItem}
                 onopenform={openForm}
+                onopendetail={onopendetail}
                 onclose={() => (backfillStore.selected = null)}
               />
             {/if}

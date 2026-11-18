@@ -40,17 +40,15 @@ fn 库内列表按名称排序且任务顺序锚定同一规则() {
 }
 
 #[test]
-fn 扫描只收资料有空白的作品() {
+fn 扫描只收还没有元数据行的作品() {
     let db = Db::new();
     let bare = new_game(&db, "啥都没有");
-    let no_desc = new_game(&db, "没简介");
-    let no_cover = new_game(&db, "没封面");
-    let no_characters = new_game(&db, "没角色");
+    let partial = new_game(&db, "只有封面");
     let complete = new_game(&db, "齐全");
 
     metadata::upsert(
         &db,
-        &no_desc,
+        &partial,
         &MetadataPatch {
             image_path: Some(Some("/covers/a.jpg".into())),
             ..Default::default()
@@ -58,36 +56,26 @@ fn 扫描只收资料有空白的作品() {
         None,
     )
     .unwrap();
-    metadata::upsert(
-        &db,
-        &no_cover,
-        &MetadataPatch {
-            description: Some(Some("有简介".into())),
-            ..Default::default()
-        },
-        None,
-    )
-    .unwrap();
-    metadata::upsert(&db, &no_characters, &full_meta_patch(), None).unwrap();
     metadata::upsert(&db, &complete, &full_meta_patch(), None).unwrap();
-    fishvn::characters::replace_all(
-        &db,
-        &complete,
-        &[fishvn::types::GameCharacter {
-            id: "c1".into(),
-            name: Some("角色".into()),
-            sort_order: 0,
-            ..Default::default()
-        }],
-    )
-    .unwrap();
 
     let picked: Vec<String> = scan(&db).unwrap().into_iter().map(|i| i.game_id).collect();
-    assert!(picked.contains(&bare), "没有任何元数据的作品要收");
-    assert!(picked.contains(&no_desc), "缺简介的要收");
-    assert!(picked.contains(&no_cover), "缺封面的要收");
-    assert!(picked.contains(&no_characters), "缺角色的要收");
-    assert!(!picked.contains(&complete), "资料齐全的不该收");
+    assert!(picked.contains(&bare), "没有元数据行的作品要收");
+    assert!(!picked.contains(&partial), "有元数据行就不收，哪怕只填了一项");
+    assert!(!picked.contains(&complete), "元数据齐全的不收");
+}
+
+#[test]
+fn 空元数据行也让作品离开待处理() {
+    let db = Db::new();
+    let id = new_game(&db, "远端啥都没有");
+    assert!(scan(&db).unwrap().iter().any(|i| i.game_id == id));
+
+    metadata::ensure_row(&db, &id).unwrap();
+
+    assert!(
+        !scan(&db).unwrap().iter().any(|i| i.game_id == id),
+        "建了行就不再进待处理"
+    );
 }
 
 #[test]
@@ -204,4 +192,77 @@ fn 按空白判定的补丁落库后旧值不动新值填上() {
         "空白的发行日要填上"
     );
     assert_eq!(after.rating, Some(80.5), "空白的评分要填上");
+}
+
+fn event(phase: &str) -> fishvn::types::TaskEvent {
+    fishvn::types::TaskEvent {
+        phase: phase.to_owned(),
+        ts: 1,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn 一次运行落一行并可读回事件() {
+    let db = Db::new();
+    let report = fishvn::backfill::BackfillReport {
+        total: 3,
+        fetched: 2,
+        ..Default::default()
+    };
+    fishvn::backfill::save_run(&db, 100, 200, &report, &[event("resolve"), event("backfill")])
+        .unwrap();
+
+    let list = fishvn::backfill::runs(&db, 20).unwrap();
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].started_at, 100);
+    assert_eq!(list[0].ended_at, 200);
+    assert_eq!(list[0].summary.fetched, 2);
+
+    let detail = fishvn::backfill::run_detail(&db, list[0].id)
+        .unwrap()
+        .expect("应取到该次运行");
+    assert_eq!(detail.events.len(), 2);
+    assert_eq!(detail.events[0].phase, "resolve");
+}
+
+#[test]
+fn 图片中间进度只留最后一条() {
+    let db = Db::new();
+    let mut events = vec![event("images"), event("images"), event("images")];
+    events[1].done = Some(1);
+    events[2].done = Some(2);
+    fishvn::backfill::save_run(
+        &db,
+        0,
+        1,
+        &fishvn::backfill::BackfillReport::default(),
+        &events,
+    )
+    .unwrap();
+
+    let id = fishvn::backfill::runs(&db, 1).unwrap()[0].id;
+    let detail = fishvn::backfill::run_detail(&db, id).unwrap().unwrap();
+    assert_eq!(detail.events.len(), 1);
+    assert_eq!(detail.events[0].done, Some(2));
+}
+
+#[test]
+fn 只保留最近二十次运行() {
+    let db = Db::new();
+    for step in 0..22 {
+        fishvn::backfill::save_run(
+            &db,
+            step,
+            step,
+            &fishvn::backfill::BackfillReport::default(),
+            &[],
+        )
+        .unwrap();
+    }
+
+    let list = fishvn::backfill::runs(&db, 20).unwrap();
+    assert_eq!(list.len(), 20);
+    assert_eq!(list[0].started_at, 21, "最新的在最前");
+    assert_eq!(list[19].started_at, 2, "最旧的两条被清掉");
 }

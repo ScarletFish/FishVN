@@ -3,6 +3,7 @@ import { subscribe } from './events.js';
 import { LIBRARY_CHANGED } from './library-events.js';
 import { BACKFILL_REFRESH } from './task-events.js';
 import { appendEvent, isItemDone, mergeLogRows, needsReload, patchItem, projectEvent } from './backfill-projection.js';
+import { prunePicks } from './backfill-list.js';
 
 export const backfillStore = $state({
   status: null,
@@ -11,10 +12,11 @@ export const backfillStore = $state({
   localOverlay: {},
   loading: true,
   error: null,
-  filter: 'all',
   scope: 'focus',
   onlyNoId: false,
   selected: null,
+  picked: [],
+  anchorId: null,
   logs: [],
   lastSeq: 0,
   logHidden: false,
@@ -51,9 +53,10 @@ async function loadGames() {
       if (!alive.has(id)) delete overlay[id];
     }
     backfillStore.localOverlay = overlay;
-    if (backfillStore.selected && !alive.has(backfillStore.selected)) {
-      backfillStore.selected = null;
-    }
+    const next = prunePicks(backfillStore, alive);
+    backfillStore.selected = next.selected;
+    backfillStore.anchorId = next.anchorId;
+    backfillStore.picked = next.picked;
   } catch (e) {
     backfillStore.error = e.message;
   }

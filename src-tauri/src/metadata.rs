@@ -28,6 +28,14 @@ pub fn get(conn: &Connection, game_id: &str) -> Result<Option<GameMetadata>> {
     }
 }
 
+pub fn ensure_row(conn: &Connection, game_id: &str) -> Result<()> {
+    conn.execute(
+        "INSERT OR IGNORE INTO game_metadata (game_id) VALUES (?1)",
+        params![game_id],
+    )?;
+    Ok(())
+}
+
 pub fn upsert(
     conn: &Connection,
     game_id: &str,

@@ -8,7 +8,9 @@ use fishvn::games::{
 };
 use fishvn::installations::create_installation;
 use fishvn::metadata;
-use fishvn::types::{GameListItem, GamePatch, MetadataPatch, NewGame, StatePatch, Status};
+use fishvn::types::{
+    GameListItem, GamePatch, LocalizedTitle, MetadataPatch, NewGame, StatePatch, Status,
+};
 
 fn find(db: &Db, id: &str) -> Option<GameListItem> {
     list_games(db)
@@ -192,6 +194,56 @@ fn 列表带出封面路径_没有元数据行时为_none() {
         find(&db, &covered).unwrap().cover_path.as_deref(),
         Some("D:\\covers\\vndb\\cv75598.jpg")
     );
+}
+
+#[test]
+fn 列表给出元数据行是否存在() {
+    let db = Db::new();
+    let bare = new_game(&db, "没有资料");
+    let covered = new_game(&db, "有资料");
+
+    assert!(!find(&db, &bare).unwrap().has_metadata, "没有行时为假");
+
+    metadata::ensure_row(&db, &covered).expect("建行失败");
+    assert!(
+        find(&db, &covered).unwrap().has_metadata,
+        "空行也算有行，与有没有填内容无关"
+    );
+}
+
+#[test]
+fn 列表带出标题数组与发行日() {
+    let db = Db::new();
+    let bare = new_game(&db, "没资料");
+    let titled = new_game(&db, "有标题");
+
+    metadata::upsert(
+        &db,
+        &titled,
+        &MetadataPatch {
+            titles: Some(Some(vec![LocalizedTitle {
+                lang: "zh-Hans".into(),
+                title: "甲题".into(),
+                latin: None,
+                official: Some(true),
+                main: None,
+            }])),
+            released: Some(Some("2016-05-27".into())),
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("写元数据失败");
+
+    assert_eq!(find(&db, &bare).unwrap().titles, None, "没有行时标题为空");
+    assert_eq!(find(&db, &bare).unwrap().released, None);
+
+    let item = find(&db, &titled).unwrap();
+    let titles = item.titles.expect("列表要带出标题数组");
+    assert_eq!(titles.len(), 1);
+    assert_eq!(titles[0].title, "甲题");
+    assert_eq!(titles[0].lang, "zh-Hans");
+    assert_eq!(item.released.as_deref(), Some("2016-05-27"));
 }
 
 #[test]

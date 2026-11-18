@@ -55,7 +55,7 @@ pub struct Dev {
 
 #[derive(Default, serde::Deserialize)]
 pub struct Args {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "id_arg")]
     pub id: Option<String>,
     #[serde(default)]
     pub remove_files: Option<bool>,
@@ -103,6 +103,24 @@ pub struct Args {
     pub spec: Option<Value>,
     #[serde(default)]
     pub after: Option<u64>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+fn id_arg<'de, D>(d: D) -> std::result::Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum Raw {
+        Text(String),
+        Number(i64),
+    }
+    Ok(Option::<Raw>::deserialize(d)?.map(|raw| match raw {
+        Raw::Text(text) => text,
+        Raw::Number(number) => number.to_string(),
+    }))
 }
 
 impl Args {
@@ -562,7 +580,7 @@ async fn sync_vndb(AxumState(dev): AxumState<Dev>, Json(_a): Json<Args>) -> Repl
                     error: None,
                     run_id: 0,
                     game_id: None,
-                    seq: 0,
+                    ..Default::default()
                 },
             );
         }
@@ -648,6 +666,19 @@ async fn pause_backfill(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -
 
 async fn resume_backfill(AxumState(_dev): AxumState<Dev>, Json(_a): Json<Args>) -> Reply {
     finish(Ok(backfill::set_paused(false)))
+}
+
+async fn backfill_runs(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let limit = a.limit.unwrap_or(20);
+    run(&dev, |conn| backfill::runs(conn, limit))
+}
+
+async fn backfill_run(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let raw = a.id.unwrap_or_default();
+    let Ok(id) = raw.parse::<i64>() else {
+        return Err(Fail(StatusCode::BAD_REQUEST, "缺少 id".into()));
+    };
+    run(&dev, |conn| backfill::run_detail(conn, id))
 }
 
 async fn thumbnail(AxumState(dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
@@ -766,6 +797,8 @@ pub fn router(dev: Dev) -> Router {
         .route("/backfill_item", post(backfill_item))
         .route("/pause_backfill", post(pause_backfill))
         .route("/resume_backfill", post(resume_backfill))
+        .route("/backfill_runs", post(backfill_runs))
+        .route("/backfill_run", post(backfill_run))
         .route("/events", get(events))
         .with_state(dev)
 }
@@ -836,4 +869,6 @@ pub const COMMANDS: &[&str] = &[
     "backfill_item",
     "pause_backfill",
     "resume_backfill",
+    "backfill_runs",
+    "backfill_run",
 ];

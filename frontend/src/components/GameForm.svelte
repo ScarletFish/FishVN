@@ -6,7 +6,12 @@
   import { t } from '../lib/i18n.js';
   import { createVndbSearch } from '../lib/vndb-search.svelte.js';
   import { createVnMergeFlow } from '../lib/vn-merge-flow.svelte.js';
-  import { buildMetadataPatch, buildStatePatch, clampRating } from '../lib/form-metadata.js';
+  import {
+    buildMetadataPatch,
+    buildStatePatch,
+    clampRating,
+    hasMetadataContent,
+  } from '../lib/form-metadata.js';
   import { errorFieldId, errorTab, shownErrors, validateGameForm } from '../lib/form-validation.js';
   import { DEFAULT_STATUS } from '../lib/status.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
@@ -106,6 +111,7 @@
   let asideMode = $state('search');
   let selectedCharId = $state(null);
   let baseline = $state('');
+  let hasMetaRow = $state(false);
   const search = createVndbSearch();
   const flow = createVnMergeFlow();
 
@@ -214,6 +220,7 @@
     if (!open) return;
     untrack(() => {
       baseline = '';
+      hasMetaRow = false;
       name = '';
       vndbId = null;
       status = DEFAULT_STATUS;
@@ -291,6 +298,7 @@
         api.listInstallations(id),
       ]);
       if (gameId !== id) return;
+      hasMetaRow = meta != null;
       name = game.name;
       vndbId = game.vndb_id;
       status = state.status;
@@ -461,14 +469,16 @@
           ...base,
           default_installation_id: resolveDefaultId(dirs, installations, defaultInstallKey),
         });
-        await api.updateGameMetadata(gameId, patch);
+        if (hasMetaRow || hasMetadataContent(patch)) {
+          await api.updateGameMetadata(gameId, patch);
+        }
         await api.saveGameCharacters(gameId, namedOnly(characters).map(toPayload));
         if (vndbId) await api.updateGame(gameId, { vndb_id: vndbId });
       } else {
         const created = await api.createGame({
           name: value,
           vndb_id: null,
-          metadata: patch,
+          metadata: hasMetadataContent(patch) ? patch : null,
         });
         gameId = created.id;
         const dirs = await api.saveInstallations(created.id, entries);
