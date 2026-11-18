@@ -29,6 +29,7 @@
 .showcase-stage__layers {
   position: absolute;
   inset: 0;
+  background: var(--bg-page);
 }
 
 .showcase-stage__layer {

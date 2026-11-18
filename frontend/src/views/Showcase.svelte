@@ -56,8 +56,19 @@
   }
 
   function applyLayer(next) {
+    if (!next.entering) {
+      layers = [next];
+      return;
+    }
     const previous = layers.map((layer) => ({ ...layer, entering: false })).slice(-1);
     layers = [...previous, next];
+  }
+
+  function onLayerSettled(event, layer) {
+    if (event.target !== event.currentTarget) return;
+    if (event.animationName !== 'showcase-fade-in') return;
+    if (layers[layers.length - 1]?.id !== layer.id) return;
+    layers = layers.slice(-1);
   }
 
   async function centerSelected(id, animated = true) {
@@ -278,6 +289,7 @@
               class:showcase-stage__layer--empty={!layer.url}
               class:is-entering={layer.entering}
               aria-hidden="true"
+              onanimationend={(event) => onLayerSettled(event, layer)}
             >
               {#if layer.url}
                 <img
