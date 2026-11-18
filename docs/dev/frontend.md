@@ -82,6 +82,10 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 
 `confirm()` 对 `deleteGame` 返回 `{ confirmed, removeFiles }`，其他 action 返回布尔值；取消一律 `false`。删除游戏的三个入口（Dashboard / MyList / Detail）把 `removeFiles` 传给 `api.deleteGame(id, removeFiles)`，勾选后后端删整个 `covers/<game_id>/` 目录。新增确认场景沿用布尔返回，要带选项得在 `ConfirmDialog` 里显式加分支。
 
+## 表单自动填充
+
+带输入框的表单与对话框，容器级加 `autocomplete="off"`（`GameForm` 的 `<form>`、`SearchBar` / `PathField` / `InstallationList` / `TagPicker` / `SettingsDialog` / `SuggestField` 各自的 input）。WebView2 会记住用户提交过的值，点击输入框弹原生「保存的信息」面板——白底样式与主题冲突，且与 `SuggestField` 的自有补全重复。新增带输入框的组件照此办理；字段级已被容器级覆盖时不必重复加。
+
 ## 注释
 
 代码里不写注释，前端惯例写进本文与索引里的各分册。规则与例外见 [comments.md](./comments.md)。

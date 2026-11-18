@@ -55,6 +55,7 @@
 | `name` | 列表 · 详情 · 表单 | 用户指定，同时是搜索词与详情主标题 |
 | 元数据（别名 · 封面 · 发行日期 · 评分与人数 · 简介） | 详情 · 表单 | 表单经「同步元数据」填充；详情按需再取 |
 | `tags` · `developers` | 详情 · 表单 | JSON 列，冲突粒度是整列替换 |
+| `series_name` · `sort_name` | 列表 · 表单 | 纯本地排序字段：聚组与组内序号，消费方是 `list-sort.svelte.js` 的 `groupBySeries`，不进详情展示 |
 | `titles` | 详情 | JSON 列，同步留存的本地化标题；主副标题按 `src-tauri/spec/display-titles.json` 生成的链从其中取中文/日文，界面不直接展示整张表 |
 | `notes` · `default_installation_id` | 详情 | 全文随每条返回会让列表载荷无谓膨胀 |
 | `vndb_id` | 列表 · 详情 | 绑定走「搜 VNDB → 选中」动作 |
