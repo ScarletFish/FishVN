@@ -39,3 +39,17 @@ test('rem 基准按根字号换算成 px', () => {
   expect(pxLength(el, '320px')).toBe(320);
   expect(pxLength(el, '')).toBe(0);
 });
+
+test('rem 换算跟根字号，不跟元素自身字号', () => {
+  // 正文是 1.016rem，元素字号若被拿来换算，基准会偏成 281.4，窗口化列数与 CSS 的 4 列对不上
+  document.documentElement.style.fontSize = '20px';
+  const el = document.createElement('div');
+  el.style.fontSize = '12px';
+  document.body.append(el);
+
+  expect(pxLength(el, '1rem')).toBeCloseTo(20, 3);
+  expect(pxLength(el, '17.3125rem')).toBeCloseTo(346.25, 2);
+
+  el.remove();
+  document.documentElement.style.fontSize = '';
+});

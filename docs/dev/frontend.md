@@ -63,7 +63,7 @@
 
 chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--titlebar-h`。
 
-封面墙的卡宽、列数、窗口化约束见 [grid-layout.md](./grid-layout.md)。
+封面墙的卡宽、列数、窗口化约束见 [grid-layout.md](./grid-layout.md)。窄窗口的卡宽降档由 `lib/narrow.js` 按 `.shell__main` 实测宽在根元素打 `data-narrow` 驱动，阈值与各容器的降档值同在那份文档的「窄档」。
 
 模糊优先用 `filter`。`backdrop-filter: blur()` 只在背后存在未模糊内容时才有效果 —— 背后已是模糊色块时它是空转（实测加与不加像素一致），所以只有浮在原图之上的组件才值得考虑。
 

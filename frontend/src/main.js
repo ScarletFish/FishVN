@@ -2,6 +2,7 @@ import { mount } from 'svelte';
 import './css/styles.css';
 import App from './App.svelte';
 import { useScrollbars } from './lib/scrollbars.js';
+import { useNarrowTier } from './lib/narrow.js';
 import { report } from './lib/frontend-log.js';
 
 const isTauri = '__TAURI_INTERNALS__' in window;
@@ -37,5 +38,6 @@ const app = mount(App, {
 });
 
 useScrollbars(document.querySelector('.shell__main'));
+useNarrowTier(document.querySelector('.shell__main'));
 
 export default app;

@@ -143,6 +143,10 @@
   padding: var(--space-1) 0 var(--space-2);
 }
 
+[data-narrow] .continue-scroll {
+  --card-w: 360px;
+}
+
 .continue-card {
   position: relative;
   aspect-ratio: 16 / 8;

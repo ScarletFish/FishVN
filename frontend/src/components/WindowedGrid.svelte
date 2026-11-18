@@ -1,7 +1,7 @@
 <script>
   import { createVirtualizer } from '@tanstack/svelte-virtual';
   import { getScrollViewport } from '../lib/scrollbars.js';
-  import { cardWidth, computeColsFor } from '../lib/grid-metrics.js';
+  import { cardWidth, computeColsFor, pxLength } from '../lib/grid-metrics.js';
 
   let { items, children } = $props();
 
@@ -27,11 +27,12 @@
     scrollEl = viewport;
 
     let lastWidth = 0;
-    const measure = () => {
+    const measure = (force = false) => {
       const width = el.clientWidth;
-      if (width <= 0 || width === lastWidth) return;
+      if (width <= 0) return;
+      if (!force && width === lastWidth) return;
       lastWidth = width;
-      const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
+      const gap = pxLength(el, getComputedStyle(el).getPropertyValue('--space-4'), 16);
       cols = computeColsFor(el, { gap });
       const card = cardWidth(width, cols, gap);
       rowH = card * (4 / 3) + gap;
@@ -42,9 +43,17 @@
     };
 
     measure();
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(() => measure());
+    const tierObserver = new MutationObserver(() => measure(true));
+    tierObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-narrow'],
+    });
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      tierObserver.disconnect();
+    };
   });
 
   $effect(() => {
@@ -65,6 +74,7 @@
       return;
     }
     virtualizer?.setOptions(options);
+    virtualizer?.measure();
   });
 
   $effect(() => {

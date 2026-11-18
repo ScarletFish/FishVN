@@ -410,6 +410,10 @@ button.info-rating {
   --card-w: 220px;
 }
 
+[data-narrow] .detail-chars-scroll {
+  --card-w: 180px;
+}
+
 .detail-char-card {
   position: relative;
   display: flex;

@@ -410,6 +410,11 @@ body {
   --gap: var(--space-4);
 }
 
+/* 窄档：主内容区 < 1220 时基准降到 200px，内容区 1155 也能排 5 列 */
+:root[data-narrow] {
+  --card-w: 200px;
+}
+
 /* === L3 scales · 圆角 === */
 :root {
   --radius-xs: 0.125rem;

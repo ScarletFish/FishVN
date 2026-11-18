@@ -1,7 +1,10 @@
 export function pxLength(el, raw, fallback = 0) {
   const v = parseFloat(raw);
   if (!Number.isFinite(v)) return fallback;
-  return String(raw).trim().endsWith('rem') ? v * (parseFloat(getComputedStyle(el).fontSize) || 16) : v;
+  if (!String(raw).trim().endsWith('rem')) return v;
+  const root = el?.ownerDocument?.documentElement;
+  const rootSize = root ? parseFloat(getComputedStyle(root).fontSize) : NaN;
+  return v * (rootSize > 0 ? rootSize : 16);
 }
 
 export function computeColsFor(el, { baselineW, gap } = {}) {
