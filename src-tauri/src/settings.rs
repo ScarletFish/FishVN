@@ -188,7 +188,16 @@ pub struct ConfigPatch {
     pub quit_behavior: Option<QuitBehavior>,
     pub minimize_on_launch: Option<bool>,
     pub startup_page: Option<StartupPage>,
+    #[serde(default, deserialize_with = "double_option")]
     pub backup_retention_days: Option<Option<u64>>,
+}
+
+fn double_option<'de, D, T>(de: D) -> std::result::Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Deserialize::deserialize(de).map(Some)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -475,6 +484,19 @@ mod tests {
         assert_eq!(current().time_metric, TimeMetric::Alive);
         assert_eq!(current().theme, Theme::Dark);
         assert_eq!(current().accent, Accent::Ocean);
+    }
+
+    #[test]
+    fn 补丁区分缺省与显式置空() {
+        let absent: ConfigPatch = serde_json::from_str("{}").unwrap();
+        assert_eq!(absent.backup_retention_days, None);
+
+        let cleared: ConfigPatch =
+            serde_json::from_str(r#"{"backup_retention_days":null}"#).unwrap();
+        assert_eq!(cleared.backup_retention_days, Some(None));
+
+        let set: ConfigPatch = serde_json::from_str(r#"{"backup_retention_days":30}"#).unwrap();
+        assert_eq!(set.backup_retention_days, Some(Some(30)));
     }
 
     #[test]
