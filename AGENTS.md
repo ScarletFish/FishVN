@@ -15,6 +15,7 @@ Svelte 5 SPA + Rust 后端的 Tauri v2 桌面应用
 | **改前端样式/UI** | **先看 `docs/dev/frontend.md` 的文档索引，再读对应分册** |
 | **新增前端函数、组件或 store** | **先按 `docs/dev/frontend.md`「先找后写」查现成资产，再决定复用、扩展还是新建** |
 | **改标签展示 / 过滤规则** | **读 `docs/dev/tags.md`** |
+| **改设置项 / 加设置分区** | **读 `docs/dev/settings.md`** |
 | **改动落哪一层 / 加字段 / 改表 / 依赖方向** | **先读 `docs/dev/architecture.md`** |
 | **改后端 / 新增接口** | **读 `docs/dev/backend.md`** |
 | **写 / 改测试** | **读 `docs/dev/testing.md`** |

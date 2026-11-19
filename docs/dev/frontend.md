@@ -84,7 +84,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 
 ## 表单自动填充
 
-带输入框的表单与对话框，容器级加 `autocomplete="off"`（`GameForm` 的 `<form>`、`SearchBar` / `PathField` / `InstallationList` / `TagPicker` / `SettingsDialog` / `SuggestField` 各自的 input）。WebView2 会记住用户提交过的值，点击输入框弹原生「保存的信息」面板——白底样式与主题冲突，且与 `SuggestField` 的自有补全重复。新增带输入框的组件照此办理；字段级已被容器级覆盖时不必重复加。
+带输入框的表单与对话框，容器级加 `autocomplete="off"`（`GameForm` 的 `<form>`、`SearchBar` / `PathField` / `InstallationList` / `TagPicker` / `VndbSection` / `SuggestField` 各自的 input）。WebView2 会记住用户提交过的值，点击输入框弹原生「保存的信息」面板——白底样式与主题冲突，且与 `SuggestField` 的自有补全重复。新增带输入框的组件照此办理；字段级已被容器级覆盖时不必重复加。
 
 ## 注释
 
@@ -108,6 +108,7 @@ chrome 尺寸固定，不随视口缩放：侧栏 `--sidebar-w`，标题栏 `--t
 | 布局外壳、启动页、弹窗、水平分页 | [shell.md](./shell.md) |
 | 滚动条选型与外观 | [scrollbar.md](./scrollbar.md) |
 | 组件惯例与交互契约 | [components.md](./components.md) |
+| 设置项、设置分区与加字段的流程 | [settings.md](./settings.md) |
 | lib 模块契约、比对、刷新广播、runes | [libs.md](./libs.md) |
 | 样式踩坑记录 | [styles.md](./styles.md) |
 | 界面文案、标签与特征译名 | [i18n.md](./i18n.md) |
