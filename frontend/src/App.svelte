@@ -47,7 +47,6 @@
   import { addGame } from './lib/add-game.svelte.js';
   import { setFormTab } from './lib/form-tab-pref.js';
   import Sidebar from './components/Sidebar.svelte';
-  import SettingsDialog from './components/SettingsDialog.svelte';
   import Titlebar from './components/chrome/Titlebar.svelte';
   import GameForm from './components/GameForm.svelte';
   import ScanAddDialog from './components/ScanAddDialog.svelte';
@@ -58,8 +57,8 @@
   import Dashboard from './views/Dashboard.svelte';
   import Showcase from './views/Showcase.svelte';
   import Detail from './views/Detail.svelte';
+  import Settings from './views/Settings.svelte';
 
-  let settingsOpen = $state(false);
   let sidebarCollapsed = $state(getSidebarCollapsed());
   let dark = $state(document.documentElement.dataset.theme === 'dark');
   let run = $state(createRun());
@@ -278,7 +277,7 @@
       id: 'settings',
       label: t('nav.settings'),
       icon: 'gear',
-      onclick: () => (settingsOpen = true),
+      onclick: () => goView('settings'),
     },
   ]);
 
@@ -293,6 +292,7 @@
   let showcaseSelectedId = $state(null);
   let queryScroll = $state(0);
   let backfillScroll = $state(0);
+  let settingsScroll = $state(0);
 
   function saveViewScroll() {
     if (detailId !== null) return;
@@ -302,6 +302,7 @@
     else if (current === 'home') dashScroll = viewport.scrollTop;
     else if (current === 'query') queryScroll = viewport.scrollTop;
     else if (current === 'backfill') backfillScroll = viewport.scrollTop;
+    else if (current === 'settings') settingsScroll = viewport.scrollTop;
   }
 
   function openDetail(id, opts = {}) {
@@ -337,6 +338,12 @@
     closeDetail();
   }
 
+  function goView(id) {
+    if (current === id && detailId === null) return;
+    leaveView();
+    current = id;
+  }
+
   function onGlobalKeydown(event) {
     const appBlocked = document.getElementById('app')?.inert;
     if (isSidebarToggleKey(event)) {
@@ -353,8 +360,7 @@
     if (appBlocked) return;
     if (document.querySelector('.titlebar__search.is-open')) return;
     event.preventDefault();
-    leaveView();
-    current = NAV[index].id;
+    goView(NAV[index].id);
   }
 
   $effect(() => {
@@ -373,7 +379,7 @@
   <Titlebar
     mode={detailId !== null ? 'detail' : 'default'}
     onback={closeDetail}
-    onsettings={() => (settingsOpen = true)}
+    onsettings={() => goView('settings')}
     {sidebarCollapsed}
     ontogglesidebar={toggleSidebar}
   />
@@ -418,6 +424,8 @@
             <p class="view-loading">{t('common.loading')}</p>
           </section>
         {/if}
+      {:else if current === 'settings'}
+        <Settings scroll={settingsScroll} onnavigate={goView} />
       {:else}
         <section class="view">
           <header class="view-header">
@@ -429,7 +437,6 @@
   </div>
 </div>
 
-<SettingsDialog bind:open={settingsOpen} onbackfill={() => (current = 'backfill')} />
 <GameForm
   bind:open={addGame.formOpen}
   bind:gameId={addGame.formGameId}

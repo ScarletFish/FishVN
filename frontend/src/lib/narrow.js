@@ -1,4 +1,4 @@
-const NARROW_MAIN_W = 1220;
+export const NARROW_MAIN_W = 1220;
 
 export function useNarrowTier(el) {
   if (!el) return () => {};

@@ -36,3 +36,7 @@
 :root[data-reduce-motion='on'] .titlebar__search-results {
   animation: none;
 }
+
+:root[data-reduce-motion='on'] .settings-nav__indicator {
+  transition: opacity var(--duration-fast) var(--ease-out);
+}

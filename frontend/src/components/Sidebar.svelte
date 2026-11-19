@@ -32,8 +32,10 @@
     {#each bottom as item (item.id)}
       <button
         class="nav-btn"
+        class:active={current === item.id}
         data-tip={item.label}
         aria-label={item.label}
+        aria-current={current === item.id ? 'page' : undefined}
         onmousedown={(event) => event.preventDefault()}
         onclick={item.onclick}
       >

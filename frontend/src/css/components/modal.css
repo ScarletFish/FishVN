@@ -222,12 +222,6 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   max-height: calc(100vh - var(--space-6) * 2);
 }
 
-.modal--settings {
-  max-width: 840px;
-  height: 830px;
-  max-height: calc(100vh - var(--space-6) * 2);
-}
-
 .modal--merge {
   max-width: 1200px;
   height: 760px;
@@ -270,11 +264,6 @@ body:has(#modal-root .modal-overlay.show) > :not(#modal-root):not(#globalTooltip
   flex: 0 1 840px;
   min-width: 0;
   max-width: 840px;
-}
-
-.modal-overlay--split .modal--settings {
-  flex: 0 1 840px;
-  min-width: 0;
 }
 
 .modal-overlay--split .modal--aside {
