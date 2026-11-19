@@ -55,7 +55,7 @@ export const api = {
   dashboardRecent: () => call('dashboard_recent'),
   showcaseItems: () => call('showcase_items'),
   dashboardTagCloud: () => call('dashboard_tag_cloud'),
-  libraryTags: () => call('library_tags'),
+  libraryTags: (includeExcluded = false) => call('library_tags', { includeExcluded }),
   libraryTraits: () => call('library_traits'),
   dashboardActivity: (granularity = 'month') => call('dashboard_activity', { granularity }),
   dashboardGameTrend: () => call('dashboard_game_trend'),

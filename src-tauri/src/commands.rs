@@ -95,13 +95,18 @@ pub fn dashboard_tag_cloud(shared: Shared<'_>) -> Result<TagCloudView> {
 }
 
 #[tauri::command]
-pub fn library_tags(shared: Shared<'_>) -> Result<Vec<LibraryTag>> {
+pub fn library_tags(shared: Shared<'_>, include_excluded: Option<bool>) -> Result<Vec<LibraryTag>> {
     let config = settings::current();
+    let excluded: &[String] = if include_excluded.unwrap_or(false) {
+        &[]
+    } else {
+        &config.excluded_tags
+    };
     dashboard::library_tags(
         &*lock(&shared)?,
         config.hide_r18_tags,
         config.spoiler_level,
-        &config.excluded_tags,
+        excluded,
     )
 }
 

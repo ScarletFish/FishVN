@@ -4,7 +4,7 @@
   import TagPicker from '../../components/game-form/TagPicker.svelte';
   import { CHARACTER_SCOPES } from '../../lib/generated/character-roles.js';
   import { readConfig, saveConfig } from '../../lib/config-store.svelte.js';
-  import { loadLibraryTags, toTagItems } from '../../lib/library-tags.svelte.js';
+  import { loadLibraryTags, toAllTagItems } from '../../lib/library-tags.svelte.js';
   import { tagKeyLabel } from '../../lib/tag-label.svelte.js';
   import { t } from '../../lib/i18n.js';
 
@@ -203,7 +203,7 @@
 
 <Modal bind:open={poolOpen} title={t('settings.excludedTags')} variant="modal--picker">
   <TagPicker
-    items={toTagItems()}
+    items={toAllTagItems()}
     selected={config.excluded_tags}
     groupOrder={TAG_GROUP_ORDER}
     hiddenGroups={['tech']}
