@@ -78,7 +78,6 @@
     style:left="{pos.left}px"
     style:top="{pos.top}px"
     onmousedown={(event) => event.stopPropagation()}
-    onclick={(event) => event.stopPropagation()}
     use:portal
   >
     {#each items as item, index (item.sep ? `sep-${index}` : item.id)}
