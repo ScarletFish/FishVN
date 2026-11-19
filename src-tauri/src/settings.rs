@@ -118,57 +118,64 @@ pub fn default_excluded_tags() -> Vec<String> {
     EXCLUDED_TAGS_PRESET.iter().map(|id| (*id).to_owned()).collect()
 }
 
-pub fn default_dashboard_include_uninstalled() -> bool {
-    true
+macro_rules! config_fields {
+    (
+        merged { $( $name:ident : $ty:ty = $default:expr, )* }
+        unmerged { $( $s_name:ident : $s_ty:ty = $s_default:expr, )* }
+    ) => {
+        #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+        #[serde(default)]
+        pub struct AppConfig {
+            $( pub $name: $ty, )*
+            $( pub $s_name: $s_ty, )*
+        }
+
+        impl Default for AppConfig {
+            fn default() -> Self {
+                Self {
+                    $( $name: $default, )*
+                    $( $s_name: $s_default, )*
+                }
+            }
+        }
+
+        impl AppConfig {
+            fn merge(&mut self, patch: ConfigPatch) {
+                $( if let Some(value) = patch.$name {
+                    self.$name = value;
+                } )*
+            }
+        }
+    };
 }
 
-fn default_true() -> bool {
-    true
+config_fields! {
+    merged {
+        time_metric: TimeMetric = TimeMetric::Foreground,
+        theme: Theme = Theme::Light,
+        accent: Accent = Accent::Default,
+        dashboard_layout: Vec<DashboardModule> = default_dashboard_layout(),
+        dashboard_include_uninstalled: bool = true,
+        hide_r18_tags: bool = false,
+        spoiler_level: SpoilerLevel = SpoilerLevel::HideAll,
+        excluded_tags: Vec<String> = default_excluded_tags(),
+        character_scope: CharacterScope = Default::default(),
+        vndb_sync_mode: VndbSyncMode = VndbSyncMode::Download,
+        vndb_sync_wishlist: bool = false,
+        vndb_sync_rating: bool = true,
+        quit_behavior: QuitBehavior = QuitBehavior::Quit,
+        minimize_on_launch: bool = true,
+        startup_page: StartupPage = StartupPage::Home,
+        backup_retention_days: Option<u64> = None,
+    }
+    unmerged {
+        vndb_token_obf: Option<String> = None,
+        magpie_path: Option<String> = None,
+        le_path: Option<String> = None,
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AppConfig {
-    #[serde(default)]
-    pub time_metric: TimeMetric,
-    #[serde(default)]
-    pub theme: Theme,
-    #[serde(default)]
-    pub accent: Accent,
-    #[serde(default = "default_dashboard_layout")]
-    pub dashboard_layout: Vec<DashboardModule>,
-    #[serde(default = "default_dashboard_include_uninstalled")]
-    pub dashboard_include_uninstalled: bool,
-    #[serde(default)]
-    pub hide_r18_tags: bool,
-    #[serde(default)]
-    pub spoiler_level: SpoilerLevel,
-    #[serde(default = "default_excluded_tags")]
-    pub excluded_tags: Vec<String>,
-    #[serde(default)]
-    pub character_scope: CharacterScope,
-    #[serde(default)]
-    pub vndb_sync_mode: VndbSyncMode,
-    #[serde(default)]
-    pub vndb_sync_wishlist: bool,
-    #[serde(default = "default_true")]
-    pub vndb_sync_rating: bool,
-    #[serde(default)]
-    pub vndb_token_obf: Option<String>,
-    #[serde(default)]
-    pub magpie_path: Option<String>,
-    #[serde(default)]
-    pub le_path: Option<String>,
-    #[serde(default)]
-    pub quit_behavior: QuitBehavior,
-    #[serde(default = "default_true")]
-    pub minimize_on_launch: bool,
-    #[serde(default)]
-    pub startup_page: StartupPage,
-    #[serde(default)]
-    pub backup_retention_days: Option<u64>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 pub struct ConfigPatch {
     pub time_metric: Option<TimeMetric>,
     pub theme: Option<Theme>,
@@ -223,6 +230,32 @@ pub struct ConfigView {
     pub backup_retention_days: Option<u64>,
 }
 
+impl From<&AppConfig> for ConfigView {
+    fn from(config: &AppConfig) -> Self {
+        Self {
+            time_metric: config.time_metric,
+            theme: config.theme,
+            accent: config.accent,
+            dashboard_layout: config.dashboard_layout.clone(),
+            dashboard_include_uninstalled: config.dashboard_include_uninstalled,
+            hide_r18_tags: config.hide_r18_tags,
+            spoiler_level: config.spoiler_level,
+            excluded_tags: config.excluded_tags.clone(),
+            character_scope: config.character_scope,
+            vndb_sync_mode: config.vndb_sync_mode,
+            vndb_sync_wishlist: config.vndb_sync_wishlist,
+            vndb_sync_rating: config.vndb_sync_rating,
+            has_vndb_token: has_vndb_token(config),
+            magpie_path: config.magpie_path.clone(),
+            le_path: config.le_path.clone(),
+            quit_behavior: config.quit_behavior,
+            minimize_on_launch: config.minimize_on_launch,
+            startup_page: config.startup_page,
+            backup_retention_days: config.backup_retention_days,
+        }
+    }
+}
+
 static CACHE: OnceLock<RwLock<Option<AppConfig>>> = OnceLock::new();
 
 fn cache() -> &'static RwLock<Option<AppConfig>> {
@@ -254,33 +287,6 @@ pub fn update(dir: &Path, config: AppConfig) -> Result<()> {
 
 pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     let mut config = current();
-    if let Some(value) = patch.time_metric {
-        config.time_metric = value;
-    }
-    if let Some(value) = patch.theme {
-        config.theme = value;
-    }
-    if let Some(value) = patch.accent {
-        config.accent = value;
-    }
-    if let Some(value) = patch.dashboard_layout {
-        config.dashboard_layout = value;
-    }
-    if let Some(value) = patch.dashboard_include_uninstalled {
-        config.dashboard_include_uninstalled = value;
-    }
-    if let Some(value) = patch.hide_r18_tags {
-        config.hide_r18_tags = value;
-    }
-    if let Some(value) = patch.spoiler_level {
-        config.spoiler_level = value;
-    }
-    if let Some(value) = patch.excluded_tags {
-        config.excluded_tags = value;
-    }
-    if let Some(value) = patch.character_scope {
-        config.character_scope = value;
-    }
     if patch.vndb_sync_mode.is_some()
         || patch.vndb_sync_wishlist.is_some()
         || patch.vndb_sync_rating.is_some()
@@ -288,35 +294,18 @@ pub fn patch(dir: &Path, patch: ConfigPatch) -> Result<AppConfig> {
     {
         crate::sync::invalidate_plan();
     }
-    if let Some(value) = patch.vndb_sync_mode {
-        config.vndb_sync_mode = value;
+    let token = patch.vndb_token.as_deref().map(obfuscate_token);
+    let magpie = patch.magpie_path.as_deref().map(clean_tool_path);
+    let le = patch.le_path.as_deref().map(clean_tool_path);
+    config.merge(patch);
+    if let Some(token) = token {
+        config.vndb_token_obf = token;
     }
-    if let Some(value) = patch.vndb_sync_wishlist {
-        config.vndb_sync_wishlist = value;
+    if let Some(magpie) = magpie {
+        config.magpie_path = magpie;
     }
-    if let Some(value) = patch.vndb_sync_rating {
-        config.vndb_sync_rating = value;
-    }
-    if let Some(raw) = patch.vndb_token {
-        config.vndb_token_obf = obfuscate_token(&raw);
-    }
-    if let Some(raw) = patch.magpie_path {
-        config.magpie_path = clean_tool_path(&raw);
-    }
-    if let Some(raw) = patch.le_path {
-        config.le_path = clean_tool_path(&raw);
-    }
-    if let Some(value) = patch.quit_behavior {
-        config.quit_behavior = value;
-    }
-    if let Some(value) = patch.minimize_on_launch {
-        config.minimize_on_launch = value;
-    }
-    if let Some(value) = patch.startup_page {
-        config.startup_page = value;
-    }
-    if let Some(value) = patch.backup_retention_days {
-        config.backup_retention_days = value;
+    if let Some(le) = le {
+        config.le_path = le;
     }
     update(dir, config)?;
     Ok(current())
@@ -360,29 +349,7 @@ pub fn has_vndb_token(config: &AppConfig) -> bool {
 }
 
 pub fn view() -> ConfigView {
-    let config = current();
-    let token_set = has_vndb_token(&config);
-    ConfigView {
-        time_metric: config.time_metric,
-        theme: config.theme,
-        accent: config.accent,
-        dashboard_layout: config.dashboard_layout,
-        dashboard_include_uninstalled: config.dashboard_include_uninstalled,
-        hide_r18_tags: config.hide_r18_tags,
-        spoiler_level: config.spoiler_level,
-        excluded_tags: config.excluded_tags,
-        character_scope: config.character_scope,
-        vndb_sync_mode: config.vndb_sync_mode,
-        vndb_sync_wishlist: config.vndb_sync_wishlist,
-        vndb_sync_rating: config.vndb_sync_rating,
-        has_vndb_token: token_set,
-        magpie_path: config.magpie_path.clone(),
-        le_path: config.le_path.clone(),
-        quit_behavior: config.quit_behavior,
-        minimize_on_launch: config.minimize_on_launch,
-        startup_page: config.startup_page,
-        backup_retention_days: config.backup_retention_days,
-    }
+    ConfigView::from(&current())
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
@@ -440,6 +407,16 @@ mod tests {
         CONFIG_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
+    fn json_keys<T: Serialize>(value: &T) -> std::collections::BTreeSet<String> {
+        serde_json::to_value(value)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect()
+    }
+
     #[test]
     fn 排除池预置均为可显示标签且有中文译名() {
         let dict = crate::tagdict::dictionary();
@@ -484,6 +461,26 @@ mod tests {
         assert_eq!(current().time_metric, TimeMetric::Alive);
         assert_eq!(current().theme, Theme::Dark);
         assert_eq!(current().accent, Accent::Ocean);
+    }
+
+    #[test]
+    fn 视图投影与配置字段一一对应() {
+        let config_keys = json_keys(&AppConfig::default());
+        let view_keys = json_keys(&ConfigView::from(&AppConfig::default()));
+        let mut expected = config_keys;
+        expected.remove("vndb_token_obf");
+        expected.insert("has_vndb_token".to_owned());
+        assert_eq!(view_keys, expected);
+    }
+
+    #[test]
+    fn 补丁字段覆盖配置字段() {
+        let config_keys = json_keys(&AppConfig::default());
+        let patch_keys = json_keys(&ConfigPatch::default());
+        let mut expected = config_keys;
+        expected.remove("vndb_token_obf");
+        expected.insert("vndb_token".to_owned());
+        assert_eq!(patch_keys, expected);
     }
 
     #[test]
