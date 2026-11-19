@@ -80,6 +80,7 @@
 | 改标签展示/过滤 | [tags.md](./tags.md) 的规则与 `tagdict` | `check:frontend` + `npm test` |
 | 改补全页列表或筛选 | `backfill-list.js` 纯函数（待处理判定读 `has_metadata`、标题走 `titles` 链、`pickOnClick` 选中集决策）+ `backfill-store.svelte.js` 的 games/localOverlay + `Backfill.svelte`；新增库内成员变化入口要补 `notifyLibraryChanged` | `npm test -w frontend` + `check:frontend` |
 | 改库内列表顺序 | `games.rs::GAME_ORDER_SQL` 单一常量（同时被 `scan` / `items_by_ids` 使用）；**全局影响** MyList / Dashboard / SearchBar，须确认任务顺序仍与列表一致 | `npm test`（含顺序一致性用例）+ `check:frontend` |
+| 改文本选择或右键菜单 | `tokens.css` 的全局选中开关（`.shell__main` 放开、交互件排除）+ `native-menu.js` 分发 + `edit-menu.svelte.js` / `selection.js` | `npm run check:frontend` |
 
 ## 性能边界
 

@@ -277,6 +277,12 @@ parity 测试约束；`cover-src.js` 在 `DEV_HTTP` 下走这条路由，Tauri �
 该封面；单张失败只报错，不让整次同步失败。读超时与封面体积的约束见 [vndb-api.md](./vndb-api.md)
 的「封面与图片」。
 
+### 剪贴板
+
+复制与读取走 `tauri-plugin-clipboard-manager`，capability 只开 `allow-read-text` /
+`allow-write-text`。前端统一经 `lib/clipboard.js` 调用，不直接用 `navigator.clipboard`：后者依赖
+secure context，读权限在 WebView2 下也拿不到。
+
 ### 本地封面授权
 
 渲染本地封面走 asset 协议，scope 之外的路径不放行就拿到 403 空响应。dialog 插件只放行
