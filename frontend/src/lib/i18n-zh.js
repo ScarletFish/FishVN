@@ -885,6 +885,16 @@ export const DICT_ZH = {
     copyFailed: '复制失败',
     sessionEnded: '本次游玩时间：{duration}',
   },
+  editMenu: {
+    cut: '剪切',
+    copy: '复制',
+    paste: '粘贴',
+    selectAll: '全选',
+    failed: '操作失败',
+  },
+  selectionCopy: {
+    label: '复制',
+  },
   status: {
     playing: '游玩中',
     wishlist: '计划中',

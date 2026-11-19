@@ -1,5 +1,6 @@
 <script>
   import { portal } from '../lib/portal.js';
+  import { copyText } from '../lib/clipboard.js';
   import { items, toast, dismiss, pause, resume } from '../lib/toast.svelte.js';
   import { t } from '../lib/i18n.js';
   import Icon from './Icon.svelte';
@@ -14,8 +15,7 @@
 
   function copy(item) {
     const text = item.title + (item.desc ? '\n' + item.desc : '');
-    navigator.clipboard
-      .writeText(text)
+    copyText(text)
       .then(() => toast(t('toast.copied'), 'success', { duration: 1500 }))
       .catch(() => toast(t('toast.copyFailed'), 'error'));
   }

@@ -7,12 +7,25 @@
   user-select: none;
 }
 
-/* 全局禁用了选中，文本输入要放开 */
+/* 全局禁用了选中，内容区放开 —— * 会把每个元素都声明成 none，只写容器无效，必须匹配后代 */
+.shell__main,
+.shell__main *,
+.modal-overlay,
+.modal-overlay * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 input,
 textarea,
 [contenteditable] {
-  -webkit-user-select: auto;
-  user-select: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+:is(.shell__main, .modal-overlay) :is(button, a, svg, img, select, [role='button'], [role='tab'], [role='menuitem'], [role='option']) {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* 原生控件（button/input/select/textarea）不继承 font（含 font-family /
@@ -34,6 +47,14 @@ textarea {
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
+}
+
+/* ─── 文本选中 ───
+   中性底色，跟 hover / 选中态同一套灰阶，不占强调色；
+   文字压回默认前景，避免被选中的次要文字在色块上读不出来。 */
+::selection {
+  color: var(--fg-default);
+  background: var(--bg-selection);
 }
 
 /* ─── 全局元素基底 ─── */
@@ -146,6 +167,7 @@ body {
   --bg-floating: var(--gray-10); /* Toast：压页面或弹窗，靠阴影与边框分层 */
   --bg-hover: color-mix(in srgb, var(--ink-black) 6%, transparent);
   --bg-hover-strong: color-mix(in srgb, var(--ink-black) 12%, transparent);
+  --bg-selection: color-mix(in srgb, var(--ink-black) 22%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 18%, transparent);
   /* 段控件：容器不上色，与周围同层；选中格向反方向明度走一档（浅压暗 / 深提亮），
      两主题同为 12% 对比色叠加，明度差即对比，不吃阴影 */
@@ -242,6 +264,7 @@ body {
   --bg-floating: var(--gray-750);
   --bg-hover: color-mix(in srgb, var(--ink-white) 6%, transparent);
   --bg-hover-strong: color-mix(in srgb, var(--ink-white) 12%, transparent);
+  --bg-selection: color-mix(in srgb, var(--ink-white) 22%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 18%, transparent);
   /* 段控件：容器即弹窗底，选中格提亮一档；暗底上明度空间足够，不吃阴影 */
   --bg-seg-thumb: var(--bg-hover-strong);

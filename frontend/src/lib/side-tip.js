@@ -1,5 +1,6 @@
 import { subscribeTheme } from './theme.js';
 import { createTipBody } from './tip-body.js';
+import { onTipInterrupt, tipsSuppressed } from './tip-guard.js';
 
 const SHOW_DELAY = 400;
 const HIDE_DELAY = 120;
@@ -53,6 +54,8 @@ function hideInstant() {
   });
 }
 
+onTipInterrupt(hideNow);
+
 function apply(node, label) {
   body.set(label, node.getAttribute('data-tip-key'));
 }
@@ -93,11 +96,16 @@ document.addEventListener('mouseover', (event) => {
     tip.classList.remove('is-visible');
   }
   if (!node || !node.getAttribute('data-tip')) return;
+  if (tipsSuppressed()) return;
 
   current = node;
   watch(node);
   if (tip.classList.contains('is-visible')) reveal(node);
-  else showTimer = setTimeout(() => reveal(node), SHOW_DELAY);
+  else
+    showTimer = setTimeout(() => {
+      if (tipsSuppressed()) return;
+      reveal(node);
+    }, SHOW_DELAY);
 });
 
 document.addEventListener('mouseout', (event) => {

@@ -627,7 +627,6 @@ button.info-rating {
 .detail-char-fact dd {
   font-size: var(--text-sm);
   color: var(--fg-default);
-  user-select: text;
 }
 
 .detail-char-traits {
@@ -647,7 +646,6 @@ button.info-rating {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
-  user-select: text;
 }
 
 .detail-char-spoiler-list {
@@ -668,7 +666,6 @@ button.info-rating {
   font-size: var(--text-md);
   line-height: 1.7;
   color: var(--fg-secondary);
-  user-select: text;
 }
 
 .detail-summary a,

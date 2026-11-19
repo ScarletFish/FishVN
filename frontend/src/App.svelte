@@ -3,6 +3,8 @@
   import './lib/tooltip.js';
   import './lib/side-tip.js';
   import './lib/native-menu.js';
+  import EditContextMenu from './components/EditContextMenu.svelte';
+  import SelectionCopy from './components/SelectionCopy.svelte';
   import { onMount, tick } from 'svelte';
   import { t } from './lib/i18n.js';
   import { durationText } from './lib/playtime.js';
@@ -437,4 +439,6 @@
 />
 <ScanAddDialog bind:open={addGame.scanOpen} path={addGame.scanPath} ondone={notifyLibraryChanged} />
 <Toaster />
+<EditContextMenu />
+<SelectionCopy />
 </IconContext>

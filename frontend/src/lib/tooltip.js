@@ -1,5 +1,6 @@
 
 import { createTipBody } from './tip-body.js';
+import { onTipInterrupt, tipsSuppressed } from './tip-guard.js';
 
 const SHOW_DELAY = 500;
 const HIDE_DELAY = 80;
@@ -16,6 +17,16 @@ let showTimer = null;
 let hideTimer = null;
 let current = null;
 
+function hideNow() {
+  clearTimeout(showTimer);
+  clearTimeout(hideTimer);
+  current = null;
+  el.classList.add('is-exiting');
+  el.classList.remove('is-visible');
+}
+
+onTipInterrupt(hideNow);
+
 document.addEventListener('mouseover', (e) => {
   const target = e.target.closest('[data-tooltip]');
   if (target === current) return;
@@ -28,12 +39,14 @@ document.addEventListener('mouseover', (e) => {
     el.classList.remove('is-visible');
   }
   if (!target) return;
+  if (tipsSuppressed()) return;
 
   current = target;
   const entryX = e.clientX;
   const entryY = e.clientY;
 
   showTimer = setTimeout(() => {
+    if (tipsSuppressed()) return;
     el.classList.toggle('is-rich', target.hasAttribute('data-tooltip-rich'));
     body.set(target.getAttribute('data-tooltip'), target.getAttribute('data-tooltip-key'));
     position(entryX, entryY);
@@ -59,11 +72,7 @@ document.addEventListener(
   'scroll',
   () => {
     if (!el.classList.contains('is-visible')) return;
-    clearTimeout(showTimer);
-    clearTimeout(hideTimer);
-    current = null;
-    el.classList.add('is-exiting');
-    el.classList.remove('is-visible');
+    hideNow();
   },
   true,
 );
