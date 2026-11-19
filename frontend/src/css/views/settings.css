@@ -1,8 +1,10 @@
 .settings {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: clamp(15rem, 22%, 20rem) minmax(0, 1fr);
   gap: var(--space-5) 0;
   align-items: start;
+  max-width: 96rem;
+  margin-inline: auto;
 }
 
 .settings > .view-header {
@@ -58,18 +60,4 @@
 
 .settings-section .form-group:last-child {
   margin-bottom: 0;
-}
-
-.settings.narrow {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.settings.narrow .settings__nav {
-  position: static;
-  padding-right: 0;
-  border-right: none;
-}
-
-.settings.narrow .settings__body {
-  padding: 0;
 }

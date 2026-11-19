@@ -1,6 +1,5 @@
 <script>
   import { onMount, tick } from 'svelte';
-  import SelectDd from '../components/SelectDd.svelte';
   import SettingsNav from '../components/settings/SettingsNav.svelte';
   import AppearanceSection from './settings/AppearanceSection.svelte';
   import ContentSection from './settings/ContentSection.svelte';
@@ -11,7 +10,6 @@
   import { t } from '../lib/i18n.js';
   import { getScrollViewport } from '../lib/scrollbars.js';
   import { getReduceMotion } from '../lib/motion.js';
-  import { NARROW_MAIN_W } from '../lib/narrow.js';
   import { SETTINGS_SECTIONS, pickActiveSection } from '../lib/settings-nav.js';
 
   let { scroll = 0, onnavigate } = $props();
@@ -24,12 +22,10 @@
   const sectionEls = {};
   let rootEl = $state(null);
   let active = $state(SETTINGS_SECTIONS[0].id);
-  let narrow = $state(false);
   let frame = 0;
   let settleTimer = null;
   let lockUntil = 0;
   let pinnedId = null;
-  let observer = null;
   let unbindScroll = null;
 
   const navSections = $derived(
@@ -104,17 +100,6 @@
     active = computeActive();
   }
 
-  function watchNarrow() {
-    const host = rootEl?.closest('.shell__main');
-    if (!host) return;
-    const apply = () => {
-      narrow = host.clientWidth < NARROW_MAIN_W;
-    };
-    observer = new ResizeObserver(apply);
-    observer.observe(host);
-    apply();
-  }
-
   onMount(() => {
     const viewport = getScrollViewport();
     if (viewport) {
@@ -125,37 +110,25 @@
         viewport.removeEventListener('scrollend', onScrollEnd);
       };
     }
-    watchNarrow();
     collectSections();
     active = computeActive();
     restoreScroll();
 
     return () => {
       unbindScroll?.();
-      observer?.disconnect();
       cancelAnimationFrame(frame);
       clearTimeout(settleTimer);
     };
   });
 </script>
 
-<div class="view settings" class:narrow bind:this={rootEl}>
+<div class="view settings" bind:this={rootEl}>
   <header class="view-header">
     <h1>{t('settings.title')}</h1>
   </header>
 
   <div class="settings__nav">
-    {#if narrow}
-      <SelectDd
-        id="settings-section"
-        options={navSections.map((section) => ({ value: section.id, label: section.label }))}
-        value={active}
-        onchange={gotoSection}
-        ariaLabel={t('settings.title')}
-      />
-    {:else}
-      <SettingsNav sections={navSections} {active} ongoto={gotoSection} />
-    {/if}
+    <SettingsNav sections={navSections} {active} ongoto={gotoSection} />
   </div>
 
   <div class="settings__body">

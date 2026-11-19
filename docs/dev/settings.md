@@ -42,7 +42,7 @@
 
 1. `lib/settings-nav.js` 的 `SETTINGS_SECTIONS` 加 `{ id, label }`，`label` 是 i18n key。顺序即滚动流顺序，`settings-nav.test.js` 钉着现有 id 次序，加段要一起改。
 2. `views/settings/` 下新建组件，根节点自己渲染 `<section class="settings-section" id="settings-<id>">` 与 `<h2 class="settings-section__title">`。锚点 id 必须与 `SETTINGS_SECTIONS` 的 `id` 对上——滚动跟随按它找节点。
-3. `Settings.svelte` 的 `.settings__body` 里按顺序插入组件。窄档目录降级由外壳统一处理。
+3. `Settings.svelte` 的 `.settings__body` 里按顺序插入组件。
 4. 分区自带的弹窗或浮层挂在本组件内即可：`Modal` 走 portal 到 `#modal-root`，层级由它接管。
 
 ## 检查清单
