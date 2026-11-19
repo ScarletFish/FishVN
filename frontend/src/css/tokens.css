@@ -23,7 +23,8 @@ textarea,
   user-select: text;
 }
 
-:is(.shell__main, .modal-overlay) :is(button, a, svg, img, select, [role='button'], [role='tab'], [role='menuitem'], [role='option']) {
+:is(.shell__main, .modal-overlay) :is(button, a, svg, img, select, [role='button'], [role='tab'], [role='menuitem'], [role='option']),
+:is(.shell__main, .modal-overlay) :is(button, a, [role='button'], [role='tab'], [role='menuitem'], [role='option']) * {
   -webkit-user-select: none;
   user-select: none;
 }
