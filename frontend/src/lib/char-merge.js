@@ -51,8 +51,10 @@ function sameCharacter(a, b) {
 
 export function planCharacters(local, incoming) {
   const localMap = indexByKey(local);
+  const incomingKeys = new Set((incoming ?? []).map(charKey));
   const added = [];
   const conflicts = [];
+  const removals = [];
 
   for (const c of incoming ?? []) {
     const key = charKey(c);
@@ -66,7 +68,11 @@ export function planCharacters(local, incoming) {
 
   const conflictKeys = new Set(conflicts.map((r) => r.key));
   const kept = (local ?? []).filter((c) => !conflictKeys.has(charKey(c)));
-  return { added, conflicts, kept };
+  for (const c of local ?? []) {
+    const key = charKey(c);
+    if (!incomingKeys.has(key)) removals.push({ key, current: c, incoming: null, removes: true });
+  }
+  return { added, conflicts, kept, removals };
 }
 
 export function applyCharacters(local, incoming, adopted) {
@@ -74,8 +80,10 @@ export function applyCharacters(local, incoming, adopted) {
   const merged = [];
 
   for (const c of local ?? []) {
-    const match = incomingMap.get(charKey(c));
-    merged.push(match && adopted?.has(charKey(c)) ? { ...match } : { ...c });
+    const key = charKey(c);
+    const match = incomingMap.get(key);
+    if (!match && adopted?.has(key)) continue;
+    merged.push(match && adopted?.has(key) ? { ...match } : { ...c });
   }
 
   const localKeys = new Set((local ?? []).map(charKey));

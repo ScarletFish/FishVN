@@ -15,6 +15,7 @@
   import { errorFieldId, errorTab, shownErrors, validateGameForm } from '../lib/form-validation.js';
   import { DEFAULT_STATUS } from '../lib/status.js';
   import VnMergeDialog from './VnMergeDialog.svelte';
+  import Seg from './Seg.svelte';
   import CharacterEditor from './CharacterEditor.svelte';
   import InstallationList from './InstallationList.svelte';
   import { namedOnly, toDraft, toPayload } from '../lib/characters.js';
@@ -27,7 +28,7 @@
   import { panelScrollbars } from '../lib/scrollbars.js';
   import { toast } from '../lib/toast.svelte.js';
   import { confirm } from '../lib/confirm.svelte.js';
-  import { quitGuard } from '../lib/quit-guard.svelte.js';
+  import { markQuitDirty } from '../lib/quit-guard.svelte.js';
   import { notifyLibraryChanged, notifyLibraryTagsChanged, notifyLibraryTraitsChanged } from '../lib/library-events.js';
   import { tagKey, allTagItems, loadTagDict, traitItems } from '../lib/tag-label.svelte.js';
   import { TAG_GROUP_ORDER } from '../lib/tag-order.svelte.js';
@@ -103,6 +104,7 @@
   let defaultInstallKey = $state(null);
   
   let mergeOpen = $state(false);
+  let downloadMode = $state('merge');
 
   let statusOpen = $state(false);
   let staffRoleOpen = $state(null);
@@ -361,6 +363,12 @@
     }));
     if (!ok) return;
     vndbId = flow.selectedId;
+    if (downloadMode === 'align') {
+      const agreed = await confirm('alignCloud', flow.alignCounts());
+      if (!agreed) return;
+      acceptMerge(...flow.allPicked());
+      return;
+    }
     mergeOpen = true;
   }
 
@@ -394,7 +402,7 @@
   const isDirty = $derived(open && baseline !== '' && formSnapshot() !== baseline);
 
   $effect(() => {
-    quitGuard.dirty = isDirty;
+    markQuitDirty('gameForm', isDirty);
   });
 
   async function close() {
@@ -669,6 +677,17 @@
         onClose={() => (asideOpen = false)}
       />
     {:else}
+      <div class="game-form__download-mode">
+        <Seg
+          label={t('gameForm.merge.downloadModeLabel')}
+          value={downloadMode}
+          onchange={(v) => (downloadMode = v)}
+          options={[
+            { value: 'merge', label: t('gameForm.merge.modeMerge'), tooltip: t('gameForm.merge.modeMergeTip') },
+            { value: 'align', label: t('gameForm.merge.modeAlign'), tooltip: t('gameForm.merge.modeAlignTip') },
+          ]}
+        />
+      </div>
       <VndbAside
         {search}
         pulling={flow.pulling}
@@ -697,5 +716,11 @@
 <style>
   .game-form__sync {
     margin-right: auto;
+  }
+
+  .game-form__download-mode {
+    display: flex;
+    justify-content: flex-end;
+    padding: var(--space-3) var(--space-4) 0;
   }
 </style>

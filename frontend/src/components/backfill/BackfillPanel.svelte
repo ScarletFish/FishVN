@@ -9,6 +9,9 @@
   import { BANNER_FOCAL } from '../../lib/cover-focal.js';
   import { coverSrc } from '../../lib/cover-src.js';
   import { openExternal } from '../../lib/open-external.js';
+  import { confirm } from '../../lib/confirm.svelte.js';
+  import { markQuitDirty } from '../../lib/quit-guard.svelte.js';
+  import Seg from '../Seg.svelte';
   import VnMergeDialog from '../VnMergeDialog.svelte';
 
   let { item, running = false, onchanged, onopenform, onopendetail, onclose } = $props();
@@ -28,8 +31,14 @@
   let mergeOpen = $state(false);
   let rebind = $state(false);
   let done = $state(null);
+  let downloadMode = $state('merge');
+  let pending = $state(null);
 
   let lastId = null;
+  $effect(() => {
+    markQuitDirty('backfillPanel', Boolean(pending));
+    return () => markQuitDirty('backfillPanel', false);
+  });
   $effect(() => {
     if (item.game_id === lastId) return;
     lastId = item.game_id;
@@ -39,6 +48,7 @@
     searched = false;
     rebind = false;
     done = null;
+    pending = null;
   });
 
   let cover = $state(null);
@@ -149,13 +159,26 @@
         characters: chars,
       };
     });
-    if (ok) mergeOpen = true;
+    if (!ok) return;
+    if (downloadMode === 'align') {
+      const agreed = await confirm('alignCloud', flow.alignCounts());
+      if (!agreed) return;
+      accept(...flow.allPicked());
+      return;
+    }
+    mergeOpen = true;
   }
 
   async function accept(picked, charPicked) {
     mergeOpen = false;
     const result = flow.accept(picked, charPicked);
     if (!result) return;
+    pending = { result, fields: picked.size, gameId: item.game_id };
+  }
+
+  async function applyPending() {
+    if (!pending || busy) return;
+    const { result, fields, gameId } = pending;
     busy = true;
     try {
       const next = result.fields;
@@ -163,19 +186,21 @@
         (c) => (c.name ?? '').trim() || (c.original ?? '').trim(),
       );
       const coverChanged = next.coverPath !== result.previous.coverPath;
-      await api.updateGame(item.game_id, { name: next.name, vndb_id: result.id });
+      await api.updateGame(gameId, { name: next.name, vndb_id: result.id });
       await api.updateGameMetadata(
-        item.game_id,
+        gameId,
         buildMetadataPatch({
           ...next,
           focusX: coverChanged ? 50 : result.previous.focusX,
           focusY: coverChanged ? 50 : result.previous.focusY,
         }),
       );
-      await api.saveGameCharacters(item.game_id, kept);
-      done = { fields: picked.size, characters: kept.length };
+      await api.saveGameCharacters(gameId, kept);
+      if (pending?.gameId !== gameId) return;
+      done = { fields, characters: kept.length };
+      pending = null;
       const patch = {
-        game_id: item.game_id,
+        game_id: gameId,
         vndb_id: result.id,
         state: 'ok',
         bind_source: 'existing',
@@ -217,7 +242,15 @@
 
 <div class="bf-panel__head">
   <span class="bf-panel__name" data-tooltip={item.name}>{item.name}</span>
-  <button type="button" class="bf-panel__close" aria-label={t('common.close')} onclick={onclose}>
+  <button
+    type="button"
+    class="bf-panel__close"
+    aria-label={t('common.close')}
+    onclick={() => {
+      if (!busy) pending = null;
+      onclose?.();
+    }}
+  >
     ×
   </button>
 </div>
@@ -267,6 +300,17 @@
 {/if}
 
 {#if showSearch}
+  <div class="bf-download-mode">
+    <Seg
+      label={t('gameForm.merge.downloadModeLabel')}
+      value={downloadMode}
+      onchange={(v) => (downloadMode = v)}
+      options={[
+        { value: 'merge', label: t('gameForm.merge.modeMerge'), tooltip: t('gameForm.merge.modeMergeTip') },
+        { value: 'align', label: t('gameForm.merge.modeAlign'), tooltip: t('gameForm.merge.modeAlignTip') },
+      ]}
+    />
+  </div>
   <div class="bf-search">
     <input
       class="bf-input"
@@ -376,6 +420,18 @@
 {/if}
 
 <div class="bf-panel__actions">
+  {#if pending}
+    <div class="bf-panel__buttons">
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        disabled={busy}
+        onclick={applyPending}
+      >
+        {t('backfillPage.applyPending')}
+      </button>
+    </div>
+  {/if}
   {#if !unbound}
     <div class="bf-panel__buttons">
       {#if !rebind}

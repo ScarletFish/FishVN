@@ -640,6 +640,12 @@
   background: var(--bg-hover);
 }
 
+.bf-download-mode {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: var(--space-3);
+}
+
 .bf-search {
   display: flex;
   align-items: stretch;

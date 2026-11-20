@@ -79,12 +79,22 @@ test('incoming 独有的进新增', () => {
   expect(plan.kept).toEqual([]);
 });
 
-test('本地独有的进保留', () => {
+test('本地独有的进保留，同时进移除行（默认不移除）', () => {
   const local = ch({ id: 'local-x', name: '自建角色' });
   const plan = planCharacters([local], []);
   expect(plan.added).toEqual([]);
   expect(plan.conflicts).toEqual([]);
   expect(plan.kept).toEqual([local]);
+  expect(plan.removals).toEqual([
+    { key: '自建角色', current: local, incoming: null, removes: true },
+  ]);
+});
+
+test('同名且相同的本地角色不进移除行', () => {
+  const a = saber();
+  const plan = planCharacters([a], [saber()]);
+  expect(plan.removals).toEqual([]);
+  expect(plan.kept).toEqual([a]);
 });
 
 test('同名且有差异的进冲突', () => {
@@ -184,11 +194,33 @@ test('未选中的冲突保留本地', () => {
   expect(next[0].id).toBe('local-a');
 });
 
-test('本地独有的角色即使 key 在 adopted 里也不被覆盖', () => {
+test('本地独有角色没被勾选时保留', () => {
   const local = ch({ id: 'local-x', name: '自建角色', role: 'side' });
-  const next = applyCharacters([local], [], new Set(['自建角色']));
+  const next = applyCharacters([local], [], new Set());
   expect(next).toHaveLength(1);
   expect(next[0].id).toBe('local-x');
+});
+
+test('本地独有角色被勾选时移除', () => {
+  const local = ch({ id: 'local-x', name: '自建角色', role: 'side' });
+  const next = applyCharacters([local], [], new Set(['自建角色']));
+  expect(next).toEqual([]);
+});
+
+test('移除行与冲突行共存时各自按勾选生效', () => {
+  const kept = saber({ id: 'local-a', image_path: 'mine.jpg' });
+  const own = ch({ id: 'local-x', name: '自建角色' });
+  const incoming = [saber({ image_path: 'vndb.jpg' })];
+  const plan = planCharacters([kept, own], incoming);
+  expect(plan.conflicts.map((r) => r.key)).toEqual(['セイバー']);
+  expect(plan.removals.map((r) => r.key)).toEqual(['自建角色']);
+  const next = applyCharacters(
+    [kept, own],
+    incoming,
+    new Set(['セイバー', '自建角色'])
+  );
+  expect(names(next)).toEqual(['セイバー']);
+  expect(next[0].image_path).toBe('vndb.jpg');
 });
 
 test('新增的角色直接进结果', () => {

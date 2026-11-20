@@ -9,6 +9,7 @@ const m = vi.hoisted(() => ({
   toast: vi.fn(),
   conflicts: [{ key: 'name' }],
   charConflicts: [{ key: 'c1' }],
+  charRemovals: [{ key: 'c2', removes: true }],
   handler: null,
 }));
 
@@ -35,7 +36,7 @@ vi.mock('./vn-merge.js', () => ({
   applyIncoming: (current, incoming, picked) => ({ ...current, picked: [...picked] }),
 }));
 vi.mock('./char-merge.js', () => ({
-  planCharacters: () => ({ conflicts: m.charConflicts }),
+  planCharacters: () => ({ conflicts: m.charConflicts, removals: m.charRemovals }),
   applyCharacters: (current, incoming) => incoming,
 }));
 
@@ -49,6 +50,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.conflicts = [{ key: 'name' }];
   m.charConflicts = [{ key: 'c1' }];
+  m.charRemovals = [{ key: 'c2', removes: true }];
   m.handler = null;
   m.listGames.mockResolvedValue([]);
   m.fetchVnMetadata.mockResolvedValue({ name: '远端', characters: [{ id: 'c1' }] });
@@ -68,7 +70,7 @@ test('选中候选后算出两组冲突，订阅与拉取状态都被清理', as
   expect(m.fetchVnMetadata).toHaveBeenCalledWith('v1');
   expect(flow.selectedId).toBe('v1');
   expect(flow.rows).toEqual([{ key: 'name' }]);
-  expect(flow.charRows).toEqual([{ key: 'c1' }]);
+  expect(flow.charRows).toEqual([{ key: 'c1' }, { key: 'c2', removes: true }]);
   expect(flow.pulling).toBe(false);
   expect(flow.progress).toBeNull();
   expect(m.off).toHaveBeenCalledOnce();
@@ -84,6 +86,26 @@ test('accept 只计算不写入，并保留合并前的字段供宿主比较', a
   expect(result.fields.picked).toEqual(['name']);
   expect(result.characters).toEqual([{ id: 'c1' }]);
   expect(flow.accept(new Set(), new Set())).toBeNull();
+});
+
+test('allPicked 一次给出字段与角色的全选集合，供对齐档使用', async () => {
+  const flow = createVnMergeFlow();
+  await flow.pick('v1', load());
+
+  const [fields, chars] = flow.allPicked();
+  expect([...fields]).toEqual(['name']);
+  expect([...chars]).toEqual(['c1', 'c2']);
+});
+
+test('alignCounts 分出覆盖、清空、移除三类条数', async () => {
+  m.conflicts = [
+    { key: 'name' },
+    { key: 'description', clears: true },
+  ];
+  m.charRemovals = [{ key: 'c2', removes: true }];
+  const flow = createVnMergeFlow();
+  await flow.pick('v1', load());
+  expect(flow.alignCounts()).toEqual({ overwrite: 1, clear: 1, remove: 1 });
 });
 
 test('vndb_id 已被别的作品占用时直接拒绝，不发起拉取', async () => {
@@ -109,6 +131,7 @@ test('拉取抛错时提示并复位，不留下半开的订阅', async () => {
 test('无差异时不打开取舍面板', async () => {
   m.conflicts = [];
   m.charConflicts = [];
+  m.charRemovals = [];
   const flow = createVnMergeFlow();
 
   expect(await flow.pick('v1', load())).toBeNull();

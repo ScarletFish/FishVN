@@ -25,8 +25,8 @@
 
   $effect(() => {
     if (open) {
-      picked = new Set(rows.map((r) => r.key));
-      charPicked = new Set(charRows.map((r) => r.key));
+      picked = new Set(rows.filter((r) => !r.clears).map((r) => r.key));
+      charPicked = new Set(charRows.filter((r) => !r.removes).map((r) => r.key));
     }
   });
 
@@ -84,6 +84,16 @@
     charPicked = next;
   }
 
+  function keepAll() {
+    picked = new Set();
+    charPicked = new Set();
+  }
+
+  function adoptAll() {
+    picked = new Set(rows.map((r) => r.key));
+    charPicked = new Set(charRows.map((r) => r.key));
+  }
+
   function isCover(key) {
     return key === 'coverPath';
   }
@@ -109,6 +119,14 @@
   {#if rows.length === 0 && charRows.length === 0}
     <div class="vn-merge__empty">{t('gameForm.merge.empty')}</div>
   {:else}
+    <div class="vn-merge__bulk">
+      <button type="button" class="btn btn-sm" onclick={keepAll}>
+        {t('gameForm.merge.keepAll')}
+      </button>
+      <button type="button" class="btn btn-sm" onclick={adoptAll}>
+        {t('gameForm.merge.adoptAll')}
+      </button>
+    </div>
     <div class="vn-merge__head" aria-hidden="true">
       <span></span>
       <span>{t('gameForm.merge.current')}</span>
@@ -146,6 +164,10 @@
                       </span>
                     {/if}
                   </span>
+                {:else if row.clears && side === 1}
+                  <span class="vn-merge__text vn-merge__text--hint scroll-thin">
+                    {t('gameForm.merge.clearHint')}
+                  </span>
                 {:else}
                   <span class="vn-merge__text scroll-thin">
                     {cellText(row.key, value) || t('gameForm.merge.emptyValue')}
@@ -163,11 +185,16 @@
           </li>
         {/each}
 
-        {#if charRows.length}
+        {#if charRows.some((r) => !r.removes)}
           <li class="vn-merge__section">
-            {t('gameForm.merge.charSection', { count: charRows.length })}
+            {t('gameForm.merge.charSection', { count: charRows.filter((r) => !r.removes).length })}
           </li>
           {#each charRows as row, index (row.key)}
+            {#if row.removes && (!charRows[index - 1] || !charRows[index - 1].removes)}
+              <li class="vn-merge__section">
+                {t('gameForm.merge.charRemovalSection', { count: charRows.filter((r) => r.removes).length })}
+              </li>
+            {/if}
             {@const on = charPicked.has(row.key)}
             <li class="vn-merge__row vn-merge__row--char">
               <span class="vn-merge__label">{charKey(row.current) || charKey(row.incoming)}</span>
@@ -185,12 +212,18 @@
                       <span class="vn-merge__thumb-ph" aria-hidden="true">—</span>
                     {/if}
                   </span>
-                  <span class="vn-merge__text scroll-thin">
-                    {charNameOf(value) || t('gameForm.merge.emptyValue')}
-                    {#if value?.role}
-                      <span class="vn-merge__meta">{charRoleLabel(value.role)}</span>
-                    {/if}
-                  </span>
+                  {#if row.removes && side === 1}
+                    <span class="vn-merge__text vn-merge__text--hint scroll-thin">
+                      {t('gameForm.merge.removeHint')}
+                    </span>
+                  {:else}
+                    <span class="vn-merge__text scroll-thin">
+                      {charNameOf(value) || t('gameForm.merge.emptyValue')}
+                      {#if value?.role}
+                        <span class="vn-merge__meta">{charRoleLabel(value.role)}</span>
+                      {/if}
+                    </span>
+                  {/if}
                   <button
                     type="button"
                     class="vn-merge__dot"

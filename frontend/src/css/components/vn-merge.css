@@ -1,4 +1,11 @@
 
+.vn-merge__bulk {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--border-default);
+}
+
 .vn-merge__head {
   display: grid;
   grid-template-columns: 7rem 1fr 1fr;
@@ -67,8 +74,17 @@
   gap: var(--space-050);
 }
 
+.vn-merge__text--hint {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
 .vn-merge__cell.is-active .vn-merge__text {
   color: var(--fg-default);
+}
+
+.vn-merge__cell.is-active .vn-merge__text--hint {
+  color: var(--fg-muted);
 }
 
 .vn-merge__row--char .vn-merge__label {

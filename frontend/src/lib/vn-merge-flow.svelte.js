@@ -77,7 +77,8 @@ export function createVnMergeFlow() {
       incomingCharacters = sync.characters ?? [];
       selectedId = id;
       rows = conflictRows(previous, incoming);
-      charRows = planCharacters(previousCharacters, incomingCharacters).conflicts;
+      const charPlan = planCharacters(previousCharacters, incomingCharacters);
+      charRows = [...charPlan.conflicts, ...(charPlan.removals ?? [])];
       if (!rows.length && !charRows.length) {
         toast(t('backfillPage.fixNone'));
         clear();
@@ -98,6 +99,18 @@ export function createVnMergeFlow() {
     };
     clear();
     return result;
+  }
+
+  function allPicked() {
+    return [new Set(rows.map((r) => r.key)), new Set(charRows.map((r) => r.key))];
+  }
+
+  function alignCounts() {
+    return {
+      overwrite: rows.filter((r) => !r.clears).length,
+      clear: rows.filter((r) => r.clears).length,
+      remove: charRows.filter((r) => r.removes).length,
+    };
   }
 
   async function cancel() {
@@ -130,6 +143,8 @@ export function createVnMergeFlow() {
     run,
     pick,
     accept,
+    allPicked,
+    alignCounts,
     cancel,
     reset,
   };

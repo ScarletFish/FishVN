@@ -198,13 +198,43 @@ test('本地有封面时进冲突列表，勾选才替换', () => {
   );
 });
 
-test('VNDB 没下到封面就不动本地', () => {
+test('VNDB 没下到封面时本地封面进清空行，不勾不动、勾了清空', () => {
   const current = sameForm({ coverPath: 'D:\\pics\\mine.jpg' });
   for (const local_path of [null, '']) {
     const failed = { ...VN, image: { id: 'cv75598', local_path } };
-    expect(conflictRows(current, failed)).toEqual([]);
+    const rows = conflictRows(current, failed);
+    expect(rows).toEqual([
+      { key: 'coverPath', current: 'D:\\pics\\mine.jpg', incoming: '', clears: true },
+    ]);
     expect(applyIncoming(current, failed, new Set()).coverPath).toBe('D:\\pics\\mine.jpg');
+    expect(applyIncoming(current, failed, new Set(['coverPath'])).coverPath).toBe('');
   }
+});
+
+test('本地有值、VNDB 为空的字段进清空行，默认标记 clears', () => {
+  const current = sameForm({ released: '2019-07-26', description: '本地手写的简介' });
+  const vn = { ...VN, released: null, description: '' };
+  const rows = conflictRows(current, vn);
+  expect(rows.map((r) => r.key)).toEqual(['released', 'description']);
+  expect(rows.every((r) => r.clears && r.incoming === '')).toBe(true);
+  expect(applyIncoming(current, vn, new Set()).released).toBe('2019-07-26');
+  const cleared = applyIncoming(current, vn, new Set(['released', 'description']));
+  expect(cleared.released).toBe('');
+  expect(cleared.description).toBe('');
+});
+
+test('清空行对 tags 与 staff 写空数组而非空串', () => {
+  const current = sameForm();
+  const vn = { ...VN, tags: [], staff: [] };
+  const cleared = applyIncoming(current, vn, new Set(['tags', 'staff']));
+  expect(cleared.tags).toEqual([]);
+  expect(cleared.staff).toEqual([]);
+});
+
+test('VNDB 空且本地也空的字段不进面板', () => {
+  expect(conflictRows(form(), { ...VN, released: null, description: '' })).toEqual(
+    expect.not.arrayContaining([expect.objectContaining({ key: 'released' })])
+  );
 });
 
 test('一样的值不算冲突', () => {
@@ -218,6 +248,36 @@ test('只有选中的字段取 VNDB 的值', () => {
   const next = applyIncoming(current, VN, new Set(['rating']));
   expect(next.rating).toBe('86.3');
   expect(next.votecount).toBe('999');
+});
+
+test('清空标签只清字典标签，本地手打标签保留', () => {
+  const current = sameForm({
+    tags: [
+      { id: 'g1', name: 'Gore', rating: 3 },
+      { id: 'u7', name: '我的标签' },
+    ],
+  });
+  const cleared = applyIncoming(current, { ...VN, tags: [] }, new Set(['tags']));
+  expect(cleared.tags).toEqual([{ id: 'u7', name: '我的标签' }]);
+});
+
+test('覆盖标签保留本地手打标签，字典标签换成 VNDB 的', () => {
+  const current = sameForm({
+    tags: [
+      { id: 'g99', name: '旧字典标签' },
+      { id: 'u7', name: '我的标签' },
+    ],
+  });
+  const vn = { ...VN, tags: [{ id: 'g5', name: '新字典标签', rating: 2 }] };
+  const next = applyIncoming(current, vn, new Set(['tags']));
+  expect(next.tags.map((t) => t.id)).toEqual(['g5', 'u7']);
+  expect(next.tags[1].name).toBe('我的标签');
+});
+
+test('不勾标签时本地手打与字典标签都不动', () => {
+  const tags = [{ id: 'g1', name: 'Gore' }, { id: 'u7', name: '我的标签' }];
+  const current = sameForm({ tags });
+  expect(applyIncoming(current, { ...VN, tags: [] }, new Set()).tags).toEqual(tags);
 });
 
 test('标签顺序不同不算冲突', () => {

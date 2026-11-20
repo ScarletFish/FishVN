@@ -144,20 +144,38 @@ const FIELDS = [
 
 export const FIELD_KEYS = FIELDS.map((f) => f.key);
 
+const blankFor = (key) => (key === 'tags' || key === 'staff' ? [] : '');
+
+const isLocalTag = (tag) => String(tag?.id ?? '').startsWith('u');
+
+export function mergeTags(current, incoming) {
+  return [...(incoming ?? []), ...(current ?? []).filter(isLocalTag)];
+}
+
 export function conflictRows(current, incoming) {
   return FIELDS.filter((f) => {
     const value = f.read(incoming);
-    if (f.empty(value)) return false;
+    if (f.empty(value)) return !f.empty(current[f.key]);
     return f.empty(current[f.key]) || !f.same(current[f.key], value);
-  }).map((f) => ({ key: f.key, current: current[f.key], incoming: f.read(incoming) }));
+  }).map((f) => {
+    const value = f.read(incoming);
+    return {
+      key: f.key,
+      current: current[f.key],
+      incoming: value,
+      clears: f.empty(value),
+    };
+  });
 }
 
 export function applyIncoming(current, incoming, selected) {
   const next = { ...current };
   for (const f of FIELDS) {
+    if (!selected.has(f.key)) continue;
     const value = f.read(incoming);
-    if (f.empty(value)) continue;
-    if (selected.has(f.key)) next[f.key] = value;
+    if (f.key === 'tags') next.tags = mergeTags(current.tags, value);
+    else if (f.empty(value)) next[f.key] = blankFor(f.key);
+    else next[f.key] = value;
   }
   return next;
 }
