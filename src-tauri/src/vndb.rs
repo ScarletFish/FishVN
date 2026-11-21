@@ -186,7 +186,8 @@ pub async fn fetch_batch(
         .map(|vn| (vn.id.clone(), vn))
         .collect();
     let rows = char_result?;
-    let (synced, missing) = assemble(items, found, rows);
+    let scope = crate::settings::current().character_scope;
+    let (synced, missing) = assemble(items, found, rows, scope);
     log::debug!(
         target: "backfill",
         "批量取数：{} 部（缺 {}）总 {}ms（vn {vn_ms}ms 与角色 {char_ms}ms 并发）",
@@ -201,6 +202,7 @@ fn assemble(
     items: &[BatchItem],
     mut found: std::collections::HashMap<String, VnMetadata>,
     rows: Vec<dto::CharRow>,
+    scope: crate::settings::CharacterScope,
 ) -> (Vec<BatchSync>, Vec<String>) {
     let mut by_vn: std::collections::HashMap<&str, Vec<usize>> = std::collections::HashMap::new();
     for (idx, row) in rows.iter().enumerate() {
@@ -215,7 +217,6 @@ fn assemble(
         bucket.dedup();
     }
 
-    let scope = crate::settings::current().character_scope;
     let mut out = Vec::with_capacity(items.len());
     let mut missing = Vec::new();
     for item in items {
@@ -523,6 +524,7 @@ pub async fn set_ulist(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::settings::CharacterScope;
 
     fn meta(id: &str) -> VnMetadata {
         VnMetadata {
@@ -641,7 +643,7 @@ mod tests {
                 vndb_id: "v3".into(),
             },
         ];
-        let (synced, missing) = assemble(&items, found(vec![meta("v1"), meta("v3")]), Vec::new());
+        let (synced, missing) = assemble(&items, found(vec![meta("v1"), meta("v3")]), Vec::new(), CharacterScope::MainOnly);
 
         assert_eq!(
             synced
@@ -667,7 +669,7 @@ mod tests {
         ];
         let rows = vec![char_row("c1", &[("v1", "side"), ("v2", "main")])];
 
-        let (synced, _) = assemble(&items, found(vec![meta("v1"), meta("v2")]), rows);
+        let (synced, _) = assemble(&items, found(vec![meta("v1"), meta("v2")]), rows, CharacterScope::MainOnly);
 
         assert!(synced[0].sync.characters.is_empty());
         assert_eq!(synced[1].sync.characters.len(), 1);
@@ -695,7 +697,7 @@ mod tests {
             char_row("c3", &[("v1", "primary"), ("v2", "side")]),
         ];
 
-        let (synced, _) = assemble(&items, found(vec![meta("v1"), meta("v2")]), rows);
+        let (synced, _) = assemble(&items, found(vec![meta("v1"), meta("v2")]), rows, CharacterScope::MainOnly);
 
         let first: Vec<&str> = synced[0]
             .sync
@@ -721,7 +723,7 @@ mod tests {
         }];
         let rows = vec![char_row("c1", &[("v1", "side"), ("v1", "main")])];
 
-        let (synced, _) = assemble(&items, found(vec![meta("v1")]), rows);
+        let (synced, _) = assemble(&items, found(vec![meta("v1")]), rows, CharacterScope::MainOnly);
 
         assert_eq!(synced[0].sync.characters.len(), 1);
         assert_eq!(
@@ -754,7 +756,7 @@ mod tests {
         let shared = char_row("c1", &[("v1", "main"), ("v2", "main")]);
         let rows = merge_rows(vec![vec![shared.clone()], vec![shared]]);
 
-        let (synced, _) = assemble(&items, found(vec![meta("v1"), meta("v2")]), rows);
+        let (synced, _) = assemble(&items, found(vec![meta("v1"), meta("v2")]), rows, CharacterScope::MainOnly);
 
         for entry in &synced {
             let ids: Vec<&str> = entry
@@ -786,7 +788,7 @@ mod tests {
             url: Some("https://t.vndb.org/ch/01/1.jpg".into()),
         });
 
-        let (synced, _) = assemble(&items, found(vec![vn]), vec![row]);
+        let (synced, _) = assemble(&items, found(vec![vn]), vec![row], CharacterScope::MainOnly);
 
         let jobs = &synced[0].jobs;
         assert_eq!(jobs.len(), 2);
@@ -806,7 +808,7 @@ mod tests {
             game_id: "g1".into(),
             vndb_id: "v1".into(),
         }];
-        let (synced, _) = assemble(&items, found(vec![meta("v1")]), Vec::new());
+        let (synced, _) = assemble(&items, found(vec![meta("v1")]), Vec::new(), CharacterScope::MainOnly);
         assert!(synced[0].jobs.is_empty());
     }
 }
