@@ -74,7 +74,20 @@ fn 旧库缺列时补齐列并保住数据() {
             id TEXT NOT NULL,
             PRIMARY KEY (game_id, id)
          );
+         CREATE TABLE installations (
+            id TEXT PRIMARY KEY,
+            game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+            dir_path TEXT NOT NULL,
+            entry_path TEXT,
+            exes TEXT,
+            size_bytes INTEGER,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            le_launch INTEGER NOT NULL DEFAULT 0,
+            magpie INTEGER NOT NULL DEFAULT 0,
+            launch_args TEXT
+         );
          INSERT INTO games (id, name, created_at) VALUES ('g1', '旧作品', 1);
+         INSERT INTO installations (id, game_id, dir_path) VALUES ('i1', 'g1', 'D:\\old');
          INSERT INTO game_metadata (game_id, image_path, ambience_mode, ambience_focal_x, ambience_focal_y)
             VALUES ('g1', 'old.jpg', 'clear', 80, 10);
          INSERT INTO characters (game_id, id) VALUES ('g1', 'c1');",
@@ -88,6 +101,15 @@ fn 旧库缺列时补齐列并保住数据() {
     assert!(meta_cols.contains("showcase_focal_y"));
     assert!(meta_cols.contains("ambience_plate"));
     assert!(column_names(&conn, "characters").contains("age"));
+    assert!(column_names(&conn, "installations").contains("steam_launch"));
+    let steam: i64 = conn
+        .query_row(
+            "SELECT steam_launch FROM installations WHERE id = 'i1'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(steam, 0, "旧安装记录补列后默认关闭 Steam 启动");
 
     let mode: String = conn
         .query_row(

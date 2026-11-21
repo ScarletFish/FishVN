@@ -41,6 +41,9 @@ export function toInstallationDraft(row = {}) {
     leLaunch: !!row.le_launch,
     magpie: row.magpie ?? 'off',
     launchArgs: row.launch_args ?? '',
+    steamLaunch: !!row.steam_launch,
+    steamAppid: row.steam_appid ?? '',
+    steamProbing: false,
   };
 }
 
@@ -55,6 +58,9 @@ export function newInstallation(path = '') {
     leLaunch: false,
     magpie: 'off',
     launchArgs: '',
+    steamLaunch: false,
+    steamAppid: '',
+    steamProbing: false,
   };
 }
 
@@ -66,6 +72,10 @@ export function draftSize(draft) {
 export function installPathInvalid(draft) {
   const text = draft.path.trim();
   if (!text) return true;
+  if (draft.steamLaunch) {
+    if (draft.steamProbing) return false;
+    return !(draft.steamAppid ?? '').trim();
+  }
   if (isUnchanged(draft)) return false;
   return !splitLaunchPath(text).dirPath;
 }
@@ -76,6 +86,8 @@ export function toInstallationPayload(draft) {
     le_launch: !!draft.leLaunch,
     magpie: draft.magpie || 'off',
     launch_args: (draft.launchArgs ?? '').trim() || null,
+    steam_launch: !!draft.steamLaunch,
+    steam_appid: (draft.steamAppid ?? '').trim() || null,
   };
   if (isUnchanged(draft)) {
     return {

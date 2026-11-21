@@ -141,15 +141,31 @@ pub fn launch(shared: Arc<Mutex<Connection>>, game_id: &str, app: Option<AppHand
         None
     };
 
-    let mut command = build_launch_command(&installation, &entry, &config)?;
-    command.current_dir(&dir);
-    let mut child = command
-        .spawn()
-        .map_err(|e| AppError::BadRequest(format!("启动失败：{e}")))?;
     let job = Job::create()?;
-    if let Err(e) = job.attach(child.id()) {
-        let _ = child.kill();
-        return Err(e);
+    if installation.steam_launch {
+        let app_id = installation
+            .steam_appid
+            .as_deref()
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| AppError::BadRequest("这个安装项没有记录 Steam appid，请重新保存安装项".into()))?;
+        let uri = format!("steam://rungameid/{app_id}");
+        let before = crate::steam::pids_in_dir(&dir);
+        std::process::Command::new("cmd.exe")
+            .args(["/C", "start", "", &uri])
+            .spawn()
+            .map_err(|e| AppError::BadRequest(format!("启动 Steam 失败：{e}")))?;
+        let pid = crate::steam::wait_for_launched_pid(&dir, &before)?;
+        job.attach(pid)?;
+    } else {
+        let mut command = build_launch_command(&installation, &entry, &config)?;
+        command.current_dir(&dir);
+        let mut child = command
+            .spawn()
+            .map_err(|e| AppError::BadRequest(format!("启动失败：{e}")))?;
+        if let Err(e) = job.attach(child.id()) {
+            let _ = child.kill();
+            return Err(e);
+        }
     }
     if config.minimize_on_launch {
         if let Some(window) = app.as_ref().and_then(|a| a.get_webview_window("main")) {

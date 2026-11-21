@@ -148,7 +148,8 @@
 }
 
 .install-hint {
-  margin-top: var(--space-2);
+  margin-top: 0;
+  margin-bottom: var(--space-2);
 }
 
 .install-add {

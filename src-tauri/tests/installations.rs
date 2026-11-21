@@ -32,7 +32,16 @@ fn input(id: Option<String>, dir_path: String, entry_path: Option<String>) -> In
         le_launch: false,
         magpie: MagpieMode::Off,
         launch_args: None,
+        steam_launch: false,
+        steam_appid: None,
     }
+}
+
+fn kept_steam(inst: &Installation) -> InstallationInput {
+    let mut entry = kept(inst);
+    entry.steam_launch = inst.steam_launch;
+    entry.steam_appid = inst.steam_appid.clone();
+    entry
 }
 
 fn fresh(dir: &std::path::Path) -> InstallationInput {
@@ -57,6 +66,127 @@ fn entry(dir: &std::path::Path, name: &str) -> InstallationInput {
 
 fn with_entry(inst: &Installation, dir: &std::path::Path, name: &str) -> InstallationInput {
     input(Some(inst.id.clone()), path_str(dir), Some(name.to_owned()))
+}
+
+#[test]
+fn steam启动标记按整包写回并保持() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "Steam 启动游戏");
+    let dir = tree.make_dir(&[("game.exe", "x")]);
+
+    let mut draft = fresh(&dir);
+    draft.steam_launch = true;
+    draft.steam_appid = Some("222222".into());
+    let saved = save_installations(&db, &game_id, &[draft]).expect("保存失败");
+    assert_eq!(saved.len(), 1);
+    assert!(saved[0].steam_launch, "整包写回要落 steam 标记");
+    assert_eq!(saved[0].steam_appid.as_deref(), Some("222222"));
+    assert!(
+        list_installations(&db, Some(&game_id)).unwrap()[0].steam_launch,
+        "重新读库仍要是 Steam 启动"
+    );
+
+    let patch = InstallationPatch {
+        game_id: None,
+        entry_path: None,
+        le_launch: None,
+        magpie: None,
+        launch_args: None,
+        steam_launch: Some(false),
+        steam_appid: None,
+    };
+    let updated = update_installation(&db, &saved[0].id, &patch).expect("改标记失败");
+    assert!(!updated.steam_launch, "patch 能关掉 Steam 启动");
+    assert!(updated.steam_appid.is_none(), "关掉 Steam 要清空 appid");
+}
+
+#[test]
+fn steam的appid按整包回写保留不重算() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "appid 保留");
+    let dir = tree.make_dir(&[("game.exe", "x")]);
+
+    let mut draft = fresh(&dir);
+    draft.steam_launch = true;
+    draft.steam_appid = Some("444444".into());
+    let saved = save_installations(&db, &game_id, &[draft]).unwrap();
+
+    let back = kept_steam(&saved[0]);
+    let again = save_installations(&db, &game_id, &[back]).unwrap();
+    assert_eq!(
+        again[0].steam_appid.as_deref(),
+        Some("444444"),
+        "整包回写要原样带回 appid，不重算（没 Steam 也能保存）"
+    );
+}
+
+#[test]
+fn 补丁打开steam带编号直接落库不反查() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "patch 带 appid");
+    let dir = tree.make_dir(&[("game.exe", "x")]);
+    let saved = save_installations(&db, &game_id, &[fresh(&dir)]).unwrap();
+
+    let patch = InstallationPatch {
+        game_id: None,
+        entry_path: None,
+        le_launch: None,
+        magpie: None,
+        launch_args: None,
+        steam_launch: Some(true),
+        steam_appid: Some(Some("555555".into())),
+    };
+    let updated = update_installation(&db, &saved[0].id, &patch).unwrap();
+    assert!(updated.steam_launch);
+    assert_eq!(updated.steam_appid.as_deref(), Some("555555"));
+}
+
+#[test]
+fn steam与转区互斥_整包与patch都拒绝() {
+    let db = Db::new();
+    let mut tree = Tree::new();
+    let game_id = new_game(&db, "互斥校验");
+    let dir = tree.make_dir(&[("game.exe", "x")]);
+
+    let mut draft = fresh(&dir);
+    draft.steam_launch = true;
+    draft.le_launch = true;
+    let err = save_installations(&db, &game_id, &[draft]).unwrap_err();
+    assert_eq!(variant(&err), "BadRequest");
+    assert!(message(&err).contains("不能同时开启"));
+
+    let saved = save_installations(&db, &game_id, &[fresh(&dir)]).unwrap();
+    let patch = InstallationPatch {
+        game_id: None,
+        entry_path: None,
+        le_launch: Some(true),
+        magpie: None,
+        launch_args: None,
+        steam_launch: Some(true),
+        steam_appid: Some(Some("111111".into())),
+    };
+    let err = update_installation(&db, &saved[0].id, &patch).unwrap_err();
+    assert_eq!(variant(&err), "BadRequest");
+    assert!(message(&err).contains("不能同时开启"));
+
+    let mut steam_on = fresh(&dir);
+    steam_on.steam_launch = true;
+    steam_on.steam_appid = Some("333333".into());
+    let saved = save_installations(&db, &game_id, &[steam_on]).unwrap();
+    let le_only = InstallationPatch {
+        game_id: None,
+        entry_path: None,
+        le_launch: Some(true),
+        magpie: None,
+        launch_args: None,
+        steam_launch: None,
+        steam_appid: None,
+    };
+    let err = update_installation(&db, &saved[0].id, &le_only).unwrap_err();
+    assert_eq!(variant(&err), "BadRequest", "patch 只开转区也要撞上库里的 Steam 标记");
 }
 
 #[test]

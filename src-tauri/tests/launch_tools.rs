@@ -42,6 +42,8 @@ fn flags(le: bool, magpie: MagpieMode) -> InstallationPatch {
         le_launch: Some(le),
         magpie: Some(magpie),
         launch_args: None,
+        steam_launch: None,
+        steam_appid: None,
     }
 }
 
@@ -85,6 +87,35 @@ fn 放大开着但没登记路径时拦住启动且不起进程() {
     assert_eq!(variant(&err), "BadRequest");
     assert!(message(&err).contains("Magpie"));
     assert!(shared.with(sessions::list_active).unwrap().is_empty());
+}
+
+#[test]
+fn 打开steam不连带打开转区() {
+    let shared = Shared::new();
+    let mut tree = Tree::new();
+    let dir = tree.make_dir(&[("game.exe", "dummy")]);
+    let game = new_game(&shared, "双标记安装");
+    let installation = add_launch(&shared, &game, &dir, "game.exe");
+
+    patch_install(
+        &shared,
+        &installation,
+        InstallationPatch {
+            game_id: None,
+            entry_path: None,
+            le_launch: None,
+            magpie: None,
+            launch_args: None,
+            steam_launch: Some(true),
+            steam_appid: Some(Some("999999".into())),
+        },
+    );
+
+    let inst = shared
+        .with(|conn| fishvn::installations::get_installation(conn, &installation))
+        .unwrap();
+    assert!(inst.steam_launch, "Steam 标记独立落库");
+    assert!(!inst.le_launch, "不应连带打开转区");
 }
 
 #[test]

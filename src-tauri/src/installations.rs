@@ -10,11 +10,41 @@ use crate::fsinfo::{ensure_dir, read_dir_info, resolve_path};
 use crate::new_id;
 use crate::types::{Installation, InstallationInput, InstallationPatch, MagpieMode, NewInstallation};
 
-const COLUMNS: &str = "id, game_id, dir_path, entry_path, exes, size_bytes, le_launch, magpie, launch_args";
+const COLUMNS: &str = "id, game_id, dir_path, entry_path, exes, size_bytes, le_launch, magpie, launch_args, steam_launch, steam_appid";
 
 const ORDER_BY: &str = "sort_order, dir_path, IFNULL(entry_path, '')";
 
 const DIR_TAKEN: &str = "该目录已有安装记录";
+
+fn resolve_steam_appid(
+    conn: &Connection,
+    id: &str,
+    patch: &InstallationPatch,
+) -> Result<String> {
+    let (dir, entry): (String, Option<String>) = conn
+        .query_row(
+            "SELECT dir_path, entry_path FROM installations WHERE id = ?",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?
+        .ok_or_else(|| AppError::NotFound("安装记录不存在".into()))?;
+    let entry = match &patch.entry_path {
+        Some(value) => value.clone(),
+        None => entry,
+    };
+    let exe = Path::new(&dir).join(entry.unwrap_or_default());
+    crate::steam::resolve_app_id(&exe)
+}
+
+fn validate_launch_modes(steam_launch: bool, le_launch: bool) -> Result<()> {
+    if steam_launch && le_launch {
+        return Err(AppError::BadRequest(
+            "Steam 启动与转区启动不能同时开启".into(),
+        ));
+    }
+    Ok(())
+}
 
 const TAKEN: &str = "该目录的这条启动入口已有安装记录";
 
@@ -28,6 +58,8 @@ struct InstallRow {
     le_launch: bool,
     magpie: i64,
     launch_args: Option<String>,
+    steam_launch: bool,
+    steam_appid: Option<String>,
 }
 
 pub fn list_installations(conn: &Connection, game_id: Option<&str>) -> Result<Vec<Installation>> {
@@ -105,10 +137,12 @@ pub fn create_installation(conn: &Connection, input: &NewInstallation) -> Result
         le_launch: false,
         magpie: 0,
         launch_args: None,
+        steam_launch: false,
+        steam_appid: None,
     };
 
     conn.execute(
-        &format!("INSERT INTO installations ({COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+        &format!("INSERT INTO installations ({COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
         params![
             &row.id,
             &row.game_id,
@@ -119,6 +153,8 @@ pub fn create_installation(conn: &Connection, input: &NewInstallation) -> Result
             row.le_launch,
             row.magpie,
             &row.launch_args,
+            row.steam_launch,
+            &row.steam_appid,
         ],
     )
     .map_err(|e| write_conflict(e, DIR_TAKEN))?;
@@ -153,6 +189,29 @@ pub fn update_installation(
             return Err(AppError::NotFound("游戏不存在".into()));
         }
     }
+    if patch.steam_launch == Some(true) || patch.le_launch == Some(true) {
+        let current: Option<(bool, bool)> = conn
+            .query_row(
+                "SELECT le_launch, steam_launch FROM installations WHERE id = ?",
+                params![id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        if let Some((le_now, steam_now)) = current {
+            validate_launch_modes(
+                patch.steam_launch.unwrap_or(steam_now),
+                patch.le_launch.unwrap_or(le_now),
+            )?;
+        }
+    }
+    let steam_appid = match patch.steam_launch {
+        Some(true) => match &patch.steam_appid {
+            Some(Some(id)) if !id.trim().is_empty() => Some(id.trim().to_owned()),
+            _ => Some(resolve_steam_appid(conn, id, patch)?),
+        },
+        Some(false) => None,
+        None => None,
+    };
 
     let mut sets: Vec<&'static str> = Vec::new();
     let mut values: Vec<Value> = Vec::new();
@@ -184,6 +243,12 @@ pub fn update_installation(
             Some(s) => Value::Text(s.to_owned()),
             None => Value::Null,
         });
+    }
+    if let Some(value) = patch.steam_launch {
+        sets.push("steam_launch = ?");
+        values.push(Value::Integer(i64::from(value)));
+        sets.push("steam_appid = ?");
+        values.push(steam_appid.map(Value::Text).unwrap_or(Value::Null));
     }
     if sets.is_empty() {
         return Err(AppError::BadRequest("没有可更新的字段".into()));
@@ -225,6 +290,8 @@ struct Draft {
     le_launch: bool,
     magpie: MagpieMode,
     launch_args: Option<String>,
+    steam_launch: bool,
+    steam_appid: Option<String>,
 }
 
 pub fn save_installations(
@@ -300,7 +367,7 @@ pub fn save_installations(
             Some(row) => {
                 tx.execute(
                     "UPDATE installations SET game_id = ?, dir_path = ?, entry_path = ?, sort_order = ?,
-                     le_launch = ?, magpie = ?, launch_args = ?
+                     le_launch = ?, magpie = ?, launch_args = ?, steam_launch = ?, steam_appid = ?
                      WHERE id = ?",
                     params![
                         game_id,
@@ -310,6 +377,8 @@ pub fn save_installations(
                         draft.le_launch,
                         draft.magpie.to_db(),
                         &draft.launch_args,
+                        draft.steam_launch,
+                        &draft.steam_appid,
                         &row.id
                     ],
                 )?;
@@ -338,8 +407,8 @@ pub fn save_installations(
                 tx.execute(
                     "INSERT INTO installations
                      (id, game_id, dir_path, entry_path, exes, size_bytes, sort_order,
-                      le_launch, magpie, launch_args)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                      le_launch, magpie, launch_args, steam_launch, steam_appid)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     params![
                         &id,
                         game_id,
@@ -351,6 +420,8 @@ pub fn save_installations(
                         draft.le_launch,
                         draft.magpie.to_db(),
                         &draft.launch_args,
+                        draft.steam_launch,
+                        &draft.steam_appid,
                     ],
                 )
                 .map_err(|e| write_conflict(e, TAKEN))?;
@@ -407,6 +478,18 @@ fn validate_drafts(entries: &[InstallationInput]) -> Result<Vec<Draft>> {
         if let Some(path) = &entry.entry_path {
             validate_entry_path(path)?;
         }
+        validate_launch_modes(entry.steam_launch, entry.le_launch)?;
+        let steam_appid = if entry.steam_launch {
+            match &entry.steam_appid {
+                Some(id) if !id.trim().is_empty() => Some(id.trim().to_owned()),
+                _ => {
+                    let exe = Path::new(&dir_path).join(entry.entry_path.as_deref().unwrap_or_default());
+                    Some(crate::steam::resolve_app_id(&exe)?)
+                }
+            }
+        } else {
+            None
+        };
         out.push(Draft {
             id,
             dir_path,
@@ -419,6 +502,8 @@ fn validate_drafts(entries: &[InstallationInput]) -> Result<Vec<Draft>> {
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
                 .map(str::to_owned),
+            steam_launch: entry.steam_launch,
+            steam_appid,
         });
     }
     Ok(out)
@@ -515,6 +600,8 @@ fn read_row(row: &Row<'_>) -> rusqlite::Result<InstallRow> {
         le_launch: row.get("le_launch")?,
         magpie: row.get("magpie")?,
         launch_args: row.get("launch_args")?,
+        steam_launch: row.get("steam_launch")?,
+        steam_appid: row.get("steam_appid")?,
     })
 }
 
@@ -541,5 +628,7 @@ fn to_api(row: &InstallRow) -> Result<Installation> {
         le_launch: row.le_launch,
         magpie: MagpieMode::from_db(row.magpie),
         launch_args: row.launch_args.clone(),
+        steam_launch: row.steam_launch,
+        steam_appid: row.steam_appid.clone(),
     })
 }

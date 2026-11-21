@@ -259,6 +259,7 @@ fn main() {
             commands::inspect_path,
             commands::scan_dir,
             commands::dir_size,
+            commands::probe_steam_appid,
             commands::log_frontend,
             commands::path_exists,
             commands::create_backup,

@@ -127,6 +127,8 @@ test('没动过的行原样提交', () => {
     le_launch: false,
     magpie: 'off',
     launch_args: null,
+    steam_launch: false,
+    steam_appid: null,
   });
 
   expect(toInstallationPayload({ ...nested, path: 'D:\\Games\\One\\bin\\other.exe' })).toEqual({
@@ -136,6 +138,8 @@ test('没动过的行原样提交', () => {
     le_launch: false,
     magpie: 'off',
     launch_args: null,
+    steam_launch: false,
+    steam_appid: null,
   });
 });
 
@@ -148,6 +152,8 @@ test('提交时把路径拆成目录与启动文件', () => {
     le_launch: false,
     magpie: 'off',
     launch_args: null,
+    steam_launch: false,
+    steam_appid: null,
   });
 
   const kept = newInstallation('D:\\Games\\One\\launcher.exe');
@@ -169,6 +175,8 @@ test('启动方式开关与附加参数跟着提交', () => {
     le_launch: true,
     magpie: 'window',
     launch_args: '-screen-fullscreen 0',
+    steam_launch: false,
+    steam_appid: null,
   });
 
   const cleared = { ...draft, launchArgs: '   ' };
@@ -176,6 +184,38 @@ test('启动方式开关与附加参数跟着提交', () => {
 
   const off = { ...draft, magpie: 'off' };
   expect(toInstallationPayload(off).magpie).toBe('off');
+});
+
+test('Steam 启动项原样带回 appid 不重算', () => {
+  const draft = toInstallationDraft({
+    id: 'i1',
+    dir_path: 'D:\\Steam\\steamapps\\common\\Game',
+    entry_path: 'game.exe',
+    steam_launch: true,
+    steam_appid: '123456',
+  });
+  expect(draft.steamLaunch).toBe(true);
+  expect(draft.steamAppid).toBe('123456');
+  expect(toInstallationPayload(draft)).toMatchObject({
+    steam_launch: true,
+    steam_appid: '123456',
+  });
+
+  const normal = newInstallation('D:\\Games\\One\\game.exe');
+  expect(normal.steamLaunch).toBe(false);
+  expect(toInstallationPayload(normal).steam_appid).toBeNull();
+});
+
+test('Steam 项反查不到路径就算无效，反查中不判无效', () => {
+  const base = toInstallationDraft({
+    dir_path: 'D:\\Steam\\steamapps\\common\\Game',
+    entry_path: 'game.exe',
+    steam_launch: true,
+  });
+  expect(installPathInvalid({ ...base, steamAppid: '', steamProbing: true })).toBe(false);
+  expect(installPathInvalid({ ...base, steamAppid: '', steamProbing: false })).toBe(true);
+  expect(installPathInvalid({ ...base, steamAppid: '123456', steamProbing: false })).toBe(false);
+  expect(toInstallationPayload({ ...base, steamAppid: '', steamProbing: false })).toBeNull();
 });
 
 test('只有目录的行原样提交', () => {
@@ -187,6 +227,8 @@ test('只有目录的行原样提交', () => {
     le_launch: false,
     magpie: 'off',
     launch_args: null,
+    steam_launch: false,
+    steam_appid: null,
   });
 
   expect(toInstallationPayload({ ...draft, path: 'D:/Games/Two' })).toEqual({
@@ -196,6 +238,8 @@ test('只有目录的行原样提交', () => {
     le_launch: false,
     magpie: 'off',
     launch_args: null,
+    steam_launch: false,
+    steam_appid: null,
   });
 });
 

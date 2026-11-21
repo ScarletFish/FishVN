@@ -64,6 +64,11 @@ pub fn ensure_columns(conn: &Connection) -> Result<()> {
     )?;
     add_missing_columns(
         &tx,
+        "installations",
+        &[("steam_launch", "INTEGER NOT NULL DEFAULT 0"), ("steam_appid", "TEXT")],
+    )?;
+    add_missing_columns(
+        &tx,
         "characters",
         crate::generated::characters::CHARACTER_ADD_COLUMNS,
     )?;
@@ -118,7 +123,9 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
           sort_order INTEGER NOT NULL DEFAULT 0,
           le_launch   INTEGER NOT NULL DEFAULT 0,
           magpie      INTEGER NOT NULL DEFAULT 0,  -- 0 = 关，1 = 全屏缩放，2 = 窗口化缩放
-          launch_args TEXT
+          launch_args TEXT,
+          steam_launch INTEGER NOT NULL DEFAULT 0,
+          steam_appid  TEXT
         );
 
         CREATE UNIQUE INDEX IF NOT EXISTS installations_path_key

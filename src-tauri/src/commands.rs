@@ -456,6 +456,15 @@ pub async fn dir_size(path: String) -> Result<i64> {
         .map_err(|e| AppError::Upstream(format!("统计目录大小失败：{e}")))?
 }
 
+#[tauri::command]
+pub async fn probe_steam_appid(path: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::steam::probe_app_id(std::path::Path::new(&path))
+    })
+    .await
+    .unwrap_or(None)
+}
+
 pub const SCAN: &str = "scan";
 
 #[tauri::command]

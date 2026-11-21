@@ -17,6 +17,7 @@ pub mod metadata;
 pub mod query;
 pub mod sessions;
 pub mod settings;
+pub mod steam;
 pub mod sync;
 pub mod tagdict;
 pub mod tagstore;

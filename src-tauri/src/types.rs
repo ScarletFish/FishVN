@@ -128,6 +128,8 @@ pub struct Installation {
     pub le_launch: bool,
     pub magpie: MagpieMode,
     pub launch_args: Option<String>,
+    pub steam_launch: bool,
+    pub steam_appid: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -184,6 +186,9 @@ pub struct InstallationPatch {
     pub magpie: Option<MagpieMode>,
     #[serde(default, deserialize_with = "double_option")]
     pub launch_args: Option<Option<String>>,
+    pub steam_launch: Option<bool>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub steam_appid: Option<Option<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -289,6 +294,10 @@ pub struct InstallationInput {
     #[serde(default)]
     pub magpie: MagpieMode,
     pub launch_args: Option<String>,
+    #[serde(default)]
+    pub steam_launch: bool,
+    #[serde(default)]
+    pub steam_appid: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -487,6 +487,19 @@ async fn dir_size(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply
     finish(result)
 }
 
+async fn probe_steam_appid(AxumState(_dev): AxumState<Dev>, Json(a): Json<Args>) -> Reply {
+    let path = match a.path() {
+        Ok(p) => p.to_owned(),
+        Err(e) => return Err(Fail(StatusCode::BAD_REQUEST, e.to_string())),
+    };
+    let result = tokio::task::spawn_blocking(move || {
+        crate::steam::probe_app_id(std::path::Path::new(&path))
+    })
+    .await
+    .unwrap_or(None);
+    Ok(Json(serde_json::to_value(result).unwrap_or(serde_json::Value::Null)))
+}
+
 fn dev_data_dir(dev: &Dev) -> std::result::Result<PathBuf, Fail> {
     crate::data_dir(&dev.app).map_err(|e| Fail(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
@@ -777,6 +790,7 @@ pub fn router(dev: Dev) -> Router {
         .route("/inspect_path", post(inspect_path))
         .route("/scan_dir", post(scan_dir))
         .route("/dir_size", post(dir_size))
+        .route("/probe_steam_appid", post(probe_steam_appid))
         .route("/allow_local_file", post(allow_local_file))
         .route("/path_exists", post(path_exists))
         .route("/create_backup", post(create_backup))
@@ -849,6 +863,7 @@ pub const COMMANDS: &[&str] = &[
     "inspect_path",
     "scan_dir",
     "dir_size",
+    "probe_steam_appid",
     "allow_local_file",
     "write_text_file",
     "path_exists",

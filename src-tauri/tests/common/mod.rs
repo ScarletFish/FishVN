@@ -126,6 +126,8 @@ pub fn add_launch(shared: &Shared, game: &str, dir: &Path, entry: &str) -> Strin
                     le_launch: None,
                     magpie: None,
                     launch_args: None,
+                    steam_launch: None,
+                    steam_appid: None,
                 },
             )
         })

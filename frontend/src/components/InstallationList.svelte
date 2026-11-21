@@ -6,10 +6,12 @@
   import { toast } from '../lib/toast.svelte.js';
   import { formatBytes } from '../lib/format.js';
   import PathField from './PathField.svelte';
+  import Menu from './Menu.svelte';
   import {
     draftSize,
     hasInstallation,
     installPathInvalid,
+    joinLaunchPath,
     newInstallation,
     splitLaunchPath,
   } from '../lib/installations.js';
@@ -23,9 +25,13 @@
 
   let picking = $state(false);
   let touched = $state({});
+  let addMenuOpen = $state(false);
 
   function pathError(item) {
     if (!(revealAll || touched[item.key])) return '';
+    if (item.steamLaunch && !item.steamProbing && !(item.steamAppid ?? '').trim()) {
+      return t('gameForm.install.steamNotFound');
+    }
     return installPathInvalid(item) ? t('gameForm.install.pathInvalid') : '';
   }
 
@@ -40,6 +46,28 @@
 
   const sizing = new Set();
   const sizeFailed = new Set();
+
+  async function probeAppid(item) {
+    if (!item.steamLaunch || !item.dirPath || !item.entryPath) return;
+    items = items.map((it) => (it.key === item.key ? { ...it, steamProbing: true, steamAppid: '' } : it));
+    try {
+      const appid = await api.probeSteamAppid(joinLaunchPath(item.dirPath, item.entryPath));
+      const current = items.find((it) => it.key === item.key);
+      if (!current || current.dirPath !== item.dirPath || current.entryPath !== item.entryPath) return;
+      items = items.map((it) =>
+        it.key === item.key
+          ? { ...it, steamAppid: appid ?? '', steamProbing: false }
+          : it
+      );
+      if (!appid) markTouched(item.key);
+    } catch (err) {
+      items = items.map((it) =>
+        it.key === item.key ? { ...it, steamAppid: '', steamProbing: false } : it
+      );
+      markTouched(item.key);
+      report('warn', `识别 Steam 游戏失败 ${item.dirPath}：${err}`);
+    }
+  }
 
   async function loadSize(item) {
     if (!item.dirPath) return;
@@ -63,12 +91,20 @@
     if (!dirPath) return;
     if (dirPath === item.dirPath && entryPath === item.entryPath) return;
     sizeFailed.delete(item.key);
-    const next = { ...item, dirPath, entryPath, sizeBytes: null };
+    const next = {
+      ...item,
+      dirPath,
+      entryPath,
+      sizeBytes: null,
+      steamAppid: '',
+      steamProbing: !!item.steamLaunch,
+    };
     items = items.map((it) => (it.key === item.key ? next : it));
     loadSize(next);
+    probeAppid(next);
   }
 
-  async function addItem() {
+  async function addItem(steamLaunch) {
     if (disabled || picking) return;
     picking = true;
     try {
@@ -80,16 +116,22 @@
       }
       const added = newInstallation(picked);
       const { dirPath, entryPath } = splitLaunchPath(picked.trim());
-      const next = { ...added, dirPath, entryPath };
+      const next = { ...added, dirPath, entryPath, steamLaunch, steamProbing: steamLaunch };
       items = [...items, next];
       if (defaultKey == null) defaultKey = added.key;
       loadSize(next);
+      probeAppid(next);
     } catch (err) {
       toast(err.message, 'error');
     } finally {
       picking = false;
     }
   }
+
+  const addMenuItems = [
+    { label: t('gameForm.install.add'), onclick: () => addItem(false) },
+    { label: t('gameForm.install.addSteam'), onclick: () => addItem(true) },
+  ];
 
   function acceptPick(item, picked) {
     if (!taken(picked, item.key)) return true;
@@ -105,6 +147,10 @@
 
 <div class="form-group">
   <span class="form-label">{t('gameForm.install.label')}</span>
+
+  {#if items.length > 1}
+    <p class="form-hint install-hint">{t('gameForm.install.hint')}</p>
+  {/if}
 
   <ul class="install-list">
     {#each items as item (item.key)}
@@ -140,18 +186,20 @@
           />
 
           <div class="install-flags">
-            <div class="install-flag-row">
-              <label class="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={item.leLaunch}
-                  onchange={(event) => (item.leLaunch = event.currentTarget.checked)}
-                  {disabled}
-                />
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="install-flag-label">{t('gameForm.install.leLaunch')}</span>
-            </div>
+            {#if !item.steamLaunch}
+              <div class="install-flag-row">
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={item.leLaunch}
+                    onchange={(event) => (item.leLaunch = event.currentTarget.checked)}
+                    {disabled}
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="install-flag-label">{t('gameForm.install.leLaunch')}</span>
+              </div>
+            {/if}
 
             <div class="install-flag-row">
               <label class="toggle-switch">
@@ -193,18 +241,20 @@
               </div>
             </div>
 
-            <input
-              class="install-args"
-              type="text"
-              bind:value={item.launchArgs}
-              placeholder={item.leLaunch
-                ? t('gameForm.install.argsLeDisabled')
-                : t('gameForm.install.argsPlaceholder')}
-              aria-label={t('gameForm.install.argsAria')}
-              disabled={disabled || item.leLaunch}
-              spellcheck="false"
-              autocomplete="off"
-            />
+            {#if !item.steamLaunch}
+              <input
+                class="install-args"
+                type="text"
+                bind:value={item.launchArgs}
+                placeholder={item.leLaunch
+                  ? t('gameForm.install.argsLeDisabled')
+                  : t('gameForm.install.argsPlaceholder')}
+                aria-label={t('gameForm.install.argsAria')}
+                disabled={disabled || item.leLaunch}
+                spellcheck="false"
+                autocomplete="off"
+              />
+            {/if}
           </div>
         </div>
 
@@ -220,16 +270,21 @@
     {/each}
   </ul>
 
-  {#if items.length > 1}
-    <p class="form-hint install-hint">{t('gameForm.install.hint')}</p>
-  {/if}
-
-  <button
-    type="button"
-    class="btn install-add"
-    onclick={addItem}
-    disabled={disabled || picking}
+  <Menu
+    label={t('gameForm.install.add')}
+    items={addMenuItems}
+    align="start"
+    bind:open={addMenuOpen}
   >
-    {t('gameForm.install.add')}
-  </button>
+    {#snippet trigger(props)}
+      <button
+        {...props}
+        type="button"
+        class="btn install-add"
+        disabled={disabled || picking}
+      >
+        {t('gameForm.install.add')}
+      </button>
+    {/snippet}
+  </Menu>
 </div>
