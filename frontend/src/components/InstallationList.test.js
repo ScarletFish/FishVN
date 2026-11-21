@@ -97,13 +97,13 @@ test('从菜单添加 Steam 启动项后反查 appid', async () => {
   expect(target.querySelector('.path-field__suffix')?.textContent.trim()).toBe('1.0 GB');
 });
 
-test('Steam 启动项反查不到时路径下方报查不到且不给提交', async () => {
+test('Steam 启动项反查不到时路径下方报该路径未发现游戏', async () => {
   api.probeSteamAppid.mockResolvedValueOnce(null);
   const target = render({ items: [], defaultKey: null });
 
   await pickFromAddMenu(target, '添加 Steam 启动项');
 
-  expect(target.querySelector('.form-hint--error')?.textContent).toContain('没找到 Steam 游戏');
+  expect(target.querySelector('.form-hint--error')?.textContent).toContain('未发现 Steam 游戏');
 });
 
 test('Steam 启动项不显示转区与启动参数，但保留 Magpie', async () => {

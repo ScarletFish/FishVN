@@ -810,7 +810,7 @@ export const DICT_ZH = {
       pathAria: '启动文件路径',
       pathPlaceholder: '启动文件路径，点右侧浏览选择',
       pathInvalid: '路径不完整',
-      steamNotFound: '在这个路径下没找到 Steam 游戏，无法添加',
+      steamNotFound: '该路径下未发现 Steam 游戏，添加失败',
       hint: '选择默认启动方式',
       pickDefault: '指定为默认启动程序',
       remove: '移除',
