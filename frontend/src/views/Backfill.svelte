@@ -207,11 +207,7 @@
   ]);
 
   const showLog = $derived(running || (!backfillStore.logHidden && !selected));
-  const showPanel = $derived(
-    running ||
-      Boolean(selected) ||
-      (!backfillStore.logHidden && (shownLogs.length > 0 || runList.length > 0)),
-  );
+  const showPanel = $derived(running || Boolean(selected) || !backfillStore.logHidden);
 
   async function loadRuns() {
     try {
@@ -269,6 +265,7 @@
 
   function expandLog() {
     backfillStore.logHidden = false;
+    backfillStore.selected = null;
   }
 
   function retract(node) {
@@ -304,9 +301,7 @@
         </button>
       {:else}
         {#if picked.length === 1}
-          <span class="bf-shift-tip" data-tooltip={t('backfillPage.shiftHint')}>
-            {t('backfillPage.shiftTip')}
-          </span>
+          <span class="bf-shift-tip">{t('backfillPage.shiftTip')}</span>
         {/if}
         {#if failedCount > 0}
           <button type="button" class="btn btn-ghost btn-sm" disabled={starting} onclick={retryFailed}>
@@ -375,13 +370,6 @@
             { value: 'all', label: t('backfillPage.scopeAll'), count: rows.length },
           ]}
         />
-      </div>
-      <div class="bf-filters__right">
-        {#if !running && backfillStore.logHidden && logRows.length}
-          <button type="button" class="bf-toggle" onclick={expandLog}>
-            {t('backfillPage.logTitle')} {logRows.length}
-          </button>
-        {/if}
         <button
           type="button"
           class="bf-toggle"
@@ -393,6 +381,19 @@
           {t('backfillPage.onlyNoId')}
         </button>
       </div>
+      {#if !running}
+        <div class="bf-filters__right">
+          <button
+            type="button"
+            class="bf-toggle"
+            class:is-active={showLog}
+            aria-pressed={showLog}
+            onclick={showLog ? collapseLog : expandLog}
+          >
+            {showLog ? t('backfillPage.logCollapse') : t('backfillPage.logTitle')}
+          </button>
+        </div>
+      {/if}
     </div>
   {/if}
 
@@ -462,11 +463,6 @@
                     <span class="bf-panel__meta">{logRows.length}</span>
                   {/if}
                 </span>
-                {#if !running}
-                  <button type="button" class="bf-panel__collapse" onclick={collapseLog}>
-                    {t('backfillPage.logCollapse')}
-                  </button>
-                {/if}
               </div>
               <BackfillLog logs={displayLogs} status={runPick === 'current' ? status : null} />
             {:else}

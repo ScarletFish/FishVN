@@ -19,7 +19,7 @@ export const backfillStore = $state({
   anchorId: null,
   logs: [],
   lastSeq: 0,
-  logHidden: false,
+  logHidden: true,
 });
 
 let unsub = null;

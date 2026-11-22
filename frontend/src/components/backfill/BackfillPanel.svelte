@@ -10,7 +10,6 @@
   import { coverSrc } from '../../lib/cover-src.js';
   import { openExternal } from '../../lib/open-external.js';
   import { confirm } from '../../lib/confirm.svelte.js';
-  import { markQuitDirty } from '../../lib/quit-guard.svelte.js';
   import Seg from '../Seg.svelte';
   import VnMergeDialog from '../VnMergeDialog.svelte';
 
@@ -32,13 +31,8 @@
   let rebind = $state(false);
   let done = $state(null);
   let downloadMode = $state('merge');
-  let pending = $state(null);
 
   let lastId = null;
-  $effect(() => {
-    markQuitDirty('backfillPanel', Boolean(pending));
-    return () => markQuitDirty('backfillPanel', false);
-  });
   $effect(() => {
     if (item.game_id === lastId) return;
     lastId = item.game_id;
@@ -48,7 +42,6 @@
     searched = false;
     rebind = false;
     done = null;
-    pending = null;
   });
 
   let cover = $state(null);
@@ -170,15 +163,12 @@
   }
 
   async function accept(picked, charPicked) {
+    if (busy) return;
     mergeOpen = false;
     const result = flow.accept(picked, charPicked);
     if (!result) return;
-    pending = { result, fields: picked.size, gameId: item.game_id };
-  }
-
-  async function applyPending() {
-    if (!pending || busy) return;
-    const { result, fields, gameId } = pending;
+    const fields = picked.size;
+    const gameId = item.game_id;
     busy = true;
     try {
       const next = result.fields;
@@ -196,9 +186,8 @@
         }),
       );
       await api.saveGameCharacters(gameId, kept);
-      if (pending?.gameId !== gameId) return;
+      if (item.game_id !== gameId) return;
       done = { fields, characters: kept.length };
-      pending = null;
       const patch = {
         game_id: gameId,
         vndb_id: result.id,
@@ -246,10 +235,7 @@
     type="button"
     class="bf-panel__close"
     aria-label={t('common.close')}
-    onclick={() => {
-      if (!busy) pending = null;
-      onclose?.();
-    }}
+    onclick={() => onclose?.()}
   >
     ×
   </button>
@@ -420,18 +406,6 @@
 {/if}
 
 <div class="bf-panel__actions">
-  {#if pending}
-    <div class="bf-panel__buttons">
-      <button
-        type="button"
-        class="btn btn-primary btn-sm"
-        disabled={busy}
-        onclick={applyPending}
-      >
-        {t('backfillPage.applyPending')}
-      </button>
-    </div>
-  {/if}
   {#if !unbound}
     <div class="bf-panel__buttons">
       {#if !rebind}
